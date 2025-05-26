@@ -125,8 +125,8 @@ def main():
         artist, title = [s.strip() for s in line.split("-", 1)]
         idx_str = f"{idx:03d}"
 
-        safe_artist = artist.replace("/", "_")
-        safe_title = title.replace("/", "_")
+        safe_artist = artist.replace("/", " ")
+        safe_title = title.replace("/", " ")
         song_path = music_dir / f"{safe_artist} - {safe_title}.mp3"
         if not song_path.exists():
             youtube_to_mp3(line, str(song_path))
