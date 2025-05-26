@@ -1,0 +1,2 @@
+Give me a playlist of 20 classic rock songs with artist and title only, in plain text.
+Return each song on a new line with this format: "Artist - Song Title". Don't include any list numbering, just the artist and the song title as I indicated.
