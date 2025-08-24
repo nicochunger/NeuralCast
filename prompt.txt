@@ -1,2 +1,3 @@
-Give me a playlist of 20 classic rock songs with artist and title only, in plain text.
-Return each song on a new line with this format: "Artist - Song Title". Don't include any list numbering, just the artist and the song title as I indicated.
+Give me a playlist of [NUM_TRACKS] [GENRE] songs. [DESCRIPTION]
+
+Only list tracks that are available on major streaming services and released between 1960-2025. Make sure to not list any duplicates.

@@ -1,3 +1,4 @@
 songs/
 .env
 __pycache__/
+.cache

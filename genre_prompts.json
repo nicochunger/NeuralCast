@@ -1,0 +1,92 @@
+{
+  "genres": [
+    {
+      "tag": "Classic Rock",
+      "description": "Iconic rock tracks from the 60s to 80s, guitar-driven and anthemic, featuring legendary bands like Led Zeppelin, Queen, and The Rolling Stones."
+    },
+    {
+      "tag": "Classic Metal",
+      "description": "All time favorite heavy metal tracks from the 70s, 80s and 90s, with powerful riffs, and soaring vocals, from bands like Black Sabbath, Iron Maiden, Judas Priest, Metallica, and others."
+    },
+    {
+      "tag": "Progressive Rock",
+      "description": "Classic and modern progressive rock with extended compositions, conceptual themes, and experimental structures, featuring bands like Pink Floyd, Genesis, Yes, King Crimson, and others."
+    },
+    {
+      "tag": "Neo-Prog",
+      "description": "Modern progressive rock inspired by 80s and 90s bands, with melodic vocals, lush synths, and emotional storytelling. Include artists like Marillion, IQ, and Arena."
+    },
+    {
+      "tag": "Prog Metal",
+      "description": "Complex, melodic, and technically rich metal with progressive structures, long compositions, and conceptual depth. Include bands like Dream Theater, Seventh Wonder, Kamelot, Darkwater, Circus Maximus, etc."
+    },
+    {
+      "tag": "Melodic Death Metal",
+      "description": "Aggressive yet melodic metal, mostly from Scandinavian bands, with growled vocals, fast drumming, and harmonized guitar lines. Include bands like Dark Tranquillity, Wintersun, Aether Realm, Brymir, Crepuscle, Atlas Pain, Omnium Gatherum, Equilibrium, etc."
+    },
+    {
+      "tag": "Classic Pop",
+      "description": "Chart-topping pop songs from the 80s and 90s with catchy hooks, synths, and feel-good energy."
+    },
+    {
+      "tag": "Argentine Rock",
+      "description": "Rock en español from Argentina, spanning classics and modern hits. Include iconic bands and artists like Soda Stereo, Charly García, Spinetta, Los Redondos, Los Autenticos Decadentes, Turf, Mancha de Rolando, Arbol, Los Pericos, etc, blending poetic lyrics with diverse rock influences."
+    },
+    {
+      "tag": "Cumbia Villera",
+      "description": "Traditional cumbia villera from Argentina, featuring catchy keyboard melodies, energetic rhythms, and streetwise lyrics. Characteristic of bands like Damas Gratis, Los Pibes Chorros, and Supermerk2."
+    },
+    {
+      "tag": "Tropical House",
+      "description": "Laid-back electronic dance music with island-inspired melodies, warm synths, and chill beach vibes, popularized by artists like Kygo or Matoma."
+    },
+    {
+      "tag": "Synthwave",
+      "description": "Retro-futuristic electronic music inspired by 80s synths, cinematic vibes, and nostalgic aesthetics."
+    },
+    {
+      "tag": "Funk & Soul",
+      "description": "Groove-heavy tracks with funky basslines, soulful vocals, brass instruments, and vintage rhythm sections."
+    },
+    {
+      "tag": "Indie Vibes",
+      "description": "Catchy, laid-back indie rock and pop with creative instrumentation and mellow vocals."
+    },
+    {
+      "tag": "Golden HipHop",
+      "description": "Classic hip-hop from the 90s to early 2000s, featuring smooth beats, lyrical storytelling, and influential artists."
+    },
+    {
+      "tag": "Classic Reggae",
+      "description": "Timeless reggae from the 70s-80s with roots rhythms, conscious lyrics, and artists like Bob Marley and Peter Tosh."
+    },
+    {
+      "tag": "Modern Reggae",
+      "description": "Contemporary reggae with polished production, mellow grooves, and modern-day revival artists like Chronixx and Protoje."
+    },
+    {
+      "tag": "Reggae Rock",
+      "description": "A fusion of reggae rhythms with rock, punk, or alternative elements, energetic and beachy."
+    },
+    {
+      "tag": "Millennial Nostalgia",
+      "description": "Unforgettable pop and rock hits from the late 90s and early 2000s that defined a generation, it's those tracks that are instantly recognizable."
+    },
+    {
+      "tag": "Eclectic Discovery",
+      "description": "Genre-blending tracks across funk, hip-hop, indie, lo-fi, or electronic, perfect for discovering hidden gems with a cool vibe."
+    },
+    {
+      "tag": "Irish Folk",
+      "description": "Traditional and contemporary Irish folk songs featuring storytelling lyrics, acoustic instruments like fiddles and tin whistles, and themes of love, history, and the Irish landscape."
+    },
+    {
+      "tag": "Melodic EDM",
+      "description": "Uplifting and emotional electronic music with smooth transitions, rich melodies, and minimal vocals. Focus on instrumental tracks like 'Sansa' and 'Long Way Home' by Gareth Emery — perfect for road trips and immersive listening."
+    },
+    {
+      "tag": "Aspen Vibes",
+      "description": "A curated blend of soft rock, adult contemporary, and melodic pop hits in English. Perfect for relaxed listening with a nostalgic touch — the signature sound of Aspen 102.3."
+    }
+  ]
+}
