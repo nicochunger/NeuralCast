@@ -1,4 +1,6 @@
 Artist,Title,Year,Validated
+Althea & Donna,Uptown Top Ranking,1977,True
+Alton Ellis,I'm Still in Love with You,1967,True
 Aswad,Back to Africa,1985,True
 Aswad,Don't Turn Around,1988,True
 Aswad,Dub Fire,1990,True
@@ -7,6 +9,8 @@ Aswad,Warrior Charge,1982,True
 Augustus Pablo,East of the River Nile,1973,True
 Augustus Pablo,Java,1985,True
 Augustus Pablo,King Tubby Meets the Rockers Uptown,1976,True
+Barrington Levy,Under Mi Sensi,1984,True
+Big Youth,S-90 Skank,1972,True
 Black Uhuru,Chill Out,1982,True
 Black Uhuru,General Penitentiary,1983,True
 Black Uhuru,Guess Who's Coming to Dinner,1980,True
@@ -43,6 +47,7 @@ Culture,Harder Than the Rest,1983,True
 Culture,I Pray,1978,True
 Culture,International Herb,1980,True
 Culture,Two Sevens Clash,1977,True
+Delroy Wilson,Better Must Come,1971,True
 Dennis Brown,Cassandra,1976,True
 Dennis Brown,Here I Come,1974,True
 Dennis Brown,How Could I Leave,1975,True
@@ -51,6 +56,9 @@ Dennis Brown,Money in My Pocket,1979,True
 Dennis Brown,Open the Gate,1971,True
 Dennis Brown,Revolution,1976,True
 Dennis Brown,Westbound Train,1982,True
+Desmond Dekker,007 (Shanty Town),1967,True
+Desmond Dekker,Israelites,1968,True
+Eek-A-Mouse,Ganja Smuggling,1981,True
 Freddie McGregor,Big Ship,1982,True
 Freddie McGregor,Prophecy,1980,True
 Gregory Isaacs,Cool Down the Pace,1982,True
@@ -68,6 +76,7 @@ Horace Andy,Skylarking,1972,True
 Israel Vibration,Cool and Calm,1979,True
 Israel Vibration,Rudeboy Shufflin',1979,True
 Israel Vibration,The Same Song,1976,True
+Jacob Miller,Tenement Yard,1976,True
 Jimmy Cliff,Many Rivers to Cross,1970,True
 Jimmy Cliff,Reggae Night,1983,True
 Jimmy Cliff,Sitting in Limbo,1971,True
@@ -80,16 +89,19 @@ John Holt,Stick By Me,1971,True
 John Holt,The Tide Is High,1980,True
 John Holt,Up Park Camp,1973,True
 Johnny Nash,I Can See Clearly Now,1972,True
+Johnny Osbourne,Truths and Rights,1979,True
 Junior Murvin,Police and Thieves,1976,True
 Junior Murvin,Solomon,1977,True
 Ken Boothe,Artibella,1974,True
 Ken Boothe,Everything I Own,1974,True
 Ken Boothe,Freedom Street,1975,True
+"Lee ""Scratch"" Perry & The Upsetters",Return of Django,1969,True
 Linton Kwesi Johnson,Di Great Insohreckshan,1984,True
 Linton Kwesi Johnson,Dread Beat an' Blood,1978,True
 Linton Kwesi Johnson,Independent Intavenshan,1977,True
 Linton Kwesi Johnson,Inglan Is a Bitch,1980,True
 Linton Kwesi Johnson,Sonny's Lettah,1979,True
+Max Romeo,Chase the Devil,1976,True
 Max Romeo,War Ina Babylon,1976,True
 Pablo Moses,I Man a Grasshopper,1978,True
 Pablo Moses,"Ready, Aim, Fire",1979,True
@@ -102,6 +114,7 @@ Peter Tosh,Johnny B. Goode,1978,True
 Peter Tosh,Legalize It,1976,True
 Peter Tosh,Mystic Man,1979,True
 Peter Tosh,Steppin' Razor,1977,True
+Sister Nancy,Bam Bam,1982,True
 Steel Pulse,Blues Dance Raid,1985,True
 Steel Pulse,Can't Stand It,1980,True
 Steel Pulse,Chant a Psalm,1984,True
@@ -110,10 +123,16 @@ Steel Pulse,Roller Skates,1982,True
 Steel Pulse,Sound System,1979,True
 Steel Pulse,Steppin' Out,1978,True
 Steel Pulse,Your House,1978,True
+Sugar Minott,Good Thing Going,1981,True
 The Abyssinians,Declaration of Rights,1969,True
 The Abyssinians,Satta Massagana,1976,True
+The Congos,Fisherman,1977,True
+The Gladiators,Jah Works,1978,True
+The Heptones,Book of Rules,1973,True
+The Melodians,Rivers of Babylon,1970,True
 The Mighty Diamonds,I Need a Roof,1976,True
 The Mighty Diamonds,Pass the Kouchie,1981,True
+The Pioneers,Long Shot Kick De Bucket,1969,True
 Third World,96 Degrees in the Shade,1977,True
 Third World,96° in the Shade,1977,True
 Third World,Cool Meditation,1984,True
@@ -136,29 +155,10 @@ Toots & the Maytals,"Take Me Home, Country Roads",1970,True
 Toots and the Maytals,54-46 Was My Number,1968,True
 Toots and the Maytals,Monkey Man,1969,True
 Toots and the Maytals,Pressure Drop,1970,True
+U-Roy,Wake the Town,1970,True
 UB40,Food for Thought,1980,True
 UB40,I Got You Babe,1985,True
 UB40,Kingston Town,1990,True
 UB40,One in Ten,1981,True
 UB40,Please Don't Make Me Cry,1983,True
 UB40,Red Red Wine,1983,True
-Desmond Dekker,Israelites,1968,False
-Desmond Dekker,007 (Shanty Town),1967,False
-Alton Ellis,I'm Still in Love with You,1967,False
-The Heptones,Book of Rules,1973,False
-The Congos,Fisherman,1977,False
-Jacob Miller,Tenement Yard,1976,False
-Barrington Levy,Under Mi Sensi,1984,False
-Sister Nancy,Bam Bam,1982,False
-Eek-A-Mouse,Ganja Smuggling,1981,False
-The Melodians,Rivers of Babylon,1970,False
-Althea & Donna,Uptown Top Ranking,1977,False
-"Lee ""Scratch"" Perry & The Upsetters",Return of Django,1969,False
-U-Roy,Wake the Town,1970,False
-Big Youth,S-90 Skank,1972,False
-The Pioneers,Long Shot Kick De Bucket,1969,False
-Delroy Wilson,Better Must Come,1971,False
-The Gladiators,Jah Works,1978,False
-Johnny Osbourne,Truths and Rights,1979,False
-Sugar Minott,Good Thing Going,1981,False
-Max Romeo,Chase the Devil,1976,False

@@ -102,9 +102,13 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
 
     # Check for existing MP3 files in songs directory and add them to playlist if missing
     playlist_name = pathlib.Path(playlist_path).stem
-    music_dir = pathlib.Path(STATION_PATH, playlist_name)
+    # music_dir = pathlib.Path(STATION_PATH, playlist_name)
+    if STATION_PATH:
+        music_dir = pathlib.Path(STATION_PATH, playlist_name)
+    else:
+        music_dir = None
 
-    if music_dir.exists():
+    if music_dir and music_dir.exists():
         existing_mp3s = list(music_dir.glob("*.mp3"))
         added_from_files = 0
 
@@ -156,9 +160,12 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
         if added_from_files > 0:
             print(f"Added {added_from_files} song(s) from existing MP3 files")
     else:
-        print(
-            f"Warning: Music directory '{music_dir}' does not exist, skipping MP3 file check"
-        )
+        if music_dir:
+            print(
+                f"Warning: Music directory '{music_dir}' does not exist, skipping MP3 file check"
+            )
+        else:
+            print("Warning: STATION_PATH is not set; skipping MP3 file check")
         added_from_files = 0
 
     # Remove duplicates based on artist and title (case insensitive)
@@ -387,14 +394,17 @@ def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
 
 
 def main(station_name: str):
-    global PLAYLISTS_PATH, STATION_PATH
-    # Determine the base path for stations (one level up from the script's directory)
+    global PLAYLISTS_PATH, STATION_PATH, STATION
+    # Determine the base path for stations (the project dir where this script lives)
     script_dir = pathlib.Path(__file__).parent
-    stations_base_dir = script_dir.parent
+    stations_base_dir = script_dir  # FIX: stations live under the project dir
 
     # Set paths based on the station name
     PLAYLISTS_PATH = stations_base_dir / station_name / "playlists"
     STATION_PATH = stations_base_dir / station_name / "songs"
+
+    # Also set AzuraCast station slug from station name (lowercased)
+    STATION = station_name.lower()
 
     print(f"Running for station: {station_name}")
     print(f"Playlists path: {PLAYLISTS_PATH}")
@@ -736,13 +746,14 @@ def main(station_name: str):
 
 def list_playlists(station_name: str):
     """List all available playlists."""
-    global PLAYLISTS_PATH
-    # Determine the base path for stations (one level up from the script's directory)
+    global PLAYLISTS_PATH, STATION_PATH
+    # Determine the base path for stations (the project dir where this script lives)
     script_dir = pathlib.Path(__file__).parent
-    stations_base_dir = script_dir.parent
+    stations_base_dir = script_dir  # FIX: stations live under the project dir
 
     # Set paths based on the station name
     PLAYLISTS_PATH = stations_base_dir / station_name / "playlists"
+    STATION_PATH = stations_base_dir / station_name / "songs"
 
     playlists_dir = pathlib.Path(PLAYLISTS_PATH)
     if not playlists_dir.exists():
@@ -772,5 +783,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    list_playlists(args.station)
-    main(args.station)
+    # Default to 'NeuralCast' if not provided
+    station = args.station or "NeuralCast"
+
+    list_playlists(station)
+    main(station)
