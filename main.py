@@ -142,6 +142,32 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                     )
 
                     if not existing:
+                        # NEW: ensure filename matches "{artist} - {title}.mp3"
+                        safe_artist = (
+                            file_artist.replace("/", " ").replace("\\", " ").strip()
+                        )
+                        safe_title = (
+                            file_title.replace("/", " ").replace("\\", " ").strip()
+                        )
+                        expected_name = f"{safe_artist} - {safe_title}.mp3"
+                        target_path = mp3_file.with_name(expected_name)
+                        if mp3_file.name != expected_name:
+                            try:
+                                if target_path.exists():
+                                    print(
+                                        f"Warning: Target exists, cannot rename {mp3_file.name} -> {expected_name}"
+                                    )
+                                else:
+                                    mp3_file.rename(target_path)
+                                    print(
+                                        f"Renamed file: {mp3_file.name} -> {expected_name}"
+                                    )
+                                    mp3_file = target_path
+                            except Exception as e:
+                                print(
+                                    f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {e}"
+                                )
+
                         # Use year from metadata or default to "Unknown"
                         year_to_use = file_year if file_year else "Unknown"
                         song = Song(
@@ -153,7 +179,6 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                         songs.append(song)
                         added_from_files += 1
                         print(f"Added from existing file: {file_artist} - {file_title}")
-
             except Exception as e:
                 print(f"Warning: Could not read metadata from {mp3_file}: {e}")
 
@@ -676,9 +701,15 @@ def main(station_name: str):
         print(f"Finished processing playlist: {playlist_name}")
 
     # Analyze cross-playlist repetition
-    print("\n" + "=" * 60)
-    print("📊 CROSS-PLAYLIST REPETITION ANALYSIS")
-    print("=" * 60)
+    # REPLACED prints with log-to-file
+    analysis_lines: List[str] = []
+
+    def log(line: str = ""):
+        analysis_lines.append(line)
+
+    log("\n" + "=" * 60)
+    log("📊 CROSS-PLAYLIST REPETITION ANALYSIS")
+    log("=" * 60)
 
     # Create a dictionary to track songs and which playlists they appear in
     song_appearances = {}
@@ -701,17 +732,17 @@ def main(station_name: str):
     duplicate_songs = len(duplicates)
     unique_songs = total_unique_songs - duplicate_songs
 
-    print(f"\n📈 Summary:")
-    print(f"   Total songs across all playlists: {total_songs}")
-    print(f"   Total unique songs across all playlists: {total_unique_songs}")
-    print(f"   Songs appearing in multiple playlists: {duplicate_songs}")
-    print(f"   Songs appearing in only one playlist: {unique_songs}")
+    log(f"\n📈 Summary:")
+    log(f"   Total songs across all playlists: {total_songs}")
+    log(f"   Total unique songs across all playlists: {total_unique_songs}")
+    log(f"   Songs appearing in multiple playlists: {duplicate_songs}")
+    log(f"   Songs appearing in only one playlist: {unique_songs}")
 
     if duplicate_songs > 0:
         duplication_percentage = (duplicate_songs / total_unique_songs) * 100
-        print(f"   Duplication rate: {duplication_percentage:.1f}%")
+        log(f"   Duplication rate: {duplication_percentage:.1f}%")
 
-        print(f"\n🔄 Songs appearing in multiple playlists:")
+        log(f"\n🔄 Songs appearing in multiple playlists:")
 
         # Sort duplicates by number of appearances (descending)
         sorted_duplicates = sorted(
@@ -723,10 +754,8 @@ def main(station_name: str):
             playlists = info["playlists"]
             playlist_count = len(playlists)
 
-            print(f"\n   🎵 {song.artist} - {song.title} ({song.year})")
-            print(
-                f"      Appears in {playlist_count} playlists: {', '.join(playlists)}"
-            )
+            log(f"\n   🎵 {song.artist} - {song.title} ({song.year})")
+            log(f"      Appears in {playlist_count} playlists: {', '.join(playlists)}")
 
         # Show statistics by number of appearances
         appearance_counts = {}
@@ -734,14 +763,22 @@ def main(station_name: str):
             count = len(info["playlists"])
             appearance_counts[count] = appearance_counts.get(count, 0) + 1
 
-        print(f"\n📊 Breakdown by number of appearances:")
+        log(f"\n📊 Breakdown by number of appearances:")
         for count in sorted(appearance_counts.keys(), reverse=True):
             songs_count = appearance_counts[count]
-            print(f"   {songs_count} song(s) appear in {count} playlists")
+            log(f"   {songs_count} song(s) appear in {count} playlists")
     else:
-        print(f"\n✅ No duplicate songs found across playlists!")
+        log(f"\n✅ No duplicate songs found across playlists!")
 
-    print("\n" + "=" * 60)
+    log("\n" + "=" * 60)
+
+    # Write analysis to a station-scoped log file
+    analysis_log_file = STATION_PATH.parent / "duplicate_analysis.log"
+    with open(analysis_log_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(analysis_lines) + "\n")
+
+    # Optional: a single line to inform where the analysis is saved
+    print(f"📝 Cross-playlist analysis written to {analysis_log_file}")
 
 
 def list_playlists(station_name: str):
