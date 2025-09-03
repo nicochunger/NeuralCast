@@ -59,7 +59,18 @@ class Playlist(BaseModel):
 
 def read_playlist_file(playlist_path: str) -> List[Song]:
     """Read a CSV playlist file, remove duplicates, sort, and return list of Song objects."""
-    df = pd.read_csv(playlist_path)
+    # Make sure Year remains a string; avoid automatic NaN->float promotion
+    df = pd.read_csv(
+        playlist_path,
+        dtype={
+            "Year": "string",
+            "Artist": "string",
+            "Title": "string",
+            "Album": "string",
+        },
+        keep_default_na=False,
+        na_filter=False,
+    )
     songs = []
 
     # Check if Validated column exists, if not add it
@@ -232,7 +243,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                 {
                     "Artist": song.artist,
                     "Title": song.title,
-                    "Year": song.year,
+                    "Year": str(int(song.year)),
                     "Album": song.album or "",  # NEW: preserve album column
                     "Validated": song.validated,
                 }
@@ -413,8 +424,8 @@ def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
             {
                 "Artist": song.artist,
                 "Title": song.title,
-                "Year": song.year,
                 "Album": song.album or "",  # NEW: keep album in CSV
+                "Year": song.year,
                 "Validated": song.validated,
             }
             for song in songs
@@ -606,60 +617,59 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
 
                 for song, song_path in unvalidated_existing:
                     if verified(song.artist, song.title):
-                        # Create new song with updated validation status
-                        updated_song = Song(
-                            artist=song.artist,
-                            title=song.title,
-                            year=song.year,
-                            album=song.album,  # NEW: preserve album
-                            validated=True,
-                        )
-                        # Replace the song in the songs list
-                        for i, s in enumerate(songs):
-                            if s.artist == song.artist and s.title == song.title:
-                                songs[i] = updated_song
-                                break
-                        valid_existing.append((updated_song, song_path))
-                        validation_updates = True
-                        print(f"✓ Validated: {song.artist} - {song.title}")
-
-                        # NEW: album validation (non-destructive)
-                        if updated_song.album and str(updated_song.album).strip():
+                        # NEW: Only set validated=True if album (when present) is validated
+                        album_ok = True
+                        if song.album and str(song.album).strip():
                             try:
-                                if verified_album(
-                                    updated_song.artist,
-                                    updated_song.title,
-                                    updated_song.album,
-                                ):
-                                    print(f"   ↳ Album validated: {updated_song.album}")
+                                if verified_album(song.artist, song.title, song.album):
+                                    print(f"   ↳ Album validated: {song.album}")
                                 else:
-                                    print(
-                                        f"   ↳ Album not validated: {updated_song.album}"
-                                    )
-                                    # NEW: record not validated album
+                                    album_ok = False
+                                    print(f"   ↳ Album not validated: {song.album}")
                                     invalid_albums.append(
                                         {
-                                            "Artist": updated_song.artist,
-                                            "Title": updated_song.title,
-                                            "Album": str(updated_song.album).strip(),
+                                            "Artist": song.artist,
+                                            "Title": song.title,
+                                            "Album": str(song.album).strip(),
                                             "Playlist": playlist_name,
-                                            "Reason": "not_validated",
+                                            "Reason": "album_not_validated",
                                         }
                                     )
                             except Exception:
+                                album_ok = False
                                 print(
-                                    f"   ↳ Album validation error (skipped): {updated_song.album}"
+                                    f"   ↳ Album validation error (skipped): {song.album}"
                                 )
-                                # NEW: record validation error as not validated
                                 invalid_albums.append(
                                     {
-                                        "Artist": updated_song.artist,
-                                        "Title": updated_song.title,
-                                        "Album": str(updated_song.album).strip(),
+                                        "Artist": song.artist,
+                                        "Title": song.title,
+                                        "Album": str(song.album).strip(),
                                         "Playlist": playlist_name,
-                                        "Reason": "validation_error",
+                                        "Reason": "album_validation_error",
                                     }
                                 )
+
+                        if album_ok:
+                            updated_song = Song(
+                                artist=song.artist,
+                                title=song.title,
+                                year=song.year,
+                                album=song.album,
+                                validated=True,
+                            )
+                            for i, s in enumerate(songs):
+                                if s.artist == song.artist and s.title == song.title:
+                                    songs[i] = updated_song
+                                    break
+                            valid_existing.append((updated_song, song_path))
+                            validation_updates = True
+                            print(f"✓ Validated: {song.artist} - {song.title}")
+                        else:
+                            # Keep entry and file; remain unvalidated
+                            print(
+                                f"   ↳ Keeping Validated=False due to album validation failure"
+                            )
                     else:
                         invalid_existing.append((song, song_path))
                         songs_to_remove_from_playlist.append(song)
@@ -701,58 +711,60 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
 
             for song, song_path in unvalidated_missing:
                 if verified(song.artist, song.title):
-                    # Create new song with updated validation status
-                    updated_song = Song(
-                        artist=song.artist,
-                        title=song.title,
-                        year=song.year,
-                        album=song.album,  # NEW: preserve album
-                        validated=True,
-                    )
-                    # Replace the song in the songs list
-                    for i, s in enumerate(songs):
-                        if s.artist == song.artist and s.title == song.title:
-                            songs[i] = updated_song
-                            break
-                    valid_songs.append((updated_song, song_path))
-                    validation_updates = True
-                    print(f"✓ Validated for download: {song.artist} - {song.title}")
-
-                    # NEW: album validation (non-destructive)
-                    if updated_song.album and str(updated_song.album).strip():
+                    # NEW: Only set validated=True and schedule download if album (when present) is validated
+                    album_ok = True
+                    if song.album and str(song.album).strip():
                         try:
-                            if verified_album(
-                                updated_song.artist,
-                                updated_song.title,
-                                updated_song.album,
-                            ):
-                                print(f"   ↳ Album validated: {updated_song.album}")
+                            if verified_album(song.artist, song.title, song.album):
+                                print(f"   ↳ Album validated: {song.album}")
                             else:
-                                print(f"   ↳ Album not validated: {updated_song.album}")
-                                # NEW: record not validated album
+                                album_ok = False
+                                print(f"   ↳ Album not validated: {song.album}")
                                 invalid_albums.append(
                                     {
-                                        "Artist": updated_song.artist,
-                                        "Title": updated_song.title,
-                                        "Album": str(updated_song.album).strip(),
+                                        "Artist": song.artist,
+                                        "Title": song.title,
+                                        "Album": str(song.album).strip(),
                                         "Playlist": playlist_name,
                                         "Reason": "not_validated",
                                     }
                                 )
                         except Exception:
+                            album_ok = False
                             print(
-                                f"   ↳ Album validation error (skipped): {updated_song.album}"
+                                f"   ↳ Album validation error (skipped): {song.album}"
                             )
-                            # NEW: record validation error as not validated
                             invalid_albums.append(
                                 {
-                                    "Artist": updated_song.artist,
-                                    "Title": updated_song.title,
-                                    "Album": str(updated_song.album).strip(),
+                                    "Artist": song.artist,
+                                    "Title": song.title,
+                                    "Album": str(song.album).strip(),
                                     "Playlist": playlist_name,
                                     "Reason": "validation_error",
                                 }
                             )
+
+                    if album_ok:
+                        updated_song = Song(
+                            artist=song.artist,
+                            title=song.title,
+                            year=song.year,
+                            album=song.album,
+                            validated=True,
+                        )
+                        # Replace the song in the songs list
+                        for i, s in enumerate(songs):
+                            if s.artist == song.artist and s.title == song.title:
+                                songs[i] = updated_song
+                                break
+                        valid_songs.append((updated_song, song_path))
+                        validation_updates = True
+                        print(f"✓ Validated for download: {song.artist} - {song.title}")
+                    else:
+                        # Keep entry; do not download; remain unvalidated
+                        print(
+                            f"   ↳ Skipping download; keeping Validated=False due to album validation failure"
+                        )
                 else:
                     invalid_songs.append((song, song_path))
                     print(f"❌ Invalid/not found: {song.artist} - {song.title}")
@@ -760,7 +772,6 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
 
             valid_count = len(valid_songs)
             invalid_count = len(invalid_songs)
-
             print(f"   Valid songs to download: {valid_count}")
             print(f"   Invalid/not found songs: {invalid_count}")
         else:
