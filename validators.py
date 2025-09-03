@@ -98,13 +98,34 @@ def itunes_album_ok(artist, title, album):
         return False
 
 
-def verified_album(artist, title, album):
-    # True if any provider confirms the specific album for the track
-    return (
-        spotify_album_ok(artist, title, album)
-        or mb_album_ok(artist, title, album)
-        or itunes_album_ok(artist, title, album)
-    )
+def verified_album(artist, title, album, verbose=False):
+    """
+    Checks if a track's album is verified by Spotify, MusicBrainz, or iTunes.
+
+    Args:
+        artist (str): The artist's name.
+        title (str): The track's title.
+        album (str): The album's name.
+        verbose (bool): If True, returns a dict with each provider's status.
+
+    Returns:
+        bool or dict: If verbose is False, returns True if any provider verifies
+                      the album, False otherwise. If verbose is True, returns a
+                      dictionary with the validation status for each provider.
+    """
+    spotify = spotify_album_ok(artist, title, album)
+    mb = mb_album_ok(artist, title, album)
+    itunes = itunes_album_ok(artist, title, album)
+
+    if verbose:
+        return {
+            "spotify": spotify,
+            "musicbrainz": mb,
+            "itunes": itunes,
+            "any": spotify or mb or itunes,
+        }
+
+    return spotify or mb or itunes
 
 
 def validate_album_field(artist, title, album):
@@ -134,17 +155,22 @@ def validate_album_field(artist, title, album):
             "message": "Album not provided (empty)",
         }
 
-    is_valid = verified_album(artist, title, album_str)
+    validation_details = verified_album(artist, title, album_str, verbose=True)
+    is_valid = validation_details["any"]
+
     if is_valid:
+        validated_by = [
+            k.capitalize() for k, v in validation_details.items() if k != "any" and v
+        ]
         return {
             "provided": True,
             "validated": True,
-            "message": "Album validated",
+            "message": f"Album validated by {', '.join(validated_by)}",
         }
 
     # Do not delete it — just report it isn't validated
     return {
         "provided": True,
         "validated": False,
-        "message": "Album not validated",
+        "message": "Album not validated by any provider",
     }
