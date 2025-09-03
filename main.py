@@ -12,24 +12,22 @@ main.py — AI-assisted local-network radio pipeline
 
 import json
 import os, subprocess, pathlib
-from typing import List
+from typing import List, Optional
 import openai
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC, error
-from pydantic import BaseModel  # Add this import
+from pydantic import BaseModel
 import paramiko
 import requests
 from dotenv import load_dotenv
-import pandas as pd  # Replace csv import with pandas
-from validators import verified  # Add this import
+import pandas as pd
+from validators import verified, verified_album
 import argparse
 
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────
 load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")  # required
-# ELEVEN_KEY = os.getenv("ELEVEN_API_KEY")  # required if TTS=True
-# STATION_PATH = "/var/azuracast/stations/my_station/media"
 # The following paths will be set dynamically based on the station argument
 STATION_PATH = None
 PLAYLISTS_PATH = None
@@ -48,6 +46,7 @@ class Song(BaseModel):
     artist: str
     title: str
     year: str
+    album: Optional[str] = None  # NEW: optional album support
     validated: bool = False  # Add validated field with default value
 
 
@@ -73,16 +72,20 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
         artist = None
         title = None
         year = None
+        album = None  # NEW
         validated = False
 
         for col in df.columns:
-            if col.lower() == "artist":
+            cl = col.lower()
+            if cl == "artist":
                 artist = str(row[col]).strip()
-            elif col.lower() == "title":
+            elif cl == "title":
                 title = str(row[col]).strip()
-            elif col.lower() == "year":
+            elif cl == "year":
                 year = str(row[col]).strip()
-            elif col.lower() == "validated":
+            elif cl == "album":  # NEW: optional album
+                album = str(row[col]).strip() if pd.notna(row[col]) else None
+            elif cl == "validated":
                 validated = bool(row[col]) if pd.notna(row[col]) else False
 
         if (
@@ -93,7 +96,9 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
             and title != "nan"
             and year != "nan"
         ):
-            song = Song(artist=artist, title=title, year=year, validated=validated)
+            song = Song(
+                artist=artist, title=title, year=year, album=album, validated=validated
+            )  # NEW: pass album
             songs.append(song)
         else:
             print(
@@ -174,6 +179,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                             artist=file_artist,
                             title=file_title,
                             year=year_to_use,
+                            album=None,  # NEW: no album info from file
                             validated=False,  # Mark as not validated since it's a new addition
                         )
                         songs.append(song)
@@ -223,6 +229,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                     "Artist": song.artist,
                     "Title": song.title,
                     "Year": song.year,
+                    "Album": song.album or "",  # NEW: preserve album column
                     "Validated": song.validated,
                 }
                 for song in unique_songs
@@ -361,22 +368,6 @@ def tts(text: str, outfile: str):
     )
 
 
-def azuracast_rescan():
-    subprocess.run(
-        [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "web",
-            "php",
-            "/var/azuracast/www/bin/azuracast",
-            "azuracast:sync:task",
-            "CheckMediaTask",
-        ]
-    )
-
-
 def sftp_upload(local_path, remote_path, hostname, username, password, port=2022):
     transport = paramiko.Transport((hostname, port))
     transport.connect(username=username, password=password)
@@ -410,6 +401,7 @@ def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
                 "Artist": song.artist,
                 "Title": song.title,
                 "Year": song.year,
+                "Album": song.album or "",  # NEW: keep album in CSV
                 "Validated": song.validated,
             }
             for song in songs
@@ -467,6 +459,7 @@ def main(station_name: str):
                 artist=song.artist,
                 title=song.title,
                 year=song.year,
+                album=song.album,  # NEW
                 validated=song.validated,
             )
             for song in songs
@@ -539,6 +532,7 @@ def main(station_name: str):
                             artist=song.artist,
                             title=song.title,
                             year=song.year,
+                            album=song.album,  # NEW: preserve album
                             validated=True,
                         )
                         # Replace the song in the songs list
@@ -549,6 +543,24 @@ def main(station_name: str):
                         valid_existing.append((updated_song, song_path))
                         validation_updates = True
                         print(f"✓ Validated: {song.artist} - {song.title}")
+
+                        # NEW: album validation (non-destructive)
+                        if updated_song.album and str(updated_song.album).strip():
+                            try:
+                                if verified_album(
+                                    updated_song.artist,
+                                    updated_song.title,
+                                    updated_song.album,
+                                ):
+                                    print(f"   ↳ Album validated: {updated_song.album}")
+                                else:
+                                    print(
+                                        f"   ↳ Album not validated: {updated_song.album}"
+                                    )
+                            except Exception:
+                                print(
+                                    f"   ↳ Album validation error (skipped): {updated_song.album}"
+                                )
                     else:
                         invalid_existing.append((song, song_path))
                         songs_to_remove_from_playlist.append(song)
@@ -595,6 +607,7 @@ def main(station_name: str):
                         artist=song.artist,
                         title=song.title,
                         year=song.year,
+                        album=song.album,  # NEW: preserve album
                         validated=True,
                     )
                     # Replace the song in the songs list
@@ -605,6 +618,22 @@ def main(station_name: str):
                     valid_songs.append((updated_song, song_path))
                     validation_updates = True
                     print(f"✓ Validated for download: {song.artist} - {song.title}")
+
+                    # NEW: album validation (non-destructive)
+                    if updated_song.album and str(updated_song.album).strip():
+                        try:
+                            if verified_album(
+                                updated_song.artist,
+                                updated_song.title,
+                                updated_song.album,
+                            ):
+                                print(f"   ↳ Album validated: {updated_song.album}")
+                            else:
+                                print(f"   ↳ Album not validated: {updated_song.album}")
+                        except Exception:
+                            print(
+                                f"   ↳ Album validation error (skipped): {updated_song.album}"
+                            )
                 else:
                     invalid_songs.append((song, song_path))
                     print(f"❌ Invalid/not found: {song.artist} - {song.title}")

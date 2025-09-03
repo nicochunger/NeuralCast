@@ -2,3 +2,4 @@ songs/
 .env
 __pycache__/
 .cache
+*.mp3
