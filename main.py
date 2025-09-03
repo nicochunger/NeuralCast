@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from validators import verified, verified_album
 import argparse
+from album_art import embed_from_artist_album  # NEW
 
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────
@@ -342,25 +343,32 @@ def tag_mp3(
         audio["album"] = str(album).strip()
     audio.save()
 
-    # Add album art (thumbnail)
-    try:
-        id3 = ID3(path)
-    except error:
-        id3 = ID3()
-
-    thumbnail_path = os.path.join(os.path.dirname(__file__), "Thumbnail_logo.png")
-    if os.path.exists(thumbnail_path):
-        with open(thumbnail_path, "rb") as img:
-            id3.add(
-                APIC(
-                    encoding=3,  # UTF-8
-                    mime="image/png",
-                    type=3,  # Cover (front)
-                    desc="Cover",
-                    data=img.read(),
+    # Add album art
+    if album and str(album).strip():
+        # NEW: Use MusicBrainz cover art when album is available
+        try:
+            embed_from_artist_album(path, artist, str(album).strip())
+        except Exception as e:
+            print(f"Warning: Failed to embed cover art from MusicBrainz: {e}")
+    else:
+        # Fallback to local thumbnail if no album available
+        try:
+            id3 = ID3(path)
+        except error:
+            id3 = ID3()
+        thumbnail_path = os.path.join(os.path.dirname(__file__), "Thumbnail_logo.png")
+        if os.path.exists(thumbnail_path):
+            with open(thumbnail_path, "rb") as img:
+                id3.add(
+                    APIC(
+                        encoding=3,  # UTF-8
+                        mime="image/png",
+                        type=3,  # Cover (front)
+                        desc="Cover",
+                        data=img.read(),
+                    )
                 )
-            )
-        id3.save(path)
+            id3.save(path)
 
     # Apply ReplayGain to the newly downloaded mp3
     print(f"Applying ReplayGain to {path}")
