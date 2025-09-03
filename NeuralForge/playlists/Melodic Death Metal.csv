@@ -1,89 +1,89 @@
-Artist,Title,Year,Validated
-Aephanemer,Antigone,2021,True
-Aephanemer,Memento Mori,2019,True
-Aephanemer,Path of the Wolf,2016,True
-Aether Realm,Tarot,2017,True
-Aether Realm,The Magician,2020,True
-Aether Realm,"The Sun, the Moon, the Star",2017,True
-Amorphis,Against Widows,1996,True
-Amorphis,Amongst Stars,2018,True
-Amorphis,The Bee,2018,True
-Arch Enemy,Burning Angel,2001,True
-Arch Enemy,Nemesis,2005,True
-Arch Enemy,Ravenous,2001,True
-Arch Enemy,War Eternal,2014,True
-Arch Enemy,We Will Rise,2003,True
-At the Gates,Slaughter of the Soul,1995,True
-At the Gates,To Drink from the Night Itself,2018,True
-Atlas Pain,The Moving Empire,2017,True
-Be'lakor,Abeyance,2016,True
-Be'lakor,The Smoke of Many Fires,2012,True
-Be'lakor,Venator,2016,True
-Brymir,Gloria in Regum,2022,True
-Brymir,Herald of Aegir,2022,True
-Brymir,Pantheon of Forsaken,2019,True
-Brymir,"Ride On, Spirit",2022,True
-Brymir,Wings of Fire,2019,True
-Children of Bodom,Everytime I Die,2000,True
-Children of Bodom,Kissing the Shadows,2000,True
-Children of Bodom,Lake Bodom,1999,True
-Crepuscle,In the Winds of Glory,2019,True
-Dark Tranquillity,Atoma,2016,True
-Dark Tranquillity,Lost to Apathy,2005,True
-Dark Tranquillity,Misery's Crown,2007,True
-Dark Tranquillity,Monochromatic Stains,2002,True
-Dark Tranquillity,Phantom Days,2020,True
-Dark Tranquillity,Terminus (Where Death Is Most Alive),2007,True
-Ensiferum,In My Sword I Trust,2012,True
-Equilibrium,Blut im Auge,2008,True
-Equilibrium,Born to Be Epic,2016,True
-Eternal Tears of Sorrow,Swan Saivo,2013,True
-Eternal Tears of Sorrow,The Last One for Life,2009,True
-Eternal Tears of Sorrow,The River Flows Frozen,1998,True
-In Flames,Cloud Connected,2002,True
-In Flames,Moonshield,1996,True
-In Flames,Only for the Weak,2000,True
-In Flames,Pinball Map,2000,True
-Insomnium,Down With the Sun,2009,True
-Insomnium,Ephemeral,2013,True
-Insomnium,Godforsaken,2023,True
-Insomnium,Heart Like a Grave,2019,True
-Insomnium,Pale Morning Star,2019,True
-Insomnium,Through the Shadows,2011,True
-Insomnium,Valediction,2019,True
-Insomnium,While We Sleep,2014,True
-Kalmah,Heroes to Us,2003,True
-Kalmah,Moon of My Nights,2023,True
-Kalmah,Seventh Swamphony,2013,True
-Kalmah,Swamphell,2003,True
-Kalmah,Take Me Away,2002,True
-Kalmah,The Groan of Wind,2006,True
-Mors Principium Est,I Will Return,2012,True
-Mors Principium Est,Life in Black,2003,True
-Mors Principium Est,Reclaim the Sun,2017,True
-Mors Principium Est,The Unborn,2005,True
-Norther,Death Unlimited,2004,True
-Norther,Frozen Angel,2006,True
-Norther,Mirror of Madness,2003,True
-Omnium Gatherum,Be the Sky,2021,True
-Omnium Gatherum,Deep Cold,2008,True
-Omnium Gatherum,New Dynamic,2013,True
-Omnium Gatherum,Skyline,2018,True
-Omnium Gatherum,The Unknowing,2013,True
-Scar Symmetry,Ghost Prototype I - Measurement of Thought,2008,True
-Scar Symmetry,Holographic Universe,2008,True
-Scar Symmetry,Morphogenesis,2008,True
-Scar Symmetry,The Illusionist,2006,True
-Soilwork,Arrival,2019,True
-Soilwork,Nerve,2005,True
-Soilwork,Stabbing the Drama,2005,True
-Soilwork,Stålfågel,2019,True
-Wintersun,Awaken from the Dark Slumber (Spring),2017,True
-Wintersun,Battle Against Time,2004,True
-Wintersun,Beyond the Dark Sun,2004,True
-Wintersun,Sons of Winter and Stars,2012,True
-Wintersun,Starchild,2004,True
-Wintersun,Time,2012,True
-Wolfheart,The Flood,2013,True
-Wolfheart,The Hammer,2022,True
-Wolfheart,The Hunt,2018,True
+Artist,Title,Album,Year,Validated
+Aephanemer,Antigone,A Dream of Wilderness,2021,True
+Aephanemer,Memento Mori,Memento Mori,2019,True
+Aephanemer,Path of the Wolf,Memento Mori,2016,True
+Aether Realm,Tarot,Tarot,2017,True
+Aether Realm,The Magician,Tarot,2020,True
+Aether Realm,"The Sun, the Moon, the Star",Tarot,2017,True
+Amorphis,Against Widows,Elegy,1996,True
+Amorphis,Amongst Stars,Queen of Time,2018,True
+Amorphis,The Bee,Queen of Time,2018,True
+Arch Enemy,Burning Angel,Wages of Sin,2001,True
+Arch Enemy,Nemesis,Doomsday Machine,2005,True
+Arch Enemy,Ravenous,Wages of Sin,2001,True
+Arch Enemy,War Eternal,War Eternal,2014,True
+Arch Enemy,We Will Rise,Anthems of Rebellion,2003,True
+At the Gates,Slaughter of the Soul,Slaughter of the Soul,1995,True
+At the Gates,To Drink from the Night Itself,To Drink from the Night Itself,2018,True
+Atlas Pain,The Moving Empire,What the Oak Left,2017,True
+Be'lakor,Abeyance,Vessels,2016,True
+Be'lakor,The Smoke of Many Fires,Of Breath and Bone,2012,True
+Be'lakor,Venator,Vessels,2016,True
+Brymir,Gloria in Regum,Voices in the Sky,2022,True
+Brymir,Herald of Aegir,Voices in the Sky,2022,True
+Brymir,Pantheon of Forsaken,Wings of Fire,2019,True
+Brymir,"Ride On, Spirit",Voices in the Sky,2022,True
+Brymir,Wings of Fire,Wings of Fire,2019,True
+Children of Bodom,Everytime I Die,Follow the Reaper,2000,True
+Children of Bodom,Kissing the Shadows,Follow the Reaper,2000,True
+Children of Bodom,Lake Bodom,Hatebreeder,1999,True
+Crepuscle,In the Winds of Glory,Heavenly Skies,2019,True
+Dark Tranquillity,Atoma,Atoma,2016,True
+Dark Tranquillity,Lost to Apathy,Character,2005,True
+Dark Tranquillity,Misery's Crown,Fiction,2007,True
+Dark Tranquillity,Monochromatic Stains,Damage Done,2002,True
+Dark Tranquillity,Phantom Days,Moment,2020,True
+Dark Tranquillity,Terminus (Where Death Is Most Alive),Fiction,2007,True
+Ensiferum,In My Sword I Trust,Unsung Heroes,2012,True
+Equilibrium,Blut im Auge,Sagas,2008,True
+Equilibrium,Born to Be Epic,Armageddon,2016,True
+Eternal Tears of Sorrow,Swan Saivo,Saivon Lapsi,2013,True
+Eternal Tears of Sorrow,The Last One for Life,Children of the Dark Waters,2009,True
+Eternal Tears of Sorrow,The River Flows Frozen,Vilda Mánnu,1998,True
+In Flames,Cloud Connected,Reroute to Remain,2002,True
+In Flames,Moonshield,The Jester Race,1996,True
+In Flames,Only for the Weak,Clayman,2000,True
+In Flames,Pinball Map,Clayman,2000,True
+Insomnium,Down With the Sun,Across the Dark,2009,True
+Insomnium,Ephemeral,Shadows of the Dying Sun,2013,True
+Insomnium,Godforsaken,Anno 1696,2023,True
+Insomnium,Heart Like a Grave,Heart Like a Grave,2019,True
+Insomnium,Pale Morning Star,Heart Like a Grave,2019,True
+Insomnium,Through the Shadows,One for Sorrow,2011,True
+Insomnium,Valediction,Heart Like a Grave,2019,True
+Insomnium,While We Sleep,Shadows of the Dying Sun,2014,True
+Kalmah,Heroes to Us,Swampsong,2003,True
+Kalmah,Moon of My Nights,Kalmah,2023,True
+Kalmah,Seventh Swamphony,Seventh Swamphony,2013,True
+Kalmah,Swamphell,Swampsong,2003,True
+Kalmah,Take Me Away,They Will Return,2002,True
+Kalmah,The Groan of Wind,The Black Waltz,2006,True
+Mors Principium Est,I Will Return,...And Death Said Live,2012,True
+Mors Principium Est,Life in Black,Inhumanity,2003,True
+Mors Principium Est,Reclaim the Sun,Embers of a Dying World,2017,True
+Mors Principium Est,The Unborn,The Unborn,2005,True
+Norther,Death Unlimited,Death Unlimited,2004,True
+Norther,Frozen Angel,No Way Back (EP),2006,True
+Norther,Mirror of Madness,Mirror of Madness,2003,True
+Omnium Gatherum,Be the Sky,The Burning Cold,2021,True
+Omnium Gatherum,Deep Cold,The Redshift,2008,True
+Omnium Gatherum,New Dynamic,Beyond,2013,True
+Omnium Gatherum,Skyline,The Burning Cold,2018,True
+Omnium Gatherum,The Unknowing,Beyond,2013,True
+Scar Symmetry,Ghost Prototype I - Measurement of Thought,Holographic Universe,2008,True
+Scar Symmetry,Holographic Universe,Holographic Universe,2008,True
+Scar Symmetry,Morphogenesis,Holographic Universe,2008,True
+Scar Symmetry,The Illusionist,Pitch Black Progress,2006,True
+Soilwork,Arrival,Verkligheten,2019,True
+Soilwork,Nerve,Stabbing the Drama,2005,True
+Soilwork,Stabbing the Drama,Stabbing the Drama,2005,True
+Soilwork,Stålfågel,Verkligheten,2019,True
+Wintersun,Awaken from the Dark Slumber (Spring),The Forest Seasons,2017,True
+Wintersun,Battle Against Time,Wintersun,2004,True
+Wintersun,Beyond the Dark Sun,Wintersun,2004,True
+Wintersun,Sons of Winter and Stars,Time I,2012,True
+Wintersun,Starchild,Wintersun,2004,True
+Wintersun,Time,Time I,2012,True
+Wolfheart,The Flood,Winterborn,2013,True
+Wolfheart,The Hammer,King of the North,2022,True
+Wolfheart,The Hunt,Constellation of the Black Light,2018,True

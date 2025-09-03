@@ -126,6 +126,9 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                 )
                 file_title = audio.get("title", [""])[0] if audio.get("title") else ""
                 file_year = audio.get("date", [""])[0] if audio.get("date") else ""
+                file_album = (
+                    audio.get("album", [""])[0] if audio.get("album") else ""
+                )  # NEW
 
                 # If we can't get metadata, try to parse from filename
                 if not file_artist or not file_title:
@@ -179,8 +182,9 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                             artist=file_artist,
                             title=file_title,
                             year=year_to_use,
-                            album=None,  # NEW: no album info from file
-                            validated=False,  # Mark as not validated since it's a new addition
+                            album=file_album
+                            or None,  # NEW: capture album from file if present
+                            validated=False,
                         )
                         songs.append(song)
                         added_from_files += 1
@@ -307,7 +311,14 @@ def youtube_to_mp3(query: str, outfile: str):
     print(f"Downloaded: {outfile}")
 
 
-def tag_mp3(path: str, artist: str, title: str, year: str, genre: str):
+def tag_mp3(
+    path: str,
+    artist: str,
+    title: str,
+    year: str,
+    genre: str,
+    album: Optional[str] = None,
+):
     print(
         f"Tagging {path} with artist: {artist}, title: {title}, year: {year}, genre: {genre}"
     )
@@ -316,6 +327,8 @@ def tag_mp3(path: str, artist: str, title: str, year: str, genre: str):
     audio["title"] = title
     audio["date"] = year
     audio["genre"] = genre
+    if album and str(album).strip():  # NEW: write album if provided
+        audio["album"] = str(album).strip()
     audio.save()
 
     # Add album art (thumbnail)
@@ -410,7 +423,7 @@ def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
     cleaned_df.to_csv(playlist_path, index=False)
 
 
-def main(station_name: str):
+def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
     global PLAYLISTS_PATH, STATION_PATH, STATION
     # Determine the base path for stations (the project dir where this script lives)
     script_dir = pathlib.Path(__file__).parent
@@ -424,8 +437,13 @@ def main(station_name: str):
     STATION = station_name.lower()
 
     print(f"Running for station: {station_name}")
+    if dry_run:
+        print("Mode: DRY-RUN (no downloads; existing MP3s will be re-tagged if needed)")
     print(f"Playlists path: {PLAYLISTS_PATH}")
     print(f"Songs path: {STATION_PATH}")
+
+    # NEW: collect albums that are not validated
+    invalid_albums: List[dict] = []
 
     playlists_dir = pathlib.Path(PLAYLISTS_PATH)
     if not playlists_dir.exists():
@@ -509,6 +527,67 @@ def main(station_name: str):
         print(f"   Already downloaded: {existing_count}")
         print(f"   Need to download: {missing_count}")
 
+        # NEW: In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
+        if dry_run and existing_songs:
+            print("\n🖊️ DRY-RUN: Auditing and fixing ID3 tags for existing songs...")
+            for song, song_path in existing_songs:
+                try:
+                    audio = EasyID3(str(song_path))
+                    cur_artist = (
+                        audio.get("artist", [""])[0] if audio.get("artist") else ""
+                    )
+                    cur_title = (
+                        audio.get("title", [""])[0] if audio.get("title") else ""
+                    )
+                    cur_year = audio.get("date", [""])[0] if audio.get("date") else ""
+                    cur_genre = (
+                        audio.get("genre", [""])[0] if audio.get("genre") else ""
+                    )
+                    cur_album = (
+                        audio.get("album", [""])[0] if audio.get("album") else ""
+                    )
+                except Exception as e:
+                    print(
+                        f"   • {song_path.name}: cannot read tags ({e}), writing fresh tags"
+                    )
+                    tag_mp3(
+                        str(song_path),
+                        song.artist,
+                        song.title,
+                        song.year,
+                        playlist_name,
+                        song.album,
+                    )
+                    continue
+
+                needs = []
+                if cur_artist.strip() != song.artist.strip():
+                    needs.append("artist")
+                if cur_title.strip() != song.title.strip():
+                    needs.append("title")
+                if cur_year.strip() != song.year.strip():
+                    needs.append("year")
+                if cur_genre.strip() != playlist_name:
+                    needs.append("genre")
+                if song.album and str(song.album).strip():
+                    if cur_album.strip() != str(song.album).strip():
+                        needs.append("album")
+                # If album missing but provided in CSV
+                elif cur_album.strip() and not (song.album and str(song.album).strip()):
+                    # CSV has no album but file has one; do not erase it
+                    pass
+
+                if needs:
+                    print(f"   • {song_path.name}: updating tags ({', '.join(needs)})")
+                    tag_mp3(
+                        str(song_path),
+                        song.artist,
+                        song.title,
+                        song.year,
+                        playlist_name,
+                        song.album,
+                    )
+
         # Validate existing songs (only unvalidated ones)
         songs_to_remove_from_playlist = []
         validation_updates = False
@@ -557,9 +636,29 @@ def main(station_name: str):
                                     print(
                                         f"   ↳ Album not validated: {updated_song.album}"
                                     )
+                                    # NEW: record not validated album
+                                    invalid_albums.append(
+                                        {
+                                            "Artist": updated_song.artist,
+                                            "Title": updated_song.title,
+                                            "Album": str(updated_song.album).strip(),
+                                            "Playlist": playlist_name,
+                                            "Reason": "not_validated",
+                                        }
+                                    )
                             except Exception:
                                 print(
                                     f"   ↳ Album validation error (skipped): {updated_song.album}"
+                                )
+                                # NEW: record validation error as not validated
+                                invalid_albums.append(
+                                    {
+                                        "Artist": updated_song.artist,
+                                        "Title": updated_song.title,
+                                        "Album": str(updated_song.album).strip(),
+                                        "Playlist": playlist_name,
+                                        "Reason": "validation_error",
+                                    }
                                 )
                     else:
                         invalid_existing.append((song, song_path))
@@ -630,9 +729,29 @@ def main(station_name: str):
                                 print(f"   ↳ Album validated: {updated_song.album}")
                             else:
                                 print(f"   ↳ Album not validated: {updated_song.album}")
+                                # NEW: record not validated album
+                                invalid_albums.append(
+                                    {
+                                        "Artist": updated_song.artist,
+                                        "Title": updated_song.title,
+                                        "Album": str(updated_song.album).strip(),
+                                        "Playlist": playlist_name,
+                                        "Reason": "not_validated",
+                                    }
+                                )
                         except Exception:
                             print(
                                 f"   ↳ Album validation error (skipped): {updated_song.album}"
+                            )
+                            # NEW: record validation error as not validated
+                            invalid_albums.append(
+                                {
+                                    "Artist": updated_song.artist,
+                                    "Title": updated_song.title,
+                                    "Album": str(updated_song.album).strip(),
+                                    "Playlist": playlist_name,
+                                    "Reason": "validation_error",
+                                }
                             )
                 else:
                     invalid_songs.append((song, song_path))
@@ -680,34 +799,43 @@ def main(station_name: str):
 
         if valid_count == 0 and missing_count > 0:
             print(f"\n❌ No valid songs to download for playlist '{playlist_name}'!")
-            continue
+            # In DRY-RUN, still continue to summary
         elif missing_count == 0:
             print(
                 f"\n🎉 All songs are already downloaded for playlist '{playlist_name}'!"
             )
-            continue
+            # continue  # keep existing control flow if present
 
-        print(f"\n⬇ Starting downloads ({valid_count} valid songs):")
+        # NEW: Downloads are skipped in dry-run mode
+        if dry_run:
+            print(
+                f"\n⬇ [DRY-RUN] Would download {valid_count} song(s): skipping downloads."
+            )
+            downloaded_count = 0
+            failed_count = 0
+        else:
+            print(f"\n⬇ Starting downloads ({valid_count} valid songs):")
 
-        # Process only valid missing songs
-        downloaded_count = 0
-        failed_count = 0
+            # Process only valid missing songs
+            downloaded_count = 0
+            failed_count = 0
 
-        for idx, (song, song_path) in enumerate(valid_songs, start=1):
-            artist = song.artist
-            title = song.title
-            year = song.year
-
-            try:
-                print(f"⬇ [{idx}/{valid_count}] Downloading: {artist} - {title}")
-                youtube_to_mp3(f"{artist} {title}", str(song_path))
-                tag_mp3(str(song_path), artist, title, year, playlist_name)
-                print(f"✓ Downloaded and tagged: {artist} - {title}")
-                downloaded_count += 1
-            except subprocess.CalledProcessError as e:
-                print(f"✗ Failed to download {artist} - {title}: {e}")
-                failed_count += 1
-                continue
+            for idx, (song, song_path) in enumerate(valid_songs, start=1):
+                artist = song.artist
+                title = song.title
+                year = song.year
+                try:
+                    print(f"⬇ [{idx}/{valid_count}] Downloading: {artist} - {title}")
+                    youtube_to_mp3(f"{artist} {title}", str(song_path))
+                    tag_mp3(
+                        str(song_path), artist, title, year, playlist_name, song.album
+                    )
+                    print(f"✓ Downloaded and tagged: {artist} - {title}")
+                    downloaded_count += 1
+                except subprocess.CalledProcessError as e:
+                    print(f"✗ Failed to download {artist} - {title}: {e}")
+                    failed_count += 1
+                    continue
 
         # Final summary
         total_removed = len(songs_to_remove_from_playlist)
@@ -805,9 +933,35 @@ def main(station_name: str):
     analysis_log_file = STATION_PATH.parent / "duplicate_analysis.log"
     with open(analysis_log_file, "w", encoding="utf-8") as f:
         f.write("\n".join(analysis_lines) + "\n")
-
-    # Optional: a single line to inform where the analysis is saved
     print(f"📝 Cross-playlist analysis written to {analysis_log_file}")
+
+    # NEW: write albums that were not validated to CSV in the station directory
+    invalid_albums_path = STATION_PATH.parent / "albums_not_validated.csv"
+    # Deduplicate entries
+    if invalid_albums:
+        deduped = []
+        seen = set()
+        for row in invalid_albums:
+            key = (
+                row["Artist"].lower().strip(),
+                row["Title"].lower().strip(),
+                row["Album"].lower().strip(),
+                row["Playlist"].lower().strip(),
+                row["Reason"],
+            )
+            if key not in seen:
+                seen.add(key)
+                deduped.append(row)
+        invalid_albums = deduped
+
+    df = pd.DataFrame(
+        invalid_albums or [],
+        columns=["Artist", "Title", "Album", "Playlist", "Reason"],
+    )
+    df.to_csv(invalid_albums_path, index=False)
+    print(
+        f"📝 Albums not validated written to {invalid_albums_path} ({len(df)} row(s))"
+    )
 
 
 def list_playlists(station_name: str):
@@ -843,9 +997,17 @@ if __name__ == "__main__":
         description="AI-assisted local-network radio pipeline."
     )
     parser.add_argument(
+        "-s",
         "--station",
         type=str,
         help="The name of the radio station to process (e.g., NeuralCast, NeuralForge).",
+    )
+    # NEW: dry-run flag
+    parser.add_argument(
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="Dry run: validate and re-tag existing MP3s, but skip new downloads.",
     )
     args = parser.parse_args()
 
@@ -853,4 +1015,4 @@ if __name__ == "__main__":
     station = args.station or "NeuralCast"
 
     list_playlists(station)
-    main(station)
+    main(station, args.dry_run)  # NEW: pass dry-run flag

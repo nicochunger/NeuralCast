@@ -3,3 +3,4 @@ songs/
 __pycache__/
 .cache
 *.mp3
+.vscode/
