@@ -1,115 +1,114 @@
-Artist,Title,Year,Validated
-Adorned Brood,Heldentat,2002,True
-Adorned Brood,Hiltia,1996,True
-Adorned Brood,Wigand,1998,True
-Alestorm,Captain Morgan's Revenge,2008,True
-Alestorm,Drink,2014,True
-Alestorm,Keelhauled,2009,True
-Alestorm,Mexico,2017,True
-Alestorm,Shipwrecked,2011,True
-Arkona,Arkaim,2011,True
-Arkona,Goi Rode Goi!,2009,True
-Arkona,Shtorm,2018,True
-Arkona,Slavsia Rus'!,2004,True
-Arkona,Stenka na Stenku,2011,True
-Arkona,Yarilo,2009,True
-Cruachan,Blood for the Blood God,2014,True
-Cruachan,Ride On,2002,True
-Cruachan,The Morrigan,2000,True
-Cruachan,The Nine Year War,2014,True
-Cruachan,To Invoke the Horned God,1995,True
-Dalriada,A Walesi Bárdok,2011,True
-Dalriada,Hajdútánc,2008,True
-Dalriada,Téli Ének,2011,True
-Eluveitie,A Rose for Epona,2012,True
-Eluveitie,Ategnatos,2019,True
-Eluveitie,Inis Mona,2008,True
-Eluveitie,Omnos,2009,True
-Eluveitie,The Call of the Mountains,2014,True
-Eluveitie,Thousandfold,2010,True
-Elvenking,Pagan Purity,2001,True
-Elvenking,The Divided Heart,2007,True
-Elvenking,The Loser,2012,True
-Elvenking,The Scythe,2007,True
-Ensiferum,For Those About to Fight for Metal,2017,True
-Ensiferum,From Afar,2009,True
-Ensiferum,In My Sword I Trust,2012,True
-Ensiferum,Iron,2004,True
-Ensiferum,One More Magic Potion,2007,True
-Ensiferum,Token of Time,2001,True
-Ensiferum,Two of Spades,2015,True
-Equilibrium,Der Ewige Sieg,2010,True
-Equilibrium,Heimat,2016,True
-Equilibrium,Met,2005,True
-Equilibrium,Unbesiegt,2010,True
-Equilibrium,Waldschrein,2013,True
-Equilibrium,Wingthors Hammer,2005,True
-Finntroll,Jaktens Tid,2001,True
-Finntroll,Nedgång,2013,True
-Finntroll,Ormfolk,2020,True
-Finntroll,Trollhammaren,2004,True
-Finntroll,Under Bergets Rot,2010,True
-Finsterforst,Fremd,2012,True
-Finsterforst,Mach dich frei!,2015,True
-Heidevolk,A Wolf in My Heart,2015,True
-Heidevolk,Nehalennia,2008,True
-Heidevolk,Saksenland,2005,True
-Heidevolk,Vulgaris Magistralis,2008,True
-In Extremo,Herr Mannelig,1998,True
-In Extremo,Vollmond,1998,True
-Korpiklaani,Beer Beer,2005,True
-Korpiklaani,Beer Beer (Live),2013,True
-Korpiklaani,Happy Little Boozer,2006,True
-Korpiklaani,Leväluhta,2018,True
-Korpiklaani,Mylly,2021,True
-Korpiklaani,Rauta,2012,True
-Korpiklaani,Tequila,2018,True
-Korpiklaani,Vodka,2009,True
-Korpiklaani,Wooden Pints,2003,True
-Metsatöll,Küü,2010,True
-Metsatöll,Lööme Mesti,2014,True
-Metsatöll,Vaid Vaprust,2004,True
-Moonsorrow,Jumalten Aika,2016,True
-Moonsorrow,Kivenkantaja,2003,True
-Moonsorrow,Sankarihauta,2001,True
-Moonsorrow,Ukkosenjumalan Poika,2001,True
-Månegarm,Havets Vargar,2000,True
-Månegarm,Hemfärd,2003,True
-Månegarm,Hervors arv,2019,True
-Månegarm,I evig tid,2015,True
-Månegarm,Sigrblot,2005,True
-Northland,Bloodred Sunrise,2015,True
-Northland,Where the Heroes Die,2010,True
-Otyg,Bergtagen,1999,True
-Saltatio Mortis,Prometheus,2013,True
-Skiltron,Bagpipes of War,2010,True
-Skyclad,Anotherdrinkingsong,1996,True
-Skyclad,Penny Dreadful,1996,True
-Skyclad,Spinning Jenny,1994,True
-Skyclad,The Widdershins Jig,1991,True
-Skyclad,Thinking Allowed?,1993,True
-Skyforger,Kurbads,2010,True
-Skálmöld,Að vetri,2014,True
-Skálmöld,Gleipnir,2012,True
-Skálmöld,Gleipnir (Live),2015,True
-Skálmöld,Kvaðning,2010,True
-Subway to Sally,Kleid aus Rosen,2003,True
-Svartsot,Højen på Glødende Pæle,2011,True
-Svartsot,Midsommer,2010,True
-Trollfest,Brakebein,2006,True
-Trollfest,Kaptein Kaos,2014,True
-Turisas,Battle Metal,2004,True
-Turisas,Rasputin,2007,True
-Turisas,Stand Up and Fight,2011,True
-Turisas,Ten More Miles,2013,True
-Turisas,To Holmgard and Beyond,2007,True
-Tyr,Ragnarok,2006,True
-Týr,Blood of Heroes,2013,True
-Týr,By the Sword in My Hand,2006,True
-Týr,Hold the Heathen Hammer High,2009,True
-Týr,Sinklars Vísa,2011,True
-Týr,Tróndur Í Gøtu,2009,True
-Vintersorg,Till Fjälls,1998,True
-Waylander,Born to the Fight,1998,True
-Waylander,King of the Fairies,1998,True
-Wolfchant,A Pagan Storm,2007,True
+Artist,Title,Album,Year,Validated
+Adorned Brood,Heldentat,Heldentat,2002,True
+Adorned Brood,Hiltia,Hiltia,1996,True
+Adorned Brood,Wigand,Wigand,1998,True
+Alestorm,Captain Morgan's Revenge,Captain Morgan's Revenge,2008,True
+Alestorm,Drink,Sunset on the Golden Age,2014,True
+Alestorm,Keelhauled,Black Sails at Midnight,2009,True
+Alestorm,Mexico,No Grave But the Sea,2017,True
+Alestorm,Shipwrecked,Back Through Time,2011,True
+Arkona,Arkaim,Slovo,2011,False
+Arkona,Goi Rode Goi!,"Goi, Rode, Goi!",2009,True
+Arkona,Shtorm,Khram,2018,True
+Arkona,Slavsia Rus'!,Vozrozhdenie,2004,False
+Arkona,Stenka na Stenku,Slovo,2011,False
+Arkona,Yarilo,"Goi, Rode, Goi!",2009,True
+Cruachan,Blood for the Blood God,Blood for the Blood God,2014,True
+Cruachan,Ride On,Folk-Lore,2002,True
+Cruachan,The Morrigan,The Middle Kingdom,2000,True
+Cruachan,The Nine Year War,Blood on the Black Robe,2014,True
+Cruachan,To Invoke the Horned God,Tuatha Na Gael,1995,True
+Dalriada,A Walesi Bárdok,Ígéret,2011,False
+Dalriada,Hajdútánc,Szelek,2008,False
+Dalriada,Téli Ének,Ígéret,2011,False
+Eluveitie,A Rose for Epona,Helvetios,2012,True
+Eluveitie,Ategnatos,Ategnatos,2019,True
+Eluveitie,Inis Mona,Slania,2008,True
+Eluveitie,Omnos,Evocation I: The Arcane Dominion,2009,True
+Eluveitie,The Call of the Mountains,Origins,2014,True
+Eluveitie,Thousandfold,Everything Remains (As It Never Was),2010,True
+Elvenking,Pagan Purity,Heathenreel,2001,True
+Elvenking,The Divided Heart,The Scythe,2007,True
+Elvenking,The Loser,Era,2012,True
+Elvenking,The Scythe,The Scythe,2007,True
+Ensiferum,For Those About to Fight for Metal,Two Paths,2017,True
+Ensiferum,From Afar,From Afar,2009,True
+Ensiferum,In My Sword I Trust,Unsung Heroes,2012,True
+Ensiferum,Iron,Iron,2004,True
+Ensiferum,One More Magic Potion,Victory Songs,2007,True
+Ensiferum,Token of Time,Ensiferum,2001,True
+Ensiferum,Two of Spades,One Man Army,2015,True
+Equilibrium,Der Ewige Sieg,Rekreatur,2010,True
+Equilibrium,Heimat,Armageddon,2016,True
+Equilibrium,Met,Turis Fratyr,2005,True
+Equilibrium,Unbesiegt,Sagas,2010,True
+Equilibrium,Waldschrein,Erdentempel,2013,True
+Equilibrium,Wingthors Hammer,Turis Fratyr,2005,True
+Finntroll,Jaktens Tid,Jaktens Tid,2001,True
+Finntroll,Nedgång,Blodsvept,2013,False
+Finntroll,Ormfolk,Vredesvävd,2020,True
+Finntroll,Trollhammaren,Nattfödd,2004,True
+Finntroll,Under Bergets Rot,Nifelvind,2010,True
+Finsterforst,Fremd,Rastlos,2012,True
+Finsterforst,Mach dich frei!,Mach dich frei,2015,True
+Heidevolk,A Wolf in My Heart,Velua,2015,False
+Heidevolk,Nehalennia,Walhalla Wacht,2008,False
+Heidevolk,Saksenland,De strijdlust is geboren,2005,False
+Heidevolk,Vulgaris Magistralis,Walhalla Wacht,2008,False
+In Extremo,Herr Mannelig,Weckt die Toten!,1998,True
+In Extremo,Vollmond,Verehrt und Angespien,1998,False
+Korpiklaani,Beer Beer,Voice of Wilderness,2005,True
+Korpiklaani,Beer Beer (Live),Live at Masters of Rock,2013,True
+Korpiklaani,Happy Little Boozer,Tales Along This Road,2006,True
+Korpiklaani,Leväluhta,Kulkija,2018,False
+Korpiklaani,Mylly,Jylhä,2021,True
+Korpiklaani,Rauta,Manala,2012,True
+Korpiklaani,Tequila,Kulkija,2018,False
+Korpiklaani,Vodka,Karkelo,2009,True
+Korpiklaani,Wooden Pints,Spirit of the Forest,2003,True
+Metsatöll,Küü,Äio,2010,False
+Metsatöll,Lööme Mesti,Karjajuht,2014,True
+Metsatöll,Vaid Vaprust,Hiiekoda,2004,False
+Moonsorrow,Jumalten Aika,Jumalten Aika,2016,True
+Moonsorrow,Kivenkantaja,Kivenkantaja,2003,True
+Moonsorrow,Sankarihauta,Voimasta ja Kunniasta,2001,True
+Moonsorrow,Ukkosenjumalan Poika,Voimasta ja Kunniasta,2001,False
+Månegarm,Havets Vargar,Havets Vargar,2000,True
+Månegarm,Hemfärd,Dödsfärd,2003,False
+Månegarm,Hervors arv,Fornaldarsagor,2019,True
+Månegarm,I evig tid,Månegarm,2015,False
+Månegarm,Sigrblot,Vredens Tid,2005,True
+Northland,Bloodred Sunrise,Downfall and Rebirth,2015,True
+Northland,Where the Heroes Die,Northland,2010,True
+Otyg,Bergtagen,Älvefärd,1999,False
+Saltatio Mortis,Prometheus,Zirkus Zeitgeist,2013,True
+Skiltron,Bagpipes of War,The Highland Way,2010,True
+Skyclad,Anotherdrinkingsong,Irrational Anthems,1996,False
+Skyclad,Penny Dreadful,Prince of the Poverty Line,1996,False
+Skyclad,Spinning Jenny,Jonah's Ark,1994,True
+Skyclad,The Widdershins Jig,The Wayward Sons of Mother Earth,1991,True
+Skyclad,Thinking Allowed?,A Burnt Offering for the Bone Idol,1993,False
+Skyforger,Kurbads,Kurbads,2010,True
+Skálmöld,Að vetri,Með Vættum,2014,True
+Skálmöld,Gleipnir,Börn Loka,2012,True
+Skálmöld,Gleipnir (Live),Skálmöld & Sinfóníuhljómsveit Íslands (Live),2015,True
+Skálmöld,Kvaðning,Baldur,2010,True
+Subway to Sally,Kleid aus Rosen,Engelskrieger,2003,True
+Svartsot,Højen på Glødende Pæle,Maledictus Eris,2011,False
+Svartsot,Midsommer,Mulmets Viser,2010,False
+Trollfest,Brakebein,Brakebein,2006,True
+Trollfest,Kaptein Kaos,Kaptein Kaos,2014,True
+Turisas,Battle Metal,Battle Metal,2004,True
+Turisas,Rasputin,Rasputin (Single),2007,True
+Turisas,Stand Up and Fight,Stand Up and Fight,2011,True
+Turisas,Ten More Miles,Turisas2013,2013,True
+Turisas,To Holmgard and Beyond,The Varangian Way,2007,True
+Tyr,Ragnarok,Ragnarok,2006,True
+Týr,Blood of Heroes,Valkyrja,2013,True
+Týr,By the Sword in My Hand,Ragnarok,2006,False
+Týr,Sinklars Vísa,By the Light of the Northern Star,2011,False
+Týr,Tróndur Í Gøtu,By the Light of the Northern Star,2009,True
+Vintersorg,Till Fjälls,Till fjälls,1998,True
+Waylander,Born to the Fight,Reawakening Pride Once Lost,1998,True
+Waylander,King of the Fairies,Reawakening Pride Once Lost,1998,True
+Wolfchant,A Pagan Storm,A Pagan Storm,2007,True
