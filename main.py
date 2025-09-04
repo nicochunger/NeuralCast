@@ -433,7 +433,7 @@ def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
                 "Artist": song.artist,
                 "Title": song.title,
                 "Album": song.album or "",
-                "Year": str(int(song.year)),
+                "Year": str(song.year),
                 "Validated": song.validated,
             }
             for song in songs
