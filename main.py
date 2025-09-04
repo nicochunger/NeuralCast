@@ -47,7 +47,7 @@ class Song(BaseModel):
     artist: str
     title: str
     year: str
-    album: Optional[str] = None  # NEW: optional album support
+    album: Optional[str] = None  # optional album support
     validated: bool = False  # Add validated field with default value
 
 
@@ -95,7 +95,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                 title = str(row[col]).strip()
             elif cl == "year":
                 year = str(row[col]).strip()
-            elif cl == "album":  # NEW: optional album
+            elif cl == "album":  # optional album
                 album = str(row[col]).strip() if pd.notna(row[col]) else None
             elif cl == "validated":
                 validated = bool(row[col]) if pd.notna(row[col]) else False
@@ -110,7 +110,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
         ):
             song = Song(
                 artist=artist, title=title, year=year, album=album, validated=validated
-            )  # NEW: pass album
+            )  # pass album
             songs.append(song)
         else:
             print(
@@ -162,7 +162,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                     )
 
                     if not existing:
-                        # NEW: ensure filename matches "{artist} - {title}.mp3"
+                        # ensure filename matches "{artist} - {title}.mp3"
                         safe_artist = (
                             file_artist.replace("/", " ").replace("\\", " ").strip()
                         )
@@ -195,7 +195,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                             title=file_title,
                             year=year_to_use,
                             album=file_album
-                            or None,  # NEW: capture album from file if present
+                            or None,  # capture album from file if present
                             validated=False,
                         )
                         songs.append(song)
@@ -245,7 +245,7 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
                     "Artist": song.artist,
                     "Title": song.title,
                     "Year": str(int(song.year)),
-                    "Album": song.album or "",  # NEW: preserve album column
+                    "Album": song.album or "",  # preserve album column
                     "Validated": song.validated,
                 }
                 for song in unique_songs
@@ -339,13 +339,13 @@ def tag_mp3(
     audio["title"] = title
     audio["date"] = year
     audio["genre"] = genre
-    if album and str(album).strip():  # NEW: write album if provided
+    if album and str(album).strip():  # write album if provided
         audio["album"] = str(album).strip()
     audio.save()
 
     # Add album art
     if album and str(album).strip():
-        # NEW: Use MusicBrainz cover art when album is available
+        # Use MusicBrainz cover art when album is available
         try:
             embed_from_artist_album(path, artist, str(album).strip())
         except Exception as e:
@@ -442,7 +442,7 @@ def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
     cleaned_df.to_csv(playlist_path, index=False)
 
 
-def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
+def main(station_name: str, dry_run: bool = False):  # dry_run flag
     global PLAYLISTS_PATH, STATION_PATH, STATION
     # Determine the base path for stations (the project dir where this script lives)
     script_dir = pathlib.Path(__file__).parent
@@ -461,7 +461,7 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
     print(f"Playlists path: {PLAYLISTS_PATH}")
     print(f"Songs path: {STATION_PATH}")
 
-    # NEW: collect albums that are not validated
+    # collect albums that are not validated
     invalid_albums: List[dict] = []
 
     playlists_dir = pathlib.Path(PLAYLISTS_PATH)
@@ -546,7 +546,7 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
         print(f"   Already downloaded: {existing_count}")
         print(f"   Need to download: {missing_count}")
 
-        # NEW: In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
+        # In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
         if dry_run and existing_songs:
             print("\n🖊️ DRY-RUN: Auditing and fixing ID3 tags for existing songs...")
             for song, song_path in existing_songs:
@@ -625,7 +625,7 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
 
                 for song, song_path in unvalidated_existing:
                     if verified(song.artist, song.title):
-                        # NEW: Only set validated=True if album (when present) is validated
+                        # Only set validated=True if album (when present) is validated
                         album_ok = True
                         if song.album and str(song.album).strip():
                             try:
@@ -719,7 +719,7 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
 
             for song, song_path in unvalidated_missing:
                 if verified(song.artist, song.title):
-                    # NEW: Only set validated=True and schedule download if album (when present) is validated
+                    # Only set validated=True and schedule download if album (when present) is validated
                     album_ok = True
                     if song.album and str(song.album).strip():
                         try:
@@ -825,7 +825,7 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
             )
             # continue  # keep existing control flow if present
 
-        # NEW: Downloads are skipped in dry-run mode
+        # Downloads are skipped in dry-run mode
         if dry_run:
             print(
                 f"\n⬇ [DRY-RUN] Would download {valid_count} song(s): skipping downloads."
@@ -954,7 +954,7 @@ def main(station_name: str, dry_run: bool = False):  # NEW: dry_run flag
         f.write("\n".join(analysis_lines) + "\n")
     print(f"📝 Cross-playlist analysis written to {analysis_log_file}")
 
-    # NEW: write albums that were not validated to CSV in the station directory
+    # write albums that were not validated to CSV in the station directory
     invalid_albums_path = STATION_PATH.parent / "albums_not_validated.csv"
     # Deduplicate entries
     if invalid_albums:
@@ -1021,7 +1021,7 @@ if __name__ == "__main__":
         type=str,
         help="The name of the radio station to process (e.g., NeuralCast, NeuralForge).",
     )
-    # NEW: dry-run flag
+    # dry-run flag
     parser.add_argument(
         "-n",
         "--dry-run",
@@ -1034,4 +1034,4 @@ if __name__ == "__main__":
     station = args.station or "NeuralCast"
 
     list_playlists(station)
-    main(station, args.dry_run)  # NEW: pass dry-run flag
+    main(station, args.dry_run)  # pass dry-run flag
