@@ -1,109 +1,109 @@
-Artist,Title,Year,Validated
-Andromeda,Chameleon Carnival,2001,True
-Andromeda,In the End,2006,True
-Andromeda,The Words Unspoken,2001,True
-Angra,Nova Era,2001,True
-Angra,Rebirth,2001,True
-Angra,Spread Your Fire,2004,True
-Angra,Temple of Hate,2004,True
-Angra,Wings of Reality,1996,True
-Anubis Gate,Hold Back Tomorrow,2011,True
-Anubis Gate,The Final Overture,2009,True
-Ark,Burn the Sun,2001,True
-Ark,Heal the Waters,2001,True
-Ark,Just a Little,1999,True
-Ayreon,Age of Shadows,2008,True
-Ayreon,The Day That the World Breaks Down,2017,True
-Balance of Power,Prisoner of Pride,1997,True
-Balance of Power,Shelter Me,1998,True
-Between the Buried and Me,Millions,2018,True
-Between the Buried and Me,White Walls,2007,True
-Borealis,The Ghosts of Innocence,2015,True
-Circus Maximus,Abyss,2012,True
-Circus Maximus,The Weight,2016,True
-Conception,Flow,1997,True
-Conception,Gethsemane,1995,True
-Conception,Roll the Fire,1993,True
-Darkwater,Breathe,2016,True
-Darkwater,Why I Bleed,2010,True
-DGM,Animal,2020,True
-DGM,Reason,2013,True
-DGM,The Passage,2016,True
-Dream Theater,A Change of Seasons,1995,True
-Dream Theater,Breaking All Illusions,2011,True
-Dream Theater,Learning to Live,1992,True
-Dream Theater,Metropolis—Part I: The Miracle and the Sleeper,1992,True
-Dream Theater,Octavarium,2005,True
-Dream Theater,The Count of Tuscany,2009,True
-Dream Theater,The Spirit Carries On,1999,True
-Evergrey,A Silent Arc,2019,True
-Evergrey,A Touch of Blessing,2004,True
-Evergrey,King of Errors,2014,True
-Evergrey,Recreation Day,2003,True
-Fates Warning,Still Remains,2000,True
-Fates Warning,The Ivory Gate of Dreams,1988,True
-Fates Warning,The Light and Shade of Things,2016,True
-Haken,Crystallised,2014,True
-Haken,Puzzle Box,2018,True
-Haken,Visions,2011,True
-Kamelot,Center of the Universe,2003,True
-Kamelot,Forever,1999,True
-Kamelot,Karma,2001,True
-Kamelot,March of Mephisto,2005,True
-Kamelot,Memento Mori,2005,True
-Kamelot,Sacrimony (Angel of Afterlife),2012,True
-Kamelot,The Black Halo,2005,True
-Kamelot,When the Lights Are Down,2005,True
-Leprous,The Valley,2009,True
-Mastodon,The Last Baron,2009,True
-Ne Obliviscaris,And Plague Flowers the Kaleidoscope,2012,True
-Ne Obliviscaris,Painters of the Tempest (Part II): Triptych Lux,2014,True
-Opeth,Deliverance,2002,True
-Opeth,Ghost of Perdition,2005,True
-Pagan's Mind,Enigmatic Mission,2005,True
-Pagan's Mind,God's Equation,2007,True
-Pagan's Mind,Through Osiris' Eyes,2002,True
-Pain of Salvation,Beyond the Pale,2002,True
-Pain of Salvation,Idioglossia,2000,True
-Pain of Salvation,Rope Ends,2002,True
-Pain of Salvation,The Perfect Element,2000,True
-Pain of Salvation,Undertow,2002,True
-Pain of Salvation,Used,2000,True
-Pyramaze,Disciples of the Sun,2015,True
-Pyramaze,Ghost Light,2017,True
-Pyramaze,Melancholy Beast,2004,True
-Queensrÿche,Eyes of a Stranger,1988,True
-Queensrÿche,I Don't Believe in Love,1988,True
-Queensrÿche,Suite Sister Mary,1988,True
-Riverside,Second Life Syndrome,2005,True
-Royal Hunt,Message to God,1997,True
-Royal Hunt,The Mission,2001,True
-Royal Hunt,Time Will Tell,1995,True
-Seventh Wonder,Alley Cat,2010,True
-Seventh Wonder,Tears for a Father,2010,True
-Seventh Wonder,The Great Escape,2010,True
-Shadow Gallery,Crystalline Dream,1995,True
-Shadow Gallery,New World Order,1998,True
-Shadow Gallery,The Andromeda Strain,2005,True
-Sun Caged,Hollow,2003,True
-Sun Caged,Soil,2003,True
-Symphony X,Accolade II,2002,True
-Symphony X,Inferno (Unleash the Fire),2002,True
-Symphony X,Sea of Lies,1997,True
-Symphony X,Set the World on Fire (The Lie of Lies),2007,True
-Symphony X,The Divine Wings of Tragedy,1997,True
-Symphony X,The Odyssey,2002,True
-Symphony X,The Walls of Babylon,2007,True
-Threshold,Mission Profile,2004,True
-Threshold,Pilot in the Sky of Dreams,2007,True
-Threshold,Slipstream,2012,True
-Threshold,Small Dark Lines,2017,True
-Threshold,The Box,2014,True
-Tool,The Pot,2006,True
-Vanden Plas,Beyond Daylight,2002,True
-Vanden Plas,Christ 0,2006,True
-Vanden Plas,Iodic Rain,1999,True
-Vanden Plas,Postcard to God,2006,True
-Vanishing Point,Never Walk Away,2007,True
-Vanishing Point,Surrender,2014,True
-Vanishing Point,When Truth Lies,2005,True
+Artist,Title,Album,Year,Validated
+Andromeda,Chameleon Carnival,Extension of the Wish,2001,True
+Andromeda,In the End,Chimera,2006,True
+Andromeda,The Words Unspoken,Extension of the Wish,2001,True
+Angra,Nova Era,Rebirth,2001,True
+Angra,Rebirth,Rebirth,2001,True
+Angra,Spread Your Fire,Temple of Shadows,2004,True
+Angra,Temple of Hate,Temple of Shadows,2004,True
+Angra,Wings of Reality,Fireworks,1996,True
+Anubis Gate,Hold Back Tomorrow,Anubis Gate,2011,True
+Anubis Gate,The Final Overture,Andromeda Unchained,2009,True
+Ark,Burn the Sun,Burn the Sun,2001,True
+Ark,Heal the Waters,Burn the Sun,2001,True
+Ark,Just a Little,Burn the Sun,1999,True
+Ayreon,Age of Shadows,01011001,2008,True
+Ayreon,The Day That the World Breaks Down,The Source,2017,True
+Balance of Power,Prisoner of Pride,Ten More Tales of Grand Illusion,1997,True
+Balance of Power,Shelter Me,Perfect Balance,1998,True
+Between the Buried and Me,Millions,Automata I,2018,True
+Between the Buried and Me,White Walls,Colors,2007,True
+Borealis,The Ghosts of Innocence,The Offering,2015,True
+Circus Maximus,Abyss,Nine,2012,True
+Circus Maximus,The Weight,Havoc,2016,True
+Conception,Flow,Flow,1997,True
+Conception,Gethsemane,Flow,1995,True
+Conception,Roll the Fire,Parallel Minds,1993,True
+Darkwater,Breathe,Where Stories End,2016,True
+Darkwater,Why I Bleed,Where Stories End,2010,True
+DGM,Animal,The Passage,2020,True
+DGM,Reason,Momentum,2013,True
+DGM,The Passage,The Passage,2016,True
+Dream Theater,A Change of Seasons,A Change of Seasons,1995,True
+Dream Theater,Breaking All Illusions,A Dramatic Turn of Events,2011,True
+Dream Theater,Learning to Live,Images and Words,1992,True
+Dream Theater,Metropolis—Part I: The Miracle and the Sleeper,Images and Words,1992,True
+Dream Theater,Octavarium,Octavarium,2005,True
+Dream Theater,The Count of Tuscany,Black Clouds & Silver Linings,2009,True
+Dream Theater,The Spirit Carries On,Metropolis Pt. 2: Scenes from a Memory,1999,True
+Evergrey,A Silent Arc,The Atlantic,2019,True
+Evergrey,A Touch of Blessing,The Inner Circle,2004,True
+Evergrey,King of Errors,Hymns for the Broken,2014,True
+Evergrey,Recreation Day,Recreation Day,2003,True
+Fates Warning,Still Remains,Disconnected,2000,True
+Fates Warning,The Ivory Gate of Dreams,No Exit,1988,True
+Fates Warning,The Light and Shade of Things,Theories of Flight,2016,True
+Haken,Crystallised,Restoration,2014,True
+Haken,Puzzle Box,Vector,2018,True
+Haken,Visions,Visions,2011,True
+Kamelot,Center of the Universe,Epica,2003,True
+Kamelot,Forever,Karma,2001,True
+Kamelot,Karma,Karma,2001,True
+Kamelot,March of Mephisto,The Black Halo,2005,True
+Kamelot,Memento Mori,The Black Halo,2005,True
+Kamelot,Sacrimony (Angel of Afterlife),Silverthorn,2012,True
+Kamelot,The Black Halo,The Black Halo,2005,True
+Kamelot,When the Lights Are Down,The Black Halo,2005,True
+Leprous,The Valley,Coal,2009,True
+Mastodon,The Last Baron,Crack the Skye,2009,True
+Ne Obliviscaris,And Plague Flowers the Kaleidoscope,Portal of I,2012,True
+Ne Obliviscaris,Painters of the Tempest (Part II): Triptych Lux,Citadel,2014,True
+Opeth,Deliverance,Deliverance,2002,True
+Opeth,Ghost of Perdition,Ghost Reveries,2005,True
+Pagan's Mind,Enigmatic Mission,Enigmatic: Calling,2005,True
+Pagan's Mind,God's Equation,God's Equation,2007,True
+Pagan's Mind,Through Osiris' Eyes,Celestial Entrance,2002,True
+Pain of Salvation,Beyond the Pale,Remedy Lane,2002,True
+Pain of Salvation,Idioglossia,"The Perfect Element, Part I",2000,True
+Pain of Salvation,Rope Ends,Remedy Lane,2002,True
+Pain of Salvation,The Perfect Element,"The Perfect Element, Part I",2000,True
+Pain of Salvation,Undertow,Remedy Lane,2002,True
+Pain of Salvation,Used,"The Perfect Element, Part I",2000,True
+Pyramaze,Disciples of the Sun,Disciples of the Sun,2015,True
+Pyramaze,Ghost Light,Immortal,2017,True
+Pyramaze,Melancholy Beast,Melancholy Beast,2004,True
+Queensrÿche,Eyes of a Stranger,Operation: Mindcrime,1988,True
+Queensrÿche,I Don't Believe in Love,Operation: Mindcrime,1988,True
+Queensrÿche,Suite Sister Mary,Operation: Mindcrime,1988,True
+Riverside,Second Life Syndrome,Second Life Syndrome,2005,True
+Royal Hunt,Message to God,Paradox,1997,True
+Royal Hunt,The Mission,The Mission,2001,True
+Royal Hunt,Time Will Tell,Paradox,1995,True
+Seventh Wonder,Alley Cat,The Great Escape,2010,True
+Seventh Wonder,Tears for a Father,Mercy Falls,2010,True
+Seventh Wonder,The Great Escape,The Great Escape,2010,True
+Shadow Gallery,Crystalline Dream,Carved in Stone,1995,True
+Shadow Gallery,New World Order,Tyranny,1998,True
+Shadow Gallery,The Andromeda Strain,Room V,2005,True
+Sun Caged,Hollow,Sun Caged,2003,True
+Sun Caged,Soil,Sun Caged,2003,True
+Symphony X,Accolade II,The Odyssey,2002,True
+Symphony X,Inferno (Unleash the Fire),The Odyssey,2002,True
+Symphony X,Sea of Lies,The Divine Wings of Tragedy,1997,True
+Symphony X,Set the World on Fire (The Lie of Lies),Paradise Lost,2007,True
+Symphony X,The Divine Wings of Tragedy,The Divine Wings of Tragedy,1997,True
+Symphony X,The Odyssey,The Odyssey,2002,True
+Symphony X,The Walls of Babylon,Paradise Lost,2007,True
+Threshold,Mission Profile,Subsurface,2004,True
+Threshold,Pilot in the Sky of Dreams,Dead Reckoning,2007,True
+Threshold,Slipstream,Dead Reckoning,2012,True
+Threshold,Small Dark Lines,Legends of the Shires,2017,True
+Threshold,The Box,For the Journey,2014,True
+Tool,The Pot,"10,000 Days",2006,True
+Vanden Plas,Beyond Daylight,Beyond Daylight,2002,True
+Vanden Plas,Christ 0,Christ 0,2006,True
+Vanden Plas,Iodic Rain,Far Off Grace,1999,True
+Vanden Plas,Postcard to God,Christ 0,2006,True
+Vanishing Point,Never Walk Away,Tangled in Dream,2007,True
+Vanishing Point,Surrender,The Fourth Season,2014,True
+Vanishing Point,When Truth Lies,Distant Is the Sun,2005,True
