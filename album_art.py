@@ -6,11 +6,27 @@ import datetime
 import tempfile
 from IPython.display import Image as IPyImage, display
 import os
+from validators import _close_enough
+import json
 
 # Set up musicbrainzngs library
 musicbrainzngs.set_useragent(
     "NeuralCastArtEmbedder", "1.0", "https://github.com/your-repo"
 )
+
+LOG_FILE = os.path.join(os.path.dirname(__file__), "album_art_skipped.log")
+
+
+def _log_skip(entry: dict):
+    try:
+        # Ensure directory exists (in case LOG_FILE points to a subdir)
+        os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+    except Exception as e:
+        print(f"-> Failed to write skip log: {e}")
 
 
 def _parse_release_date(date_str: str) -> datetime.datetime:
@@ -79,10 +95,15 @@ def embed_from_release_id(
             )
         else:
             print(f"-> Successfully embedded artwork into '{mp3_path}'")
+        return True
     except requests.exceptions.RequestException as e:
+        # Do not log here; let caller try other releases and log only if all fail.
         print(f"-> Failed to download cover art: {e}")
+        return False
     except Exception as e:
+        # Do not log here; let caller handle final logging.
         print(f"-> An unexpected error occurred while embedding from release id: {e}")
+        return False
 
 
 def embed_from_artist_album(mp3_path: str, artist: str, album: str):
@@ -95,16 +116,89 @@ def embed_from_artist_album(mp3_path: str, artist: str, album: str):
         releases = result.get("release-list", [])
         if not releases:
             print("-> No releases found for given artist and album.")
+            _log_skip(
+                {
+                    "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                    "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
+                    "reason": "no_releases",
+                }
+            )
             return
 
         release = find_best_release_from_releases(releases) or releases[0]
         release_id = release["id"]
-        print(f"-> Found release: '{release.get('title', album)}' (ID: {release_id})")
-        embed_from_release_id(mp3_path, release_id, release.get("title", album))
+        found_title = release.get("title", album)
+        print(f"-> Found release: '{found_title}' (ID: {release_id})")
+
+        # Build close-enough candidates:
+        # - Try the "best" release first if it's close
+        # - Then other close-enough releases, preferring Official Albums and earlier dates
+        def _alt_sort_key(r):
+            is_official_album = (
+                r.get("status") == "Official"
+                and r.get("release-group", {}).get("primary-type") == "Album"
+            )
+            date = _parse_release_date(r.get("date", ""))
+            return (0 if is_official_album else 1, date)
+
+        candidates = []
+        if _close_enough(found_title, album):
+            candidates.append(release)
+
+        alternates = [
+            r
+            for r in releases
+            if r.get("id") != release_id and _close_enough(r.get("title", ""), album)
+        ]
+        alternates.sort(key=_alt_sort_key)
+        candidates.extend(alternates)
+
+        if not candidates:
+            _log_skip(
+                {
+                    "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                    "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
+                    "found": {"title": found_title, "id": release_id},
+                    "reason": "not_close_enough_any_release",
+                }
+            )
+            print(f"-> No close-enough releases found. Logged to {LOG_FILE}")
+            return
+
+        # Try candidates until one succeeds (cover art available and embedded)
+        for r in candidates:
+            if embed_from_release_id(mp3_path, r["id"], r.get("title", album)):
+                return
+
+        # If none succeeded, log a summary entry
+        _log_skip(
+            {
+                "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
+                "reason": "no_cover_art_found_for_any_matching_release",
+                "attempted_release_ids": [r["id"] for r in candidates],
+            }
+        )
     except musicbrainzngs.WebServiceError as exc:
         print(f"-> MusicBrainz API error: {exc}")
+        _log_skip(
+            {
+                "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
+                "reason": "musicbrainz_error",
+                "error": str(exc),
+            }
+        )
     except Exception as e:
         print(f"-> An unexpected error occurred: {e}")
+        _log_skip(
+            {
+                "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
+                "reason": "unexpected_error",
+                "error": str(e),
+            }
+        )
 
 
 def show_embedded_art(mp3_path: str):
