@@ -1,116 +1,161 @@
-Artist,Title,Year,Validated
-311,All Mixed Up,1996,True
-311,Amber,2001,True
-311,Beautiful Disaster,1997,True
-311,Come Original,1999,True
-311,Down,1996,True
-311,Love Song,2004,True
-Ballyhoo!,Cerveza,2010,True
-Ballyhoo!,Front Porch,2014,True
-Bedouin Soundclash,12:59 Lullaby,2004,True
-Bedouin Soundclash,Mountain Top,2007,True
-Bedouin Soundclash,St. Andrews,2004,True
-Bedouin Soundclash,Walls Fall Down,2007,True
-Bedouin Soundclash,When the Night Feels My Song,2004,True
-Common Kings,Alcoholic,2013,True
-Common Kings,Always Beside You,2013,True
-Dirty Heads,Cabin by the Sea,2012,True
-Dirty Heads,Lay Me Down,2010,True
-Dirty Heads,Medusa,2013,True
-Dirty Heads,My Sweet Summer,2014,True
-Dirty Heads,Oxygen,2014,True
-Dirty Heads,Vacation,2017,True
-Fishbone,Alcoholic,1993,True
-Fishbone,Everyday Sunshine,1991,True
-Fishbone,Freddie's Dead,1990,True
-Fishbone,Sunless Saturday,1991,True
-Fishbone,When Problems Arise,1991,True
-Fortunate Youth,Jah Music,2013,True
-Fortunate Youth,Sweet Love,2011,True
-Giant Panda Guerilla Dub Squad,Far Away,2011,True
-Giant Panda Guerilla Dub Squad,Pockets,2012,True
-Iration,Cookie Jar,2015,True
-Iration,Falling,2013,True
-Iration,Reelin',2016,True
-Iration,Summer Nights,2013,True
-Iration,Time Bomb,2008,True
-J Boog,Good Love,2016,True
-J Boog,Let's Do It Again,2011,True
-J Boog,My Girl,2013,True
-J Boog,Sunshine Girl,2012,True
-John Brown's Body,Sky Juice,2013,True
-Katchafire,Giddy Up,2003,True
-Katchafire,Love Letter,2003,True
-Long Beach Dub Allstars,Kick Down,1999,True
-Long Beach Dub Allstars,Sunny Hours,1999,True
-Matisyahu,Jerusalem,2006,True
-Matisyahu,King Without a Crown,2006,True
-Matisyahu,One Day,2008,True
-Matisyahu,Sunshine,2014,True
-Michael Franti & Spearhead,Say Hey (I Love You),2008,True
-Passafire,Kilo,2009,True
-Passafire,Submersible,2012,True
-Pepper,Ashes,2008,True
-Pepper,Bring Me Along,2006,True
-Pepper,Give It Up,2000,True
-Pepper,Same Ol,2018,True
-Pepper,Stone Love,2004,True
-Pepper,Your Face,2013,True
-Rebelution,Feeling Alright,2016,True
-Rebelution,Good Vibes,2007,True
-Rebelution,Inhale Exhale,2014,True
-Rebelution,Ordinary Girl,2009,True
-Rebelution,Roots Reggae Music,2012,True
-Rebelution,Safe and Sound,2008,True
-Rebelution,Sky is the Limit,2011,True
-Shwayze,Buzzin',2008,True
-Skints,Electric,2017,True
-Skints,This Town,2011,True
-Slightly Stoopid,2am,2008,True
-Slightly Stoopid,Closer to the Sun,2005,True
-Slightly Stoopid,Collie Man,2012,True
-Slightly Stoopid,The Prophet,2008,True
-Slightly Stoopid,Top of the World,2007,True
-SOJA,Everything Changes,2014,True
-SOJA,I Believe,2012,True
-SOJA,Not Done Yet,2017,True
-SOJA,Rest of My Life,2012,True
-SOJA,Shadow,2015,True
-SOJA,True Love,2011,True
-Stick Figure,Breathe,2014,True
-Stick Figure,Shelter,2009,True
-Stick Figure,Smoke Stack,2015,True
-Stick Figure,Sound of the Sea,2014,True
-Stick Figure,Weight of Sound,2012,True
-Sublime,"April 29, 1992 (Miami)",1992,True
-Sublime,Badfish,1992,True
-Sublime,Doin' Time,1997,True
-Sublime,Santeria,1997,True
-Sublime,What I Got,1996,True
-Sublime,Wrong Way,1997,True
-Sublime with Rome,Panic,2011,True
-Sublime with Rome,Take It or Leave It,2019,True
-The Aggrolites,Dirty Reggae,2005,True
-The Aggrolites,Free Time,2007,True
-The Aggrolites,Reggae Hit L.A.,2008,True
-The Dirty Heads,Dance All Night (feat. Matisyahu),2012,True
-The Dirty Heads,Lay Me Down,2010,True
-The Expendables,Bowl for Two,2007,True
-The Expendables,Down Down,2013,True
-The Expendables,"Down, Down, Down",2004,True
-The Expendables,Get What I Need,2012,True
-The Expendables,Night Missions,2017,True
-The Green,Love I,2010,True
-The Green,My Baby,2018,True
-The Holdup,Good Times,2009,True
-The Movement,Girl,2010,True
-The Movement,Habit,2010,True
-The Movement,Mexico,2007,True
-The Movement,Throwdown,2015,True
-The Police,Message in a Bottle,1979,True
-Tribal Seeds,Come Around,2012,True
-Tribal Seeds,The Garden,2014,True
-Tribal Seeds,Warning,2009,True
-UB40,Can't Help Falling in Love,1993,True
-UB40,Higher Ground,1993,True
-UB40,Kingston Town,1990,True
+Artist,Title,Album,Year,Validated
+311,All Mixed Up,,1996,True
+311,Amber,,2001,True
+311,Beautiful Disaster,,1997,True
+311,Come Original,,1999,True
+311,Creatures (For a While),,2003,True
+311,Down,,1996,True
+311,Love Song,,2004,True
+311,Sunset in July,,2011,True
+Ballyhoo!,Cerveza,,2010,True
+Ballyhoo!,Front Porch,,2014,True
+Bedouin Soundclash,12:59 Lullaby,,2004,True
+Bedouin Soundclash,Mountain Top,,2007,True
+Bedouin Soundclash,St. Andrews,,2004,True
+Bedouin Soundclash,Walls Fall Down,,2007,True
+Bedouin Soundclash,When the Night Feels My Song,,2004,True
+Common Kings,Alcoholic,,2013,True
+Common Kings,Always Beside You,,2013,True
+Dirty Heads,Cabin by the Sea,,2012,True
+Dirty Heads,Lay Me Down,,2010,True
+Dirty Heads,Lift Me Up,,2014,True
+Dirty Heads,Medusa,,2013,True
+Dirty Heads,My Sweet Summer,,2014,True
+Dirty Heads,Oxygen,,2014,True
+Dirty Heads,Sound of Change,,2014,True
+Dirty Heads,That's All I Need,,2016,True
+Dirty Heads,Vacation,,2017,True
+Fishbone,Alcoholic,,1993,True
+Fishbone,Everyday Sunshine,,1991,True
+Fishbone,Freddie's Dead,,1990,True
+Fishbone,Sunless Saturday,,1991,True
+Fishbone,When Problems Arise,,1991,True
+Fortunate Youth,Jah Music,,2013,True
+Fortunate Youth,Pass the Herb,,2017,True
+Fortunate Youth,Sweet Love,,2011,True
+Giant Panda Guerilla Dub Squad,Far Away,,2011,True
+Giant Panda Guerilla Dub Squad,Pockets,,2012,True
+Iration,Automatic,,2013,True
+Iration,Cookie Jar,,2015,True
+Iration,Falling,,2013,True
+Iration,Hotting Up,,2015,True
+Iration,Lost and Found,,2010,True
+Iration,Press Play,,2013,True
+Iration,Reelin',,2016,True
+Iration,Summer Nights,,2013,True
+Iration,Time Bomb,,2008,True
+Iration,Turn Around,,2010,True
+J Boog,Good Love,,2016,True
+J Boog,Let's Do It Again,,2011,True
+J Boog,My Girl,,2013,True
+J Boog,Sunshine Girl,,2012,True
+John Brown's Body,Sky Juice,,2013,True
+Katchafire,100,,2007,True
+Katchafire,Get Away,,2010,True
+Katchafire,Giddy Up,,2003,True
+Katchafire,Love Letter,,2003,True
+Long Beach Dub Allstars,Kick Down,,1999,True
+Long Beach Dub Allstars,Sunny Hours,,1999,True
+Matisyahu,Jerusalem,,2006,True
+Matisyahu,King Without a Crown,,2006,True
+Matisyahu,One Day,,2008,True
+Matisyahu,Sunshine,,2014,True
+Michael Franti & Spearhead,Say Hey (I Love You),,2008,True
+Passafire,Black Dog,,2013,True
+Passafire,Ghost Man,,2011,True
+Passafire,Kilo,,2009,True
+Passafire,Longshot,,2017,True
+Passafire,Submersible,,2012,True
+Pepper,Ashes,,2008,True
+Pepper,Bring Me Along,,2006,True
+Pepper,Crazy Love,,2013,True
+Pepper,Give It Up,,2000,True
+Pepper,No Control,,2006,True
+Pepper,Same Ol,,2018,True
+Pepper,Stone Love,,2004,True
+Pepper,Stormtrooper,,2002,True
+Pepper,Your Face,,2013,True
+Rebelution,Celebrate,,2021,True
+Rebelution,Count Me In,,2014,True
+Rebelution,De-Stress,,2007,True
+Rebelution,Feeling Alright,,2016,True
+Rebelution,Good Vibes,,2007,True
+Rebelution,Inhale Exhale,,2014,True
+Rebelution,Lazy Afternoon,,2016,True
+Rebelution,Ordinary Girl,,2009,True
+Rebelution,Roots Reggae Music,,2012,True
+Rebelution,Safe and Sound,,2008,True
+Rebelution,Settle Down Easy,,2018,True
+Rebelution,Sky is the Limit,,2011,True
+Shwayze,Buzzin',,2008,True
+Skints,Electric,,2017,True
+Skints,This Town,,2011,True
+Slightly Stoopid,2am,,2008,True
+Slightly Stoopid,Anywhere I Go,,2012,True
+Slightly Stoopid,Closer to the Sun,,2005,True
+Slightly Stoopid,Collie Man,,2012,True
+Slightly Stoopid,One Bright Day,,2012,True
+Slightly Stoopid,The Prophet,,2008,True
+Slightly Stoopid,This Joint,,2003,True
+Slightly Stoopid,Top of the World,,2007,True
+Slightly Stoopid,Wiseman,,2003,True
+SOJA,Bad News,,2017,True
+SOJA,Born in Babylon,,2009,True
+SOJA,Everything Changes,,2014,True
+SOJA,I Believe,,2012,True
+SOJA,I Don't Wanna Wait,,2009,True
+SOJA,Not Done Yet,,2017,True
+SOJA,Rest of My Life,,2012,True
+SOJA,Shadow,,2015,True
+SOJA,True Love,,2011,True
+SOJA,You and Me,,2009,True
+Stick Figure,Angels Above Me,,2019,True
+Stick Figure,Breathe,,2014,True
+Stick Figure,Coming Home,,2015,True
+Stick Figure,Edge of the Ocean,,2022,True
+Stick Figure,Fire on the Horizon,,2012,True
+Stick Figure,Paradise,,2019,True
+Stick Figure,Shelter,,2009,True
+Stick Figure,Smoke Stack,,2015,True
+Stick Figure,Sound of the Sea,,2014,True
+Stick Figure,Weight of Sound,,2012,True
+Sublime,"April 29, 1992 (Miami)",,1992,True
+Sublime,Badfish,,1992,True
+Sublime,Doin' Time,,1997,True
+Sublime,Santeria,,1997,True
+Sublime,What I Got,,1996,True
+Sublime,Wrong Way,,1997,True
+Sublime with Rome,Panic,,2011,True
+Sublime with Rome,Take It or Leave It,,2019,True
+The Aggrolites,Dirty Reggae,,2005,True
+The Aggrolites,Free Time,,2007,True
+The Aggrolites,Reggae Hit L.A.,,2008,True
+The Dirty Heads,Dance All Night (feat. Matisyahu),,2012,True
+The Dirty Heads,Lay Me Down,,2010,True
+The Expendables,Bowl for Two,,2007,True
+The Expendables,Burning Up,,2015,True
+The Expendables,Down Down,,2013,True
+The Expendables,"Down, Down, Down",,2004,True
+The Expendables,Get What I Need,,2012,True
+The Expendables,Night Missions,,2017,True
+The Expendables,Sacrifice,,2004,True
+The Expendables,Tight Squeeze,,2012,True
+The Green,Alive,,2013,True
+The Green,Love I,,2010,True
+The Green,My Baby,,2018,True
+The Green,Wake Up,,2013,True
+The Holdup,Good Times,,2009,True
+The Movement,Girl,,2010,True
+The Movement,Habit,,2010,True
+The Movement,Mexico,,2007,True
+The Movement,Throwdown,,2015,True
+The Police,Message in a Bottle,,1979,True
+Tribal Seeds,Come Around,,2012,True
+Tribal Seeds,Moonlight,,2017,True
+Tribal Seeds,Rock the Night,,2014,True
+Tribal Seeds,The Garden,,2014,True
+Tribal Seeds,Vampire,,2008,True
+Tribal Seeds,Warning,,2009,True
+UB40,Can't Help Falling in Love,,1993,True
+UB40,Higher Ground,,1993,True
+UB40,Kingston Town,,1990,True
