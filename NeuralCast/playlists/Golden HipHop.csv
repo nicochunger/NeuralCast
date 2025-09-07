@@ -1,38 +1,108 @@
-Artist,Title,Year,Validated
-2Pac,Changes,1998,True
-2Pac,Keep Ya Head Up,1993,True
-A Tribe Called Quest,Check the Rhime,1991,True
-A Tribe Called Quest,Electric Relaxation,1993,True
-Big L,Put It On,1995,True
-Black Star,Respiration,1998,True
-Bone Thugs-N-Harmony,Tha Crossroads,1996,True
-Common,I Used to Love H.E.R.,1994,True
-Common,The Light,2000,True
-De La Soul,Me Myself and I,1989,True
-DMX,Ruff Ryders' Anthem,1998,True
-Dr. Dre,Nuthin' but a 'G' Thang,1992,True
-Dr. Dre,The Next Episode,1999,True
-Eric B. & Rakim,Paid in Full,1987,True
-Fugees,Killing Me Softly With His Song,1996,True
-Gang Starr,Mass Appeal,1994,True
-GZA,Liquid Swords,1995,True
-Ice Cube,It Was a Good Day,1992,True
-Ice Cube,Today Was a Good Day,1993,True
-Jay-Z,Dead Presidents II,1996,True
-Jurassic 5,Quality Control,2000,True
-Lauryn Hill,Doo Wop (That Thing),1998,True
-Mobb Deep,Shook Ones Pt. II,1995,True
-Mos Def,Ms. Fat Booty,1999,True
-Nas,N.Y. State of Mind,1994,True
-Nas,The World Is Yours,1994,True
-OutKast,Elevators (Me & You),1996,True
-OutKast,Rosa Parks,1998,True
-Raekwon,Ice Cream,1995,True
-Snoop Dogg,Gin and Juice,1993,True
-The Fugees,Ready or Not,1996,True
-The Notorious B.I.G.,Big Poppa,1994,True
-The Notorious B.I.G.,Juicy,1994,True
-The Roots,The Next Movement,1999,True
-Tupac Shakur,California Love,1995,True
-Warren G,Regulate,1994,True
-Wu-Tang Clan,C.R.E.A.M.,1993,True
+Artist,Title,Album,Year,Validated
+2Pac,Ambitionz Az a Ridah,,1996,True
+2Pac,Changes,,1998,True
+2Pac,Dear Mama,,1995,True
+2Pac,Keep Ya Head Up,,1993,True
+A Tribe Called Quest,Award Tour,,1993,True
+A Tribe Called Quest,Check the Rhime,,1991,True
+A Tribe Called Quest,Electric Relaxation,,1993,True
+A Tribe Called Quest,Scenario,,1991,True
+Arrested Development,Tennessee,,1992,True
+Artifacts,Wrong Side of da Tracks,,1994,True
+Big Daddy Kane,Ain't No Half-Steppin',,1988,True
+Big Daddy Kane,Smooth Operator,,1989,True
+Big L,Ebonics,,1998,True
+Big L,Put It On,,1995,True
+Big Pun,Still Not a Player,,1998,True
+Biz Markie,Just a Friend,,1989,True
+Black Sheep,The Choice Is Yours (Revisited),,1991,True
+Black Star,Definition,,1998,True
+Black Star,Respiration,,1998,True
+Bone Thugs-N-Harmony,1st of tha Month,,1995,True
+Bone Thugs-N-Harmony,Tha Crossroads,,1996,True
+Boogie Down Productions,My Philosophy,,1988,True
+Boogie Down Productions,South Bronx,,1987,True
+Brand Nubian,Slow Down,,1990,True
+Common,I Used to Love H.E.R.,,1994,True
+Common,Resurrection,,1994,True
+Common,The Light,,2000,True
+Company Flow,8 Steps to Perfection,,1997,True
+Das EFX,They Want EFX,,1992,True
+De La Soul,Me Myself and I,,1989,True
+De La Soul,Stakes Is High,,1996,True
+Digital Underground,The Humpty Dance,,1990,True
+Dilated Peoples,Work the Angles,,1998,True
+DMX,Party Up (Up in Here),,1999,True
+DMX,Ruff Ryders' Anthem,,1998,True
+Dr. Dre,Nuthin' but a 'G' Thang,,1992,True
+Dr. Dre,Still D.R.E.,,1999,True
+Dr. Dre,The Next Episode,,1999,True
+EPMD,Strictly Business,,1988,True
+EPMD,You Gots to Chill,,1988,True
+Eric B. & Rakim,Eric B. Is President,,1986,True
+Eric B. & Rakim,Microphone Fiend,,1988,True
+Eric B. & Rakim,Paid in Full,,1987,True
+Fugees,Killing Me Softly With His Song,,1996,True
+Gang Starr,Full Clip,,1999,True
+Gang Starr,Mass Appeal,,1994,True
+Gang Starr,Moment of Truth,,1998,True
+GZA,Liquid Swords,,1995,True
+House of Pain,Jump Around,,1992,True
+Ice Cube,Check Yo Self,,1992,True
+Ice Cube,It Was a Good Day,,1992,True
+Ice Cube,Today Was a Good Day,,1993,True
+Jay-Z,Can I Live,,1996,True
+Jay-Z,Dead Presidents II,,1996,True
+Jay-Z,Hard Knock Life (Ghetto Anthem),,1998,True
+Jurassic 5,Concrete Schoolyard,,1998,True
+Jurassic 5,Quality Control,,2000,True
+Kool G Rap & DJ Polo,Road to the Riches,,1989,True
+Lauryn Hill,Doo Wop (That Thing),,1998,True
+LL Cool J,Mama Said Knock You Out,,1990,True
+LL Cool J,Rock the Bells,,1985,True
+Lord Finesse,Hip 2 Da Game,,1995,True
+MC Lyte,Paper Thin,,1988,True
+Method Man,Bring the Pain,,1994,True
+Mobb Deep,Quiet Storm,,1999,True
+Mobb Deep,Shook Ones Pt. II,,1995,True
+Mobb Deep,Survival of the Fittest,,1995,True
+Mos Def,Mathematics,,1999,True
+Mos Def,Ms. Fat Booty,,1999,True
+Nas,If I Ruled the World (Imagine That),,1996,True
+Nas,Memory Lane (Sittin' in da Park),,1994,True
+Nas,N.Y. State of Mind,,1994,True
+Nas,The World Is Yours,,1994,True
+Naughty by Nature,Hip Hop Hooray,,1993,True
+Naughty by Nature,O.P.P.,,1991,True
+OutKast,Elevators (Me & You),,1996,True
+OutKast,Rosa Parks,,1998,True
+OutKast,Southernplayalisticadillacmuzik,,1994,True
+Pete Rock & C.L. Smooth,They Reminisce Over You (T.R.O.Y.),,1992,True
+Public Enemy,Don't Believe the Hype,,1988,True
+Public Enemy,Fight the Power,,1989,True
+Public Enemy,Rebel Without a Pause,,1987,True
+Queen Latifah,U.N.I.T.Y.,,1993,True
+Raekwon,Criminology,,1995,True
+Raekwon,Ice Cream,,1995,True
+Redman,Tonight's Da Night,,1993,True
+Salt-N-Pepa,Push It,,1987,True
+Slick Rick,Children's Story,,1988,True
+Slick Rick,Mona Lisa,,1988,True
+Snoop Dogg,Gin and Juice,,1993,True
+Snoop Dogg,Who Am I (What's My Name)?,,1993,True
+Souls of Mischief,93 'til Infinity,,1993,True
+The Fugees,Ready or Not,,1996,True
+The Notorious B.I.G.,Big Poppa,,1994,True
+The Notorious B.I.G.,Hypnotize,,1997,True
+The Notorious B.I.G.,Juicy,,1994,True
+The Notorious B.I.G.,Mo Money Mo Problems,,1997,True
+The Pharcyde,Passin' Me By,,1992,True
+The Pharcyde,Runnin',,1995,True
+The Roots,The Next Movement,,1999,True
+The Roots,You Got Me,,1999,True
+Tupac Shakur,California Love,,1995,True
+Warren G,Regulate,,1994,True
+Warren G,This D.J.,,1994,True
+Wu-Tang Clan,C.R.E.A.M.,,1993,True
+Wu-Tang Clan,Protect Ya Neck,,1993,True
+Wu-Tang Clan,Triumph,,1997,True
