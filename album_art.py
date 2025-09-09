@@ -14,7 +14,7 @@ musicbrainzngs.set_useragent(
     "NeuralCastArtEmbedder", "1.0", "https://github.com/your-repo"
 )
 
-LOG_FILE = os.path.join(os.path.dirname(__file__), "album_art_skipped.log")
+LOG_FILE = os.path.join(os.path.dirname(__file__), "logs/album_art_skipped.log")
 
 
 def _log_skip(entry: dict):

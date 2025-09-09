@@ -1,3 +1,0 @@
-Give me a playlist of [NUM_TRACKS] [GENRE] songs. [DESCRIPTION]
-
-Only list tracks that are available on major streaming services and released between 1960-2025. Make sure to not list any duplicates.
