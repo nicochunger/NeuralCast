@@ -703,7 +703,12 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         else:
             print(f"\n📁 No existing songs to validate")
 
-        # Validate missing songs (only unvalidated ones)
+        # Validate missing songs (ensure BOTH previously validated and newly validated get downloaded)
+        # BUGFIX: Previously, if any unvalidated songs existed, already validated-but-missing songs
+        # were skipped from downloads. We now always include them.
+        pre_validated_missing = [
+            (song, path) for song, path in missing_songs if song.validated
+        ]
         unvalidated_missing = [
             (song, path) for song, path in missing_songs if not song.validated
         ]
@@ -713,13 +718,11 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 f"\n🔍 Validating {len(unvalidated_missing)} songs before download..."
             )
 
-            # Validate missing songs before downloading
-            valid_songs = []
+            newly_validated = []
             invalid_songs = []
 
             for song, song_path in unvalidated_missing:
                 if verified(song.artist, song.title):
-                    # Only set validated=True and schedule download if album (when present) is validated
                     album_ok = True
                     if song.album and str(song.album).strip():
                         try:
@@ -760,16 +763,15 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                             album=song.album,
                             validated=True,
                         )
-                        # Replace the song in the songs list
+                        # Update master songs list
                         for i, s in enumerate(songs):
                             if s.artist == song.artist and s.title == song.title:
                                 songs[i] = updated_song
                                 break
-                        valid_songs.append((updated_song, song_path))
+                        newly_validated.append((updated_song, song_path))
                         validation_updates = True
                         print(f"✓ Validated for download: {song.artist} - {song.title}")
                     else:
-                        # Keep entry; do not download; remain unvalidated
                         print(
                             f"   ↳ Skipping download; keeping Validated=False due to album validation failure"
                         )
@@ -778,25 +780,25 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     print(f"❌ Invalid/not found: {song.artist} - {song.title}")
                     songs_to_remove_from_playlist.append(song)
 
+            # Combine already validated + newly validated
+            valid_songs = pre_validated_missing + newly_validated
+            if pre_validated_missing:
+                print(
+                    f"✓ {len(pre_validated_missing)} already validated song(s) pending download"
+                )
+
             valid_count = len(valid_songs)
             invalid_count = len(invalid_songs)
             print(f"   Valid songs to download: {valid_count}")
             print(f"   Invalid/not found songs: {invalid_count}")
         else:
-            valid_songs = [
-                (
-                    song,
-                    music_dir
-                    / f"{song.artist.replace('/', ' ').replace('\\', ' ')} - {song.title.replace('/', ' ').replace('\\', ' ')}.mp3",
-                )
-                for song, _ in missing_songs
-                if song.validated
-            ]
+            # No unvalidated songs; all missing songs are already validated
             invalid_songs = []
+            valid_songs = pre_validated_missing  # all of them
             valid_count = len(valid_songs)
             invalid_count = 0
             print(
-                f"\n⏭️ Skipping validation for {len(missing_songs) - valid_count} already validated missing songs"
+                f"\n⏭️ No unvalidated missing songs. {valid_count} already validated song(s) pending download."
             )
 
         # Save validation updates to playlist

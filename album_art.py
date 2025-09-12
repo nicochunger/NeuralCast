@@ -6,7 +6,6 @@ import datetime
 import tempfile
 from IPython.display import Image as IPyImage, display
 import os
-from validators import _close_enough
 import json
 
 # Set up musicbrainzngs library
@@ -108,14 +107,16 @@ def embed_from_release_id(
 
 def embed_from_artist_album(mp3_path: str, artist: str, album: str):
     """
-    Uses artist + album to find the best release and embed its cover.
+    Fetch cover art using artist + album with STRICT title match (case-insensitive).
+    Only releases whose title matches exactly (ignoring case) are considered.
     """
     print(f"Searching for album '{album}' by '{artist}' on MusicBrainz...")
+    normalized_album = album.strip().lower()
     try:
-        result = musicbrainzngs.search_releases(artist=artist, release=album, limit=10)
+        result = musicbrainzngs.search_releases(artist=artist, release=album, limit=25)
         releases = result.get("release-list", [])
         if not releases:
-            print("-> No releases found for given artist and album.")
+            print("-> No releases found for given artist/album query.")
             _log_skip(
                 {
                     "ts": datetime.datetime.utcnow().isoformat() + "Z",
@@ -125,15 +126,27 @@ def embed_from_artist_album(mp3_path: str, artist: str, album: str):
             )
             return
 
-        release = find_best_release_from_releases(releases) or releases[0]
-        release_id = release["id"]
-        found_title = release.get("title", album)
-        print(f"-> Found release: '{found_title}' (ID: {release_id})")
+        # Exact (case-insensitive) title matches only
+        exact_matches = [
+            r
+            for r in releases
+            if r.get("title", "").strip().lower() == normalized_album
+        ]
 
-        # Build close-enough candidates:
-        # - Try the "best" release first if it's close
-        # - Then other close-enough releases, preferring Official Albums and earlier dates
-        def _alt_sort_key(r):
+        if not exact_matches:
+            print("-> No exact (case-insensitive) title match found.")
+            _log_skip(
+                {
+                    "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                    "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
+                    "reason": "no_exact_case_insensitive_match",
+                    "sample_titles": [r.get("title") for r in releases[:5]],
+                }
+            )
+            return
+
+        # Sort exact matches: Official Album first, then earliest date
+        def _sort_key(r):
             is_official_album = (
                 r.get("status") == "Official"
                 and r.get("release-group", {}).get("primary-type") == "Album"
@@ -141,44 +154,30 @@ def embed_from_artist_album(mp3_path: str, artist: str, album: str):
             date = _parse_release_date(r.get("date", ""))
             return (0 if is_official_album else 1, date)
 
-        candidates = []
-        if _close_enough(found_title, album):
-            candidates.append(release)
+        exact_matches.sort(key=_sort_key)
 
-        alternates = [
-            r
-            for r in releases
-            if r.get("id") != release_id and _close_enough(r.get("title", ""), album)
-        ]
-        alternates.sort(key=_alt_sort_key)
-        candidates.extend(alternates)
+        print(
+            f"-> Found {len(exact_matches)} exact match(es): "
+            + ", ".join([r.get("title", "?") for r in exact_matches])
+        )
 
-        if not candidates:
-            _log_skip(
-                {
-                    "ts": datetime.datetime.utcnow().isoformat() + "Z",
-                    "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
-                    "found": {"title": found_title, "id": release_id},
-                    "reason": "not_close_enough_any_release",
-                }
-            )
-            print(f"-> No close-enough releases found. Logged to {LOG_FILE}")
-            return
+        for r in exact_matches:
+            release_id = r["id"]
+            release_title = r.get("title", album)
+            print(f"-> Trying release '{release_title}' (ID: {release_id})")
+            if embed_from_release_id(mp3_path, release_id, release_title):
+                return  # success
 
-        # Try candidates until one succeeds (cover art available and embedded)
-        for r in candidates:
-            if embed_from_release_id(mp3_path, r["id"], r.get("title", album)):
-                return
-
-        # If none succeeded, log a summary entry
+        # None succeeded
         _log_skip(
             {
                 "ts": datetime.datetime.utcnow().isoformat() + "Z",
                 "input": {"artist": artist, "album": album, "mp3_path": mp3_path},
-                "reason": "no_cover_art_found_for_any_matching_release",
-                "attempted_release_ids": [r["id"] for r in candidates],
+                "reason": "no_cover_art_found_for_exact_title",
+                "attempted_release_ids": [r["id"] for r in exact_matches],
             }
         )
+        print("-> Failed to embed cover art from any exact-match release.")
     except musicbrainzngs.WebServiceError as exc:
         print(f"-> MusicBrainz API error: {exc}")
         _log_skip(
@@ -226,4 +225,5 @@ def show_embedded_art(mp3_path: str):
         f.write(apic.data)
     print(f"Saved embedded art to: {path}")
 
+    return mime
     return mime
