@@ -1,4 +1,51 @@
 Artist,Title,Album,Year,Validated
+Alejandra Guzmán,Eternamente Bella,,1990,True
+Alejandra Guzmán,Hacer el Amor Con Otro,,1992,True
+Alejandra Guzmán,Míralo Mírala,,1992,True
+Alejandra Guzmán,Yo Te Esperaba,,1992,True
+Alejandro Sanz,Amiga Mía,,1997,True
+Alejandro Sanz,Corazón Partío,,1997,True
+Alejandro Sanz,Quisiera Ser,,2000,True
+Alejandro Sanz,Y Solo Se Me Ocurre Amarte,,2000,True
+Ana Gabriel,Simplemente Amigos,,1989,True
+Ana Torroja,Sonrisa,,1997,True
+Aterciopelados,Bolero Falaz,,1995,True
+Azúcar Moreno,Bandido,,1990,True
+Babasónicos,Putita,,2001,True
+Belinda,Boba Niña Nice,,2003,True
+Belinda,Lo Siento,,2003,True
+Belinda,Vivir,,2006,True
+Bersuit Vergarabat,La Argentinidad al Palo,,2004,True
+Café Tacvba,Ingrata,,1994,True
+Caifanes,No Dejes Que,,1988,True
+Camila,Abrázame,,2008,True
+Camila,Coleccionista de Canciones,,2006,True
+Camila,Mientes,,2006,True
+Camila,Todo Cambió,,2006,True
+Carlos Vives,Carito,,2004,True
+Carlos Vives,Fruta Fresca,,2001,True
+Carlos Vives,La Tierra del Olvido,,1995,True
+Carlos Vives,Pa' Mayte,,2004,True
+Chancho en Piedra,Eligiendo una Reina,,1995,True
+Charly García,Demoliendo Hoteles,,1984,True
+Chayanne,Baila Baila,,1998,True
+Chayanne,Provócame,,2000,True
+Chayanne,Salomé,,1998,True
+Chayanne,Tiempo de Vals,,1990,True
+Chayanne,Y Tú Te Vas,,2002,True
+Control Machete,Sí Señor,,1996,True
+Cristian Castro,Azul,,1996,True
+Daniela Romo,De Mí Enamórate,,1985,True
+David Bisbal,Ave María,,2002,True
+David Bisbal,Bulería,,2002,True
+David Bisbal,Dígale,,2004,True
+David Bisbal,Silencio,,2002,True
+Diego Torres,Color Esperanza,,2001,True
+Diego Torres,Guapa,,2003,True
+Diego Torres,Tratar de Estar Mejor,,2004,True
+Divididos,Spaghetti del Rock,,1993,True
+Emmanuel,La Chica de Humo,,1986,True
+Enanitos Verdes,Lamento Boliviano,,1994,True
 Enrique Iglesias,Addicted,,2003,True
 Enrique Iglesias,Bailamos,,1999,True
 Enrique Iglesias,Be With You,,2001,True
@@ -12,12 +59,22 @@ Enrique Iglesias,Mentiroso,,1999,True
 Enrique Iglesias,Not in Love,,2003,True
 Enrique Iglesias,Oyeme,,1999,True
 Enrique Iglesias,Rhythm Divine,,1999,True
+Fey,Media Naranja,,1995,True
+Fito Páez,11 y 6,,1985,True
+Flans,No Controles,,1986,True
+Gente de Zona,La Gozadera,,2015,True
+Gente de Zona,Mas Macarena,,2019,True
+Gloria Trevi,Pelo Suelto,,1991,True
+Inspector,Amargo Adiós,,1998,True
 Jesse & Joy,Adiós,,2006,True
 Jesse & Joy,Corre,,2007,True
 Jesse & Joy,Espacio Sideral,,2006,True
 Jesse & Joy,Llorar,,2006,True
 Jesse & Joy,Volveré,,2007,True
 Jesse & Joy,Ya No Quiero,,2007,True
+José José,El Triste,,1970,True
+José Luis Perales,Y Cómo Es Él,,1982,True
+Juan Gabriel,Amor Eterno,,1984,True
 Juanes,A Dios le Pido,,2002,True
 Juanes,Bandera de Manos,,2010,True
 Juanes,Dificil,,2002,True
@@ -43,6 +100,21 @@ Julieta Venegas,Me Voy,,2000,True
 Julieta Venegas,Mira la Vida,,2003,True
 Julieta Venegas,Oleada,,2006,True
 Julieta Venegas,Sería Feliz,,2000,True
+Kabah,La Vida Que Va,,1996,True
+La Ley,Mentira,,1995,True
+La Santa Cecilia,Ice El Hielo,,2013,True
+Los Auténticos Decadentes,Loco,,1995,True
+Los Bukis,Tu Cárcel,,1986,True
+Los Fabulosos Cadillacs,Matador,,1993,True
+Los Prisioneros,Tren al Sur,,1990,True
+Los Tres,Dejate Caer,,1991,True
+Lucero,Veleta,,1990,True
+Luis Miguel,La Incondicional,,1989,True
+Magneto,Vuela Vuela,,1991,True
+Manu Chao,Bongo Bong,,1998,True
+Manu Chao,Desaparecido,,2001,True
+Manu Chao,Me Gustas Tú,,2001,True
+Manu Chao,Próxima Estación Esperanza,,2001,True
 Maná,Bendita Tu Luz,,2006,True
 Maná,Clavado en un Bar,,2006,True
 Maná,Corazón Espinado,,1999,True
@@ -56,6 +128,21 @@ Maná,Perdido en un Barco,,2002,True
 Maná,Rayando el Sol,,1992,True
 Maná,Vivir Sin Aire,,1997,True
 Maná,Ángel de Amor,,2002,True
+Marc Anthony,Ahora Quien,,2013,True
+Marc Anthony,Flor Pálida,,2013,True
+Marc Anthony,Tu Amor Me Hace Bien,,2013,True
+Marc Anthony,Valió la Pena,,2004,True
+Marco Antonio Solís,Si No Te Hubieras Ido,,1997,True
+Marta Sánchez,Desesperada,,1993,True
+Mecano,Hijo de la Luna,,1988,True
+Miguel Bosé,Amante Bandido,,1984,True
+Miguel Mateos,Cuando Seas Grande,,1986,True
+Molotov,Gimme Tha Power,,1997,True
+Natalia Lafourcade,En el 2000,,2003,True
+Natalia Lafourcade,Hasta la Raíz,,2015,True
+Natalia Lafourcade,Nunca Es Suficiente,,2017,True
+OV7,Enloquéceme,,1999,True
+Pandora,Como Te Va Mi Amor,,1985,True
 Paulina Rubio,Algo Tienes,,2009,True
 Paulina Rubio,Causa y Efecto,,2006,True
 Paulina Rubio,Don't Say Goodbye,,2002,True
@@ -66,6 +153,7 @@ Paulina Rubio,Sexi Dance,,2004,True
 Paulina Rubio,Te Quise Tanto,,2002,True
 Paulina Rubio,Undeniable,,2002,True
 Paulina Rubio,Y Yo Sigo Aquí,,2000,True
+Plastilina Mosh,Niño Bomba,,1997,True
 Ricardo Arjona,Como Duele,,2000,True
 Ricardo Arjona,Dime Que No,,1998,True
 Ricardo Arjona,El Problema,,2000,True
@@ -84,6 +172,8 @@ Ricky Martin,Private Emotion,,1999,True
 Ricky Martin,Shake Your Bon-Bon,,1999,True
 Ricky Martin,She Bangs,,2000,True
 Ricky Martin,Spanish Eyes,,2000,True
+Selena,Como La Flor,,1992,True
+Sentidos Opuestos,Fiesta,,1993,True
 Shakira,Ciega Sordomuda,,1998,True
 Shakira,Costume Makes the Clown,,2005,True
 Shakira,Don't Bother,,2005,True
@@ -103,6 +193,11 @@ Shakira,Te Dejo Madrid,,2005,True
 Shakira,The One,,2001,True
 Shakira,Underneath Your Clothes,,2001,True
 Shakira,Whenever Wherever,,2001,True
+Sin Bandera,Entra en Mi Vida,,2002,True
+Sin Bandera,Que Me Alcance la Vida,,2003,True
+Sin Bandera,Suelta Mi Mano,,2005,True
+Sin Bandera,Te Vi Venir,,2001,True
+Soda Stereo,De Música Ligera,,1990,True
 Thalia,Arrasando,,2000,True
 Thalia,Baby I'm in Love,,2002,True
 Thalia,Cerca de Ti,,2000,True
@@ -111,3 +206,6 @@ Thalia,I Want You,,2002,True
 Thalia,No Me Enseñaste,,2002,True
 Thalia,Piel Morena,,1997,True
 Thalia,Tú y Yo,,2002,True
+Timbiriche,Con Todos Menos Conmigo,,1985,True
+Virus,Wadu Wadu,,1981,True
+Yuri,Maldita Primavera,,1981,True

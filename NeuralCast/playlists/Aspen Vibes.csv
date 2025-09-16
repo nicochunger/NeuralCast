@@ -1,241 +1,298 @@
-Artist,Title,Year,Validated
-Ace,How Long,1974,True
-Adele,Rolling in the Deep,2010,True
-Adele,Someone Like You,2011,True
-Aerosmith,I Don't Want to Miss a Thing,1998,True
-Air Supply,All Out of Love,1980,True
-Air Supply,Making Love Out of Nothing at All,1983,True
-Al Stewart,Year of the Cat,1976,True
-Alanis Morissette,Ironic,1995,True
-America,A Horse with No Name,1971,True
-America,Ventura Highway,1972,True
-Amy Grant,Baby Baby,1991,True
-Annie Lennox,Why,1992,True
-Avril Lavigne,I'm with You,2002,True
-Bee Gees,How Deep Is Your Love,1977,True
-Bette Midler,Wind Beneath My Wings,1988,True
-Billy Joel,Piano Man,1973,True
-Billy Joel,The River of Dreams,1993,True
-Billy Joel,Uptown Girl,1983,True
-Black,Wonderful Life,1987,True
-Bonnie Raitt,I Can't Make You Love Me,1991,True
-Brandi Carlile,The Story,2007,True
-Bread,Make It with You,1970,True
-Bryan Adams,Heaven,1985,True
-Bryan Adams,Summer of '69,1985,True
-Carly Simon,You're So Vain,1972,True
-Carole King,It's Too Late,1971,True
-Carole King,You've Got a Friend,1971,True
-Cat Stevens,Peace Train,1971,True
-Cat Stevens,Wild World,1970,True
-Chicago,Hard to Say I'm Sorry,1982,True
-Chicago,You're the Inspiration,1984,True
-Christopher Cross,Sailing,1980,True
-Colbie Caillat,Bubbly,2007,True
-Coldplay,Paradise,2011,True
-Coldplay,The Scientist,2002,True
-"Crosby, Stills & Nash",Our House,1970,True
-"Crosby, Stills, Nash & Young",Helplessly Hoping,1969,True
-Crowded House,Don't Dream It's Over,1986,True
-Cyndi Lauper,Time After Time,1984,True
-Dan Fogelberg,Leader of the Band,1981,True
-Dan Fogelberg,Longer,1979,True
-Dave Matthews Band,Crash into Me,1996,True
-Dave Matthews Band,Satellite,1994,True
-David Gray,Babylon,1998,True
-DeBarge,Rhythm of the Night,1985,True
-Del Amitri,Nothing Ever Happens,1990,True
-Dido,Thank You,2000,True
-Dixie Chicks,Travelin' Soldier,2002,True
-Eagles,Love Will Keep Us Alive,1994,True
-Eagles,Tequila Sunrise,1973,True
-Ed Sheeran,Thinking Out Loud,2014,True
-Edwin McCain,I'll Be,1998,True
-Elton John,I Guess That's Why They Call It the Blues,1983,True
-Elton John,Sacrifice,1989,True
-Elton John,Tiny Dancer,1971,True
-Elton John,Your Song,1970,True
-Enya,Orinoco Flow,1988,True
-Eric Clapton,Tears in Heaven,1992,True
-Europe,The Final Countdown,1986,True
-Faith Hill,Breathe,1999,True
-Five for Fighting,100 Years,2003,True
-Five for Fighting,Superman,2000,True
-Fleetwood Mac,Everywhere,1987,True
-Fleetwood Mac,Landslide,1975,True
-Fleetwood Mac,Little Lies,1987,True
-Foreigner,I Want to Know What Love Is,1984,True
-Foxes,Let Go for Tonight,2014,True
-Fun.,Some Nights,2012,True
-Garth Brooks,If Tomorrow Never Comes,1989,True
-Gavin DeGraw,I Don't Want to Be,2003,True
-George Michael,Careless Whisper,1984,True
-George Michael,Freedom! '90,1990,True
-Glen Hansard,Falling Slowly,2008,True
-Gloria Estefan,Rhythm Is Gonna Get You,1991,True
-Goo Goo Dolls,Iris,1998,True
-Gordon Lightfoot,If You Could Read My Mind,1970,True
-Gotye,Somebody That I Used to Know,2011,True
-Heart,Alone,1987,True
-Hootie & the Blowfish,Only Wanna Be with You,1995,True
-Hozier,Take Me to Church,2013,True
-Huey Lewis & The News,The Power of Love,1985,True
-Human League,Don't You Want Me?,1981,True
-Hunter Hayes,Wanted,2012,True
-Idina Menzel,Let It Go,2013,True
-Il Divo,Hallelujah,2006,True
-Imagine Dragons,Demons,2013,True
-Ingrid Michaelson,The Way I Am,2007,True
-INXS,Devil Inside,1988,True
-INXS,Need You Tonight,1987,True
-Iron & Wine,Naked as We Came,2004,True
-Israel Kamakawiwoʻole,Over the Rainbow,1993,True
-Jack Johnson,Better Together,2005,True
-Jackson Browne,Running on Empty,1977,True
-James Blunt,You're Beautiful,2005,True
-James Taylor,Fire and Rain,1970,True
-James Taylor,Her Town Too,1981,True
-James Taylor,You've Got a Friend,1971,True
-Janet Jackson,Again,1993,True
-Jason Mraz,I'm Yours,2008,True
-Jewel,You Were Meant for Me,1997,True
-Jim Croce,I Got a Name,1973,True
-Jim Croce,Operator (That's Not the Way It Feels),1972,True
-Jim Croce,Time in a Bottle,1973,True
-John Denver,"Take Me Home, Country Roads",1971,True
-John Mayer,Gravity,2006,True
-Jon Bon Jovi,Always,1994,True
-Katie Melua,Nine Million Bicycles,2005,True
-Keane,Somewhere Only We Know,2004,True
-Keith Urban,Somebody Like You,2002,True
-Kelly Clarkson,Because of You,2004,True
-Kenny Loggins,Forever,1985,True
-Kenny Rogers,Lady,1980,True
-Kings of Leon,Use Somebody,2008,True
-KT Tunstall,Black Horse and the Cherry Tree,2005,True
-LeAnn Rimes,How Do I Live,1997,True
-Leona Lewis,Bleeding Love,2007,True
-Level 42,Lessons in Love,1986,True
-Lifehouse,Hanging by a Moment,2001,True
-Linda Ronstadt,Blue Bayou,1977,True
-Lionel Richie,Hello,1984,True
-Little River Band,The Night Owls,1981,True
-Lonestar,Amazed,1999,True
-Luther Vandross,Dance with My Father,2003,True
-Madonna,Crazy for You,1985,True
-Maroon 5,She Will Be Loved,2004,True
-Matchbox Twenty,Unwell,2003,True
-Maxwell,Ascension (Don't Ever Wonder),1996,True
-Michael Bolton,How Am I Supposed to Live Without You,1989,True
-Michael Bublé,Haven't Met You Yet,2009,True
-Michael Jackson,Human Nature,1982,True
-Michelle Branch,Everywhere,2001,True
-Mike + The Mechanics,The Living Years,1988,True
-Natalie Imbruglia,Torn,1997,True
-Neil Young,Heart of Gold,1972,True
-Nelly Furtado,I'm Like a Bird,2000,True
-New Radicals,You Get What You Give,1998,True
-Niall Horan,Slow Hands,2017,True
-Nickelback,How You Remind Me,2001,True
-No Doubt,Don't Speak,1996,True
-Norah Jones,Come Away with Me,2002,True
-NSYNC,This I Promise You,2000,True
-Oasis,Wonderwall,1995,True
-Of Monsters and Men,Little Talks,2011,True
-Olivia Newton-John,Magic,1980,True
-One Direction,What Makes You Beautiful,2011,True
-OneRepublic,Apologize,2007,True
-Opus,Live Is Life,1984,True
-Orchestral Manoeuvres In The Dark,If You Leave,1986,True
-Owl City,Fireflies,2009,True
-Passenger,Let Her Go,2012,True
-Paul Simon,Kodachrome,1973,True
-Paul Simon,Me and Julio Down by the Schoolyard,1972,True
-Paul Young,Every Time You Go Away,1985,True
-Peter Cetera,Glory of Love,1986,True
-Phil Collins,Another Day in Paradise,1989,True
-Phil Collins,In the Air Tonight,1981,True
-Pink,Try,2012,True
-Plain White T's,Hey There Delilah,2006,True
-PM Dawn,Set Adrift on Memory Bliss,1991,True
-Queen,A Kind of Magic,1986,True
-Queen,Hammer to Fall,1984,True
-Queen,I Want to Break Free,1984,True
-Queen,Princes of the Universe,1986,True
-Queen,These Are the Days of Our Lives,1991,True
-Queen,Who Wants to Live Forever,1986,True
-Queen & David Bowie,Under Pressure,1981,True
-R.E.M.,Nightswimming,1993,True
-Reo Speedwagon,Can't Fight This Feeling,1984,True
-Richard Marx,Right Here Waiting,1989,True
-Rick Astley,Never Gonna Give You Up,1987,True
-Rick Springfield,Jessie's Girl,1981,True
-Robbie Williams,Angels,1997,True
-Robbie Williams,Feel,2001,True
-Rod Stewart,Forever Young,1988,True
-Rod Stewart,Maggie May,1971,True
-Roxette,It Must Have Been Love,1990,True
-Sade,Paradise,1988,True
-Sade,Smooth Operator,1984,True
-Sarah McLachlan,Angel,1997,True
-Seal,Kiss from a Rose,1994,True
-Seals and Crofts,Summer Breeze,1972,True
-Selena Gomez,Lose You to Love Me,2019,True
-Shania Twain,You're Still the One,1998,True
-Sheryl Crow,Strong Enough,1994,True
-Simon & Garfunkel,Bridge Over Troubled Water,1970,True
-Simon & Garfunkel,The Boxer,1969,True
-Simply Red,Holding Back the Years,1989,True
-Sinead O'Connor,Nothing Compares 2 U,1990,True
-Spandau Ballet,True,1983,True
-Steely Dan,FM (No Static at All),1982,True
-Sting,Fields of Gold,1993,True
-Supertramp,Give a Little Bit,1977,True
-Talking Heads,This Must Be the Place (Naive Melody),1983,True
-Taylor Swift,You Belong with Me,2008,True
-Tears for Fears,Change,1983,True
-The Byrds,Ballad of Easy Rider,1969,True
-The Doobie Brothers,Listen to the Music,1972,True
-The Mamas & The Papas,California Dreamin',1965,True
-Toni Braxton,Un-Break My Heart,1996,True
-Tori Amos,Winter,1992,True
-Toto,Africa,1982,True
-Tracy Chapman,Fast Car,1988,True
-Train,Drops of Jupiter,2001,True
-U2,One,1991,True
-U2,Where the Streets Have No Name,1987,True
-U2,With or Without You,1987,True
-UB40,Can't Help Falling in Love,1993,True
-UB40,Red Red Wine,1983,True
-Usher,Burn,2004,True
-Usher,You Make Me Wanna...,1997,True
-Van Halen,Why Can't This Be Love,1986,True
-Van Morrison,Have I Told You Lately,1989,True
-Vance Joy,Riptide,2013,True
-Vanessa Carlton,A Thousand Miles,2002,True
-Vanessa Williams,Save the Best for Last,1992,True
-Vangelis,Conquest of Paradise,1992,True
-Vertical Horizon,Everything You Want,1999,True
-Vince Gill,I Still Believe in You,1992,True
-Westlife,My Love,2000,True
-Wet Wet Wet,Love Is All Around,1994,True
-Wham!,Freedom,1984,True
-Whitney Houston,I Wanna Dance with Somebody (Who Loves Me),1987,True
-Whitney Houston,The Greatest Love of All,1985,True
-Will Young,Leave Right Now,2003,True
-Wilson Phillips,Hold On,1990,True
-Wynonna Judd,No One Else on Earth,1992,True
-X Ambassadors,Jungle,2019,True
-X Ambassadors,Unsteady,2015,True
-Xavier Rudd,Follow the Sun,2012,True
-Xscape,Just Kickin' It,1993,True
-XTC,Dear God,1986,True
-Yanni,One Man's Dream,1994,True
-Yazoo,Only You,1982,True
-Yes,Love Will Find a Way,1987,True
-Yes,Owner of a Lonely Heart,1983,True
-Zac Brown Band,Colder Weather,2012,True
-Zayn Malik,Pillowtalk,2016,True
-Zella Day,Hypnotic,2015,True
-Ziggy Marley,Love Is My Religion,2006,True
-Zucchero,Diamante,1989,True
+Artist,Title,Album,Year,Validated
+"10,000 Maniacs",Because the Night,,1993,True
+a-ha,Take On Me,,1985,True
+ABBA,The Winner Takes It All,,1980,True
+Ace,How Long,,1974,True
+Adele,Rolling in the Deep,,2010,True
+Adele,Set Fire to the Rain,,2011,True
+Adele,Someone Like You,,2011,True
+Aerosmith,I Don't Want to Miss a Thing,,1998,True
+Air Supply,All Out of Love,,1980,True
+Air Supply,Making Love Out of Nothing at All,,1983,True
+Al Stewart,Year of the Cat,,1976,True
+Alanis Morissette,Ironic,,1995,True
+America,A Horse with No Name,,1971,True
+America,Ventura Highway,,1972,True
+Amy Grant,Baby Baby,,1991,True
+Annie Lennox,Why,,1992,True
+Avril Lavigne,I'm with You,,2002,True
+Bee Gees,How Deep Is Your Love,,1977,True
+Bette Midler,Wind Beneath My Wings,,1988,True
+Bill Withers,Ain't No Sunshine,,1971,True
+Billy Joel,Piano Man,,1973,True
+Billy Joel,The River of Dreams,,1993,True
+Billy Joel,Uptown Girl,,1983,True
+Black,Wonderful Life,,1987,True
+Blind Melon,No Rain,,1992,True
+Bob Dylan,Knockin' on Heaven's Door,,1973,True
+Bon Jovi,Bed of Roses,,1992,True
+Bonnie Raitt,I Can't Make You Love Me,,1991,True
+Boston,More Than a Feeling,,1976,True
+Brandi Carlile,The Story,,2007,True
+Bread,Make It with You,,1970,True
+Bruce Springsteen,Streets of Philadelphia,,1994,True
+Bruno Mars,When I Was Your Man,,2012,True
+Bryan Adams,Heaven,,1985,True
+Bryan Adams,Summer of '69,,1985,True
+Carly Simon,You're So Vain,,1972,True
+Carole King,It's Too Late,,1971,True
+Carole King,You've Got a Friend,,1971,True
+Cat Stevens,Peace Train,,1971,True
+Cat Stevens,Wild World,,1970,True
+Chicago,Hard to Say I'm Sorry,,1982,True
+Chicago,You're the Inspiration,,1984,True
+Chris Isaak,Wicked Game,,1989,True
+Christina Perri,A Thousand Years,,2011,True
+Christopher Cross,Sailing,,1980,True
+Colbie Caillat,Bubbly,,2007,True
+Coldplay,Fix You,,2005,True
+Coldplay,Paradise,,2011,True
+Coldplay,The Scientist,,2002,True
+Counting Crows,Mr. Jones,,1993,True
+"Crosby, Stills & Nash",Our House,,1970,True
+"Crosby, Stills, Nash & Young",Helplessly Hoping,,1969,True
+Crowded House,Don't Dream It's Over,,1986,True
+Cyndi Lauper,Time After Time,,1984,True
+Dan Fogelberg,Leader of the Band,,1981,True
+Dan Fogelberg,Longer,,1979,True
+Dave Matthews Band,Crash into Me,,1996,True
+Dave Matthews Band,Satellite,,1994,True
+David Gray,Babylon,,1998,True
+DeBarge,Rhythm of the Night,,1985,True
+Del Amitri,Nothing Ever Happens,,1990,True
+Dido,Thank You,,2000,True
+Dire Straits,Sultans of Swing,,1978,True
+Dire Straits,Walk of Life,,1985,True
+Dixie Chicks,Travelin' Soldier,,2002,True
+Don McLean,American Pie,,1971,True
+Eagles,Hotel California,,1976,True
+Eagles,Love Will Keep Us Alive,,1994,True
+Eagles,Tequila Sunrise,,1973,True
+Ed Sheeran,Thinking Out Loud,,2014,True
+Edwin McCain,I'll Be,,1998,True
+Elton John,I Guess That's Why They Call It the Blues,,1983,True
+Elton John,Rocket Man,,1972,True
+Elton John,Sacrifice,,1989,True
+Elton John,Tiny Dancer,,1971,True
+Elton John,Your Song,,1970,True
+Enya,Orinoco Flow,,1988,True
+Eric Clapton,Tears in Heaven,,1992,True
+Europe,The Final Countdown,,1986,True
+Extreme,More Than Words,,1990,True
+Faith Hill,Breathe,,1999,True
+Five for Fighting,100 Years,,2003,True
+Five for Fighting,Superman,,2000,True
+Fleetwood Mac,Everywhere,,1987,True
+Fleetwood Mac,Landslide,,1975,True
+Fleetwood Mac,Little Lies,,1987,True
+Foreigner,I Want to Know What Love Is,,1984,True
+Foxes,Let Go for Tonight,,2014,True
+Fun.,Some Nights,,2012,True
+Garth Brooks,If Tomorrow Never Comes,,1989,True
+Gavin DeGraw,I Don't Want to Be,,2003,True
+George Ezra,Budapest,,2014,True
+George Michael,Careless Whisper,,1984,True
+George Michael,Freedom! '90,,1990,True
+Glen Hansard,Falling Slowly,,2008,True
+Gloria Estefan,Rhythm Is Gonna Get You,,1991,True
+Goo Goo Dolls,Iris,,1998,True
+Gordon Lightfoot,If You Could Read My Mind,,1970,True
+Gotye,Somebody That I Used to Know,,2011,True
+Guns N' Roses,November Rain,,1991,True
+Heart,Alone,,1987,True
+Hootie & the Blowfish,Only Wanna Be with You,,1995,True
+Hozier,Take Me to Church,,2013,True
+Huey Lewis & The News,The Power of Love,,1985,True
+Human League,Don't You Want Me?,,1981,True
+Hunter Hayes,Wanted,,2012,True
+Idina Menzel,Let It Go,,2013,True
+Il Divo,Hallelujah,,2006,True
+Imagine Dragons,Demons,,2013,True
+Ingrid Michaelson,The Way I Am,,2007,True
+INXS,Devil Inside,,1988,True
+INXS,Need You Tonight,,1987,True
+Iron & Wine,Naked as We Came,,2004,True
+Israel Kamakawiwoʻole,Over the Rainbow,,1993,True
+Jack Johnson,Better Together,,2005,True
+Jackson Browne,Running on Empty,,1977,True
+James Bay,Hold Back the River,,2014,True
+James Blunt,You're Beautiful,,2005,True
+James Taylor,Fire and Rain,,1970,True
+James Taylor,Her Town Too,,1981,True
+James Taylor,You've Got a Friend,,1971,True
+Janet Jackson,Again,,1993,True
+Jason Mraz,I'm Yours,,2008,True
+Jeff Buckley,Hallelujah,,1994,True
+Jewel,You Were Meant for Me,,1997,True
+Jim Croce,I Got a Name,,1973,True
+Jim Croce,Operator (That's Not the Way It Feels),,1972,True
+Jim Croce,Time in a Bottle,,1973,True
+John Denver,"Take Me Home, Country Roads",,1971,True
+John Legend,All of Me,,2013,True
+John Lennon,Imagine,,1971,True
+John Mayer,Gravity,,2006,True
+Jon Bon Jovi,Always,,1994,True
+Journey,Don't Stop Believin',,1981,True
+Kansas,Dust in the Wind,,1977,True
+Katie Melua,Nine Million Bicycles,,2005,True
+Keane,Somewhere Only We Know,,2004,True
+Keith Urban,Somebody Like You,,2002,True
+Kelly Clarkson,Because of You,,2004,True
+Kenny Loggins,Forever,,1985,True
+Kenny Rogers,Lady,,1980,True
+Kings of Leon,Use Somebody,,2008,True
+KT Tunstall,Black Horse and the Cherry Tree,,2005,True
+LeAnn Rimes,How Do I Live,,1997,True
+Led Zeppelin,Stairway to Heaven,,1971,True
+Leona Lewis,Bleeding Love,,2007,True
+Leonard Cohen,Hallelujah,,1984,True
+Level 42,Lessons in Love,,1986,True
+Lifehouse,Hanging by a Moment,,2001,True
+Linda Ronstadt,Blue Bayou,,1977,True
+Lionel Richie,Hello,,1984,True
+Little River Band,The Night Owls,,1981,True
+Lonestar,Amazed,,1999,True
+Luther Vandross,Dance with My Father,,2003,True
+Madonna,Crazy for You,,1985,True
+Maroon 5,She Will Be Loved,,2004,True
+Matchbox Twenty,Unwell,,2003,True
+Maxwell,Ascension (Don't Ever Wonder),,1996,True
+Mazzy Star,Fade Into You,,1993,True
+Michael Bolton,How Am I Supposed to Live Without You,,1989,True
+Michael Bublé,Haven't Met You Yet,,2009,True
+Michael Jackson,Human Nature,,1982,True
+Michelle Branch,Everywhere,,2001,True
+Mike + The Mechanics,The Living Years,,1988,True
+Mumford & Sons,I Will Wait,,2012,True
+Natalie Imbruglia,Torn,,1997,True
+Neil Young,Heart of Gold,,1972,True
+Nelly Furtado,I'm Like a Bird,,2000,True
+New Radicals,You Get What You Give,,1998,True
+Niall Horan,Slow Hands,,2017,True
+Nickelback,How You Remind Me,,2001,True
+No Doubt,Don't Speak,,1996,True
+Norah Jones,Come Away with Me,,2002,True
+NSYNC,This I Promise You,,2000,True
+Oasis,Wonderwall,,1995,True
+Of Monsters and Men,Little Talks,,2011,True
+Olivia Newton-John,Magic,,1980,True
+One Direction,What Makes You Beautiful,,2011,True
+OneRepublic,Apologize,,2007,True
+Opus,Live Is Life,,1984,True
+Orchestral Manoeuvres In The Dark,If You Leave,,1986,True
+Owl City,Fireflies,,2009,True
+Passenger,Let Her Go,,2012,True
+Paul Simon,Kodachrome,,1973,True
+Paul Simon,Me and Julio Down by the Schoolyard,,1972,True
+Paul Young,Every Time You Go Away,,1985,True
+Peter Cetera,Glory of Love,,1986,True
+Peter Gabriel,In Your Eyes,,1986,True
+Phil Collins,Another Day in Paradise,,1989,True
+Phil Collins,In the Air Tonight,,1981,True
+Pink,Try,,2012,True
+Pink Floyd,Wish You Were Here,,1975,True
+Plain White T's,Hey There Delilah,,2006,True
+PM Dawn,Set Adrift on Memory Bliss,,1991,True
+Queen,A Kind of Magic,,1986,True
+Queen,Bohemian Rhapsody,,1975,True
+Queen,Hammer to Fall,,1984,True
+Queen,I Want to Break Free,,1984,True
+Queen,Princes of the Universe,,1986,True
+Queen,These Are the Days of Our Lives,,1991,True
+Queen,Who Wants to Live Forever,,1986,True
+Queen & David Bowie,Under Pressure,,1981,True
+R.E.M.,Losing My Religion,,1991,True
+R.E.M.,Nightswimming,,1993,True
+Reo Speedwagon,Can't Fight This Feeling,,1984,True
+Richard Marx,Right Here Waiting,,1989,True
+Rick Astley,Never Gonna Give You Up,,1987,True
+Rick Springfield,Jessie's Girl,,1981,True
+Robbie Williams,Angels,,1997,True
+Robbie Williams,Feel,,2001,True
+Robbie Williams,She's the One,,1999,True
+Rod Stewart,Forever Young,,1988,True
+Rod Stewart,Maggie May,,1971,True
+Roxette,It Must Have Been Love,,1990,True
+Sade,Paradise,,1988,True
+Sade,Smooth Operator,,1984,True
+Sam Smith,Stay with Me,,2014,True
+Sarah McLachlan,Angel,,1997,True
+Scorpions,Still Loving You,,1984,True
+Seal,Kiss from a Rose,,1994,True
+Seals and Crofts,Summer Breeze,,1972,True
+Selena Gomez,Lose You to Love Me,,2019,True
+Shania Twain,You're Still the One,,1998,True
+Sheryl Crow,Strong Enough,,1994,True
+Simon & Garfunkel,Bridge Over Troubled Water,,1970,True
+Simon & Garfunkel,The Boxer,,1969,True
+Simple Minds,Don't You (Forget About Me),,1985,True
+Simply Red,Holding Back the Years,,1989,True
+Sinead O'Connor,Nothing Compares 2 U,,1990,True
+Snow Patrol,Chasing Cars,,2006,True
+Spandau Ballet,True,,1983,True
+Steely Dan,FM (No Static at All),,1982,True
+Sting,Fields of Gold,,1993,True
+Supertramp,Give a Little Bit,,1977,True
+Talking Heads,This Must Be the Place (Naive Melody),,1983,True
+Taylor Swift,You Belong with Me,,2008,True
+Tears for Fears,Change,,1983,True
+Tears for Fears,Everybody Wants to Rule the World,,1985,True
+The Beatles,Hey Jude,,1968,True
+The Beatles,Let It Be,,1970,True
+The Byrds,Ballad of Easy Rider,,1969,True
+The Cars,Drive,,1984,True
+The Cranberries,Linger,,1993,True
+The Cure,Lovesong,,1989,True
+The Doobie Brothers,Listen to the Music,,1972,True
+The Fray,How to Save a Life,,2005,True
+The Killers,Mr. Brightside,,2003,True
+The Lumineers,Ho Hey,,2012,True
+The Mamas & The Papas,California Dreamin',,1965,True
+The Police,Every Breath You Take,,1983,True
+The Rolling Stones,Angie,,1973,True
+The Verve,Bitter Sweet Symphony,,1997,True
+Toni Braxton,Un-Break My Heart,,1996,True
+Tori Amos,Winter,,1992,True
+Toto,Africa,,1982,True
+Toto,Rosanna,,1982,True
+Tracy Chapman,Fast Car,,1988,True
+Train,Drops of Jupiter,,2001,True
+U2,Beautiful Day,,2000,True
+U2,One,,1991,True
+U2,Where the Streets Have No Name,,1987,True
+U2,With or Without You,,1987,True
+UB40,Can't Help Falling in Love,,1993,True
+UB40,Red Red Wine,,1983,True
+Usher,Burn,,2004,True
+Usher,You Make Me Wanna...,,1997,True
+Van Halen,Why Can't This Be Love,,1986,True
+Van Morrison,Have I Told You Lately,,1989,True
+Vance Joy,Mess is Mine,,2014,True
+Vance Joy,Riptide,,2013,True
+Vanessa Carlton,A Thousand Miles,,2002,True
+Vanessa Williams,Save the Best for Last,,1992,True
+Vangelis,Conquest of Paradise,,1992,True
+Vertical Horizon,Everything You Want,,1999,True
+Vince Gill,I Still Believe in You,,1992,True
+Westlife,My Love,,2000,True
+Wet Wet Wet,Love Is All Around,,1994,True
+Wham!,Freedom,,1984,True
+Whitney Houston,I Wanna Dance with Somebody (Who Loves Me),,1987,True
+Whitney Houston,The Greatest Love of All,,1985,True
+Will Young,Leave Right Now,,2003,True
+Wilson Phillips,Hold On,,1990,True
+Wynonna Judd,No One Else on Earth,,1992,True
+X Ambassadors,Jungle,,2019,True
+X Ambassadors,Unsteady,,2015,True
+Xavier Rudd,Follow the Sun,,2012,True
+Xscape,Just Kickin' It,,1993,True
+XTC,Dear God,,1986,True
+Yanni,One Man's Dream,,1994,True
+Yazoo,Only You,,1982,True
+Yes,Love Will Find a Way,,1987,True
+Yes,Owner of a Lonely Heart,,1983,True
+Zac Brown Band,Colder Weather,,2012,True
+Zayn Malik,Pillowtalk,,2016,True
+Zella Day,Hypnotic,,2015,True
+Ziggy Marley,Love Is My Religion,,2006,True
+Zucchero,Diamante,,1989,True
