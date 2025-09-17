@@ -59,7 +59,9 @@ class Playlist(BaseModel):
 
 
 def read_playlist_file(playlist_path: str) -> List[Song]:
-    """Read a CSV playlist file, remove duplicates, sort, and return list of Song objects."""
+    """Read a CSV playlist file, remove duplicates, sort, and return list of Song objects.
+    Also, remove any song rows where artist starts with '[DEL]' and delete corresponding MP3 files.
+    """
     # Make sure Year remains a string; avoid automatic NaN->float promotion
     df = pd.read_csv(
         playlist_path,
@@ -73,6 +75,45 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
         na_filter=False,
     )
     songs = []
+
+    # Remove rows with '[DEL]' in front of artist and delete corresponding MP3 files
+    del_rows = []
+    for idx, row in df.iterrows():
+        artist = str(row.get("Artist", "")).strip()
+        title = str(row.get("Title", "")).strip()
+        if artist.startswith("[DEL]"):
+            del_rows.append(idx)
+            # Try to delete corresponding MP3 file
+            playlist_name = pathlib.Path(playlist_path).stem
+            if STATION_PATH:
+                music_dir = pathlib.Path(STATION_PATH, playlist_name)
+                safe_artist = (
+                    artist.replace("[DEL]", "")
+                    .strip()
+                    .replace("/", " ")
+                    .replace("\\", " ")
+                )
+                safe_title = title.replace("/", " ").replace("\\", " ")
+                song_path = music_dir / f"{safe_artist} - {safe_title}.mp3"
+                if song_path.exists():
+                    try:
+                        song_path.unlink()
+                        print(f"🗑️ Deleted MP3 for [DEL] song: {song_path.name}")
+                    except Exception as e:
+                        print(
+                            f"❌ Failed to delete MP3 for [DEL] song: {song_path.name}: {e}"
+                        )
+            else:
+                print(
+                    f"Warning: STATION_PATH not set, cannot delete MP3 for [DEL] song: {artist} - {title}"
+                )
+
+    if del_rows:
+        df = df.drop(del_rows)
+        df.reset_index(drop=True, inplace=True)
+        print(f"🗑️ Removed {len(del_rows)} [DEL] song(s) from {playlist_path}")
+        # Save immediately after removal so future reads don't see [DEL] rows
+        df.to_csv(playlist_path, index=False)
 
     # Check if Validated column exists, if not add it
     if "Validated" not in df.columns:
