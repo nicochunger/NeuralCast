@@ -97,6 +97,22 @@ def _normalize_csv_value(value: object) -> Optional[str]:
     return text
 
 
+DELETE_MARKER = "[DEL]"
+
+
+def _strip_delete_prefix(value: Optional[str]) -> Tuple[Optional[str], bool]:
+    """Remove the deletion marker prefix and report whether it was present."""
+
+    if value is None:
+        return None, False
+
+    if value.startswith(DELETE_MARKER):
+        cleaned = value[len(DELETE_MARKER) :].strip()
+        return (cleaned if cleaned else None), True
+
+    return value, False
+
+
 def _as_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
@@ -118,8 +134,10 @@ def playlist_song_key(song: Song) -> Tuple[str, str]:
     return (song.artist.lower().strip(), song.title.lower().strip())
 
 
-def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool]:
-    """Load songs from a playlist CSV without mutating disk state."""
+def load_playlist(
+    playlist_path: pathlib.Path,
+) -> Tuple[List[Song], bool, List[Song]]:
+    """Load songs from a playlist CSV and detect deletion markers."""
     df = pd.read_csv(
         playlist_path,
         dtype={
@@ -141,13 +159,14 @@ def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool]:
     column_lookup = {col.lower(): col for col in df.columns}
 
     songs: List[Song] = []
+    marked_for_deletion: List[Song] = []
     for _, row in df.iterrows():
-        artist = (
+        artist_raw = (
             _normalize_csv_value(row[column_lookup["artist"]])
             if "artist" in column_lookup
             else None
         )
-        title = (
+        title_raw = (
             _normalize_csv_value(row[column_lookup["title"]])
             if "title" in column_lookup
             else None
@@ -157,17 +176,38 @@ def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool]:
             if "year" in column_lookup
             else None
         )
-        album = (
+        album_raw = (
             _normalize_csv_value(row[column_lookup["album"]])
             if "album" in column_lookup
             else None
         )
+        artist, artist_marked = _strip_delete_prefix(artist_raw)
+        title, title_marked = _strip_delete_prefix(title_raw)
+        album, _ = _strip_delete_prefix(album_raw)
         validated_raw = (
             row[column_lookup["validated"]]
             if "validated" in column_lookup
             else False
         )
         validated = _as_bool(validated_raw) if validated_raw is not None else False
+
+        if artist_marked or title_marked:
+            if artist and title:
+                marked_for_deletion.append(
+                    Song(
+                        artist=artist,
+                        title=title,
+                        year=year or "",
+                        album=album or None,
+                        validated=False,
+                    )
+                )
+            else:
+                print(
+                    f"Warning: Could not parse [DEL] row in {playlist_path}; missing artist/title"
+                )
+            needs_save = True
+            continue
 
         if artist and title and year:
             songs.append(
@@ -179,7 +219,7 @@ def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool]:
                 f"Artist={artist}, Title={title}, Year={year}"
             )
 
-    return songs, needs_save
+    return songs, needs_save, marked_for_deletion
 
 
 def backfill_songs_from_library(
@@ -563,6 +603,44 @@ def save_playlist_with_validation(playlist_path: pathlib.Path, songs: List[Song]
     print(f"Cleaned and sorted playlist saved to {path}")
 
 
+def delete_marked_mp3_files(
+    delete_targets: Dict[Tuple[str, str], Song], songs_root: pathlib.Path
+) -> int:
+    """Remove MP3 files that correspond to songs flagged with the [DEL] marker."""
+
+    if not delete_targets:
+        return 0
+
+    if songs_root is None or not songs_root.exists():
+        print("Warning: Songs directory does not exist; cannot delete marked MP3 files")
+        return 0
+
+    removed = 0
+    for playlist_dir in songs_root.iterdir():
+        if not playlist_dir.is_dir():
+            continue
+
+        for song in delete_targets.values():
+            safe_artist = sanitize_filename_component(song.artist)
+            safe_title = sanitize_filename_component(song.title)
+            target_file = playlist_dir / f"{safe_artist} - {safe_title}.mp3"
+            if not target_file.exists():
+                continue
+
+            try:
+                target_file.unlink()
+                removed += 1
+                try:
+                    relative_path = target_file.relative_to(songs_root)
+                except ValueError:
+                    relative_path = target_file
+                print(f"🗑️ Deleted MP3 due to [DEL]: {relative_path}")
+            except Exception as exc:
+                print(f"❌ Failed to delete MP3 {target_file}: {exc}")
+
+    return removed
+
+
 def main(station_name: str, dry_run: bool = False):  # dry_run flag
     global PLAYLISTS_PATH, STATION_PATH, STATION
     # Determine the base path for stations (the project dir where this script lives)
@@ -596,16 +674,78 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         print(f"No playlist files found in '{PLAYLISTS_PATH}' directory!")
         return
 
+    # First pass: load playlists and collect deletion markers
+    playlist_entries = []
+    for playlist_file in playlist_files:
+        songs, playlist_needs_save, deletions = load_playlist(playlist_file)
+        playlist_entries.append(
+            {
+                "file": playlist_file,
+                "name": playlist_file.stem,
+                "songs": songs,
+                "needs_save": playlist_needs_save,
+                "deletions": deletions,
+            }
+        )
+
+    deletion_targets: Dict[Tuple[str, str], Song] = {}
+    deletion_sources: Dict[Tuple[str, str], set] = {}
+    for entry in playlist_entries:
+        for song in entry["deletions"]:
+            if not song.artist or not song.title:
+                continue
+            key = playlist_song_key(song)
+            if key not in deletion_targets:
+                deletion_targets[key] = song
+            deletion_sources.setdefault(key, set()).add(entry["name"])
+
+    if deletion_targets:
+        print(
+            f"\n🛑 Songs marked for deletion via [DEL]: {len(deletion_targets)}"
+        )
+        for key, song in deletion_targets.items():
+            playlists_list = sorted(deletion_sources.get(key, []))
+            playlists_note = ", ".join(playlists_list)
+            print(
+                f"   • {song.artist} - {song.title} (marked in: {playlists_note})"
+            )
+
+        deleted_files = delete_marked_mp3_files(deletion_targets, STATION_PATH)
+        if deleted_files:
+            print(
+                f"🗑️ Deleted {deleted_files} MP3 file(s) due to [DEL] markers"
+            )
+
+        for entry in playlist_entries:
+            songs = entry["songs"]
+            filtered_songs = [
+                song
+                for song in songs
+                if playlist_song_key(song) not in deletion_targets
+            ]
+            removed_count = len(songs) - len(filtered_songs)
+            if removed_count > 0:
+                entry["songs"] = filtered_songs
+                entry["needs_save"] = True
+                entry["removed_via_marker"] = removed_count
+
     # Store all songs across playlists for repetition analysis
     all_songs_by_playlist = {}
 
-    for playlist_file in playlist_files:
-        playlist_name = playlist_file.stem  # filename without extension
+    for entry in playlist_entries:
+        playlist_file = entry["file"]
+        playlist_name = entry["name"]
         print(f"\n--------------------------------------------")
         print(f"Processing playlist: {playlist_name}")
 
-        # Read songs from playlist file
-        songs, playlist_needs_save = load_playlist(playlist_file)
+        songs = entry["songs"]
+        playlist_needs_save = entry["needs_save"]
+        removed_via_marker = entry.get("removed_via_marker", 0)
+
+        if removed_via_marker:
+            print(
+                f"   • Removed {removed_via_marker} song(s) marked with [DEL] from playlist"
+            )
 
         # Create directory for this playlist (needed for MP3 backfill)
         music_dir = pathlib.Path(STATION_PATH, playlist_name)
@@ -619,12 +759,13 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         if duplicates_removed > 0:
             print(f"Removed {duplicates_removed} duplicate(s) from {playlist_file}")
 
-        if not songs:
-            print(f"No valid songs found in {playlist_file}")
-            continue
-
         if playlist_needs_save or library_changed or normalized_changed:
             save_playlist_with_validation(playlist_file, songs)
+
+        if not songs:
+            print(f"No valid songs found in {playlist_file}")
+            entry["songs"] = songs
+            continue
 
         # Store songs for analysis BEFORE any further processing
         all_songs_by_playlist[playlist_name] = [
@@ -637,6 +778,8 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             )
             for song in songs
         ]
+
+        entry["songs"] = songs
 
         print(f"Found {len(songs)} songs in playlist:")
         print("")
@@ -1080,7 +1223,7 @@ def list_playlists(station_name: str):
     print("Available playlists:")
     for idx, playlist_file in enumerate(playlist_files):
         playlist_name = playlist_file.stem
-        songs, _ = load_playlist(playlist_file)
+        songs, _, _ = load_playlist(playlist_file)
         print(f"{idx}: {playlist_name} ({len(songs)} songs)")
 
 
