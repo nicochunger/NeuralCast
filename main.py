@@ -6,16 +6,15 @@ main.py — AI-assisted local-network radio pipeline
 • yt-dlp + ffmpeg  → MP3s
 • mutagen          → ID3 tags
 • moves files into songs/ directory organized by playlist
-
-# OPENAI_API_KEY="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"
 """
 
 import json
 import os, subprocess, pathlib
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 import openai
 from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, APIC, error
+from mutagen.id3 import APIC, ID3, ID3NoHeaderError, error
 from pydantic import BaseModel
 import paramiko
 import requests
@@ -42,6 +41,21 @@ VOICE_NAME = "Adam"  # ElevenLabs voice
 # ──────────────────────────────────────────────────────────────────────────
 
 
+_OPENAI_CLIENT: Optional[openai.OpenAI] = None
+
+
+def get_openai_client() -> openai.OpenAI:
+    if OPENAI_KEY is None or not OPENAI_KEY.strip():
+        raise RuntimeError(
+            "OPENAI_API_KEY is not configured. Please set it in your environment."
+        )
+
+    global _OPENAI_CLIENT
+    if _OPENAI_CLIENT is None:
+        _OPENAI_CLIENT = openai.OpenAI(api_key=OPENAI_KEY)
+    return _OPENAI_CLIENT
+
+
 # Pydantic models for structured output
 class Song(BaseModel):
     artist: str
@@ -55,14 +69,57 @@ class Playlist(BaseModel):
     songs: List[Song]
 
 
+@dataclass
+class ValidationResult:
+    status: str  # 'valid', 'song_invalid', 'album_failed'
+    song: Optional[Song]
+    album: Optional[str] = None
+    album_validated: Optional[bool] = None
+    album_reason: Optional[str] = None
+
 # —— helpers ————————————————————————————————————————————————————————————
 
 
-def read_playlist_file(playlist_path: str) -> List[Song]:
-    """Read a CSV playlist file, remove duplicates, sort, and return list of Song objects.
-    Also, remove any song rows where artist starts with '[DEL]' and delete corresponding MP3 files.
-    """
-    # Make sure Year remains a string; avoid automatic NaN->float promotion
+def _normalize_csv_value(value: object) -> Optional[str]:
+    """Convert raw CSV cell values to clean strings or None."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text or text.lower() == "nan":
+            return None
+        return text
+    if pd.isna(value):  # handles NaN/NA from pandas
+        return None
+    text = str(value).strip()
+    if not text or text.lower() == "nan":
+        return None
+    return text
+
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if not normalized:
+            return False
+        return normalized in {"true", "1", "yes", "y"}
+    return False
+
+
+def sanitize_filename_component(value: str) -> str:
+    return value.replace("/", " ").replace("\\", " ").strip()
+
+
+def playlist_song_key(song: Song) -> Tuple[str, str]:
+    return (song.artist.lower().strip(), song.title.lower().strip())
+
+
+def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool]:
+    """Load songs from a playlist CSV without mutating disk state."""
     df = pd.read_csv(
         playlist_path,
         dtype={
@@ -74,228 +131,227 @@ def read_playlist_file(playlist_path: str) -> List[Song]:
         keep_default_na=False,
         na_filter=False,
     )
-    songs = []
 
-    # Remove rows with '[DEL]' in front of artist and delete corresponding MP3 files
-    del_rows = []
-    for idx, row in df.iterrows():
-        artist = str(row.get("Artist", "")).strip()
-        title = str(row.get("Title", "")).strip()
-        if artist.startswith("[DEL]"):
-            del_rows.append(idx)
-            # Try to delete corresponding MP3 file
-            playlist_name = pathlib.Path(playlist_path).stem
-            if STATION_PATH:
-                music_dir = pathlib.Path(STATION_PATH, playlist_name)
-                safe_artist = (
-                    artist.replace("[DEL]", "")
-                    .strip()
-                    .replace("/", " ")
-                    .replace("\\", " ")
-                )
-                safe_title = title.replace("/", " ").replace("\\", " ")
-                song_path = music_dir / f"{safe_artist} - {safe_title}.mp3"
-                if song_path.exists():
-                    try:
-                        song_path.unlink()
-                        print(f"🗑️ Deleted MP3 for [DEL] song: {song_path.name}")
-                    except Exception as e:
-                        print(
-                            f"❌ Failed to delete MP3 for [DEL] song: {song_path.name}: {e}"
-                        )
-            else:
-                print(
-                    f"Warning: STATION_PATH not set, cannot delete MP3 for [DEL] song: {artist} - {title}"
-                )
-
-    if del_rows:
-        df = df.drop(del_rows)
-        df.reset_index(drop=True, inplace=True)
-        print(f"🗑️ Removed {len(del_rows)} [DEL] song(s) from {playlist_path}")
-        # Save immediately after removal so future reads don't see [DEL] rows
-        df.to_csv(playlist_path, index=False)
-
-    # Check if Validated column exists, if not add it
-    if "Validated" not in df.columns:
+    needs_save = False
+    if not any(col.lower() == "validated" for col in df.columns):
         df["Validated"] = False
+        needs_save = True
         print(f"Added 'Validated' column to {playlist_path}")
 
+    column_lookup = {col.lower(): col for col in df.columns}
+
+    songs: List[Song] = []
     for _, row in df.iterrows():
-        # Handle different possible column names (case insensitive)
-        artist = None
-        title = None
-        year = None
-        album = None  # NEW
-        validated = False
+        artist = (
+            _normalize_csv_value(row[column_lookup["artist"]])
+            if "artist" in column_lookup
+            else None
+        )
+        title = (
+            _normalize_csv_value(row[column_lookup["title"]])
+            if "title" in column_lookup
+            else None
+        )
+        year = (
+            _normalize_csv_value(row[column_lookup["year"]])
+            if "year" in column_lookup
+            else None
+        )
+        album = (
+            _normalize_csv_value(row[column_lookup["album"]])
+            if "album" in column_lookup
+            else None
+        )
+        validated_raw = (
+            row[column_lookup["validated"]]
+            if "validated" in column_lookup
+            else False
+        )
+        validated = _as_bool(validated_raw) if validated_raw is not None else False
 
-        for col in df.columns:
-            cl = col.lower()
-            if cl == "artist":
-                artist = str(row[col]).strip()
-            elif cl == "title":
-                title = str(row[col]).strip()
-            elif cl == "year":
-                year = str(row[col]).strip()
-            elif cl == "album":  # optional album
-                album = str(row[col]).strip() if pd.notna(row[col]) else None
-            elif cl == "validated":
-                validated = bool(row[col]) if pd.notna(row[col]) else False
-
-        if (
-            artist
-            and title
-            and year
-            and artist != "nan"
-            and title != "nan"
-            and year != "nan"
-        ):
-            song = Song(
-                artist=artist, title=title, year=year, album=album, validated=validated
-            )  # pass album
-            songs.append(song)
+        if artist and title and year:
+            songs.append(
+                Song(artist=artist, title=title, year=year, album=album, validated=validated)
+            )
         else:
             print(
-                f"Warning: Skipping incomplete row in {playlist_path}: Artist={artist}, Title={title}, Year={year}"
+                f"Warning: Skipping incomplete row in {playlist_path}: "
+                f"Artist={artist}, Title={title}, Year={year}"
             )
 
-    # Check for existing MP3 files in songs directory and add them to playlist if missing
-    playlist_name = pathlib.Path(playlist_path).stem
-    # music_dir = pathlib.Path(STATION_PATH, playlist_name)
-    if STATION_PATH:
-        music_dir = pathlib.Path(STATION_PATH, playlist_name)
-    else:
-        music_dir = None
+    return songs, needs_save
 
-    if music_dir and music_dir.exists():
-        existing_mp3s = list(music_dir.glob("*.mp3"))
-        added_from_files = 0
 
-        for mp3_file in existing_mp3s:
+def backfill_songs_from_library(
+    playlist_name: str, songs: List[Song], music_dir: Optional[pathlib.Path]
+) -> Tuple[List[Song], bool, int]:
+    """Augment playlist songs with tracks already present in the library."""
+    if not music_dir:
+        print("Warning: STATION_PATH is not set; skipping MP3 file check")
+        return songs, False, 0
+
+    if not music_dir.exists():
+        print(
+            f"Warning: Music directory '{music_dir}' does not exist, skipping MP3 file check"
+        )
+        return songs, False, 0
+
+    songs_by_key: Dict[Tuple[str, str], Song] = {
+        playlist_song_key(song): song for song in songs
+    }
+    updated_songs = list(songs)
+    added_from_files = 0
+    changes = False
+
+    for mp3_file in music_dir.glob("*.mp3"):
+        try:
+            audio = EasyID3(str(mp3_file))
+            file_artist = audio.get("artist", [""])[0] if audio.get("artist") else ""
+            file_title = audio.get("title", [""])[0] if audio.get("title") else ""
+            file_year = audio.get("date", [""])[0] if audio.get("date") else ""
+            file_album = audio.get("album", [""])[0] if audio.get("album") else ""
+        except Exception as exc:
+            print(f"Warning: Could not read metadata from {mp3_file}: {exc}")
+            continue
+
+        if not file_artist or not file_title:
+            filename = mp3_file.stem
+            if " - " in filename:
+                parts = filename.split(" - ", 1)
+                file_artist = file_artist or parts[0].strip()
+                file_title = file_title or parts[1].strip()
+
+        if not file_artist or not file_title:
+            continue
+
+        key = (file_artist.lower().strip(), file_title.lower().strip())
+        if key in songs_by_key:
+            continue
+
+        safe_artist = sanitize_filename_component(file_artist)
+        safe_title = sanitize_filename_component(file_title)
+        expected_name = f"{safe_artist} - {safe_title}.mp3"
+        target_path = mp3_file.with_name(expected_name)
+        if mp3_file.name != expected_name:
             try:
-                # Try to get metadata from the MP3 file
-                audio = EasyID3(str(mp3_file))
-                file_artist = (
-                    audio.get("artist", [""])[0] if audio.get("artist") else ""
-                )
-                file_title = audio.get("title", [""])[0] if audio.get("title") else ""
-                file_year = audio.get("date", [""])[0] if audio.get("date") else ""
-                file_album = (
-                    audio.get("album", [""])[0] if audio.get("album") else ""
-                )  # NEW
-
-                # If we can't get metadata, try to parse from filename
-                if not file_artist or not file_title:
-                    filename = mp3_file.stem
-                    if " - " in filename:
-                        parts = filename.split(" - ", 1)
-                        file_artist = (
-                            parts[0].strip() if not file_artist else file_artist
-                        )
-                        file_title = parts[1].strip() if not file_title else file_title
-
-                # Only add if we have at least artist and title
-                if file_artist and file_title:
-                    # Check if this song is already in the playlist
-                    existing = any(
-                        song.artist.lower() == file_artist.lower()
-                        and song.title.lower() == file_title.lower()
-                        for song in songs
+                if target_path.exists():
+                    print(
+                        f"Warning: Target exists, cannot rename {mp3_file.name} -> {expected_name}"
                     )
+                else:
+                    mp3_file.rename(target_path)
+                    mp3_file = target_path
+                    print(f"Renamed file: {target_path.name}")
+                    changes = True
+            except Exception as exc:
+                print(f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {exc}")
 
-                    if not existing:
-                        # ensure filename matches "{artist} - {title}.mp3"
-                        safe_artist = (
-                            file_artist.replace("/", " ").replace("\\", " ").strip()
-                        )
-                        safe_title = (
-                            file_title.replace("/", " ").replace("\\", " ").strip()
-                        )
-                        expected_name = f"{safe_artist} - {safe_title}.mp3"
-                        target_path = mp3_file.with_name(expected_name)
-                        if mp3_file.name != expected_name:
-                            try:
-                                if target_path.exists():
-                                    print(
-                                        f"Warning: Target exists, cannot rename {mp3_file.name} -> {expected_name}"
-                                    )
-                                else:
-                                    mp3_file.rename(target_path)
-                                    print(
-                                        f"Renamed file: {mp3_file.name} -> {expected_name}"
-                                    )
-                                    mp3_file = target_path
-                            except Exception as e:
-                                print(
-                                    f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {e}"
-                                )
+        year_to_use = file_year if file_year else "Unknown"
+        new_song = Song(
+            artist=file_artist,
+            title=file_title,
+            year=year_to_use,
+            album=file_album or None,
+            validated=False,
+        )
+        updated_songs.append(new_song)
+        songs_by_key[key] = new_song
+        added_from_files += 1
+        changes = True
+        print(f"Added from existing file: {file_artist} - {file_title}")
 
-                        # Use year from metadata or default to "Unknown"
-                        year_to_use = file_year if file_year else "Unknown"
-                        song = Song(
-                            artist=file_artist,
-                            title=file_title,
-                            year=year_to_use,
-                            album=file_album
-                            or None,  # capture album from file if present
-                            validated=False,
-                        )
-                        songs.append(song)
-                        added_from_files += 1
-                        print(f"Added from existing file: {file_artist} - {file_title}")
-            except Exception as e:
-                print(f"Warning: Could not read metadata from {mp3_file}: {e}")
+    if added_from_files > 0:
+        print(f"Added {added_from_files} song(s) from existing MP3 files")
 
-        if added_from_files > 0:
-            print(f"Added {added_from_files} song(s) from existing MP3 files")
-    else:
-        if music_dir:
-            print(
-                f"Warning: Music directory '{music_dir}' does not exist, skipping MP3 file check"
-            )
-        else:
-            print("Warning: STATION_PATH is not set; skipping MP3 file check")
-        added_from_files = 0
+    return updated_songs, changes, added_from_files
 
-    # Remove duplicates based on artist and title (case insensitive)
-    unique_songs = []
-    seen_combinations = set()
 
+def deduplicate_and_sort_songs(songs: List[Song]) -> Tuple[List[Song], bool, int]:
+    """Remove duplicate songs and return a sorted list."""
+    seen: Dict[Tuple[str, str], Song] = {}
+    ordered_unique: List[Song] = []
     for song in songs:
-        key = (song.artist.lower(), song.title.lower())
-        if key not in seen_combinations:
-            unique_songs.append(song)
-            seen_combinations.add(key)
+        key = playlist_song_key(song)
+        if key not in seen:
+            seen[key] = song
+            ordered_unique.append(song)
 
-    duplicates_removed = len(songs) - len(unique_songs)
-    if duplicates_removed > 0:
-        print(f"Removed {duplicates_removed} duplicate(s) from {playlist_path}")
+    duplicates_removed = len(songs) - len(ordered_unique)
+    sorted_songs = sorted(
+        ordered_unique, key=lambda s: (s.artist.lower().strip(), s.title.lower().strip())
+    )
+    changed = duplicates_removed > 0 or sorted_songs != songs
+    return sorted_songs, changed, duplicates_removed
 
-    # Sort by artist first, then by title
-    unique_songs.sort(key=lambda song: (song.artist.lower(), song.title.lower()))
 
-    # Save the cleaned and sorted playlist back to file
-    if (
-        duplicates_removed > 0
-        or added_from_files > 0
-        or songs != unique_songs
-        or "Validated" not in pd.read_csv(playlist_path).columns
-    ):
-        cleaned_df = pd.DataFrame(
-            [
+def replace_song_entry(songs: List[Song], updated_song: Song) -> None:
+    """Replace a song in-place based on artist/title key."""
+    target_key = playlist_song_key(updated_song)
+    for idx, existing in enumerate(songs):
+        if playlist_song_key(existing) == target_key:
+            songs[idx] = updated_song
+            return
+
+
+def perform_song_validation(
+    song: Song, playlist_name: str, invalid_albums: List[dict]
+) -> ValidationResult:
+    """Run song + optional album validation and capture the outcome."""
+
+    if not verified(song.artist, song.title):
+        return ValidationResult(status="song_invalid", song=None)
+
+    album_value = (song.album or "").strip() if song.album else ""
+    if album_value:
+        try:
+            if verified_album(song.artist, song.title, album_value):
+                return ValidationResult(
+                    status="valid",
+                    song=song.copy(update={"validated": True}),
+                    album=album_value,
+                    album_validated=True,
+                )
+
+            invalid_albums.append(
                 {
                     "Artist": song.artist,
                     "Title": song.title,
-                    "Year": str(int(song.year)),
-                    "Album": song.album or "",  # preserve album column
-                    "Validated": song.validated,
+                    "Album": album_value,
+                    "Playlist": playlist_name,
+                    "Reason": "not_validated",
                 }
-                for song in unique_songs
-            ]
-        )
-        cleaned_df.to_csv(playlist_path, index=False)
-        print(f"Cleaned and sorted playlist saved to {playlist_path}")
+            )
+            return ValidationResult(
+                status="album_failed",
+                song=None,
+                album=album_value,
+                album_validated=False,
+                album_reason="not_validated",
+            )
+        except Exception:
+            invalid_albums.append(
+                {
+                    "Artist": song.artist,
+                    "Title": song.title,
+                    "Album": album_value,
+                    "Playlist": playlist_name,
+                    "Reason": "validation_error",
+                }
+            )
+            return ValidationResult(
+                status="album_failed",
+                song=None,
+                album=album_value,
+                album_validated=False,
+                album_reason="validation_error",
+            )
 
-    return unique_songs
+    return ValidationResult(
+        status="valid",
+        song=song.copy(update={"validated": True}),
+        album=None,
+        album_validated=None,
+    )
 
 
 def openai_text_completion(
@@ -304,7 +360,7 @@ def openai_text_completion(
     model: str = "gpt-4o",
     response_format=None,
 ):
-    client = openai.OpenAI(api_key=OPENAI_KEY)
+    client = get_openai_client()
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
@@ -333,7 +389,7 @@ def openai_speech(
     voice: str = "ash",
     instructions: str = None,
 ):
-    client = openai.OpenAI(api_key=OPENAI_KEY)
+    client = get_openai_client()
     kwargs = {
         "model": model,
         "voice": voice,
@@ -364,6 +420,16 @@ def youtube_to_mp3(query: str, outfile: str):
     print(f"Downloaded: {outfile}")
 
 
+def ensure_easyid3(path: str) -> EasyID3:
+    """Load EasyID3 tags, creating a fresh header when missing."""
+    try:
+        return EasyID3(path)
+    except ID3NoHeaderError:
+        tags = EasyID3()
+        tags.save(path)
+        return EasyID3(path)
+
+
 def tag_mp3(
     path: str,
     artist: str,
@@ -375,7 +441,7 @@ def tag_mp3(
     print(
         f"Tagging {path} with artist: {artist}, title: {title}, year: {year}, genre: {genre}"
     )
-    audio = EasyID3(path)
+    audio = ensure_easyid3(path)
     audio["artist"] = artist
     audio["title"] = title
     audio["date"] = year
@@ -394,6 +460,10 @@ def tag_mp3(
     else:
         # Fallback to local thumbnail if no album available
         try:
+            id3 = ID3(path)
+        except ID3NoHeaderError:
+            id3 = ID3()
+            id3.save(path)
             id3 = ID3(path)
         except error:
             id3 = ID3()
@@ -466,21 +536,31 @@ def get_upcoming_song():
 # —— main pipeline ————————————————————————————————————————————————
 
 
-def save_playlist_with_validation(playlist_path: str, songs: List[Song]):
-    """Save playlist with validation status."""
+def save_playlist_with_validation(playlist_path: pathlib.Path, songs: List[Song]):
+    """Persist playlist songs back to CSV without altering data semantics."""
+
+    def _serialize_year(value: Optional[str]) -> str:
+        if value is None:
+            return ""
+        text = str(value).strip()
+        return text
+
+    path = pathlib.Path(playlist_path)
     cleaned_df = pd.DataFrame(
         [
             {
                 "Artist": song.artist,
                 "Title": song.title,
+                "Year": _serialize_year(song.year),
                 "Album": song.album or "",
-                "Year": str(song.year),
-                "Validated": song.validated,
+                "Validated": bool(song.validated),
             }
             for song in songs
-        ]
+        ],
+        columns=["Artist", "Title", "Year", "Album", "Validated"],
     )
-    cleaned_df.to_csv(playlist_path, index=False)
+    cleaned_df.to_csv(path, index=False)
+    print(f"Cleaned and sorted playlist saved to {path}")
 
 
 def main(station_name: str, dry_run: bool = False):  # dry_run flag
@@ -525,19 +605,34 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         print(f"Processing playlist: {playlist_name}")
 
         # Read songs from playlist file
-        songs = read_playlist_file(str(playlist_file))
+        songs, playlist_needs_save = load_playlist(playlist_file)
+
+        # Create directory for this playlist (needed for MP3 backfill)
+        music_dir = pathlib.Path(STATION_PATH, playlist_name)
+        music_dir.mkdir(parents=True, exist_ok=True)
+
+        songs, library_changed, added_from_files = backfill_songs_from_library(
+            playlist_name, songs, music_dir
+        )
+        songs, normalized_changed, duplicates_removed = deduplicate_and_sort_songs(songs)
+
+        if duplicates_removed > 0:
+            print(f"Removed {duplicates_removed} duplicate(s) from {playlist_file}")
+
         if not songs:
             print(f"No valid songs found in {playlist_file}")
             continue
 
-        # Store songs for analysis BEFORE any processing/modification
-        # Create a deep copy to ensure independence
+        if playlist_needs_save or library_changed or normalized_changed:
+            save_playlist_with_validation(playlist_file, songs)
+
+        # Store songs for analysis BEFORE any further processing
         all_songs_by_playlist[playlist_name] = [
             Song(
                 artist=song.artist,
                 title=song.title,
                 year=song.year,
-                album=song.album,  # NEW
+                album=song.album,
                 validated=song.validated,
             )
             for song in songs
@@ -545,10 +640,6 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
 
         print(f"Found {len(songs)} songs in playlist:")
         print("")
-
-        # Create directory for this playlist
-        music_dir = pathlib.Path(STATION_PATH, playlist_name)
-        music_dir.mkdir(parents=True, exist_ok=True)
 
         # Separate songs into validated and unvalidated
         validated_songs = [song for song in songs if song.validated]
@@ -568,8 +659,8 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             year = song.year
 
             # Create safe filename
-            safe_artist = artist.replace("/", " ").replace("\\", " ")
-            safe_title = title.replace("/", " ").replace("\\", " ")
+            safe_artist = sanitize_filename_component(artist)
+            safe_title = sanitize_filename_component(title)
             song_path = music_dir / f"{safe_artist} - {safe_title}.mp3"
 
             if song_path.exists():
@@ -661,64 +752,33 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 print(
                     f"\n🔍 Validating {len(unvalidated_existing)} unvalidated existing songs..."
                 )
-                valid_existing = []
-                invalid_existing = []
+                valid_existing: List[Tuple[Song, pathlib.Path]] = []
+                invalid_existing: List[Tuple[Song, pathlib.Path]] = []
 
                 for song, song_path in unvalidated_existing:
-                    if verified(song.artist, song.title):
-                        # Only set validated=True if album (when present) is validated
-                        album_ok = True
-                        if song.album and str(song.album).strip():
-                            try:
-                                if verified_album(song.artist, song.title, song.album):
-                                    print(f"   ↳ Album validated: {song.album}")
-                                else:
-                                    album_ok = False
-                                    print(f"   ↳ Album not validated: {song.album}")
-                                    invalid_albums.append(
-                                        {
-                                            "Artist": song.artist,
-                                            "Title": song.title,
-                                            "Album": str(song.album).strip(),
-                                            "Playlist": playlist_name,
-                                            "Reason": "album_not_validated",
-                                        }
-                                    )
-                            except Exception:
-                                album_ok = False
-                                print(
-                                    f"   ↳ Album validation error (skipped): {song.album}"
-                                )
-                                invalid_albums.append(
-                                    {
-                                        "Artist": song.artist,
-                                        "Title": song.title,
-                                        "Album": str(song.album).strip(),
-                                        "Playlist": playlist_name,
-                                        "Reason": "album_validation_error",
-                                    }
-                                )
+                    result = perform_song_validation(song, playlist_name, invalid_albums)
 
-                        if album_ok:
-                            updated_song = Song(
-                                artist=song.artist,
-                                title=song.title,
-                                year=song.year,
-                                album=song.album,
-                                validated=True,
-                            )
-                            for i, s in enumerate(songs):
-                                if s.artist == song.artist and s.title == song.title:
-                                    songs[i] = updated_song
-                                    break
-                            valid_existing.append((updated_song, song_path))
-                            validation_updates = True
-                            print(f"✓ Validated: {song.artist} - {song.title}")
-                        else:
-                            # Keep entry and file; remain unvalidated
+                    if result.album_validated is True and result.album:
+                        print(f"   ↳ Album validated: {result.album}")
+                    elif result.album_validated is False and result.album:
+                        if result.album_reason == "validation_error":
                             print(
-                                f"   ↳ Keeping Validated=False due to album validation failure"
+                                f"   ↳ Album validation error (skipped): {result.album}"
                             )
+                        else:
+                            print(f"   ↳ Album not validated: {result.album}")
+
+                    if result.status == "valid" and result.song:
+                        replace_song_entry(songs, result.song)
+                        valid_existing.append((result.song, song_path))
+                        validation_updates = True
+                        print(
+                            f"✓ Validated: {result.song.artist} - {result.song.title}"
+                        )
+                    elif result.status == "album_failed":
+                        print(
+                            f"   ↳ Keeping Validated=False due to album validation failure"
+                        )
                     else:
                         invalid_existing.append((song, song_path))
                         songs_to_remove_from_playlist.append(song)
@@ -759,63 +819,33 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 f"\n🔍 Validating {len(unvalidated_missing)} songs before download..."
             )
 
-            newly_validated = []
-            invalid_songs = []
+            newly_validated: List[Tuple[Song, pathlib.Path]] = []
+            invalid_songs: List[Tuple[Song, pathlib.Path]] = []
 
             for song, song_path in unvalidated_missing:
-                if verified(song.artist, song.title):
-                    album_ok = True
-                    if song.album and str(song.album).strip():
-                        try:
-                            if verified_album(song.artist, song.title, song.album):
-                                print(f"   ↳ Album validated: {song.album}")
-                            else:
-                                album_ok = False
-                                print(f"   ↳ Album not validated: {song.album}")
-                                invalid_albums.append(
-                                    {
-                                        "Artist": song.artist,
-                                        "Title": song.title,
-                                        "Album": str(song.album).strip(),
-                                        "Playlist": playlist_name,
-                                        "Reason": "not_validated",
-                                    }
-                                )
-                        except Exception:
-                            album_ok = False
-                            print(
-                                f"   ↳ Album validation error (skipped): {song.album}"
-                            )
-                            invalid_albums.append(
-                                {
-                                    "Artist": song.artist,
-                                    "Title": song.title,
-                                    "Album": str(song.album).strip(),
-                                    "Playlist": playlist_name,
-                                    "Reason": "validation_error",
-                                }
-                            )
+                result = perform_song_validation(song, playlist_name, invalid_albums)
 
-                    if album_ok:
-                        updated_song = Song(
-                            artist=song.artist,
-                            title=song.title,
-                            year=song.year,
-                            album=song.album,
-                            validated=True,
-                        )
-                        # Update master songs list
-                        for i, s in enumerate(songs):
-                            if s.artist == song.artist and s.title == song.title:
-                                songs[i] = updated_song
-                                break
-                        newly_validated.append((updated_song, song_path))
-                        validation_updates = True
-                        print(f"✓ Validated for download: {song.artist} - {song.title}")
-                    else:
+                if result.album_validated is True and result.album:
+                    print(f"   ↳ Album validated: {result.album}")
+                elif result.album_validated is False and result.album:
+                    if result.album_reason == "validation_error":
                         print(
-                            f"   ↳ Skipping download; keeping Validated=False due to album validation failure"
+                            f"   ↳ Album validation error (skipped): {result.album}"
                         )
+                    else:
+                        print(f"   ↳ Album not validated: {result.album}")
+
+                if result.status == "valid" and result.song:
+                    replace_song_entry(songs, result.song)
+                    newly_validated.append((result.song, song_path))
+                    validation_updates = True
+                    print(
+                        f"✓ Validated for download: {result.song.artist} - {result.song.title}"
+                    )
+                elif result.status == "album_failed":
+                    print(
+                        "   ↳ Skipping download; keeping Validated=False due to album validation failure"
+                    )
                 else:
                     invalid_songs.append((song, song_path))
                     print(f"❌ Invalid/not found: {song.artist} - {song.title}")
@@ -1050,7 +1080,7 @@ def list_playlists(station_name: str):
     print("Available playlists:")
     for idx, playlist_file in enumerate(playlist_files):
         playlist_name = playlist_file.stem
-        songs = read_playlist_file(str(playlist_file))
+        songs, _ = load_playlist(playlist_file)
         print(f"{idx}: {playlist_name} ({len(songs)} songs)")
 
 
