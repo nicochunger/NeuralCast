@@ -1,8 +1,11 @@
+"""Helpers for validating songs and albums."""
+from __future__ import annotations
+
 import difflib
 import os
 import urllib.parse
 from functools import lru_cache
-from typing import Optional
+from typing import List, Optional
 
 import dotenv
 import musicbrainzngs
@@ -11,7 +14,10 @@ import spotipy
 from requests import Session
 from spotipy.oauth2 import SpotifyClientCredentials
 
+from models import Song, ValidationResult
+
 # Load environment variables from .env file
+# Keeping this here avoids requiring callers to import dotenv themselves.
 dotenv.load_dotenv()
 
 musicbrainzngs.set_useragent("NeuralCast", "0.1", "you@example.com")
@@ -24,7 +30,7 @@ _SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 _SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 try:
-    sp = (
+    _SPOTIFY_CLIENT = (
         spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
                 client_id=_SPOTIFY_CLIENT_ID,
@@ -35,10 +41,10 @@ try:
         else None
     )
 except Exception:
-    sp = None
+    _SPOTIFY_CLIENT = None
 
 
-def _close_enough(a, b):
+def _close_enough(a: str, b: str) -> bool:
     return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio() > 0.7
 
 
@@ -57,7 +63,7 @@ def _itunes_lookup(term: str) -> Optional[dict]:
 
 
 def _ensure_spotify_client() -> Optional[spotipy.Spotify]:
-    return sp
+    return _SPOTIFY_CLIENT
 
 
 def _musicbrainz_search(query: str, limit: int = 1) -> Optional[dict]:
@@ -74,7 +80,7 @@ def _mb_recording_found(result: Optional[dict]) -> bool:
 
 
 @lru_cache(maxsize=2048)
-def spotify_ok(artist, title):
+def spotify_ok(artist: str, title: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     if not artist or not title:
@@ -92,7 +98,7 @@ def spotify_ok(artist, title):
 
 
 @lru_cache(maxsize=2048)
-def mb_ok(artist, title):
+def mb_ok(artist: str, title: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     if not artist or not title:
@@ -104,7 +110,7 @@ def mb_ok(artist, title):
 
 
 @lru_cache(maxsize=2048)
-def itunes_ok(artist, title):
+def itunes_ok(artist: str, title: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     if not artist or not title:
@@ -122,7 +128,7 @@ def itunes_ok(artist, title):
 
 
 @lru_cache(maxsize=4096)
-def verified(artist, title):
+def verified(artist: str, title: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     if not artist or not title:
@@ -132,7 +138,7 @@ def verified(artist, title):
 
 
 @lru_cache(maxsize=2048)
-def spotify_album_ok(artist, title, album):
+def spotify_album_ok(artist: str, title: str, album: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     album = _norm(album)
@@ -158,7 +164,7 @@ def spotify_album_ok(artist, title, album):
 
 
 @lru_cache(maxsize=2048)
-def mb_album_ok(artist, title, album):
+def mb_album_ok(artist: str, title: str, album: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     album = _norm(album)
@@ -171,7 +177,7 @@ def mb_album_ok(artist, title, album):
 
 
 @lru_cache(maxsize=2048)
-def itunes_album_ok(artist, title, album):
+def itunes_album_ok(artist: str, title: str, album: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     album = _norm(album)
@@ -191,21 +197,8 @@ def itunes_album_ok(artist, title, album):
 
 
 @lru_cache(maxsize=4096)
-def verified_album(artist, title, album, verbose=False):
-    """
-    Checks if a track's album is verified by Spotify, MusicBrainz, or iTunes.
-
-    Args:
-        artist (str): The artist's name.
-        title (str): The track's title.
-        album (str): The album's name.
-        verbose (bool): If True, returns a dict with each provider's status.
-
-    Returns:
-        bool or dict: If verbose is False, returns True if any provider verifies
-                      the album, False otherwise. If verbose is True, returns a
-                      dictionary with the validation status for each provider.
-    """
+def verified_album(artist: str, title: str, album: str, verbose: bool = False):
+    """Validate a track's album against Spotify, MusicBrainz, and iTunes."""
     artist = _norm(artist)
     title = _norm(title)
     album = _norm(album)
@@ -234,18 +227,8 @@ def verified_album(artist, title, album, verbose=False):
     return spotify or mb or itunes
 
 
-def validate_album_field(artist, title, album):
-    """
-    Validates an optional album value for a track.
-
-    Returns a dict:
-      {
-        "provided": bool,        # album column/value provided
-        "validated": bool|None,  # None if not provided/empty, True/False otherwise
-        "message": str           # short status message
-      }
-    """
-    # No album column or value not provided
+def validate_album_field(artist: str, title: str, album: Optional[str]) -> dict:
+    """Validate an optional album column for a track."""
     if album is None:
         return {
             "provided": False,
@@ -266,7 +249,9 @@ def validate_album_field(artist, title, album):
 
     if is_valid:
         validated_by = [
-            k.capitalize() for k, v in validation_details.items() if k != "any" and v
+            provider.capitalize()
+            for provider, passed in validation_details.items()
+            if provider != "any" and passed
         ]
         return {
             "provided": True,
@@ -274,9 +259,81 @@ def validate_album_field(artist, title, album):
             "message": f"Album validated by {', '.join(validated_by)}",
         }
 
-    # Do not delete it — just report it isn't validated
     return {
         "provided": True,
         "validated": False,
         "message": "Album not validated by any provider",
     }
+
+
+def perform_song_validation(
+    song: Song, playlist_name: str, invalid_albums: List[dict]
+) -> ValidationResult:
+    if not verified(song.artist, song.title):
+        return ValidationResult(status="song_invalid", song=None)
+
+    album_value = (song.album or "").strip() if song.album else ""
+    if album_value:
+        try:
+            if verified_album(song.artist, song.title, album_value):
+                return ValidationResult(
+                    status="valid",
+                    song=song.copy(update={"validated": True}),
+                    album=album_value,
+                    album_validated=True,
+                )
+
+            invalid_albums.append(
+                {
+                    "Artist": song.artist,
+                    "Title": song.title,
+                    "Album": album_value,
+                    "Playlist": playlist_name,
+                    "Reason": "not_validated",
+                }
+            )
+            return ValidationResult(
+                status="album_failed",
+                song=None,
+                album=album_value,
+                album_validated=False,
+                album_reason="not_validated",
+            )
+        except Exception:
+            invalid_albums.append(
+                {
+                    "Artist": song.artist,
+                    "Title": song.title,
+                    "Album": album_value,
+                    "Playlist": playlist_name,
+                    "Reason": "validation_error",
+                }
+            )
+            return ValidationResult(
+                status="album_failed",
+                song=None,
+                album=album_value,
+                album_validated=False,
+                album_reason="validation_error",
+            )
+
+    return ValidationResult(
+        status="valid",
+        song=song.copy(update={"validated": True}),
+        album=None,
+        album_validated=None,
+    )
+
+
+__all__ = [
+    "spotify_ok",
+    "mb_ok",
+    "itunes_ok",
+    "verified",
+    "spotify_album_ok",
+    "mb_album_ok",
+    "itunes_album_ok",
+    "verified_album",
+    "validate_album_field",
+    "perform_song_validation",
+]

@@ -1,0 +1,325 @@
+"""Playlist parsing and library management helpers."""
+from __future__ import annotations
+
+import pathlib
+from typing import Dict, List, Optional, Tuple
+
+import pandas as pd
+from mutagen.easyid3 import EasyID3
+
+from models import Song
+
+DELETE_MARKER = "[DEL]"
+
+
+def _normalize_csv_value(value: object) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text or text.lower() == "nan":
+            return None
+        return text
+    if pd.isna(value):
+        return None
+    text = str(value).strip()
+    if not text or text.lower() == "nan":
+        return None
+    return text
+
+
+def _strip_delete_prefix(value: Optional[str]) -> Tuple[Optional[str], bool]:
+    if value is None:
+        return None, False
+    if value.startswith(DELETE_MARKER):
+        cleaned = value[len(DELETE_MARKER) :].strip()
+        return (cleaned if cleaned else None), True
+    return value, False
+
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if not normalized:
+            return False
+        return normalized in {"true", "1", "yes", "y"}
+    return False
+
+
+def sanitize_filename_component(value: str) -> str:
+    return value.replace("/", " ").replace("\\", " ").strip()
+
+
+def playlist_song_key(song: Song) -> Tuple[str, str]:
+    return (song.artist.lower().strip(), song.title.lower().strip())
+
+
+def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool, List[Song]]:
+    df = pd.read_csv(
+        playlist_path,
+        dtype={
+            "Year": "string",
+            "Artist": "string",
+            "Title": "string",
+            "Album": "string",
+        },
+        keep_default_na=False,
+        na_filter=False,
+    )
+
+    needs_save = False
+    if not any(col.lower() == "validated" for col in df.columns):
+        df["Validated"] = False
+        needs_save = True
+        print(f"Added 'Validated' column to {playlist_path}")
+
+    column_lookup = {col.lower(): col for col in df.columns}
+
+    songs: List[Song] = []
+    marked_for_deletion: List[Song] = []
+
+    for _, row in df.iterrows():
+        artist_raw = (
+            _normalize_csv_value(row[column_lookup["artist"]])
+            if "artist" in column_lookup
+            else None
+        )
+        title_raw = (
+            _normalize_csv_value(row[column_lookup["title"]])
+            if "title" in column_lookup
+            else None
+        )
+        year = (
+            _normalize_csv_value(row[column_lookup["year"]])
+            if "year" in column_lookup
+            else None
+        )
+        album_raw = (
+            _normalize_csv_value(row[column_lookup["album"]])
+            if "album" in column_lookup
+            else None
+        )
+
+        artist, artist_marked = _strip_delete_prefix(artist_raw)
+        title, title_marked = _strip_delete_prefix(title_raw)
+        album, _ = _strip_delete_prefix(album_raw)
+
+        validated_raw = (
+            row[column_lookup["validated"]]
+            if "validated" in column_lookup
+            else False
+        )
+        validated = _as_bool(validated_raw) if validated_raw is not None else False
+
+        if artist_marked or title_marked:
+            if artist and title:
+                marked_for_deletion.append(
+                    Song(
+                        artist=artist,
+                        title=title,
+                        year=year or "",
+                        album=album or None,
+                        validated=False,
+                    )
+                )
+            else:
+                print(
+                    f"Warning: Could not parse [DEL] row in {playlist_path}; missing artist/title"
+                )
+            needs_save = True
+            continue
+
+        if artist and title and year:
+            songs.append(
+                Song(artist=artist, title=title, year=year, album=album, validated=validated)
+            )
+        else:
+            print(
+                f"Warning: Skipping incomplete row in {playlist_path}: Artist={artist}, Title={title}, Year={year}"
+            )
+
+    return songs, needs_save, marked_for_deletion
+
+
+def backfill_songs_from_library(
+    playlist_name: str, songs: List[Song], music_dir: Optional[pathlib.Path]
+) -> Tuple[List[Song], bool, int]:
+    if not music_dir:
+        print("Warning: STATION_PATH is not set; skipping MP3 file check")
+        return songs, False, 0
+
+    if not music_dir.exists():
+        print(
+            f"Warning: Music directory '{music_dir}' does not exist, skipping MP3 file check"
+        )
+        return songs, False, 0
+
+    songs_by_key: Dict[Tuple[str, str], Song] = {
+        playlist_song_key(song): song for song in songs
+    }
+    updated_songs = list(songs)
+    added_from_files = 0
+    changes = False
+
+    for mp3_file in music_dir.glob("*.mp3"):
+        try:
+            audio = EasyID3(str(mp3_file))
+            file_artist = audio.get("artist", [""])[0] if audio.get("artist") else ""
+            file_title = audio.get("title", [""])[0] if audio.get("title") else ""
+            file_year = audio.get("date", [""])[0] if audio.get("date") else ""
+            file_album = audio.get("album", [""])[0] if audio.get("album") else ""
+        except Exception as exc:
+            print(f"Warning: Could not read metadata from {mp3_file}: {exc}")
+            continue
+
+        if not file_artist or not file_title:
+            filename = mp3_file.stem
+            if " - " in filename:
+                parts = filename.split(" - ", 1)
+                file_artist = file_artist or parts[0].strip()
+                file_title = file_title or parts[1].strip()
+
+        if not file_artist or not file_title:
+            continue
+
+        key = (file_artist.lower().strip(), file_title.lower().strip())
+        if key in songs_by_key:
+            continue
+
+        safe_artist = sanitize_filename_component(file_artist)
+        safe_title = sanitize_filename_component(file_title)
+        expected_name = f"{safe_artist} - {safe_title}.mp3"
+        target_path = mp3_file.with_name(expected_name)
+        if mp3_file.name != expected_name:
+            try:
+                if target_path.exists():
+                    print(
+                        f"Warning: Target exists, cannot rename {mp3_file.name} -> {expected_name}"
+                    )
+                else:
+                    mp3_file.rename(target_path)
+                    mp3_file = target_path
+                    print(f"Renamed file: {target_path.name}")
+                    changes = True
+            except Exception as exc:
+                print(f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {exc}")
+
+        year_to_use = file_year if file_year else "Unknown"
+        new_song = Song(
+            artist=file_artist,
+            title=file_title,
+            year=year_to_use,
+            album=file_album or None,
+            validated=False,
+        )
+        updated_songs.append(new_song)
+        songs_by_key[key] = new_song
+        added_from_files += 1
+        changes = True
+        print(f"Added from existing file: {file_artist} - {file_title}")
+
+    if added_from_files > 0:
+        print(f"Added {added_from_files} song(s) from existing MP3 files")
+
+    return updated_songs, changes, added_from_files
+
+
+def deduplicate_and_sort_songs(songs: List[Song]) -> Tuple[List[Song], bool, int]:
+    seen: Dict[Tuple[str, str], Song] = {}
+    ordered_unique: List[Song] = []
+    for song in songs:
+        key = playlist_song_key(song)
+        if key not in seen:
+            seen[key] = song
+            ordered_unique.append(song)
+
+    duplicates_removed = len(songs) - len(ordered_unique)
+    sorted_songs = sorted(
+        ordered_unique, key=lambda s: (s.artist.lower().strip(), s.title.lower().strip())
+    )
+    changed = duplicates_removed > 0 or sorted_songs != songs
+    return sorted_songs, changed, duplicates_removed
+
+
+def replace_song_entry(songs: List[Song], updated_song: Song) -> None:
+    target_key = playlist_song_key(updated_song)
+    for idx, existing in enumerate(songs):
+        if playlist_song_key(existing) == target_key:
+            songs[idx] = updated_song
+            return
+
+
+def save_playlist_with_validation(playlist_path: pathlib.Path, songs: List[Song]):
+    def _serialize_year(value: Optional[str]) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    cleaned_df = pd.DataFrame(
+        [
+            {
+                "Artist": song.artist,
+                "Title": song.title,
+                "Year": _serialize_year(song.year),
+                "Album": song.album or "",
+                "Validated": bool(song.validated),
+            }
+            for song in songs
+        ],
+        columns=["Artist", "Title", "Year", "Album", "Validated"],
+    )
+    cleaned_df.to_csv(playlist_path, index=False)
+    print(f"Cleaned and sorted playlist saved to {playlist_path}")
+
+
+def delete_marked_mp3_files(
+    delete_targets: Dict[Tuple[str, str], Song], songs_root: pathlib.Path
+) -> int:
+    if not delete_targets:
+        return 0
+
+    if songs_root is None or not songs_root.exists():
+        print("Warning: Songs directory does not exist; cannot delete marked MP3 files")
+        return 0
+
+    removed = 0
+    for playlist_dir in songs_root.iterdir():
+        if not playlist_dir.is_dir():
+            continue
+
+        for song in delete_targets.values():
+            safe_artist = sanitize_filename_component(song.artist)
+            safe_title = sanitize_filename_component(song.title)
+            target_file = playlist_dir / f"{safe_artist} - {safe_title}.mp3"
+            if not target_file.exists():
+                continue
+
+            try:
+                target_file.unlink()
+                removed += 1
+                try:
+                    relative_path = target_file.relative_to(songs_root)
+                except ValueError:
+                    relative_path = target_file
+                print(f"🗑️ Deleted MP3 due to [DEL]: {relative_path}")
+            except Exception as exc:
+                print(f"❌ Failed to delete MP3 {target_file}: {exc}")
+
+    return removed
+
+
+__all__ = [
+    "DELETE_MARKER",
+    "load_playlist",
+    "backfill_songs_from_library",
+    "deduplicate_and_sort_songs",
+    "replace_song_entry",
+    "save_playlist_with_validation",
+    "delete_marked_mp3_files",
+    "sanitize_filename_component",
+    "playlist_song_key",
+]
