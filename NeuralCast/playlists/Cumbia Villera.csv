@@ -1,13 +1,28 @@
-Artist,Title,Year,Validated
-Amar Azul,Yo Tomo,2001,True
-Amar Azul,Yo Tomo Licor,1998,True
-Damas Gratis,Los Dueños del Pabellón,2000,True
-Damas Gratis,Me Vas a Extrañar,2002,True
-Damas Gratis,No Te Creas Tan Importante,2010,True
-Damas Gratis,Se Te Ve La Tanga,2005,True
-Los Pibes Chorros,Duraznito,2001,True
-Los Pibes Chorros,El Tano Pastita,2000,True
-Los Pibes Chorros,Que Calor,2002,True
-Rafaga,Agüita,2003,True
-Rafaga,La Luna y Tú,2005,True
-Rafaga,Volver a Empezar,2000,True
+Artist,Title,Year,Album,Validated
+Amar Azul,Yo Me Enamore,1997,,True
+Amar Azul,Yo Tomo,2001,,True
+Amar Azul,Yo Tomo Licor,1998,,True
+Damas Gratis,Atrevida,2003,,True
+Damas Gratis,El Humo de Mi Fasito,2004,,True
+Damas Gratis,El Viejo de la Bolsa,2002,,True
+Damas Gratis,Laura,2001,,True
+Damas Gratis,Los Dueños del Pabellón,2000,,True
+Damas Gratis,Me Vas a Extrañar,2002,,True
+Damas Gratis,No Te Creas Tan Importante,2010,,True
+Damas Gratis,Se Te Ve La Tanga,2005,,True
+Flor de Piedra,Sos un Botón,2001,,True
+Los Pibes Chorros,Andrea,2001,,True
+Los Pibes Chorros,Duraznito,2001,,True
+Los Pibes Chorros,El Tano Pastita,2000,,True
+Los Pibes Chorros,Que Calor,2002,,True
+Mala Fama,Gata,2001,,True
+Rafaga,Agüita,2003,,True
+Rafaga,La Luna y Tú,2005,,True
+Rafaga,Maldito Corazón,1999,,True
+Rafaga,Mentirosa,1998,,True
+Rafaga,Muero de Frío,2000,,True
+Rafaga,Una Cerveza,2001,,True
+Rafaga,Volver a Empezar,2000,,True
+Supermerk2,La Resaka,2001,,True
+Yerba Brava,La Cumbia de los Trapos,1999,,True
+Yerba Brava,Pibe Cantina,2000,,True

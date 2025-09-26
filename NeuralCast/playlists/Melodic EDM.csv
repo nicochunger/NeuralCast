@@ -1,76 +1,119 @@
-Artist,Title,Year,Validated
-16 Bit Lolitas,Take It Or Leave It,2008,True
-Above & Beyond,Good For Me,2006,True
-Above & Beyond,Small Moments,2012,True
-ATTLAS,Concussion,2016,True
-Audien,Wayfarer,2013,True
-Ben Böhmer,Beyond Beliefs,2020,True
-Ben Böhmer,Breathing,2019,True
-Ben Böhmer,Promise You,2018,True
-Bonobo,Cirrus,2013,True
-Bonobo,Kerala,2017,True
-Christian Löffler,Haul,2017,True
-Christian Löffler,Ry,2018,True
-Colyn,Patterns,2019,True
-Colyn,Resolve,2019,True
-CRi,From Me,2020,True
-CRi,Never Really Get There,2019,True
-Cubicolor,No Dancers,2019,True
-Cubicolor,Points Beyond,2020,True
-deadmau5,I Remember,2008,True
-deadmau5,Strobe,2009,True
-DJ Koze,Pick Up,2018,True
-DJ Koze,XTC,2015,True
-Eelke Kleijn,Ein Tag Am Strand,2010,True
-Eelke Kleijn,Mistakes I've Made,2014,True
-Eelke Kleijn,The Magician,2018,True
-Eric Prydz,Opus,2016,True
-Gareth Emery,Long Way Home,2014,True
-Gareth Emery,Sansa,2011,True
-Illenium,Crawl Outta Love,2017,True
-Jan Blomqvist,The Space In Between,2016,True
-Kaskade,4AM,2008,True
-Kavinsky,Nightcall,2010,True
-Kiasmos,Looped,2014,True
-Kiasmos,Swept,2015,True
-Kidnap,After All,2018,True
-Kidnap,Moments,2015,True
-Lane 8,Aba,2015,True
-Lane 8,Atlas,2022,True
-Lane 8,Fingerprint,2019,True
-Lane 8,Little Voices,2019,True
-Lane 8,Midnight,2015,True
-Lane 8,The Rope,2020,True
-Luttrell,After All,2019,True
-Luttrell,Into Clouds,2019,True
-Madeon,Finale,2012,True
-Marsh,Eu Topos,2020,True
-Marsh,Lailonie,2020,True
-Marshmello,Alone,2016,True
-Monolink,Father Ocean,2018,True
-Nora En Pure,Come With Me,2013,True
-Nora En Pure,Lake Arrowhead,2016,True
-ODESZA,A Moment Apart,2017,True
-ODESZA,Corners Of The Earth,2017,True
-ODESZA,How Did I Get Here,2012,True
-ODESZA,Late Night,2017,True
-Petit Biscuit,Sunset Lover,2015,True
-Porter Robinson,Sad Machine,2014,True
-Porter Robinson,Sea of Voices,2014,True
-Rüfüs Du Sol,Desert Night,2013,True
-Rüfüs Du Sol,Innerbloom,2015,True
-Rüfüs Du Sol,Sundream,2014,True
-Sasha,Vapour Trails,2004,True
-Tinlicker,Nothing Without You,2019,True
-Tinlicker,Rebirth,2017,True
-Tinlicker & Helsloot,Because You Move Me,2017,True
-Tourist,We Stayed Up All Night,2017,True
-Tycho,A Walk,2011,True
-Tycho,Awake,2014,True
-Tycho,Montana,2014,True
-Yotto,Kantsu,2016,True
-Yotto,Marisa,2017,True
-Yotto,North,2017,True
-Yotto,Slowly,2018,True
-Yotto,The One You Left Behind,2016,True
-Yotto,Wilderness Girl,2020,True
+Artist,Title,Year,Album,Validated
+16 Bit Lolitas,Take It Or Leave It,2008,,True
+Above & Beyond,Good For Me,2006,,True
+Above & Beyond,Love Is Not Enough,2012,,True
+Above & Beyond,No One On Earth,2004,,True
+Above & Beyond,Small Moments,2012,,True
+Above & Beyond,Sun In Your Eyes,2011,,True
+Above & Beyond,We're All We Need,2014,,True
+ATTLAS,Concussion,2016,,True
+Audien,Wayfarer,2013,,True
+Ben Böhmer,After Earth,2016,,True
+Ben Böhmer,Beyond Beliefs,2020,,True
+Ben Böhmer,Breathing,2019,,True
+Ben Böhmer,In Memoriam,2017,,True
+Ben Böhmer,Live in Cappadocia (Cercle),2020,,True
+Ben Böhmer,Promise You,2018,,True
+Ben Böhmer,Vale,2019,,True
+Ben Böhmer & Panama,Weightless,2020,,True
+Bonobo,Cirrus,2013,,True
+Bonobo,Kerala,2017,,True
+Chicane,Autumn Tactics,1999,,True
+Chicane,No Ordinary Morning,2000,,True
+Chicane,Offshore,1996,,True
+Chicane,Poppiholla,2009,,True
+Chicane,Saltwater,1999,,True
+Christian Löffler,Haul,2017,,True
+Christian Löffler,Ry,2018,,True
+Colyn,Amor,2020,,True
+Colyn,Bridges In The Sky,2020,,True
+Colyn,Patterns,2019,,True
+Colyn,Resolve,2019,,True
+Cosmic Gate,Be Your Sound,2011,,True
+Cosmic Gate,Falling Back,2014,,True
+Cosmic Gate,Ibiza Sunset Set,2023,,True
+Cosmic Gate,Sunset Set - Playa del Carmen Mexico,2021,,True
+Cosmic Gate,Yai (Here We Go Again),2015,,True
+CRi,From Me,2020,,True
+CRi,Never Really Get There,2019,,True
+Cubicolor,No Dancers,2019,,True
+Cubicolor,Points Beyond,2020,,True
+deadmau5,I Remember,2008,,True
+deadmau5,Strobe,2009,,True
+DJ Koze,Pick Up,2018,,True
+DJ Koze,XTC,2015,,True
+Eelke Kleijn,Ein Tag Am Strand,2010,,True
+Eelke Kleijn,Mistakes I've Made,2014,,True
+Eelke Kleijn,The Magician,2018,,True
+Eric Prydz,Opus,2016,,True
+Gareth Emery,Long Way Home,2014,,True
+Gareth Emery,Sansa,2011,,True
+Illenium,Crawl Outta Love,2017,,True
+Jan Blomqvist,The Space In Between,2016,,True
+Kaskade,4AM,2008,,True
+Kavinsky,Nightcall,2010,,True
+Kiasmos,Looped,2014,,True
+Kiasmos,Swept,2015,,True
+Kidnap,After All,2018,,True
+Kidnap,Moments,2015,,True
+Lane 8,Aba,2015,,True
+Lane 8,Atlas,2022,,True
+Lane 8,Clarify,2017,,True
+Lane 8,Fingerprint,2019,,True
+Lane 8,Little Voices,2019,,True
+Lane 8,Midnight,2015,,True
+Lane 8,Skin & Bones,2019,,True
+Lane 8,Sunday Song,2016,,True
+Lane 8,The Rope,2020,,True
+Luttrell,After All,2019,,True
+Luttrell,Intergalactic Plastic,2016,,True
+Luttrell,Into Clouds,2019,,True
+Luttrell,Out of Me,2019,,True
+Madeon,Finale,2012,,True
+Marsh,Come Together,2022,,True
+Marsh,Eu Topos,2020,,True
+Marsh,Lailonie,2020,,True
+Monolink,Father Ocean,2018,,True
+Nora En Pure,Birthright,2019,,True
+Nora En Pure,Come With Me,2013,,True
+Nora En Pure,Lake Arrowhead,2016,,True
+OceanLab,On A Good Day,2009,,True
+ODESZA,A Moment Apart,2017,,True
+ODESZA,Corners Of The Earth,2017,,True
+ODESZA,How Did I Get Here,2012,,True
+ODESZA,Late Night,2017,,True
+Paul van Dyk,For An Angel,1998,,True
+Paul van Dyk,Home,2009,,True
+Paul van Dyk,Nothing But You,2003,,True
+Paul van Dyk,Time of Our Lives,2003,,True
+Petit Biscuit,Sunset Lover,2015,,True
+Rüfüs Du Sol,Desert Night,2013,,True
+Rüfüs Du Sol,Innerbloom,2015,,True
+Rüfüs Du Sol,Sundream,2014,,True
+Sasha,Vapour Trails,2004,,True
+Solarstone,Late Summer Fields,2008,,True
+Solarstone,Please,2012,,True
+Solarstone,Seven Cities,1999,,True
+Solarstone,Solarcoaster,2002,,True
+Solarstone & Jes,Like A Waterfall,2004,,True
+Solarstone & Orkidea,Slowmotion,2010,,True
+Tinlicker,Nothing Without You,2019,,True
+Tinlicker,Rebirth,2017,,True
+Tinlicker & Helsloot,Because You Move Me,2017,,True
+Tourist,We Stayed Up All Night,2017,,True
+Tycho,A Walk,2011,,True
+Tycho,Awake,2014,,True
+Tycho,Montana,2014,,True
+Yotto,A Very Cold DJ Set,2021,,True
+Yotto,Another Riff For The Good Times,2020,,True
+Yotto,Aviate,2016,,True
+Yotto,Just Over,2020,,True
+Yotto,Kantsu,2016,,True
+Yotto,Marisa,2017,,True
+Yotto,North,2017,,True
+Yotto,Nova,2018,,True
+Yotto,Radiate,2019,,True
+Yotto,Slowly,2018,,True
+Yotto,The One You Left Behind,2016,,True
+Yotto,Walls,2018,,True
+Yotto,Wilderness Girl,2020,,True
