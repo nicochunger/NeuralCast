@@ -1,25 +1,24 @@
 """Update station's New Releases playlist with latest tracks via Spotify."""
+
 from __future__ import annotations
 
 import argparse
+import logging
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Iterable, Optional
-
-from difflib import SequenceMatcher
 
 import pandas as pd
 from dotenv import load_dotenv
 from spotipy import Spotify, SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
-import logging
 from tqdm import tqdm
-import re
-
 
 # Configure logging
 logging.basicConfig(
@@ -94,14 +93,18 @@ def parse_release_date(date_str: str, precision: str) -> Optional[datetime]:
             case "month":
                 dt = datetime.strptime(date_str, "%Y-%m").replace(day=1, tzinfo=UTC)
             case "year":
-                dt = datetime.strptime(date_str, "%Y").replace(month=1, day=1, tzinfo=UTC)
+                dt = datetime.strptime(date_str, "%Y").replace(
+                    month=1, day=1, tzinfo=UTC
+                )
             case _:
                 logger.debug(f"Unknown precision '{precision}', returning None")
                 return None
         logger.debug(f"Parsed date: {dt}")
         return dt
     except ValueError as e:
-        logger.debug(f"ValueError parsing date '{date_str}' with precision '{precision}': {e}")
+        logger.debug(
+            f"ValueError parsing date '{date_str}' with precision '{precision}': {e}"
+        )
         return None
 
 
@@ -113,21 +116,27 @@ def _best_artist_match(sp: Spotify, artist_name: str) -> Optional[dict]:
     except SpotifyException as exc:
         if exc.http_status == 429:
             retry_after = int(exc.headers.get("Retry-After", "5"))
-            logger.warning(f"Rate limited during artist search, sleeping {retry_after}s")
+            logger.warning(
+                f"Rate limited during artist search, sleeping {retry_after}s"
+            )
             time.sleep(retry_after)
             return _best_artist_match(sp, artist_name)
         logger.error(f"Spotify search failed for {artist_name}: {exc}")
         return None
 
     items = res.get("artists", {}).get("items", [])
-    logger.debug(f"Artist search returned {len(items)} items for {artist_name}: {[item.get('name') for item in items]}")
+    logger.debug(
+        f"Artist search returned {len(items)} items for {artist_name}: {[item.get('name') for item in items]}"
+    )
     if not items:
         logger.debug(f"No items returned for artist search: {artist_name}")
         return None
 
     lower_target = artist_name.lower()
     for item in items:
-        logger.debug(f"Checking for exact match: '{item.get('name', '').lower()}' == '{lower_target}'")
+        logger.debug(
+            f"Checking for exact match: '{item.get('name', '').lower()}' == '{lower_target}'"
+        )
         if item.get("name", "").lower() == lower_target:
             logger.debug(f"Exact match found for artist: {artist_name}")
             return item
@@ -142,7 +151,9 @@ def _best_artist_match(sp: Spotify, artist_name: str) -> Optional[dict]:
             best_item = item
             best_score = score
     if best_score >= 0.65:
-        logger.debug(f"Best fuzzy match for artist '{artist_name}': '{best_item.get('name', '')}' ({best_score:.2f})")
+        logger.debug(
+            f"Best fuzzy match for artist '{artist_name}': '{best_item.get('name', '')}' ({best_score:.2f})"
+        )
     else:
         logger.debug(f"No suitable match found for artist: {artist_name}")
     return best_item if best_score >= 0.65 else None
@@ -163,6 +174,8 @@ _TITLE_EXCLUDE_PATTERNS = [
     re.compile(r"\bdemo\b", re.I),
     re.compile(r"\bradio\s+edit\b", re.I),
     re.compile(r"\bedit\b", re.I),
+    re.compile(r"\bremix\b", re.I),
+    re.compile(r"\bversion\b", re.I),
 ]
 _ALBUM_EXCLUDE_PATTERNS = _TITLE_EXCLUDE_PATTERNS + [
     re.compile(r"\banniversary\b", re.I),
@@ -198,25 +211,37 @@ def _album_tracks_by_artist(sp: Spotify, album_id: str, artist_id: str) -> list[
     while True:
         page = sp.album_tracks(album_id, limit=50, offset=offset)
         items = page.get("items", [])
-        logger.debug(f"Fetched {len(items)} tracks at offset {offset} for album {album_id}")
+        logger.debug(
+            f"Fetched {len(items)} tracks at offset {offset} for album {album_id}"
+        )
         if not items:
-            logger.debug(f"No more tracks found for album {album_id} at offset {offset}")
+            logger.debug(
+                f"No more tracks found for album {album_id} at offset {offset}"
+            )
             break
         for track in items:
             artists = track.get("artists", [])
-            logger.debug(f"Track '{track.get('name', '')}' artists: {[art.get('id') for art in artists]}")
+            logger.debug(
+                f"Track '{track.get('name', '')}' artists: {[art.get('id') for art in artists]}"
+            )
             if any(art.get("id") == artist_id for art in artists if art.get("id")):
-                logger.debug(f"Track '{track.get('name', '')}' matches artist {artist_id}")
+                logger.debug(
+                    f"Track '{track.get('name', '')}' matches artist {artist_id}"
+                )
                 tracks.append(track)
         if not page.get("next"):
             logger.debug(f"No next page for album tracks in album {album_id}")
             break
         offset += len(items)
-    logger.debug(f"Total tracks found for artist {artist_id} in album {album_id}: {len(tracks)}")
+    logger.debug(
+        f"Total tracks found for artist {artist_id} in album {album_id}: {len(tracks)}"
+    )
     return tracks
 
 
-def _iter_recent_albums(sp: Spotify, artist_id: str, cutoff: datetime) -> Iterable[tuple[datetime, dict]]:
+def _iter_recent_albums(
+    sp: Spotify, artist_id: str, cutoff: datetime
+) -> Iterable[tuple[datetime, dict]]:
     offset = 0
     seen_albums: set[str] = set()
     logger.debug(f"Fetching recent albums for artist {artist_id} after {cutoff}")
@@ -232,15 +257,21 @@ def _iter_recent_albums(sp: Spotify, artist_id: str, cutoff: datetime) -> Iterab
         except SpotifyException as exc:
             if exc.http_status == 429:
                 retry_after = int(exc.headers.get("Retry-After", "5"))
-                logger.warning(f"Rate limited during albums fetch, sleeping {retry_after}s")
+                logger.warning(
+                    f"Rate limited during albums fetch, sleeping {retry_after}s"
+                )
                 time.sleep(retry_after)
                 continue
             logger.error(f"Spotify albums failed for {artist_id}: {exc}")
             break
         items = page.get("items", [])
-        logger.debug(f"Fetched {len(items)} albums at offset {offset} for artist {artist_id}")
+        logger.debug(
+            f"Fetched {len(items)} albums at offset {offset} for artist {artist_id}"
+        )
         if not items:
-            logger.debug(f"No more albums found for artist {artist_id} at offset {offset}")
+            logger.debug(
+                f"No more albums found for artist {artist_id} at offset {offset}"
+            )
             break
         for album in items:
             album_id = album.get("id")
@@ -249,10 +280,14 @@ def _iter_recent_albums(sp: Spotify, artist_id: str, cutoff: datetime) -> Iterab
                 logger.debug(f"Skipping album {album_id}: already seen or missing ID")
                 continue
             seen_albums.add(album_id)
-            release = parse_release_date(album.get("release_date", ""), album.get("release_date_precision", ""))
+            release = parse_release_date(
+                album.get("release_date", ""), album.get("release_date_precision", "")
+            )
             logger.debug(f"Album {album_id} release date: {release}")
             if not release or release < cutoff:
-                logger.debug(f"Skipping album {album_id}: release date {release} before cutoff {cutoff}")
+                logger.debug(
+                    f"Skipping album {album_id}: release date {release} before cutoff {cutoff}"
+                )
                 continue
             logger.debug(f"Yielding album {album_id} released on {release}")
             yield release, album
@@ -273,12 +308,14 @@ def _fetch_popularity_bulk(sp: Spotify, track_ids: list[str]) -> dict[str, int]:
         except SpotifyException as exc:
             if exc.http_status == 429:
                 retry_after = int(exc.headers.get("Retry-After", "5"))
-                logger.warning(f"Rate limited during tracks fetch, sleeping {retry_after}s")
+                logger.warning(
+                    f"Rate limited during tracks fetch, sleeping {retry_after}s"
+                )
                 time.sleep(retry_after)
                 continue
             logger.error(f"Spotify tracks batch failed: {exc}")
             break
-        for t in (resp.get("tracks") or []):
+        for t in resp.get("tracks") or []:
             if not t:
                 continue
             tid = t.get("id")
@@ -298,7 +335,9 @@ def _annotate_popularity(sp: Spotify, releases: list[ArtistRelease]) -> None:
         r.popularity = pops.get(r.track_id, 0)
 
 
-def fetch_recent_releases(sp: Spotify, artist_name: str, cutoff: datetime) -> list[ArtistRelease]:
+def fetch_recent_releases(
+    sp: Spotify, artist_name: str, cutoff: datetime
+) -> list[ArtistRelease]:
     """Return all recent release candidates for an artist (filtered), not just one."""
     logger.debug(f"Fetching recent releases for artist: {artist_name}")
     artist = _best_artist_match(sp, artist_name)
@@ -372,10 +411,14 @@ def build_new_releases(
     releases: list[ArtistRelease] = []
     seen_tracks: set[str] = set()
     artists_list = list(artists)
-    logger.debug(f"Building new releases for {len(artists_list)} artists with cutoff {cutoff}")
+    logger.debug(
+        f"Building new releases for {len(artists_list)} artists with cutoff {cutoff}"
+    )
 
     for idx, artist in enumerate(
-        tqdm(artists_list, desc="Artists", unit="artist", disable=not sys.stdout.isatty()),
+        tqdm(
+            artists_list, desc="Artists", unit="artist", disable=not sys.stdout.isatty()
+        ),
         start=1,
     ):
         candidates = fetch_recent_releases(sp, artist, cutoff)
@@ -409,13 +452,19 @@ def build_new_releases(
                 break
 
     # Final ordering: newest first, tiebreaker by popularity
-    releases.sort(key=lambda item: (item.release_date, item.popularity or 0), reverse=True)
+    releases.sort(
+        key=lambda item: (item.release_date, item.popularity or 0), reverse=True
+    )
     logger.debug(f"Total new releases collected: {len(releases)}")
-    logger.debug(f"Release list: {[f'{r.artist} - {r.title} (pop {r.popularity}, {r.release_date}, single={r.is_single})' for r in releases]}")
+    logger.debug(
+        f"Release list: {[f'{r.artist} - {r.title} (pop {r.popularity}, {r.release_date}, single={r.is_single})' for r in releases]}"
+    )
     return releases
 
 
-def save_new_releases(playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool) -> None:
+def save_new_releases(
+    playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool
+) -> None:
     output_path = playlists_dir / "New Releases.csv"
     logger.debug(f"Saving new releases to {output_path}, dry_run={dry_run}")
     if not releases:
@@ -450,17 +499,25 @@ def build_spotify_client() -> Spotify:
     load_dotenv(dotenv_path=".env", override=False)
     cid = os.getenv("SPOTIFY_CLIENT_ID")
     secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-    logger.debug(f"SPOTIFY_CLIENT_ID: {cid}, SPOTIFY_CLIENT_SECRET: {'set' if secret else 'missing'}")
+    logger.debug(
+        f"SPOTIFY_CLIENT_ID: {cid}, SPOTIFY_CLIENT_SECRET: {'set' if secret else 'missing'}"
+    )
     if not cid or not secret:
-        logger.error("Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.")
-        raise SystemExit("Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.")
+        logger.error(
+            "Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
+        )
+        raise SystemExit(
+            "Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
+        )
     auth = SpotifyClientCredentials(client_id=cid, client_secret=secret)
     logger.debug("Spotify client initialized")
     return Spotify(auth_manager=auth)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Refresh the New Releases playlist for a station.")
+    parser = argparse.ArgumentParser(
+        description="Refresh the New Releases playlist for a station."
+    )
     parser.add_argument(
         "station",
         metavar="STATION",
@@ -503,7 +560,9 @@ def main() -> None:
     logger.info(f"Starting update for station: {args.station}")
     station_dir = Path(args.station)
     playlists_dir = station_dir / "playlists"
-    logger.debug(f"Station directory: {station_dir}, Playlists directory: {playlists_dir}")
+    logger.debug(
+        f"Station directory: {station_dir}, Playlists directory: {playlists_dir}"
+    )
     if not playlists_dir.exists():
         logger.error(f"Playlists directory not found: {playlists_dir}")
         raise SystemExit(f"Playlists directory not found: {playlists_dir}")
