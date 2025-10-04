@@ -11,6 +11,7 @@ class Song(BaseModel):
     year: str
     album: Optional[str] = None
     validated: bool = False
+    override_url: Optional[str] = None
 
 
 class Playlist(BaseModel):

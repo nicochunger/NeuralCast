@@ -195,9 +195,125 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         print(f"   Previously validated songs: {len(validated_songs)}")
         print(f"   Songs needing validation: {len(unvalidated_songs)}")
 
+        # Handle forced YouTube overrides before standard download detection
+        override_candidates = []
+        for song in songs:
+            if not song.override_url:
+                continue
+
+            safe_artist = sanitize_filename_component(song.artist) if song.artist else ""
+            safe_title = sanitize_filename_component(song.title) if song.title else ""
+            override_path = music_dir / f"{safe_artist} - {safe_title}.mp3" if safe_artist and safe_title else None
+            override_candidates.append((song, override_path))
+
+        override_updates = False
+
+        for song, song_path in override_candidates:
+            url = song.override_url
+
+            if not song.artist or not song.title:
+                print(
+                    f"⚠️ Override skipped; missing artist/title for URL {url}"
+                )
+                continue
+
+            if not url or not any(host in url.lower() for host in ("youtube.com", "youtu.be")):
+                print(f"⚠️ Override skipped; unsupported URL {url}")
+                continue
+
+            if song_path is None:
+                print(
+                    f"⚠️ Override skipped; could not determine target path for {song.artist} - {song.title}"
+                )
+                continue
+
+            print(
+                f"Forced YouTube override: {song.artist} - {song.title} (URL {url})"
+            )
+
+            if dry_run:
+                print(
+                    f"   Would replace {song.artist} - {song.title} via forced override (dry-run)"
+                )
+                continue
+
+            file_existed = song_path.exists()
+            backup_path = None
+            backup_created = False
+
+            try:
+                if file_existed:
+                    backup_path = song_path.with_suffix(song_path.suffix + ".bak")
+                    if backup_path.exists():
+                        backup_path.unlink()
+                    song_path.rename(backup_path)
+                    backup_created = True
+
+                youtube_to_mp3(url, str(song_path), use_search=False)
+                tag_mp3(
+                    str(song_path),
+                    song.artist,
+                    song.title,
+                    song.year,
+                    playlist_name,
+                    song.album,
+                )
+
+                if backup_path and backup_path.exists():
+                    backup_path.unlink()
+
+                song.override_url = None
+                override_updates = True
+
+                replacement_note = (
+                    "Replaced existing file" if file_existed else "Downloaded (new override)"
+                )
+                print(f"   {replacement_note}")
+
+            except CalledProcessError as exc:
+                print("   Override failed; original retained")
+                print(f"     Reason: {exc}")
+
+                if song_path.exists() and backup_created:
+                    try:
+                        song_path.unlink()
+                    except Exception:
+                        pass
+
+                if backup_created and backup_path and backup_path.exists():
+                    try:
+                        backup_path.rename(song_path)
+                    except Exception as restore_exc:
+                        print(
+                            f"     Warning: failed to restore original file from backup: {restore_exc}"
+                        )
+
+            except Exception as exc:
+                print("   Override failed; original retained")
+                print(f"     Reason: {exc}")
+
+                if song_path.exists() and backup_created:
+                    try:
+                        song_path.unlink()
+                    except Exception:
+                        pass
+
+                if backup_created and backup_path and backup_path.exists():
+                    try:
+                        backup_path.rename(song_path)
+                    except Exception as restore_exc:
+                        print(
+                            f"     Warning: failed to restore original file from backup: {restore_exc}"
+                        )
+
+        if override_updates:
+            save_playlist_with_validation(playlist_file, songs)
+
         # Check which songs already exist and which need to be downloaded
         existing_songs = []
         missing_songs = []
+
+        pending_overrides = 0
 
         for song in songs:
             artist = song.artist
@@ -208,6 +324,12 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             safe_artist = sanitize_filename_component(artist)
             safe_title = sanitize_filename_component(title)
             song_path = music_dir / f"{safe_artist} - {safe_title}.mp3"
+
+            if song.override_url:
+                pending_overrides += 1
+                if song_path.exists():
+                    existing_songs.append((song, song_path))
+                continue
 
             if song_path.exists():
                 existing_songs.append((song, song_path))
@@ -223,6 +345,10 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         print(f"   Total songs in playlist: {total_songs}")
         print(f"   Already downloaded: {existing_count}")
         print(f"   Need to download: {missing_count}")
+        if pending_overrides:
+            print(
+                f"   Pending overrides awaiting retry: {pending_overrides}"
+            )
 
         # In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
         if dry_run and existing_songs:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -10,6 +11,8 @@ from mutagen.easyid3 import EasyID3
 from models import Song
 
 DELETE_MARKER = "[DEL]"
+_YOUTUBE_HOST_FRAGMENTS = ("youtube.com", "youtu.be")
+_OVERRIDE_PATTERN = re.compile(r"^\[(https?://[^\]]+)\]\s*(.*)$")
 
 
 def _normalize_csv_value(value: object) -> Optional[str]:
@@ -35,6 +38,22 @@ def _strip_delete_prefix(value: Optional[str]) -> Tuple[Optional[str], bool]:
         cleaned = value[len(DELETE_MARKER) :].strip()
         return (cleaned if cleaned else None), True
     return value, False
+
+
+def _extract_override(value: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    if value is None:
+        return None, None
+    match = _OVERRIDE_PATTERN.match(value.strip())
+    if not match:
+        return value, None
+
+    url = match.group(1).strip()
+    normalized_url = url.lower()
+    if not any(host in normalized_url for host in _YOUTUBE_HOST_FRAGMENTS):
+        return value, None
+
+    remainder = match.group(2).strip()
+    return (remainder if remainder else None), url
 
 
 def _as_bool(value: object) -> bool:
@@ -104,7 +123,8 @@ def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool, List[S
             else None
         )
 
-        artist, artist_marked = _strip_delete_prefix(artist_raw)
+        artist_without_override, override_url = _extract_override(artist_raw)
+        artist, artist_marked = _strip_delete_prefix(artist_without_override)
         title, title_marked = _strip_delete_prefix(title_raw)
         album, _ = _strip_delete_prefix(album_raw)
 
@@ -135,7 +155,14 @@ def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool, List[S
 
         if artist and title and year:
             songs.append(
-                Song(artist=artist, title=title, year=year, album=album, validated=validated)
+                Song(
+                    artist=artist,
+                    title=title,
+                    year=year,
+                    album=album,
+                    validated=validated,
+                    override_url=override_url,
+                )
             )
         else:
             print(
@@ -262,7 +289,11 @@ def save_playlist_with_validation(playlist_path: pathlib.Path, songs: List[Song]
     cleaned_df = pd.DataFrame(
         [
             {
-                "Artist": song.artist,
+                "Artist": (
+                    f"[{song.override_url}] {song.artist}".strip()
+                    if song.override_url
+                    else song.artist
+                ),
                 "Title": song.title,
                 "Year": _serialize_year(song.year),
                 "Album": song.album or "",

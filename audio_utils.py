@@ -75,11 +75,12 @@ def tag_mp3(
         print(f"Error applying ReplayGain to {path}: {exc}")
 
 
-def youtube_to_mp3(query: str, outfile: str):
+def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
     filtered_query = f"{query}"
+    source = f"ytsearch1:{filtered_query}" if use_search else filtered_query
     cmd = [
         "yt-dlp",
-        f"ytsearch1:{filtered_query}",
+        source,
         "-x",
         "--audio-format",
         "mp3",
