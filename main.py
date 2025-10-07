@@ -80,7 +80,8 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
     # First pass: load playlists and collect deletion markers
     playlist_entries = []
     for playlist_file in playlist_files:
-        songs, playlist_needs_save, deletions = load_playlist(playlist_file)
+        # CHANGED: load_playlist now returns (songs, playlist_needs_save, deletions, df)
+        songs, playlist_needs_save, deletions, playlist_df = load_playlist(playlist_file)
         playlist_entries.append(
             {
                 "file": playlist_file,
@@ -88,6 +89,7 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 "songs": songs,
                 "needs_save": playlist_needs_save,
                 "deletions": deletions,
+                "df": playlist_df,  # keep the full DataFrame for extra columns
             }
         )
 
@@ -162,8 +164,15 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         if duplicates_removed > 0:
             print(f"Removed {duplicates_removed} duplicate(s) from {playlist_file}")
 
+        # When updating playlist, update the DataFrame, not just the list of songs
+        # For example, after deduplication, validation, or removal:
+        # - Update the DataFrame rows for standard columns (artist, title, etc.)
+        # - Keep all other columns unchanged
+
+        # When saving:
+        # save_playlist_with_validation should now take the DataFrame and write all columns
         if playlist_needs_save or library_changed or normalized_changed:
-            save_playlist_with_validation(playlist_file, songs)
+            save_playlist_with_validation(playlist_file, songs, entry["df"])
 
         if not songs:
             print(f"No valid songs found in {playlist_file}")
@@ -559,8 +568,8 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     f"📝 Removed {removed_count} invalid song(s) from playlist CSV file"
                 )
 
-            # Save updated playlist with validation status
-            save_playlist_with_validation(str(playlist_file), songs)
+            # Save updated playlist with validation status and all columns
+            save_playlist_with_validation(str(playlist_file), songs, entry["df"])
             print(f"📝 Updated validation status in playlist CSV file")
 
         if valid_count == 0 and missing_count > 0:

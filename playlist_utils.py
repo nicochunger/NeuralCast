@@ -77,7 +77,9 @@ def playlist_song_key(song: Song) -> Tuple[str, str]:
     return (song.artist.lower().strip(), song.title.lower().strip())
 
 
-def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool, List[Song]]:
+def load_playlist(
+    playlist_path: pathlib.Path,
+) -> Tuple[List[Song], bool, List[Song], pd.DataFrame]:
     df = pd.read_csv(
         playlist_path,
         dtype={
@@ -169,7 +171,7 @@ def load_playlist(playlist_path: pathlib.Path) -> Tuple[List[Song], bool, List[S
                 f"Warning: Skipping incomplete row in {playlist_path}: Artist={artist}, Title={title}, Year={year}"
             )
 
-    return songs, needs_save, marked_for_deletion
+    return songs, needs_save, marked_for_deletion, df
 
 
 def backfill_songs_from_library(
@@ -280,30 +282,61 @@ def replace_song_entry(songs: List[Song], updated_song: Song) -> None:
             return
 
 
-def save_playlist_with_validation(playlist_path: pathlib.Path, songs: List[Song]):
-    def _serialize_year(value: Optional[str]) -> str:
-        if value is None:
-            return ""
-        return str(value).strip()
+def save_playlist_with_validation(
+    playlist_path: pathlib.Path, songs: List[Song], df: pd.DataFrame
+):
+    # Update only the standard columns in the DataFrame, keep all others
+    # Build a DataFrame from songs for standard columns
+    std_cols = ["Artist", "Title", "Year", "Album", "Validated"]
+    song_keys = set((s.artist, s.title, s.year, s.album) for s in songs)
+    # Build a lookup for quick update
+    song_map = {}
+    for song in songs:
+        key = (song.artist, song.title)
+        song_map[key] = song
 
-    cleaned_df = pd.DataFrame(
-        [
-            {
-                "Artist": (
-                    f"[{song.override_url}] {song.artist}".strip()
-                    if song.override_url
-                    else song.artist
-                ),
-                "Title": song.title,
-                "Year": _serialize_year(song.year),
-                "Album": song.album or "",
-                "Validated": bool(song.validated),
-            }
-            for song in songs
-        ],
-        columns=["Artist", "Title", "Year", "Album", "Validated"],
-    )
-    cleaned_df.to_csv(playlist_path, index=False)
+    # Update rows in df for songs present, drop rows not in songs, and add new rows if needed
+    updated_rows = []
+    seen_keys = set()
+    for idx, row in df.iterrows():
+        artist = str(row.get("Artist", "")).strip()
+        title = str(row.get("Title", "")).strip()
+        key = (artist, title)
+        song = song_map.get(key)
+        if song:
+            # Update standard columns
+            row["Artist"] = (
+                f"[{song.override_url}] {song.artist}".strip()
+                if song.override_url
+                else song.artist
+            )
+            row["Title"] = song.title
+            row["Year"] = str(song.year).strip() if song.year else ""
+            row["Album"] = song.album or ""
+            row["Validated"] = bool(song.validated)
+            updated_rows.append(row)
+            seen_keys.add(key)
+        # else: row is not in songs anymore (e.g. deleted), so skip
+
+    # Add any new songs not present in df
+    for song in songs:
+        key = (song.artist, song.title)
+        if key not in seen_keys:
+            new_row = {col: "" for col in df.columns}
+            new_row["Artist"] = (
+                f"[{song.override_url}] {song.artist}".strip()
+                if song.override_url
+                else song.artist
+            )
+            new_row["Title"] = song.title
+            new_row["Year"] = str(song.year).strip() if song.year else ""
+            new_row["Album"] = song.album or ""
+            new_row["Validated"] = bool(song.validated)
+            updated_rows.append(new_row)
+
+    # Create new DataFrame with all columns preserved
+    new_df = pd.DataFrame(updated_rows, columns=df.columns)
+    new_df.to_csv(playlist_path, index=False)
     print(f"Cleaned and sorted playlist saved to {playlist_path}")
 
 

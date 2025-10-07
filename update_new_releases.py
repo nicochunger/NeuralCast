@@ -12,13 +12,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Set
 
 import pandas as pd
 from dotenv import load_dotenv
 from spotipy import Spotify, SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 from tqdm import tqdm
+import unicodedata
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +42,7 @@ class ArtistRelease:
     popularity: Optional[int] = None
     is_single: bool = False
     album_type: Optional[str] = None
+    validated: bool = False
 
     def __repr__(self) -> str:
         return (
@@ -55,8 +57,12 @@ class ArtistRelease:
         )
 
 
-def load_station_artists(playlists_dir: Path) -> list[str]:
+def load_station_artists(
+    playlists_dir: Path,
+) -> tuple[list[str], dict[str, set[str]], dict[str, dict[Path, set[str]]]]:
     artists: set[str] = set()
+    artist_tracks: dict[str, set[str]] = {}
+    artist_playlist_map: dict[str, dict[Path, set[str]]] = {}
     logger.debug(f"Scanning playlists directory: {playlists_dir}")
     for csv_path in playlists_dir.glob("*.csv"):
         logger.debug(f"Checking file: {csv_path}")
@@ -72,13 +78,28 @@ def load_station_artists(playlists_dir: Path) -> list[str]:
         if "Artist" not in df.columns:
             logger.debug(f"No 'Artist' column in {csv_path}, skipping file.")
             continue
-        for value in df["Artist"].dropna():
+        titles_col = "Title" if "Title" in df.columns else None
+        for _, row in df.iterrows():
+            value = row.get("Artist")
+            if pd.isna(value):
+                continue
             name = str(value).strip()
-            logger.debug(f"Found artist value: '{name}' in file: {csv_path}")
-            if name:
-                artists.add(name)
+            if not name:
+                continue
+            artists.add(name)
+            playlist_tracks = artist_playlist_map.setdefault(name, {}).setdefault(csv_path, set())
+            if titles_col:
+                title_val = row.get(titles_col)
+                if pd.isna(title_val):
+                    continue
+                title_str = str(title_val).strip()
+                if title_str:
+                    artist_tracks.setdefault(name, set()).add(title_str)
+                    playlist_tracks.add(title_str)
+            else:
+                artist_tracks.setdefault(name, set())
     logger.debug(f"Found {len(artists)} unique artists: {sorted(artists)}")
-    return sorted(artists)
+    return sorted(artists), artist_tracks, artist_playlist_map
 
 
 def parse_release_date(date_str: str, precision: str) -> Optional[datetime]:
@@ -108,59 +129,74 @@ def parse_release_date(date_str: str, precision: str) -> Optional[datetime]:
         return None
 
 
-def _best_artist_match(sp: Spotify, artist_name: str) -> Optional[dict]:
+def _artist_has_known_track(
+    sp: Spotify, artist_id: str, artist_name: str, known_titles: set[str]
+) -> bool:
+    if not known_titles:
+        return False
+    for title in list(known_titles)[:5]:
+        query = f'track:"{title}" artist:"{artist_name}"'
+        while True:
+            try:
+                res = sp.search(q=query, type="track", limit=5)
+                break
+            except SpotifyException as exc:
+                if exc.http_status == 429:
+                    retry_after = int(exc.headers.get("Retry-After", "5"))
+                    logger.warning(
+                        f"Rate limited during known track search, sleeping {retry_after}s"
+                    )
+                    time.sleep(retry_after)
+                    continue
+                logger.error(
+                    f"Spotify search failed for known track '{title}' ({artist_name}): {exc}"
+                )
+                return False
+        for track in res.get("tracks", {}).get("items", []):
+            artists = track.get("artists", [])
+            if any(art.get("id") == artist_id for art in artists if art.get("id")):
+                return True
+    return False
+
+
+def _best_artist_match(
+    sp: Spotify, artist_name: str, known_titles: Optional[set[str]] = None
+) -> Optional[dict]:
     query = f'artist:"{artist_name}"'
     logger.debug(f"Searching for artist: {artist_name} with query: {query}")
-    try:
-        res = sp.search(q=query, type="artist", limit=5)
-    except SpotifyException as exc:
-        if exc.http_status == 429:
-            retry_after = int(exc.headers.get("Retry-After", "5"))
-            logger.warning(
-                f"Rate limited during artist search, sleeping {retry_after}s"
-            )
-            time.sleep(retry_after)
-            return _best_artist_match(sp, artist_name)
-        logger.error(f"Spotify search failed for {artist_name}: {exc}")
-        return None
-
+    while True:
+        try:
+            res = sp.search(q=query, type="artist", limit=10)
+            break
+        except SpotifyException as exc:
+            if exc.http_status == 429:
+                retry_after = int(exc.headers.get("Retry-After", "5"))
+                logger.warning(f"Rate limited during artist search, sleeping {retry_after}s")
+                time.sleep(retry_after)
+                continue
+            logger.error(f"Spotify search failed for {artist_name}: {exc}")
+            return None
     items = res.get("artists", {}).get("items", [])
     logger.debug(
         f"Artist search returned {len(items)} items for {artist_name}: {[item.get('name') for item in items]}"
     )
-    if not items:
-        logger.debug(f"No items returned for artist search: {artist_name}")
+    exact_matches = [
+        item for item in items if item.get("name", "").casefold() == artist_name.casefold()
+    ]
+    if not exact_matches:
+        logger.debug(f"No exact match found for artist: {artist_name}")
         return None
-
-    lower_target = artist_name.lower()
-    for item in items:
-        logger.debug(
-            f"Checking for exact match: '{item.get('name', '').lower()}' == '{lower_target}'"
-        )
-        if item.get("name", "").lower() == lower_target:
-            logger.debug(f"Exact match found for artist: {artist_name}")
-            return item
-
-    best_item: Optional[dict] = None
-    best_score = 0.0
-    for item in items:
-        candidate = item.get("name", "")
-        score = _similarity(candidate, artist_name)
-        logger.debug(f"Similarity score for '{candidate}' vs '{artist_name}': {score}")
-        if score > best_score:
-            best_item = item
-            best_score = score
-    if best_score >= 0.65:
-        logger.debug(
-            f"Best fuzzy match for artist '{artist_name}': '{best_item.get('name', '')}' ({best_score:.2f})"
-        )
-    else:
-        logger.debug(f"No suitable match found for artist: {artist_name}")
-    return best_item if best_score >= 0.65 else None
-
-
-def _similarity(a: str, b: str) -> float:
-    return SequenceMatcher(None, a.casefold(), b.casefold()).ratio()
+    if len(exact_matches) == 1 or not known_titles:
+        return exact_matches[0]
+    for candidate in exact_matches:
+        artist_id = candidate.get("id")
+        if not artist_id:
+            continue
+        if _artist_has_known_track(sp, artist_id, artist_name, known_titles):
+            logger.debug(f"Disambiguated artist '{artist_name}' using known titles")
+            return candidate
+    logger.debug(f"Multiple exact matches for '{artist_name}', returning the first one by default")
+    return exact_matches[0]
 
 
 # Robust filters for non-new variants
@@ -176,6 +212,7 @@ _TITLE_EXCLUDE_PATTERNS = [
     re.compile(r"\bedit\b", re.I),
     re.compile(r"\bremix\b", re.I),
     re.compile(r"\bversion\b", re.I),
+    re.compile(r"\bon\s+stage\.?\b", re.I),
 ]
 _ALBUM_EXCLUDE_PATTERNS = _TITLE_EXCLUDE_PATTERNS + [
     re.compile(r"\banniversary\b", re.I),
@@ -335,12 +372,193 @@ def _annotate_popularity(sp: Spotify, releases: list[ArtistRelease]) -> None:
         r.popularity = pops.get(r.track_id, 0)
 
 
+def _coerce_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return False
+
+
+def _normalize_audio_label(*parts: str) -> str:
+    text = " ".join(part or "" for part in parts)
+    normalized = unicodedata.normalize("NFKD", text)
+    return re.sub(r"[^a-z0-9]", "", normalized.casefold())
+
+
+def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
+    path = playlists_dir / "New Releases.csv"
+    if not path.exists():
+        logger.debug("New Releases.csv not found; starting from empty state")
+        return []
+    try:
+        df = pd.read_csv(path)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"Failed reading {path}: {exc}")
+        return []
+    releases: list[ArtistRelease] = []
+    for _, row in df.iterrows():
+        artist = str(row.get("Artist", "")).strip()
+        title = str(row.get("Title", "")).strip()
+        if not artist or not title:
+            continue
+        album = str(row.get("Album", "")).strip()
+        year_raw = str(row.get("Year", "")).strip()
+        try:
+            year = int(year_raw)
+        except ValueError:
+            year = datetime.now(UTC).year
+        release_dt = datetime.min.replace(tzinfo=UTC)
+        release_raw = str(row.get("ReleaseDate", "")).strip()
+        if release_raw:
+            try:
+                release_dt = datetime.fromisoformat(release_raw)
+                if release_dt.tzinfo is None:
+                    release_dt = release_dt.replace(tzinfo=UTC)
+            except ValueError:
+                logger.debug(f"Invalid ReleaseDate '{release_raw}' for {artist} - {title}")
+        track_id = str(row.get("TrackID", "")).strip()
+        popularity_val = row.get("Popularity")
+        popularity = None if pd.isna(popularity_val) else int(popularity_val)
+        album_type = str(row.get("AlbumType", "")).strip() or None
+        is_single = _coerce_bool(row.get("IsSingle", False))
+        validated = _coerce_bool(row.get("Validated", False))
+        releases.append(
+            ArtistRelease(
+                artist=artist,
+                title=title,
+                year=year,
+                album=album,
+                release_date=release_dt,
+                track_id=track_id,
+                popularity=popularity,
+                is_single=is_single,
+                album_type=album_type,
+                validated=validated,
+            )
+        )
+    return releases
+
+
+def partition_releases_by_cutoff(
+    releases: Iterable[ArtistRelease], cutoff: datetime
+) -> tuple[list[ArtistRelease], list[ArtistRelease]]:
+    valid: list[ArtistRelease] = []
+    expired: list[ArtistRelease] = []
+    for release in releases:
+        if release.release_date >= cutoff:
+            valid.append(release)
+        else:
+            expired.append(release)
+    return valid, expired
+
+
+def _resolve_destination_playlist(
+    release: ArtistRelease, artist_playlist_map: dict[str, dict[Path, set[str]]]
+) -> Optional[Path]:
+    candidates = artist_playlist_map.get(release.artist)
+    if not candidates:
+        return None
+    title_key = release.title.casefold()
+    for path, titles in candidates.items():
+        if any((title or "").casefold() == title_key for title in titles):
+            return path
+    return sorted(candidates.keys())[0]
+
+
+def _append_release_to_playlist(csv_path: Path, release: ArtistRelease) -> None:
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"Failed reading {csv_path}: {exc}")
+        return
+    if {"Artist", "Title"}.issubset(df.columns):
+        duplicate = (
+            df["Artist"].fillna("").str.strip().str.casefold() == release.artist.casefold()
+        ) & (df["Title"].fillna("").str.strip().str.casefold() == release.title.casefold())
+        if duplicate.any():
+            logger.debug(
+                f"Track already present in {csv_path.name}: {release.artist} - {release.title}"
+            )
+            return
+    row = {}
+    for column in df.columns:
+        match column:
+            case "Artist":
+                row[column] = release.artist
+            case "Title":
+                row[column] = release.title
+            case "Year":
+                row[column] = str(release.year)
+            case "Album":
+                row[column] = release.album
+            case "Validated":
+                row[column] = release.validated
+            case _:
+                row[column] = ""
+    if "Artist" not in row:
+        row["Artist"] = release.artist
+    if "Title" not in row:
+        row["Title"] = release.title
+    appended = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    appended.to_csv(csv_path, index=False)
+    logger.debug(f"Appended '{release.title}' to {csv_path.name}")
+
+
+def _move_track_audio(
+    audio_root: Optional[Path],
+    source_dir_name: str,
+    destination_dir_name: str,
+    release: ArtistRelease,
+) -> None:
+    if not audio_root:
+        return
+    src_dir = audio_root / source_dir_name
+    if not src_dir.exists():
+        logger.debug(f"Audio source directory missing: {src_dir}")
+        return
+    dest_dir = audio_root / destination_dir_name
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    target_key = _normalize_audio_label(release.artist, release.title)
+    for candidate in src_dir.iterdir():
+        if not candidate.is_file():
+            continue
+        if candidate.suffix.lower() not in {".mp3", ".flac", ".wav"}:
+            continue
+        candidate_key = _normalize_audio_label(candidate.stem)
+        if candidate_key == target_key or target_key in candidate_key:
+            dest_path = dest_dir / candidate.name
+            candidate.replace(dest_path)
+            logger.debug(f"Moved {candidate.name} to {dest_dir}")
+            return
+    logger.debug(f"No audio found for {release.artist} - {release.title} in {src_dir}")
+
+
+def move_outdated_releases(
+    releases: list[ArtistRelease],
+    artist_playlist_map: dict[str, dict[Path, set[str]]],
+    audio_root: Optional[Path],
+    new_releases_dir_name: str,
+) -> None:
+    if not releases:
+        return
+    logger.info(f"Archiving {len(releases)} expired tracks from New Releases")
+    for release in releases:
+        destination = _resolve_destination_playlist(release, artist_playlist_map)
+        if not destination:
+            logger.warning(f"No destination playlist for {release.artist} - {release.title}")
+            continue
+        _append_release_to_playlist(destination, release)
+        _move_track_audio(audio_root, new_releases_dir_name, destination.stem, release)
+
+
 def fetch_recent_releases(
-    sp: Spotify, artist_name: str, cutoff: datetime
+    sp: Spotify, artist_name: str, cutoff: datetime, known_titles: Optional[set[str]] = None
 ) -> list[ArtistRelease]:
-    """Return all recent release candidates for an artist (filtered), not just one."""
     logger.debug(f"Fetching recent releases for artist: {artist_name}")
-    artist = _best_artist_match(sp, artist_name)
+    artist = _best_artist_match(sp, artist_name, known_titles)
     if not artist:
         logger.debug(f"No artist found for {artist_name}")
         return []
@@ -406,35 +624,32 @@ def build_new_releases(
     per_artist: int = 1,
     min_popularity: int = 0,
     prefer_singles: bool = False,
+    known_tracks: Optional[dict[str, set[str]]] = None,
+    cutoff: Optional[datetime] = None,
+    seen_tracks: Optional[Set[str]] = None,
+    seen_keys: Optional[Set[str]] = None,
 ) -> list[ArtistRelease]:
-    cutoff = datetime.now(UTC) - timedelta(days=days)
+    cutoff = cutoff or datetime.now(UTC) - timedelta(days=days)
     releases: list[ArtistRelease] = []
-    seen_tracks: set[str] = set()
+    seen_track_ids: Set[str] = set(seen_tracks or set())
+    seen_title_keys: Set[str] = set(seen_keys or set())
     artists_list = list(artists)
-    logger.debug(
-        f"Building new releases for {len(artists_list)} artists with cutoff {cutoff}"
-    )
+    logger.debug(f"Building new releases for {len(artists_list)} artists with cutoff {cutoff}")
 
     for idx, artist in enumerate(
-        tqdm(
-            artists_list, desc="Artists", unit="artist", disable=not sys.stdout.isatty()
-        ),
+        tqdm(artists_list, desc="Artists", unit="artist", disable=not sys.stdout.isatty()),
         start=1,
     ):
-        candidates = fetch_recent_releases(sp, artist, cutoff)
+        artist_titles = (known_tracks or {}).get(artist, set())
+        candidates = fetch_recent_releases(sp, artist, cutoff, artist_titles)
         if not candidates:
             continue
-
-        # Fetch popularity for this artist's candidates
         _annotate_popularity(sp, candidates)
-
-        # Filter by popularity threshold
         filtered = [c for c in candidates if (c.popularity or 0) >= min_popularity]
         if not filtered:
             logger.debug(f"No candidates passed min_popularity for {artist}")
             continue
 
-        # Rank: optionally prefer singles, then by popularity, then by recency
         def rank_key(r: ArtistRelease):
             single_score = 1 if (prefer_singles and r.is_single) else 0
             return (single_score, r.popularity or 0, r.release_date)
@@ -443,22 +658,21 @@ def build_new_releases(
 
         kept = 0
         for cand in filtered:
-            if cand.track_id in seen_tracks:
+            if cand.track_id and cand.track_id in seen_track_ids:
                 continue
-            seen_tracks.add(cand.track_id)
+            title_key = _normalize_audio_label(cand.artist, cand.title)
+            if title_key in seen_title_keys:
+                continue
             releases.append(cand)
+            seen_title_keys.add(title_key)
+            if cand.track_id:
+                seen_track_ids.add(cand.track_id)
             kept += 1
             if kept >= per_artist:
                 break
 
-    # Final ordering: newest first, tiebreaker by popularity
-    releases.sort(
-        key=lambda item: (item.release_date, item.popularity or 0), reverse=True
-    )
-    logger.debug(f"Total new releases collected: {len(releases)}")
-    logger.debug(
-        f"Release list: {[f'{r.artist} - {r.title} (pop {r.popularity}, {r.release_date}, single={r.is_single})' for r in releases]}"
-    )
+    releases.sort(key=lambda item: (item.release_date, item.popularity or 0), reverse=True)
+    logger.debug(f"Total new releases collected this run: {len(releases)}")
     return releases
 
 
@@ -471,18 +685,22 @@ def save_new_releases(
         logger.info("No new releases to write.")
         print("No new releases to write.", file=sys.stderr)
         return
-    df = pd.DataFrame(
-        [
-            {
-                "Artist": item.artist,
-                "Title": item.title,
-                "Year": str(item.year),
-                "Album": item.album,
-                "Validated": False,
-            }
-            for item in releases
-        ]
-    ).sort_values(by="Artist")
+    rows = [
+        {
+            "Artist": item.artist,
+            "Title": item.title,
+            "Year": str(item.year),
+            "Album": item.album,
+            "ReleaseDate": item.release_date.isoformat(),
+            "TrackID": item.track_id,
+            "AlbumType": item.album_type or "",
+            "IsSingle": item.is_single,
+            "Popularity": item.popularity if item.popularity is not None else "",
+            "Validated": item.validated,
+        }
+        for item in releases
+    ]
+    df = pd.DataFrame(rows).sort_values(by=["ReleaseDate", "Popularity"], ascending=[False, False])
     logger.debug(f"DataFrame to be written:\n{df}")
     if dry_run:
         logger.info("Dry run: not writing CSV")
@@ -567,26 +785,66 @@ def main() -> None:
         logger.error(f"Playlists directory not found: {playlists_dir}")
         raise SystemExit(f"Playlists directory not found: {playlists_dir}")
 
-    artists = load_station_artists(playlists_dir)
+    artists, artist_tracks, artist_playlist_map = load_station_artists(playlists_dir)
     logger.info(f"Loaded {len(artists)} artists from {playlists_dir}")
 
+    # Always use [station]/songs as audio root, and playlist name as subdirectory
+    audio_root = station_dir / "songs"
+    if not audio_root.exists():
+        logger.debug(f"Audio root not found; skipping audio moves: {audio_root}")
+        audio_root = None
+
+    cutoff = datetime.now(UTC) - timedelta(days=args.days)
+    existing_releases = load_existing_new_releases(playlists_dir)
+    valid_existing, outdated_existing = partition_releases_by_cutoff(existing_releases, cutoff)
+    existing_ids = {r.track_id for r in valid_existing if r.track_id}
+    existing_keys = {_normalize_audio_label(r.artist, r.title) for r in valid_existing}
+
     sp = build_spotify_client()
-    releases = build_new_releases(
+    new_releases = build_new_releases(
         sp,
         artists,
         days=args.days,
         per_artist=args.per_artist,
         min_popularity=args.min_popularity,
         prefer_singles=args.prefer_singles,
+        known_tracks=artist_tracks,
+        cutoff=cutoff,
+        seen_tracks=existing_ids,
+        seen_keys=existing_keys,
     )
 
-    if releases:
-        logger.info(f"Collected {len(releases)} recent tracks")
-        print(f"Collected {len(releases)} recent tracks", flush=True)
+    combined = valid_existing + new_releases
+    combined.sort(key=lambda item: (item.release_date, item.popularity or 0), reverse=True)
+    final_releases: list[ArtistRelease] = []
+    seen_ids_final: set[str] = set()
+    seen_keys_final: set[str] = set()
+    for release in combined:
+        title_key = _normalize_audio_label(release.artist, release.title)
+        if (
+            release.track_id and release.track_id in seen_ids_final
+        ) or title_key in seen_keys_final:
+            continue
+        final_releases.append(release)
+        seen_keys_final.add(title_key)
+        if release.track_id:
+            seen_ids_final.add(release.track_id)
+
+    if outdated_existing:
+        move_outdated_releases(
+            outdated_existing,
+            artist_playlist_map,
+            audio_root,
+            "New Releases",  # always use this for the source dir
+        )
+
+    if final_releases:
+        logger.info(f"Collected {len(final_releases)} recent tracks")
+        print(f"Collected {len(final_releases)} recent tracks", flush=True)
     else:
         logger.info("No releases found within the window")
         print("No releases found within the window", flush=True)
-    save_new_releases(playlists_dir, releases, dry_run=args.dry_run)
+    save_new_releases(playlists_dir, final_releases, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
