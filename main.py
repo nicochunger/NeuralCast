@@ -43,7 +43,6 @@ TTS = False  # turn off if you only want music
 VOICE_NAME = "Adam"  # ElevenLabs voice
 
 
-
 def main(station_name: str, dry_run: bool = False):  # dry_run flag
     global PLAYLISTS_PATH, STATION_PATH, STATION
     # Determine the base path for stations (the project dir where this script lives)
@@ -81,7 +80,9 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
     playlist_entries = []
     for playlist_file in playlist_files:
         # CHANGED: load_playlist now returns (songs, playlist_needs_save, deletions, df)
-        songs, playlist_needs_save, deletions, playlist_df = load_playlist(playlist_file)
+        songs, playlist_needs_save, deletions, playlist_df = load_playlist(
+            playlist_file
+        )
         playlist_entries.append(
             {
                 "file": playlist_file,
@@ -105,21 +106,15 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             deletion_sources.setdefault(key, set()).add(entry["name"])
 
     if deletion_targets:
-        print(
-            f"\n🛑 Songs marked for deletion via [DEL]: {len(deletion_targets)}"
-        )
+        print(f"\n🛑 Songs marked for deletion via [DEL]: {len(deletion_targets)}")
         for key, song in deletion_targets.items():
             playlists_list = sorted(deletion_sources.get(key, []))
             playlists_note = ", ".join(playlists_list)
-            print(
-                f"   • {song.artist} - {song.title} (marked in: {playlists_note})"
-            )
+            print(f"   • {song.artist} - {song.title} (marked in: {playlists_note})")
 
         deleted_files = delete_marked_mp3_files(deletion_targets, STATION_PATH)
         if deleted_files:
-            print(
-                f"🗑️ Deleted {deleted_files} MP3 file(s) due to [DEL] markers"
-            )
+            print(f"🗑️ Deleted {deleted_files} MP3 file(s) due to [DEL] markers")
 
         for entry in playlist_entries:
             songs = entry["songs"]
@@ -159,7 +154,9 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         songs, library_changed, added_from_files = backfill_songs_from_library(
             playlist_name, songs, music_dir
         )
-        songs, normalized_changed, duplicates_removed = deduplicate_and_sort_songs(songs)
+        songs, normalized_changed, duplicates_removed = deduplicate_and_sort_songs(
+            songs
+        )
 
         if duplicates_removed > 0:
             print(f"Removed {duplicates_removed} duplicate(s) from {playlist_file}")
@@ -210,9 +207,15 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             if not song.override_url:
                 continue
 
-            safe_artist = sanitize_filename_component(song.artist) if song.artist else ""
+            safe_artist = (
+                sanitize_filename_component(song.artist) if song.artist else ""
+            )
             safe_title = sanitize_filename_component(song.title) if song.title else ""
-            override_path = music_dir / f"{safe_artist} - {safe_title}.mp3" if safe_artist and safe_title else None
+            override_path = (
+                music_dir / f"{safe_artist} - {safe_title}.mp3"
+                if safe_artist and safe_title
+                else None
+            )
             override_candidates.append((song, override_path))
 
         override_updates = False
@@ -221,12 +224,12 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             url = song.override_url
 
             if not song.artist or not song.title:
-                print(
-                    f"⚠️ Override skipped; missing artist/title for URL {url}"
-                )
+                print(f"⚠️ Override skipped; missing artist/title for URL {url}")
                 continue
 
-            if not url or not any(host in url.lower() for host in ("youtube.com", "youtu.be")):
+            if not url or not any(
+                host in url.lower() for host in ("youtube.com", "youtu.be")
+            ):
                 print(f"⚠️ Override skipped; unsupported URL {url}")
                 continue
 
@@ -236,9 +239,7 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 )
                 continue
 
-            print(
-                f"Forced YouTube override: {song.artist} - {song.title} (URL {url})"
-            )
+            print(f"Forced YouTube override: {song.artist} - {song.title} (URL {url})")
 
             if dry_run:
                 print(
@@ -275,7 +276,9 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 override_updates = True
 
                 replacement_note = (
-                    "Replaced existing file" if file_existed else "Downloaded (new override)"
+                    "Replaced existing file"
+                    if file_existed
+                    else "Downloaded (new override)"
                 )
                 print(f"   {replacement_note}")
 
@@ -355,9 +358,7 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         print(f"   Already downloaded: {existing_count}")
         print(f"   Need to download: {missing_count}")
         if pending_overrides:
-            print(
-                f"   Pending overrides awaiting retry: {pending_overrides}"
-            )
+            print(f"   Pending overrides awaiting retry: {pending_overrides}")
 
         # In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
         if dry_run and existing_songs:
@@ -438,7 +439,9 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 invalid_existing: List[Tuple[Song, pathlib.Path]] = []
 
                 for song, song_path in unvalidated_existing:
-                    result = perform_song_validation(song, playlist_name, invalid_albums)
+                    result = perform_song_validation(
+                        song, playlist_name, invalid_albums
+                    )
 
                     if result.album_validated is True and result.album:
                         print(f"   ↳ Album validated: {result.album}")
@@ -512,9 +515,7 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     print(f"   ↳ Album validated: {result.album}")
                 elif result.album_validated is False and result.album:
                     if result.album_reason == "validation_error":
-                        print(
-                            f"   ↳ Album validation error (skipped): {result.album}"
-                        )
+                        print(f"   ↳ Album validation error (skipped): {result.album}")
                     else:
                         print(f"   ↳ Album not validated: {result.album}")
 
@@ -763,7 +764,7 @@ def list_playlists(station_name: str):
     print("Available playlists:")
     for idx, playlist_file in enumerate(playlist_files):
         playlist_name = playlist_file.stem
-        songs, _, _ = load_playlist(playlist_file)
+        songs, _, _, _ = load_playlist(playlist_file)
         print(f"{idx}: {playlist_name} ({len(songs)} songs)")
 
 
