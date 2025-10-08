@@ -1,181 +1,81 @@
-# **Project Specification: AI-Generated Local Radio Stream (Private Use)**
+# NeuralCast Playlist Maintenance Pipeline
+
+NeuralCast's `main.py` script manages station-specific music libraries by reading CSV playlists from `<station>/playlists`, ensuring the matching MP3 catalog under `<station>/songs`, and keeping metadata synchronized. Use `--station` to pick which station directory to process and `--dry-run` when you only want to audit existing files without downloading new audio.
 
 ---
 
-## **Objective**
+## Prerequisites
 
-Create a self-hosted internet radio station that runs 24/7 on a **local network**, streams to any radio player or browser via a local IP address, and dynamically populates its playlist using **AI-generated suggestions** and **YouTube-based MP3 downloads**.
+Install the core runtime and audio tooling before running the pipeline:
 
----
+- Python 3 with `pandas` for playlist processing.
+- `mutagen` for inspecting and rewriting ID3 tags.
+- `yt-dlp` and `ffmpeg` for converting YouTube sources to MP3.
+- `mp3gain` so downloaded tracks can be normalized during tagging.
 
-## **System Overview**
-
-### Components
-
-1. **AzuraCast** – Self-hosted radio server (AutoDJ + streaming engine)
-2. **ChatGPT API** – To generate tracklists based on prompts
-3. **yt-dlp + ffmpeg** – To download MP3s from YouTube using artist + track name
-4. **Tagging tool** – To embed `artist`, `title`, and optional `genre` metadata
-5. **Python orchestration script** – To connect all components
-6. **Optional**: Crontab or systemd timer to run updates daily/weekly
+(Optionally configure text-to-speech credentials if you plan to enable the commented `openai_utils` integrations, but they are not required for playlist upkeep.)
 
 ---
 
-## **Workflow Diagram**
+## Station Layout
+
+Every station lives alongside `main.py` in the repository:
 
 ```
-[User prompt] ──> [ChatGPT API] ──> [List of tracks]
-                                     │
-                                     ▼
-                      [yt-dlp + ffmpeg] downloads MP3s
-                                     │
-                                     ▼
-             [Tagging tool adds artist/title/genre metadata]
-                                     │
-                                     ▼
-                  [MP3s copied to AzuraCast's AutoDJ folder]
-                                     │
-                                     ▼
-               [AzuraCast streams playlist to LAN radio client]
+<repo root>/
+├── <station>/
+│   ├── playlists/
+│   │   ├── morning_drive.csv
+│   │   └── ...
+│   └── songs/
+│       ├── morning_drive/
+│       │   ├── Artist - Title.mp3
+│       │   └── ...
+│       └── ...
+└── main.py
 ```
 
----
-
-## **Details and Configuration**
-
-### 1. **AzuraCast Setup**
-
-* **Host**: Local PC, server, or Raspberry Pi
-
-* **Access URL**: `http://192.168.X.Y:8000/stream`
-
-* **Install**:
-
-  ```bash
-  curl -fsSL https://install.azuracast.com | sh
-  ```
-
-* **Playlist Mode**: Use AutoDJ with scheduled or rotated playlists
-
-* **Mount Point**: Use default (`/radio.mp3`) or define a custom one
+When the script starts it prints the resolved playlist and song directories, then enumerates each playlist CSV so operators can confirm the scope before any modifications occur.
 
 ---
 
-### 2. **Tracklist Generation via ChatGPT**
-
-* Use the ChatGPT API with a prompt like:
-  `"Give me a playlist of 20 indie rock songs with artist and title only, in plain text"`
-
-* The response will look like:
-
-  ```
-  Arctic Monkeys - Do I Wanna Know?
-  The Strokes - Last Nite
-  ...
-  ```
-
-* Save as `tracks.txt`
-
-### 3. **YouTube MP3 Downloader**
-
-* Use `yt-dlp` to:
-
-  * Search top YouTube result via `ytsearch1:`
-  * Download audio
-  * Convert to MP3
-  * Save as `Artist - Title.mp3`
-  * Add ID3 tags (`--add-metadata`)
-
-* Python script:
-
-  * Reads `tracks.txt`
-  * Cleans file names
-  * Checks if file already downloaded
-  * Tags MP3s using `eyeD3` or `mutagen`
-
-* Optional genre tag: hardcoded by user prompt (e.g., `genre = "Indie Rock"`)
-
-### 4. **File Management**
-
-* MP3s are moved to:
-
-  ```
-  /var/azuracast/stations/[station-name]/media/
-  ```
-
-  or uploaded via AzuraCast’s web UI
-
-* Optionally organize by folder:
-
-  ```
-  /media/IndieRock/
-  /media/Synthwave/
-  ```
-
-* Playlist config in AzuraCast points to the correct folder(s)
-
----
-
-## **Python Script Functionalities**
-
-Script: `generate_playlist_and_download.py`
-
-Features:
-
-* Call ChatGPT API for playlist
-* Save response to `tracks.txt`
-* For each line:
-
-  * Search YouTube via `yt-dlp`
-  * Download MP3
-  * Add ID3 tags: `artist`, `title`, `genre`
-* Copy to AutoDJ folder
-
-Optionally run:
+## Running the Pipeline
 
 ```bash
-python generate_playlist_and_download.py "Give me 15 vaporwave tracks"
+python main.py --station NeuralCast
 ```
 
----
-
-## **Security & Access**
-
-* Stream URL: e.g., `http://192.168.1.100:8000/radio.mp3`
-* Access limited to local network
-* No public exposure, so no license required
+- `--station` (or `-s`) points to the folder containing the `playlists/` and `songs/` directories (defaults to `NeuralCast`).
+- `--dry-run` (or `-n`) keeps existing MP3s in place while auditing tags, validations, and reports.
 
 ---
 
-## **Optional Extensions**
+## How It Works
 
-* **Voice interludes**: Use TTS (e.g., ElevenLabs) to insert “Now playing…” snippets
-* **Dynamic prompts**: Rotate genres per day/hour
-* **Web interface**: Allow UI to generate new playlists
-* **Smart radio app integration**: Set favorite station to the local IP
+1. **Playlist loading & deletion markers** – Each CSV is parsed into song records, collecting any `[DEL]` entries so the matching MP3s can be removed across playlists. The script updates the in-memory lists and rewrites the CSVs when markers are cleared.
+2. **Library backfill** – For every playlist folder under `<station>/songs/<playlist>`, `backfill_songs_from_library` inspects existing MP3s to recover metadata into the CSV before further processing.
+3. **Deduplication & normalization** – `deduplicate_and_sort_songs` ensures consistent casing/order, removing repeated entries and triggering a CSV save if changes are made.
+4. **Validation pass** – Songs already on disk but still marked unvalidated go through `perform_song_validation`. Album confirmations update the row, while failures queue the track for deletion and note reasons for later reporting.
+5. **Forced overrides** – Rows with an explicit YouTube URL (`override_url`) bypass search. Existing MP3s are backed up, replaced, re-tagged, and the playlist updated accordingly.
+6. **Download queue & tagging** – Remaining songs are split into “existing” versus “missing.” Missing tracks are downloaded with `youtube_to_mp3` and tagged with playlist-aware genres, album data, and ReplayGain via `tag_mp3`.
+7. **Post-download cleanup** – Invalid songs identified during validation have their files removed, and the playlist CSV is rewritten to reflect removals or metadata updates.
 
----
-
-## **Basic Requirements**
-
-| Tool             | Purpose                     |
-| ---------------- | --------------------------- |
-| AzuraCast        | Stream and manage the radio |
-| ffmpeg           | Convert audio               |
-| yt-dlp           | Download from YouTube       |
-| Python 3         | Run orchestration           |
-| ChatGPT API key  | Generate playlists          |
-| eyeD3 or mutagen | Tag MP3s                    |
+Throughout the run, per-playlist summaries detail validation totals, download counts, and pending overrides to aid operators reviewing the console log.
 
 ---
 
-## **Deliverables (to be built)**
+## Dry-Run Audits
 
-* `generate_playlist_and_download.py` – Core script
-* `tracks.txt` – Output from ChatGPT
-* `config.json` – Optional: store API key, genre, station path
-* `README.md` – Setup and usage instructions
+Dry-run mode performs all metadata maintenance without fetching new audio. Existing files are re-tagged when artist/title/year/genre/album fields drift from the playlist CSV, giving you a safe way to normalize tags across the library. Validation still executes so you can review album failures or other issues without modifying the filesystem.
 
 ---
 
-Let me know and I’ll start building the Python script, including the ChatGPT integration and MP3 tagging. Want that next?
+## Generated Reports
+
+After processing, the station root (next to `playlists/` and `songs/`) receives a `duplicate_analysis.log` summarizing cross-playlist reuse and an `albums_not_validated.csv` capturing album checks that could not be confirmed. Review these reports along with the console summaries for a complete audit trail.
+
+---
+
+## Future Enhancements
+
+`openai_utils` hooks are still available for speech generation and trivia drops, and the project can be extended with automated scheduling or prompt-driven playlist creation when those features are reintroduced. For now, `main.py` focuses on keeping curated CSV playlists synchronized with your on-disk MP3 catalog.
