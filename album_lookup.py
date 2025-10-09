@@ -109,11 +109,15 @@ _CLEAN_KEYWORD_FRAGMENTS = (
     "collectors edition",
     "super deluxe",
     "live",
+    "version",
+    "versions",
+    "edition",
+    "editions",
 )
 
 _CLEAN_PARENS_RE = re.compile(r"\s*[\(\[]([^)\]]+)[\)\]]", re.IGNORECASE)
 _CLEAN_SUFFIX_RE = re.compile(
-    r"\s*[-–—:,]\s*((?:\d{4}\s+)?.*?(?:remaster(?:ed)?|remix(?:es)?|deluxe|expanded|anniversary|special\s+edition|bonus\s+tracks?|bonus\s+disc|tour\s+edition|collector'?s\s+edition|super\s+deluxe|live(?:\s+.*)?))$",
+    r"\s*[-–—:,]\s*((?:\d{4}\s+)?.*?(?:remaster(?:ed)?|remix(?:es)?|deluxe|expanded|anniversary|special\s+edition|bonus\s+tracks?|bonus\s+disc|tour\s+edition|collector'?s\s+edition|super\s+deluxe|live(?:\s+.*)?|versions?(?:\s+.*)?|editions?(?:\s+.*)?))$",
     re.IGNORECASE,
 )
 
@@ -243,6 +247,7 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
         return []
 
     query = f'artist:"{artist}" track:"{title}"'
+    # query = f"{artist} {title}"
     try:
         results = client.search(q=query, type="track", limit=limit)
     except SpotifyException:
@@ -349,13 +354,13 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
 
     matches.sort(
         key=lambda match: (
-            -match.confidence,
             _album_type_rank(match.album_type),
+            -(match.popularity or 0),
             match.release_date or datetime(3000, 1, 1),
+            -match.confidence,
             "reissue" in match.flags,
             "live_album" in match.flags,
             "live_track" in match.flags,
-            -(match.popularity or 0),
         )
     )
     return matches
@@ -511,14 +516,45 @@ def _prefer_official(matches: Sequence[AlbumMatch]) -> List[AlbumMatch]:
     matches_list = list(matches)
     if not matches_list:
         return []
-    non_live = [
-        match
-        for match in matches_list
-        if "live_track" not in match.flags and "live_album" not in match.flags
-    ]
-    if non_live:
-        return non_live
-    return matches_list
+
+    def apply_preference(items: Sequence[AlbumMatch], predicate) -> List[AlbumMatch]:
+        preferred = [match for match in items if predicate(match)]
+        return preferred or list(items)
+
+    def is_official(match: AlbumMatch) -> bool:
+        return any(
+            flag.lower() == "status:official" or flag.lower().startswith("status:official")
+            for flag in match.flags
+        )
+
+    def is_album(match: AlbumMatch) -> bool:
+        return (match.album_type or "").lower() == "album"
+
+    def is_single(match: AlbumMatch) -> bool:
+        album_type = (match.album_type or "").lower()
+        return album_type == "single" or "type:single" in {flag.lower() for flag in match.flags}
+
+    non_live = apply_preference(
+        matches_list,
+        lambda match: "live_track" not in match.flags and "live_album" not in match.flags,
+    )
+    official_albums = [match for match in non_live if is_official(match) and is_album(match)]
+    if official_albums:
+        return official_albums
+
+    album_matches = [match for match in non_live if is_album(match)]
+    if album_matches:
+        return album_matches
+
+    official_matches = [match for match in non_live if is_official(match)]
+    if official_matches:
+        return official_matches
+
+    non_single_matches = [match for match in non_live if not is_single(match)]
+    if non_single_matches:
+        return non_single_matches
+
+    return non_live
 
 
 def guess_album(
@@ -529,6 +565,10 @@ def guess_album(
     min_confidence: float = 0.5,
     allow_fallback: bool = True,
 ) -> Optional[AlbumMatch]:
+    def sort_key(match: AlbumMatch) -> tuple:
+        popularity = match.popularity if match.popularity is not None else -1
+        return (_album_type_rank(match.album_type), -popularity, -match.confidence)
+
     primary_matches = album_candidates(artist, title, prefer_spotify=prefer_spotify)
     if not primary_matches:
         return None
@@ -538,7 +578,7 @@ def guess_album(
 
     confident = [match for match in primary_matches if match.confidence >= min_confidence]
     if confident:
-        confident.sort(key=lambda match: (-match.confidence, _album_type_rank(match.album_type)))
+        confident.sort(key=sort_key)
         return confident[0]
 
     if allow_fallback:
@@ -552,7 +592,7 @@ def guess_album(
         ]
         if fallback_confident:
             fallback_confident = _prefer_official(fallback_confident)
-            fallback_confident.sort(key=lambda match: (-match.confidence, _album_type_rank(match.album_type)))
+            fallback_confident.sort(key=sort_key)
             return fallback_confident[0]
 
     return primary_matches[0]
