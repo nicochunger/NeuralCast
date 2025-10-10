@@ -1,5 +1,7 @@
 Artist,Title,Year,Album,Validated
 Aephanemer,Antigone,2021,A Dream of Wilderness,True
+Aephanemer,La Règle du Jeu,2025,La Règle du Jeu,True
+Aephanemer,Le Cimetière Marin,2025,Le Cimetière Marin,True
 Aephanemer,Memento Mori,2019,Memento Mori,True
 Aephanemer,Path of the Wolf,2016,Know Thyself,True
 Aether Realm,Cycle,2020,Redneck Vikings From Hell,True
@@ -26,7 +28,11 @@ Aether Realm,The Tower,2017,Tarot,True
 Aether Realm,TMHC,2020,Redneck Vikings From Hell,True
 Amorphis,Against Widows,1996,Elegy,True
 Amorphis,Amongst Stars,2018,Queen of Time,True
+Amorphis,Bones,2025,Borderland,True
+Amorphis,Dancing Shadow,2025,Borderland,True
+Amorphis,Light And Shadow,2025,Borderland,True
 Amorphis,The Bee,2018,Queen of Time,True
+Arch Enemy,Break the Spell,2025,Break the Spell,True
 Arch Enemy,Burning Angel,2001,Wages of Sin,True
 Arch Enemy,Nemesis,2005,Doomsday Machine,True
 Arch Enemy,Ravenous,2001,Wages of Sin,True
@@ -97,18 +103,25 @@ Kalmah,Seventh Swamphony,2013,Seventh Swamphony,True
 Kalmah,Swamphell,2003,They Will Return,True
 Kalmah,Take Me Away,2002,Palo,True
 Kalmah,The Groan of Wind,2006,The Black Waltz,True
+Mors Principium Est,All Life is Evil,2025,Darkness Invisible,True
 Mors Principium Est,I Will Return,2012,...And Death Said Live,True
 Mors Principium Est,Life in Black,2003,Inhumanity,True
+Mors Principium Est,Monuments,2025,Darkness Invisible,True
 Mors Principium Est,Reclaim the Sun,2017,Embers of a Dying World,True
+Mors Principium Est,Summoning the Dark,2025,Darkness Invisible,True
 Mors Principium Est,The Unborn,2005,The Unborn,True
 Norther,Death Unlimited,2004,Death Unlimited,True
 Norther,Frozen Angel,2006,N,True
 Norther,Mirror of Madness,2003,Mirror of Madness,True
+Norther,Vorwärts Leben,2025,Vorwärts Leben,True
 Omnium Gatherum,Be the Sky,2021,The Burning Cold,True
 Omnium Gatherum,Deep Cold,2008,New World Shadows,True
+Omnium Gatherum,My Pain,2025,My Pain,True
 Omnium Gatherum,New Dynamic,2013,Beyond,True
 Omnium Gatherum,Skyline,2018,Grey Heavens,True
+Omnium Gatherum,The Last Hero,2025,The Last Hero,True
 Omnium Gatherum,The Unknowing,2013,Beyond,True
+Omnium Gatherum,Walking Ghost Phase,2025,Walking Ghost Phase,True
 Scar Symmetry,Ghost Prototype I - Measurement of Thought,2008,Holographic Universe,True
 Scar Symmetry,Holographic Universe,2008,Holographic Universe,True
 Scar Symmetry,Morphogenesis,2008,Holographic Universe,True
@@ -129,21 +142,7 @@ Wintersun,Starchild,2004,Wintersun,True
 Wintersun,Storm,2024,Time II,True
 Wintersun,The Way of the Fire,2024,Time II,True
 Wintersun,Time,2012,Time I,True
+Wolfheart,Carnivore,2025,Carnivore,True
 Wolfheart,The Flood,2013,Tyhjyys,True
 Wolfheart,The Hammer,2022,Wolves of Karelia,True
 Wolfheart,The Hunt,2018,Winterborn,True
-Aephanemer,La Règle du Jeu,2025,La Règle du Jeu,True
-Aephanemer,Le Cimetière Marin,2025,Le Cimetière Marin,True
-Amorphis,Bones,2025,Borderland,True
-Amorphis,Dancing Shadow,2025,Borderland,True
-Amorphis,Light And Shadow,2025,Borderland,True
-Arch Enemy,Break the Spell,2025,Break the Spell,True
-Mors Principium Est,All Life is Evil,2025,Darkness Invisible,True
-Mors Principium Est,Monuments,2025,Darkness Invisible,True
-Mors Principium Est,Summoning the Dark,2025,Darkness Invisible,True
-Norther,Schwarzer Hund,2025,Schwarzer Hund,False
-Norther,Vorwärts Leben,2025,Vorwärts Leben,True
-Omnium Gatherum,My Pain,2025,My Pain,True
-Omnium Gatherum,The Last Hero,2025,The Last Hero,True
-Omnium Gatherum,Walking Ghost Phase,2025,Walking Ghost Phase,True
-Wolfheart,Carnivore,2025,Carnivore,True

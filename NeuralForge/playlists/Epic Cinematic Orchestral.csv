@@ -1,36 +1,23 @@
-Artist,Title,Album,Year,Validated
-Adrian von Ziegler,Legend,Spellbound,2015,True
-Adrian von Ziegler,Prophecy,Celtic Guitar: Dance with the Strings,2013,True
-Adrian von Ziegler,Spirit of the Wild,Odyssey,2016,True
-Antti Martikainen,Creation of the World,Creation of the World,2012,True
-Audiomachine,Blood and Stone,Blood and Stone,2012,False
-Audiomachine,Guardians at the Gate,Chronicles,2012,True
-BrunuhVille,Age of Wonders,Elohim,2016,False
-BrunuhVille,Dragonland,Dragonland,2015,False
-BrunuhVille,Spirit of the Wild,Elohim,2016,False
-BrunuhVille,The Eternal Forest,Elohim,2016,False
-BrunuhVille,The Wolf and the Moon,Aurora,2014,True
-Celestial Aeon Project,Dreamland,Dreamland,2015,False
-Epic Score,I Still Have a Soul,Epic Action & Adventure Vol. 12,2013,False
-Ivan Torrent,Before I Leave This World,Immortalys,2017,False
-Ivan Torrent,Human Legacy,Immortalys,2017,False
-Jo Blankenburg,Cronos,Chronos,2011,False
-Jo Blankenburg,Imperatrix Mundi,Vendetta,2012,True
-Peter Crowley,Dragon Rider,Single,2016,False
-Peter Crowley,Legend of the Dragon Rider,Single,2019,False
-Really Slow Motion,Suns and Stars,Cosmos,2015,False
-Thomas Bergersen,Empire of Angels,Sun,2014,True
-Thomas Bergersen,Final Frontier,Sun,2014,True
-Two Steps From Hell,Flight of the Silverbird,Battlecry,2015,True
-Two Steps From Hell,Heart of Courage,Invincible,2010,True
-Two Steps From Hell,Protectors of the Earth,Invincible,2010,True
-Two Steps From Hell,Victory,Battlecry,2015,True
-Antti Martikainen,Mists of Alfheim,Odyssey,2025,True
-Antti Martikainen,The Giants Path,From Erast to Olden: Epic Celtic Metal Reworks,2025,True
-Antti Martikainen,The Singing Woods,The Singing Woods,2025,True
-Celestial Aeon Project,Castles and Kings,Castles and Kings,2025,True
-Celestial Aeon Project,White Rose,White Rose,2025,True
-Epic Score,All the Power and Glory,All the Power and Glory,2025,True
-Epic Score,Rise of Legends,Rise of Legends,2025,True
-Jo Blankenburg,Blue Rider,NOIR,2025,True
-Jo Blankenburg,Journey Through Transylvania,Sanguine,2025,True
+Artist,Title,Year,Album,Validated
+Adrian von Ziegler,Legend,2015,Spellbound,True
+Adrian von Ziegler,Prophecy,2013,Celtic Guitar: Dance with the Strings,True
+Adrian von Ziegler,Spirit of the Wild,2016,Odyssey,True
+Antti Martikainen,Creation of the World,2012,Creation of the World,True
+Antti Martikainen,Mists of Alfheim,2025,Odyssey,True
+Antti Martikainen,The Giants Path,2025,From Erast to Olden: Epic Celtic Metal Reworks,True
+Antti Martikainen,The Singing Woods,2025,The Singing Woods,True
+Audiomachine,Guardians at the Gate,2012,Chronicles,True
+BrunuhVille,The Wolf and the Moon,2014,Aurora,True
+Celestial Aeon Project,Castles and Kings,2025,Castles and Kings,True
+Celestial Aeon Project,White Rose,2025,White Rose,True
+Epic Score,All the Power and Glory,2025,All the Power and Glory,True
+Epic Score,Rise of Legends,2025,Rise of Legends,True
+Jo Blankenburg,Blue Rider,2025,NOIR,True
+Jo Blankenburg,Imperatrix Mundi,2012,Vendetta,True
+Jo Blankenburg,Journey Through Transylvania,2025,Sanguine,True
+Thomas Bergersen,Empire of Angels,2014,Sun,True
+Thomas Bergersen,Final Frontier,2014,Sun,True
+Two Steps From Hell,Flight of the Silverbird,2015,Battlecry,True
+Two Steps From Hell,Heart of Courage,2010,Invincible,True
+Two Steps From Hell,Protectors of the Earth,2010,Invincible,True
+Two Steps From Hell,Victory,2015,Battlecry,True

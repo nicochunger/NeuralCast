@@ -4,6 +4,8 @@ NeuralCast's `main.py` script manages station-specific music libraries by readin
 
 ---
 
+For contributor expectations and workflow details, see [Repository Guidelines](AGENTS.md).
+
 ## Prerequisites
 
 Install the core runtime and audio tooling before running the pipeline:
