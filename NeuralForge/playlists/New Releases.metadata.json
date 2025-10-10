@@ -96,14 +96,6 @@
       "TrackID": "7wpMzAk7ulGnKW4buBbtYb",
       "Validated": false
     },
-    "antti martikainen|the singing woods|the singing woods|2025": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Popularity": 21,
-      "ReleaseDate": "2025-06-12T00:00:00+00:00",
-      "TrackID": "61HODVikrhC8pnZI1x2w2E",
-      "Validated": false
-    },
     "arch enemy|break the spell|break the spell|2025": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -160,6 +152,22 @@
       "TrackID": "59mcJ7vmp67kelo0Q2qx0O",
       "Validated": false
     },
+    "celestial aeon project|eerie fairy tale|eerie fairy tale|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 34,
+      "ReleaseDate": "2025-09-14T00:00:00+00:00",
+      "TrackID": "24XtVqhsB9Jvl6M77bBcvo",
+      "Validated": false
+    },
+    "celestial aeon project|haunted music box|haunted music box|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 34,
+      "ReleaseDate": "2025-09-03T00:00:00+00:00",
+      "TrackID": "09yLl5dDhg3z9izI9nDZz6",
+      "Validated": false
+    },
     "celestial aeon project|medieval dance|medieval dance|2025": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -182,6 +190,14 @@
       "Popularity": 35,
       "ReleaseDate": "2025-09-12T00:00:00+00:00",
       "TrackID": "13i75NTIUMSVhlle3HT7kq",
+      "Validated": false
+    },
+    "celestial aeon project|witchy vibes for halloween|witchy vibes for halloween|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 33,
+      "ReleaseDate": "2025-10-03T00:00:00+00:00",
+      "TrackID": "2yKrfEsWCQbblNYP29mvK7",
       "Validated": false
     },
     "dartagnan|mosqueteros - en espa\u00f1ol|mosqueteros - en espa\u00f1ol|2025": {
@@ -254,6 +270,14 @@
       "Popularity": 46,
       "ReleaseDate": "2025-09-16T00:00:00+00:00",
       "TrackID": "3085mrvkEZqqBtEGonH1WX",
+      "Validated": false
+    },
+    "frank turner|giraffes #1|giraffes #1|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 0,
+      "ReleaseDate": "2025-10-10T00:00:00+00:00",
+      "TrackID": "5DUQ9Y3Ic2jANJAKafLbv7",
       "Validated": false
     },
     "helloween|giants on the run|giants & monsters|2025": {
@@ -350,14 +374,6 @@
       "Popularity": 27,
       "ReleaseDate": "2025-06-27T00:00:00+00:00",
       "TrackID": "6CygLnp1ZGkdRJxXdZy9FL",
-      "Validated": false
-    },
-    "mot\u00f6rhead|leavin' here - the manticore tapes|leavin' here (the manticore tapes)|2025": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Popularity": 25,
-      "ReleaseDate": "2025-06-12T00:00:00+00:00",
-      "TrackID": "79rlrnFpFrXZQTvDCsgcdg",
       "Validated": false
     },
     "mot\u00f6rhead|neat neat neat|neat neat neat|2025": {
@@ -656,6 +672,14 @@
       "TrackID": "7bapYgAqMo0pAhCh9p4Jtq",
       "Validated": false
     },
+    "t\u00fdr|the rune (2025)|the rune (2025)|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 41,
+      "ReleaseDate": "2025-08-15T00:00:00+00:00",
+      "TrackID": "5k6LqI2iBDkVQa3gixPB7S",
+      "Validated": false
+    },
     "venom|jhunt si|jhunt si|2025": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -760,6 +784,5 @@
       "TrackID": "2OgxLhuwdfVrhcfxz5EKUm",
       "Validated": false
     }
-  },
-  "version": 1
+  }
 }

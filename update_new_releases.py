@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -28,6 +29,9 @@ logging.basicConfig(
     # handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
+
+
+_METADATA_FILENAME = "New Releases.metadata.json"
 
 
 @dataclass
@@ -388,11 +392,77 @@ def _normalize_audio_label(*parts: str) -> str:
     return re.sub(r"[^a-z0-9]", "", normalized.casefold())
 
 
+def _metadata_path(playlists_dir: Path) -> Path:
+    return playlists_dir / _METADATA_FILENAME
+
+
+def _normalize_metadata_component(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value or "")
+    return normalized.strip().casefold()
+
+
+def _metadata_key(artist: str, title: str, album: str, year: int) -> str:
+    return "|".join(
+        (
+            _normalize_metadata_component(artist),
+            _normalize_metadata_component(title),
+            _normalize_metadata_component(album),
+            str(year),
+        )
+    )
+
+
+def _load_metadata_entries(playlists_dir: Path) -> dict[str, dict]:
+    path = _metadata_path(playlists_dir)
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Failed reading metadata file {path}: {exc}")
+        return {}
+    if isinstance(raw, dict):
+        entries = raw.get("entries", raw)
+        if isinstance(entries, dict):
+            return entries
+    logger.warning(f"Unexpected metadata structure in {path}")
+    return {}
+
+
+def _save_metadata_entries(
+    playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool
+) -> None:
+    if dry_run:
+        logger.info("Dry run: not writing metadata JSON")
+        return
+    entries: dict[str, dict] = {}
+    for item in releases:
+        key = _metadata_key(item.artist, item.title, item.album, item.year)
+        entries[key] = {
+            "ReleaseDate": item.release_date.isoformat()
+            if isinstance(item.release_date, datetime)
+            else "",
+            "TrackID": item.track_id,
+            "AlbumType": item.album_type or "",
+            "IsSingle": item.is_single,
+            "Popularity": item.popularity if item.popularity is not None else "",
+            "Validated": item.validated,
+        }
+    payload = {"entries": entries}
+    path = _metadata_path(playlists_dir)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    logger.info(f"Wrote metadata for {len(entries)} tracks to {path}")
+
+
 def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
     path = playlists_dir / "New Releases.csv"
     if not path.exists():
         logger.debug("New Releases.csv not found; starting from empty state")
         return []
+    metadata_entries = _load_metadata_entries(playlists_dir)
     try:
         df = pd.read_csv(path)
     except Exception as exc:  # noqa: BLE001
@@ -410,6 +480,8 @@ def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
             year = int(year_raw)
         except ValueError:
             year = datetime.now(UTC).year
+        lookup_key = _metadata_key(artist, title, album, year)
+        metadata = metadata_entries.get(lookup_key, {})
         release_dt = datetime.min.replace(tzinfo=UTC)
         release_raw = str(row.get("ReleaseDate", "")).strip()
         if release_raw:
@@ -419,12 +491,41 @@ def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
                     release_dt = release_dt.replace(tzinfo=UTC)
             except ValueError:
                 logger.debug(f"Invalid ReleaseDate '{release_raw}' for {artist} - {title}")
+        elif isinstance(metadata, dict):
+            meta_release_raw = metadata.get("ReleaseDate")
+            if isinstance(meta_release_raw, str) and meta_release_raw:
+                try:
+                    release_dt = datetime.fromisoformat(meta_release_raw)
+                    if release_dt.tzinfo is None:
+                        release_dt = release_dt.replace(tzinfo=UTC)
+                except ValueError:
+                    logger.debug(
+                        f"Invalid metadata ReleaseDate '{meta_release_raw}' for {artist} - {title}"
+                    )
         track_id = str(row.get("TrackID", "")).strip()
+        if not track_id and isinstance(metadata, dict):
+            track_id = str(metadata.get("TrackID", "")).strip()
         popularity_val = row.get("Popularity")
-        popularity = None if pd.isna(popularity_val) else int(popularity_val)
-        album_type = str(row.get("AlbumType", "")).strip() or None
-        is_single = _coerce_bool(row.get("IsSingle", False))
-        validated = _coerce_bool(row.get("Validated", False))
+        if pd.isna(popularity_val) and isinstance(metadata, dict):
+            popularity_val = metadata.get("Popularity")
+        popularity = None
+        if popularity_val not in (None, ""):
+            try:
+                popularity = int(popularity_val)
+            except (TypeError, ValueError):
+                popularity = None
+        album_type_val = row.get("AlbumType")
+        if pd.isna(album_type_val) or not str(album_type_val).strip():
+            album_type_val = metadata.get("AlbumType") if isinstance(metadata, dict) else ""
+        album_type = str(album_type_val).strip() or None
+        is_single_source = row.get("IsSingle", False)
+        if isinstance(metadata, dict) and not is_single_source:
+            is_single_source = metadata.get("IsSingle", False)
+        is_single = _coerce_bool(is_single_source)
+        validated_source = row.get("Validated", False)
+        if isinstance(metadata, dict) and not validated_source:
+            validated_source = metadata.get("Validated", False)
+        validated = _coerce_bool(validated_source)
         releases.append(
             ArtistRelease(
                 artist=artist,
@@ -685,31 +786,47 @@ def save_new_releases(
         logger.info("No new releases to write.")
         print("No new releases to write.", file=sys.stderr)
         return
-    rows = [
-        {
-            "Artist": item.artist,
-            "Title": item.title,
-            "Year": str(item.year),
-            "Album": item.album,
-            "ReleaseDate": item.release_date.isoformat(),
-            "TrackID": item.track_id,
-            "AlbumType": item.album_type or "",
-            "IsSingle": item.is_single,
-            "Popularity": item.popularity if item.popularity is not None else "",
-            "Validated": item.validated,
-        }
-        for item in releases
-    ]
-    df = pd.DataFrame(rows).sort_values(by=["ReleaseDate", "Popularity"], ascending=[False, False])
-    logger.debug(f"DataFrame to be written:\n{df}")
+    sorted_releases = sorted(
+        releases, key=lambda item: (item.release_date, item.popularity or 0), reverse=True
+    )
+    csv_rows: list[dict[str, str]] = []
+    preview_rows: list[dict[str, object]] = []
+    for item in sorted_releases:
+        csv_rows.append(
+            {
+                "Artist": item.artist,
+                "Title": item.title,
+                "Album": item.album,
+                "Year": str(item.year),
+            }
+        )
+        preview_rows.append(
+            {
+                "Artist": item.artist,
+                "Title": item.title,
+                "Album": item.album,
+                "Year": item.year,
+                "ReleaseDate": item.release_date.isoformat(),
+                "TrackID": item.track_id,
+                "AlbumType": item.album_type or "",
+                "IsSingle": item.is_single,
+                "Popularity": item.popularity if item.popularity is not None else "",
+                "Validated": item.validated,
+            }
+        )
+    df_preview = pd.DataFrame(preview_rows)
+    logger.debug(f"Preview DataFrame to be written:\n{df_preview}")
     if dry_run:
         logger.info("Dry run: not writing CSV")
         print("Dry run: not writing CSV", file=sys.stderr)
-        print(df.to_string(index=False), flush=True)
+        if not df_preview.empty:
+            print(df_preview.to_string(index=False), flush=True)
         return
-    df.to_csv(output_path, index=False)
-    logger.info(f"Wrote {len(df)} tracks to {output_path}")
-    print(f"Wrote {len(df)} tracks to {output_path}", flush=True)
+    df_csv = pd.DataFrame(csv_rows)
+    df_csv.to_csv(output_path, index=False)
+    _save_metadata_entries(playlists_dir, sorted_releases, dry_run)
+    logger.info(f"Wrote {len(df_csv)} tracks to {output_path}")
+    print(f"Wrote {len(df_csv)} tracks to {output_path}", flush=True)
 
 
 def build_spotify_client() -> Spotify:
