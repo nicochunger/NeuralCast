@@ -6,13 +6,13 @@ Angra,Nova Era,2001,Rebirth,True
 Angra,Rebirth,2001,Rebirth,True
 Angra,Temple of Hate,2004,Temple of Shadows,True
 Avantasia,Dying for an Angel,2010,The Wicked Symphony,True
-Avantasia,Farewell,2001,The Metal Opera,True
+Avantasia,Farewell,2001,"The Metal Opera, Pt. I",True
 Avantasia,Lost in Space,2007,The Scarecrow,True
 Avantasia,Moonglow,2019,Moonglow,True
-Avantasia,Reach Out for the Light,2001,The Metal Opera,True
+Avantasia,Reach Out for the Light,2001,"The Metal Opera, Pt. I",True
 Avantasia,The Scarecrow,2008,The Scarecrow,True
-Avantasia,The Seven Angels,2002,The Metal Opera Part II,True
-Avantasia,The Story Ain't Over,2007,Lost in Space,True
+Avantasia,The Seven Angels,2002,"The Metal Opera, Pt. 2",True
+Avantasia,The Story Ain't Over,2007,Lost in Space (Pt. 1 & Pt. 2),True
 Avantasia,Twisted Mind,2008,The Scarecrow,True
 Beast in Black,Blind and Frozen,2017,Berserker,True
 Beast in Black,One Night in Tokyo,2021,Dark Connection,True
@@ -20,8 +20,8 @@ Beast in Black,Sweet True Lies,2019,From Hell With Love,True
 Blind Guardian,A Voice in the Dark,2010,At the Edge of Time,True
 Blind Guardian,Born in a Mourning Hall,1995,Imaginations from the Other Side,True
 Blind Guardian,Imaginations from the Other Side,1995,Imaginations from the Other Side,True
-Blind Guardian,Mirror Mirror,1998,Nightfall in Middle-Earth,True
-Blind Guardian,Nightfall,1998,Nightfall in Middle-Earth,True
+Blind Guardian,Mirror Mirror,1998,Nightfall in Middle Earth,True
+Blind Guardian,Nightfall,1998,Nightfall in Middle Earth,True
 Blind Guardian,The Bard's Song (In the Forest),1992,Somewhere Far Beyond,True
 Blind Guardian,Time What Is Time,1992,Somewhere Far Beyond,True
 Blind Guardian,Valhalla,1989,Follow the Blind,True
@@ -54,7 +54,7 @@ Firewind,Falling to Pieces,2005,Allegiance,True
 Firewind,Mercenary Man,2008,The Premonition,True
 Freedom Call,Metal Is for Everyone,2016,Master of Light,True
 Freedom Call,Power & Glory,2012,Land of the Crimson Dawn,True
-Freedom Call,The Quest,2017,The Crystal Empire,True
+Freedom Call,The Quest,2017,Crystal Empire,True
 Freedom Call,Warriors,1999,Eternity,True
 Galneryus,Angel of Salvation,2012,Angel of Salvation,True
 Galneryus,Raise My Sword,2015,Under the Force of Courage,True
@@ -79,22 +79,21 @@ HammerFall,Last Man Standing,2008,Steel Meets Steel - Ten Years of Glory,True
 HammerFall,Let the Hammer Fall,1997,Legacy of Kings,True
 HammerFall,Renegade,2000,Renegade,True
 HammerFall,The Dragon Lies Bleeding,1997,Glory to the Brave,True
-Heavenly,Portland Town,2025,Portland Town,True
 Heavenly,Sign of the Winner,2001,Sign of the Winner,True
-Helloween,A Tale That Wasn't Right,1987,Keeper of the Seven Keys: Part I,True
-Helloween,Dr. Stein,1988,Keeper of the Seven Keys: Part II,True
-Helloween,Eagle Fly Free,1988,Keeper of the Seven Keys: Part II,True
+Helloween,A Tale That Wasn't Right,1987,"Keeper of the Seven Keys, Pt. 1",True
+Helloween,Dr. Stein,1988,"Keeper of the Seven Keys, Pt. 2",True
+Helloween,Eagle Fly Free,1988,"Keeper of the Seven Keys, Pt. 2",True
 Helloween,Escalation 666,2000,The Dark Ride,True
 Helloween,Forever and One (Neverland),1996,The Time of the Oath,True
-Helloween,Future World,1987,Keeper of the Seven Keys: Part I,True
+Helloween,Future World,1987,"Keeper of the Seven Keys, Pt. 1",True
 Helloween,Giants On The Run,2025,Giants & Monsters,True
-Helloween,Halloween,1987,Keeper of the Seven Keys: Part I,True
+Helloween,Halloween,1987,"Keeper of the Seven Keys, Pt. I",True
 Helloween,How Many Tears,1985,Walls of Jericho,True
-Helloween,I Want Out,1988,Keeper of the Seven Keys: Part II,True
+Helloween,I Want Out,1988,"Keeper of the Seven Keys, Pt. 2",True
 Helloween,If A Mountain Could Talk,2010,7 Sinners,True
 Helloween,If I Could Fly,2000,The Dark Ride,True
-Helloween,Keeper of the Seven Keys,1988,Keeper of the Seven Keys: Part II,True
-Helloween,March of Time,1988,Keeper of the Seven Keys: Part II,True
+Helloween,Keeper of the Seven Keys,1988,"Keeper of the Seven Keys, Pt. 2",True
+Helloween,March of Time,1988,"Keeper of the Seven Keys, Pt. 2",True
 Helloween,Mr. Torture,2000,The Dark Ride,True
 Helloween,Mrs. God,2005,Keeper of the Seven Keys: The Legacy,True
 Helloween,Nabataea,2013,Straight Out of Hell,True
@@ -107,8 +106,8 @@ Helloween,Steel Tormentor,1996,The Time of the Oath,True
 Helloween,The Dark Ride,2000,The Dark Ride,True
 Helloween,The King For a 1000 Years,2005,Keeper of the Seven Keys: The Legacy,True
 Helloween,The Smile Of The Sun,2010,7 Sinners,True
-Helloween,This Is Tokyo,2025,This Is Tokyo,True
-Helloween,Universe (Gravity For Hearts),2025,Universe (Gravity For Hearts),True
+Helloween,This Is Tokyo,2025,Giants & Monsters,True
+Helloween,Universe (Gravity For Hearts),2025,Giants & Monsters,True
 Helloween,Where The Sinners Go,2010,7 Sinners,True
 Helloween,Who is Mr. Madman?,2010,7 Sinners,True
 Iron Savior,Atlantis Falling,1997,Iron Savior,True
@@ -146,16 +145,16 @@ Primal Fear,Angel in Black,2001,Nuclear Fire,True
 Primal Fear,Chainbreaker,1998,Primal Fear,True
 Primal Fear,Fighting the Darkness,2007,New Religion,True
 Primal Fear,Metal Is Forever,2004,Devil's Ground,True
-Primal Fear,Tears of Fire,2025,Tears of Fire,True
+Primal Fear,Tears of Fire,2025,Domination,True
 Primal Fear,The End Is Near,2016,Rulebreaker,True
-Primal Fear,The Hunter,2025,The Hunter,True
+Primal Fear,The Hunter,2025,Domination,True
 Rhapsody,Dawn of Victory,2000,Dawn of Victory,True
 Rhapsody,Emerald Sword,1998,Symphony of Enchanted Lands,True
 Rhapsody,Holy Thunderforce,2000,Dawn of Victory,True
 Rhapsody,Power of the Dragonflame,2002,Power of the Dragonflame,True
-Rhapsody,The Magic of the Wizard's Dream,2004,Symphony of Enchanted Lands II: The Dark Secret,True
+Rhapsody,The Magic of the Wizard's Dream,2004,Symphony of Enchanted Lands II (The Dark Secret),True
 Rhapsody,Triumph for My Magic Steel,2000,Dawn of Victory,True
-Rhapsody,Unholy Warcry,2004,Symphony of Enchanted Lands II: The Dark Secret,True
+Rhapsody,Unholy Warcry,2004,Symphony of Enchanted Lands II (The Dark Secret),True
 Rhapsody,Wisdom of the Kings,1998,Symphony of Enchanted Lands,True
 Rhapsody of Fire,Fuego Valyrio,2025,Fuego Valyrio,True
 Rhapsody of Fire,Into the Legend,2016,Into the Legend,True
@@ -206,9 +205,9 @@ Sonata Arctica,Wolf & Raven,2001,Silence,True
 Stratovarius,Black Diamond,1997,Visions,True
 Stratovarius,Coming Home,1997,Visions,True
 Stratovarius,Darkest Hours,2011,Elysium,True
-Stratovarius,Eagleheart,2003,Elements Pt. 1,True
+Stratovarius,Eagleheart,2003,"Elements, Pt. 1 & 2",True
 Stratovarius,Elysium,2011,Elysium,True
-Stratovarius,Forever,1997,Visions,True
+Stratovarius,Forever,1997,Episode,True
 Stratovarius,Hunting High and Low,2000,Infinite,True
 Stratovarius,Paradise,1997,Visions,True
 Stratovarius,Phoenix,1999,Infinite,True
@@ -231,6 +230,6 @@ Unleash the Archers,The Matriarch,2020,Apex,True
 Unleash the Archers,Tonight We Ride,2015,Time Stands Still,True
 Victorius,Super Sonic Samurai,2018,Space Ninjas from Hell,True
 Warkings,Gladiator,2018,Reborn,True
-Warkings,Hangman's Night (feat. Dominum),2025,Hangman's Night,True
-Warkings,Kings of Ragnarök,2025,Kings of Ragnarök,True
+Warkings,Hangman's Night (feat. Dominum),2025,Armageddon,True
+Warkings,Kings of Ragnarök,2025,Armageddon,True
 Warkings,To Lindisfarne...,2025,Armageddon,True
