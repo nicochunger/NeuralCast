@@ -319,7 +319,7 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                         )
 
         if override_updates:
-            save_playlist_with_validation(playlist_file, songs)
+            save_playlist_with_validation(playlist_file, songs, entry["df"])
 
         # Check which songs already exist and which need to be downloaded
         existing_songs = []

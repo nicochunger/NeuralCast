@@ -314,7 +314,7 @@ def save_playlist_with_validation(
             row["Year"] = str(song.year).strip() if song.year else ""
             row["Album"] = song.album or ""
             row["Validated"] = bool(song.validated)
-            updated_rows.append(row)
+            updated_rows.append(row.to_dict())
             seen_keys.add(key)
         # else: row is not in songs anymore (e.g. deleted), so skip
 
@@ -332,7 +332,7 @@ def save_playlist_with_validation(
             new_row["Year"] = str(song.year).strip() if song.year else ""
             new_row["Album"] = song.album or ""
             new_row["Validated"] = bool(song.validated)
-            updated_rows.append(new_row)
+            updated_rows.append({col: new_row.get(col, "") for col in df.columns})
 
     # Create new DataFrame with all columns preserved
     new_df = pd.DataFrame(updated_rows, columns=df.columns)
