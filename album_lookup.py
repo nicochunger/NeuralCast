@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import difflib
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -16,11 +17,15 @@ from spotipy import Spotify
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 
+from openai_utils import openai_text_completion
+
 # Ensure environment variables (e.g., Spotify credentials) are available.
 dotenv.load_dotenv()
 
 # Configure MusicBrainz client once. The email can be customized by the caller.
 musicbrainzngs.set_useragent("NeuralCast", "0.1", "neuralcast@example.com")
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -618,9 +623,65 @@ def get_official_album_name(
     return None
 
 
+def lookup_album_via_openai(artist: str, title: str) -> Optional[str]:
+    """Ask the OpenAI search model for the canonical album of the specified song.
+
+    Requires ``OPENAI_API_KEY`` to be configured via ``openai_utils``. Returns the
+    album name provided by the model or ``None`` when no confident answer is found.
+    The helper requests ``gpt-4o-mini-search-preview`` so the model can research the
+    song online and is instructed to reply with a single album title.
+    """
+    # The web browsing tool is too expensive to call. Disabled for now.
+    return
+    cleaned_artist = (artist or "").strip()
+    cleaned_title = (title or "").strip()
+    if not cleaned_artist or not cleaned_title:
+        return None
+
+    system_prompt = (
+        "You are a meticulous music metadata researcher. When identifying an album "
+        "for a song you must use your browsing tools to verify the canonical studio "
+        "album or primary commercial release. Answer with the album title only."
+    )
+    user_prompt = (
+        "Identify the official album that first included the given song. If there are "
+        "multiple versions, prefer the primary studio album release over compilations "
+        "or reissues. Respond with only the album name, nothing else.\n"
+        f"Artist: {cleaned_artist}\n"
+        f"Song title: {cleaned_title}"
+    )
+
+    try:
+        response = openai_text_completion(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model="gpt-4o-mini-search-preview",
+        )
+    except Exception as exc:
+        _LOGGER.warning(
+            "OpenAI album lookup failed for %s - %s: %s",
+            cleaned_artist,
+            cleaned_title,
+            exc,
+        )
+        return None
+
+    if not response:
+        return None
+
+    first_line = response.strip().splitlines()[0].strip()
+    normalized = first_line.strip('"“”')
+    if not normalized:
+        return None
+    if normalized.lower() in {"unknown", "not sure", "n/a"}:
+        return None
+    return normalized
+
+
 __all__ = [
     "AlbumMatch",
     "album_candidates",
     "guess_album",
     "get_official_album_name",
+    "lookup_album_via_openai",
 ]
