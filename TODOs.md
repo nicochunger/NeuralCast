@@ -2,6 +2,15 @@
 
 ## High Priority
 
- - [ ] Add TTS snippets for NeuralForge
-   - [ ] Change the instruction prompt to say that it should pronounce NeuralForge in english, or just the Forge part.
- - [ ] Update the snippets for NeuralCast
+ - [x] Add TTS snippets for NeuralForge
+ - [x] Update the snippets for NeuralCast
+ - [ ] Duplicate reggae playlists so that they also play during the day
+ - [x] Fix timing of normal TTS snippest to not interfere with the one before Aspen Night
+
+## Normal Priority
+
+ - [ ] Find a way to solve the album lookup problem
+
+## Low Priority
+
+ - [ ] Work on realtime TTS snippets injection module
