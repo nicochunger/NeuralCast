@@ -1,5 +1,4 @@
 Artist,Title,Year,Album,Validated
-[DEL]Ashley MacIsaac,Sleepy Maggie,1995,Hi™ How Are You Today?,True
 Bellowhead,New York Girls,2010,Hedonism,True
 Bellowhead,Roll the Woodpile Down,2012,Broadside,True
 dArtagnan,C'est la vie,2021,Feuer & Flamme,True
@@ -15,10 +14,6 @@ Dropkick Murphys,Rose Tattoo,2013,Signed and Sealed in Blood,True
 Dropkick Murphys,The Boys Are Back,2013,Signed and Sealed in Blood,True
 Dropkick Murphys,The State of Massachusetts,2007,The Meanest of Times,True
 Dropkick Murphys,Who'll Stand With Us?,2025,For The People,True
-[DEL]Fairport Convention,How Many Times,2025,Gladys' Leap,True
-[DEL]Fairport Convention,Matty Groves,1969,Liege & Lief,True
-[DEL]Fairport Convention,Meet on the Ledge,1969,What We Did on Our Holidays,True
-[DEL]Fairport Convention,Who Knows Where the Time Goes?,1969,Unhalfbricking,True
 Flogging Molly,Devil's Dance Floor,2000,Swagger,True
 Flogging Molly,Drunken Lullabies,2002,Drunken Lullabies,True
 Flogging Molly,Float,2008,Float,True
@@ -26,25 +21,12 @@ Flogging Molly,If I Ever Leave This World Alive,2002,Drunken Lullabies,True
 Flogging Molly,Requiem for a Dying Song,2008,Float,True
 Flogging Molly,Seven Deadly Sins,2004,Within a Mile of Home,True
 Flogging Molly,What's Left of the Flag,2002,Drunken Lullabies,True
-[DEL]Frank Turner,Better Times Will Come,2025,Better Times Will Come,True
-[DEL]Frank Turner,I Still Believe,2011,England Keep My Bones,True
-[DEL]Frank Turner,Recovery,2013,Tape Deck Heart,True
-[DEL]Frank Turner,The Way I Tend to Be,2013,Tape Deck Heart,True
-[DEL]Great Big Sea,Consequence Free,1999,Turn,True
-[DEL]Great Big Sea,Mari-Mac,1995,Up,True
-[DEL]Great Big Sea,Ordinary Day,1997,Play,True
-[DEL]Great Big Sea,Sea of No Cares,2002,Sea of No Cares,True
-[DEL]Great Big Sea,When I'm Up (I Can't Get Down),1997,Play,True
 Mr. Hurley & Die Pulveraffen,All Hail the Captain,2025,All Hail the Captain,True
 Mr. Hurley & Die Pulveraffen,Blau wie das Meer,2012,Grog 'n' Roll,True
 Mr. Hurley & Die Pulveraffen,Mehr ist Mehr,2025,Mehr ist Mehr,True
 Mr. Hurley & Die Pulveraffen,Piraten: Megageil!,2025,S.O.S.,True
 Mr. Hurley & Die Pulveraffen,Tortuga,2015,Tortuga,True
 Oysterband,When I'm Up I Can't Get Down,1993,Holy Bandits,True
-[DEL]Richard & Linda Thompson,Down Where the Drunkards Roll,1974,I Want to See the Bright Lights Tonight,True
-[DEL]Richard & Linda Thompson,I Want to See the Bright Lights Tonight,1974,I Want to See the Bright Lights Tonight,True
-[DEL]Runrig,Alba,1987,The Cutter and the Clan,True
-[DEL]Runrig,Hearts of Olden Glory,1987,The Cutter and the Clan,True
 Santiano,Dann bin ich weg,2025,Dann bin ich weg,True
 Santiano,Ekke Nekkepenn,2025,Ekke Nekkepenn,True
 Santiano,Es gibt nur Wasser,2012,Bis ans Ende der Welt,True
@@ -54,8 +36,6 @@ Santiano,Johnny Boy,2017,Im Auge des Sturms,True
 Santiano,Lieder der Freiheit,2015,Von Liebe Tod und Freiheit,True
 Santiano,Santiano,2012,Bis ans Ende der Welt,True
 Skinny Lister,Cathy,2016,"The Devil, the Heart & the Fight",True
-[DEL]Steeleye Span,All Around My Hat,1975,All Around My Hat,True
-[DEL]Steeleye Span,Gaudete,1972,Below the Salt,True
 The Dreadnoughts,Polka Never Dies,2010,Polka's Not Dead,True
 The Dreadnoughts,Polka Pit,2025,Polka Pit,True
 The Dreadnoughts,Roll Northumbria,2019,Into the North,True
@@ -66,14 +46,7 @@ The Dubliners,Whiskey in the Jar,1967,More of the Hard Stuff,True
 The Levellers,Fifteen Years,1991,Levelling the Land,True
 The Levellers,One Way,1991,Levelling the Land,True
 The Levellers,Riverflow,1991,Levelling the Land,True
-[DEL]The Longest Johns,Bones in the Ocean,2013,Bones in the Ocean,True
-[DEL]The Longest Johns,Chicken on a Raft,2025,Folly - Pieces of Eight,True
-[DEL]The Longest Johns,Fire Marengo,2025,Salt - Pieces of Eight,True
-[DEL]The Longest Johns,Hoist Up the Thing,2020,Cures What Ails Ya,True
-[DEL]The Longest Johns,Old Bloke Pickin’ on a Banjo,2025,Prospect - Pieces of Eight,True
-[DEL]The Longest Johns,Wellerman,2018,Between Wind and Water,True
 The Mahones,Paint the Town Red,2011,The Black Irish,True
-[DEL]The Men They Couldn't Hang,Green Fields of France,1985,Night of a Thousand Candles,True
 The O'Reillys and the Paddyhats,Barrels of Whiskey,2016,Seven Hearts One Soul,True
 The O'Reillys and the Paddyhats,Green Blood,2018,Green Blood,True
 The Pogues,Dirty Old Town,1985,Rum Sodomy & the Lash,True
@@ -83,55 +56,48 @@ The Pogues,Sally MacLennane,1985,Rum Sodomy & the Lash,True
 The Pogues,Streams of Whiskey,1984,Red Roses for Me,True
 The Pogues,The Sick Bed of Cúchulainn,1985,Rum Sodomy & the Lash,True
 The Pogues,Thousands Are Sailing,1988,If I Should Fall from Grace with God,True
-[DEL]The Proclaimers,I'm Gonna Be (500 Miles),1988,Sunshine on Leith,True
-[DEL]The Proclaimers,I'm On My Way,1988,Sunshine on Leith,True
 The Real McKenzies,Scots Wha' Ha'e,1995,The Real McKenzies,True
 The Rumjacks,An Irish Pub Song,2011,Gangs of New Holland,True
 The Saw Doctors,Man In The Moon - Mark Reeder No Distance Remix,2025,Man In The Moon (ReMix),True
 The Saw Doctors,N17,1991,"If This Is Rock and Roll, I Want My Old Job Back",True
 The Saw Doctors,To Win Just Once,1997,Same Oul' Town,True
 The Tossers,The Emerald City,2013,The Emerald City,True
-[DEL]The Waterboys,Fisherman's Blues,1988,Fisherman's Blues,True
-[DEL]The Waterboys,The Next Time I Saw Elvis,2025,The Next Time I Saw Elvis,True
-[DEL]The Waterboys,The Whole of the Moon,1985,This Is the Sea,True
-[DEL]The Waterboys,This Is the Sea,1985,This Is the Sea,True
-[DEL]The Waterboys,We Will Not Be Lovers,1988,Fisherman's Blues,True
 Versengold,Falscher Leuchtturm (feat. Madsen),2025,Falscher Leuchtturm (feat. Madsen),True
 Versengold,Funkenflug,2017,Funkenflug,True
 Versengold,Klabauterfrau,2025,Klabauterfrau,True
 Versengold,Schiff aus Glas,2025,Schiff aus Glas,True
 Young Dubliners,Rocky Road to Dublin,2007,With All Due Respect - The Irish Sessions,True
 Young Dubliners,Stop Shaking Your Head,2025,Stop Shaking Your Head,True
-Greenland Whalefishers,Punk Shanty,2006,Down and Out,False
+Greenland Whalefishers,Punk Shanty,2006,Down and Out,True
 Greenland Whalefishers,Rocky Road to London,2010,Songs from the Bunker,False
 Greenland Whalefishers,St. Patrick's Day Drinking,2022,Celtic Punk,False
 Greenland Whalefishers,The Mutineer,2015,The Thirsty Cave,False
-Greenland Whalefishers,Bells,2024,WAR - 11 Battlefields,False
+Greenland Whalefishers,Bells,2024,WAR - 11 Battlefields,True
 Flatfoot 56,Brotherhood,2007,Jungle of the Midwest Sea,False
-Flatfoot 56,Loaded Gun,2007,Jungle of the Midwest Sea,False
-Flatfoot 56,Courage,2010,Black Thorn,False
-Flatfoot 56,Shiny Eyes,2010,Black Thorn,False
-Flatfoot 56,We Grow Stronger,2010,Black Thorn,False
-Blood or Whiskey,Sober Again,2001,No Time to Explain,False
+Flatfoot 56,Loaded Gun,2007,Jungle of the Midwest Sea,True
+Flatfoot 56,Courage,2010,Black Thorn,True
+Flatfoot 56,Shiny Eyes,2010,Black Thorn,True
+Flatfoot 56,We Grow Stronger,2010,Black Thorn,True
+Blood or Whiskey,Sober Again,2001,No Time to Explain,True
 Blood or Whiskey,Galway Town,2001,No Time to Explain,False
-Blood or Whiskey,They Say No,2005,Cashed Out On Culture,False
-Blood or Whiskey,Dirty Aul War,2014,Tell The Truth And Shame The Devil,False
+Blood or Whiskey,They Say No,2005,Cashed Out On Culture,True
+Blood or Whiskey,Dirty Aul War,2014,Tell The Truth And Shame The Devil,True
 Smokey Bastard,My Son John,2015,Back to the Drawing Room,False
 Smokey Bastard,Cheer Up Love (Worse Things Happen at Sea) Pt. 3,2015,Back to the Drawing Room,False
 Smokey Bastard,The Cumberland Crew,2011,Tales from the Wasteland,False
-Smokey Bastard,Yuppie Dracula,2011,Tales from the Wasteland,False
+Smokey Bastard,Yuppie Dracula,2011,Tales from the Wasteland,True
 Smokey Bastard,Baba Yaga,2011,Tales from the Wasteland,False
-Mischief Brew,Coffee God And Cigarettes,2006,Songs From Under The Sink,False
-Mischief Brew,Thanks Bastards,2006,Songs From Under The Sink,False
-Mischief Brew,Roll Me Through The Gates Of Hell,2005,Smash The Windows,False
-Mischief Brew,Gimme Coffee or Death,2006,Songs From Under The Sink,False
-Mischief Brew,Olde Tyme Mem'ry,2016,Bacchanal 'N' Philadelphia,False
+Mischief Brew,Coffee God And Cigarettes,2006,Songs From Under The Sink,True
+Mischief Brew,Thanks Bastards,2006,Songs From Under The Sink,True
+Mischief Brew,Roll Me Through The Gates Of Hell,2005,Smash The Windows,True
+Mischief Brew,Gimme Coffee or Death,2006,Songs From Under The Sink,True
+Mischief Brew,Olde Tyme Mem'ry,2016,Bacchanal 'N' Philadelphia,True
 Saltatio Mortis,My Mother Told Me,2021,Brot und Spiele,False
-Saltatio Mortis,Pray To The Hunter,2022,The Elder Scrolls Online,False
-Saltatio Mortis,Wo Sind Die Clowns,2015,Zirkus Zeitgeist,False
+Saltatio Mortis,Pray To The Hunter,2022,The Elder Scrolls Online,True
+Saltatio Mortis,Wo Sind Die Clowns,2015,Zirkus Zeitgeist,True
 Saltatio Mortis,Kaufmann und Maid,2007,Das schwarze Einmaleins,False
-Feuerschwanz,Dragostea Din Tei,2021,Memento Mori,False
-Feuerschwanz,Memento Mori,2021,Memento Mori,False
+Feuerschwanz,Dragostea Din Tei,2021,Memento Mori,True
+Feuerschwanz,Memento Mori,2021,Memento Mori,True
 Feuerschwanz,I See Fire,2016,Sex is Muss,False
-Feuerschwanz,Valhalla Calling,2024,Warriors,False
-Feuerschwanz,Gangnam Style,2025,Knightclub,False
+Feuerschwanz,Valhalla Calling,2024,Warriors,True
+Feuerschwanz,Gangnam Style,2025,Knightclub,True
