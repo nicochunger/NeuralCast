@@ -9,7 +9,9 @@ main.py — AI-assisted local-network radio pipeline
 """
 
 import argparse
+import json
 import pathlib
+import unicodedata
 from subprocess import CalledProcessError
 from typing import Dict, List, Optional, Tuple
 
@@ -41,6 +43,138 @@ STATION = "neuralcast"
 
 TTS = False  # turn off if you only want music
 VOICE_NAME = "Adam"  # ElevenLabs voice
+
+
+def remove_new_releases_metadata_entries(
+    playlists_dir: pathlib.Path, songs_to_remove: List[Song]
+) -> int:
+    metadata_path = playlists_dir / "New Releases.metadata.json"
+    if not songs_to_remove:
+        return 0
+    if not metadata_path.exists():
+        print(
+            f"⚠️ Metadata file not found at {metadata_path}; skipping metadata cleanup for New Releases"
+        )
+        return 0
+
+    try:
+        with metadata_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠️ Failed to parse JSON from metadata file {metadata_path}: {exc}")
+        return 0
+
+    if isinstance(payload, dict) and isinstance(payload.get("entries"), dict):
+        entries = payload["entries"]
+        wrapped = True
+    elif isinstance(payload, dict):
+        entries = payload
+        wrapped = False
+    else:
+        print(
+            f"⚠️ Unexpected metadata structure in {metadata_path}; skipping removal of New Releases entries"
+        )
+        return 0
+
+    def normalize_component(value: Optional[str]) -> str:
+        normalized = unicodedata.normalize("NFKC", value or "")
+        return normalized.strip().casefold()
+
+    def normalize_year(value: Optional[str]) -> str:
+        if value is None:
+            return ""
+        text = str(value).strip()
+        if not text:
+            return ""
+        try:
+            return str(int(text))
+        except ValueError:
+            return text
+
+    def matching_keys(song: Song) -> List[str]:
+        artist_component = normalize_component(song.artist)
+        title_component = normalize_component(song.title)
+        album_component = normalize_component(song.album) if song.album else ""
+        year_component = normalize_year(song.year)
+
+        primary_key = "|".join(
+            (artist_component, title_component, album_component, year_component)
+        )
+        if primary_key in entries:
+            return [primary_key]
+
+        album_filter = album_component or None
+        year_filter = year_component or None
+        candidates: List[str] = []
+        for existing_key in entries.keys():
+            parts = existing_key.split("|")
+            if len(parts) != 4:
+                continue
+            if parts[0] != artist_component or parts[1] != title_component:
+                continue
+            if album_filter is not None and parts[2] != album_component:
+                continue
+            if year_filter is not None and parts[3] != year_component:
+                continue
+            candidates.append(existing_key)
+        return candidates
+
+    removed = 0
+    missing: List[Song] = []
+    ambiguous: List[Song] = []
+    seen_keys = set()
+
+    for song in songs_to_remove:
+        unique_key = (
+            song.artist.lower().strip(),
+            song.title.lower().strip(),
+            (song.album or "").strip().lower(),
+            (song.year or "").strip(),
+        )
+        if unique_key in seen_keys:
+            continue
+        seen_keys.add(unique_key)
+
+        matches = matching_keys(song)
+        if not matches:
+            missing.append(song)
+            continue
+        if len(matches) > 1:
+            ambiguous.append(song)
+            continue
+
+        entries.pop(matches[0], None)
+        removed += 1
+        song_year = normalize_year(song.year)
+        print(f"🗑️ Removed metadata entry for {song.artist} - {song.title} ({song_year})")
+
+    if removed > 0:
+        output_payload = {"entries": entries} if wrapped else entries
+        try:
+            with metadata_path.open("w", encoding="utf-8") as handle:
+                json.dump(output_payload, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+            print(
+                f"🗂️ Updated metadata file: {metadata_path.name} (removed {removed} entr{'y' if removed == 1 else 'ies'})"
+            )
+        except TypeError as exc:
+            print(f"⚠️ JSON serialization error while writing metadata file {metadata_path}: {exc}")
+        except OSError as exc:
+            print(f"⚠️ File write permission error for metadata file {metadata_path}: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"⚠️ Unexpected error while writing metadata file {metadata_path}: {exc}")
+
+    for song in missing:
+        song_year = normalize_year(song.year)
+        print(
+            f"⚠️ New Releases metadata entry not found for {song.artist} - {song.title} ({song_year}); nothing removed"
+        )
+    for song in ambiguous:
+        print(
+            f"⚠️ Multiple New Releases metadata entries matched {song.artist} - {song.title}; skipped removal"
+        )
+
+    return removed
 
 
 def main(station_name: str, dry_run: bool = False):  # dry_run flag
@@ -128,6 +262,12 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 entry["songs"] = filtered_songs
                 entry["needs_save"] = True
                 entry["removed_via_marker"] = removed_count
+        if entry["deletions"] and entry["name"].casefold() == "new releases":
+            removed_metadata = remove_new_releases_metadata_entries(
+                entry["file"].parent, entry["deletions"]
+            )
+            if removed_metadata:
+                entry["metadata_removed"] = removed_metadata
 
     # Store all songs across playlists for repetition analysis
     all_songs_by_playlist = {}
