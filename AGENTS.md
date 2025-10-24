@@ -20,3 +20,7 @@ Commits in this repo use short, imperative subjects (`Improve album lookup`, `Fi
 
 ## Environment & Credentials
 The music metadata pipeline depends on `yt-dlp`, `ffmpeg`, `mp3gain`, and Spotify/MusicBrainz credentials loaded via `.env`. Verify `.env` contains `SPOTIPY_CLIENT_ID` and `SPOTIPY_CLIENT_SECRET` before running discovery scripts, and confirm ElevenLabs keys are present only if you enable `openai_utils.py` TTS features. Keep secrets out of Git—reference variable names and required scopes in docs instead.
+
+## ExecPlans
+ 
+When writing complex features or significant refactors, use an ExecPlan (as described in .agent/PLANS.md) from design to implementation.
