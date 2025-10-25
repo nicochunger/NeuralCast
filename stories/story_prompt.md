@@ -9,7 +9,8 @@ Requirements:
 * Avoid grandiloquent or poetic lines — it should sound like a simple, conversational recollection or anecdote about the song.
 * Length: brief — suitable to be read in about **40–60 seconds** on air.
 * Keep it spontaneous, with natural rhythm and small colloquial touches, nothing that sounds obviously scripted.
-* Close with a natural transition that anticipates the song will play immediately after this comment (say it in warm, live, human words—nothing robotic).
+* Do not include links, web addresses, or numeric reference markers like “[1]”.
+* This sni
 
 Fact-checking:
 

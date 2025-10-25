@@ -44,6 +44,7 @@ class StoryAssets:
     text_path: pathlib.Path
     audio_path: pathlib.Path
     story_text: str
+    remote_path: str
 
 
 class AzuraCastClient:
@@ -120,6 +121,13 @@ class AzuraCastClient:
             ) from exc
         return response.json()
 
+    def list_media_files(self, station: str) -> List[Dict]:
+        return self._request("GET", f"/api/station/{station}/files").json()
+
+    def delete_media_file(self, station: str, media_id: int) -> Dict:
+        return self._request(
+            "DELETE", f"/api/station/{station}/file/{media_id}"
+        ).json()
     def send_telnet_command(self, station_id: int, command: str) -> Dict:
         payload = {"command": command}
         response = self._request(
@@ -310,19 +318,30 @@ def write_story_text_file(story_text: str, outfile: pathlib.Path) -> None:
     outfile.write_text(story_text + "\n", encoding="utf-8")
 
 
-def ensure_story_assets(artist: str, title: str, story_text: str) -> StoryAssets:
+def ensure_story_assets(
+    station_slug: str, artist: str, title: str, story_text: str
+) -> StoryAssets:
     safe_artist = sanitize_filename_component(artist).replace("'", "")
     safe_title = sanitize_filename_component(title).replace("'", "")
-    base_name = f"Story_{safe_artist}_{safe_title}"
-    audio_path = STORY_OUTPUT_DIR / f"{base_name}.mp3"
-    text_path = STORY_OUTPUT_DIR / f"{base_name}.txt"
+    timestamp = dt.datetime.now()
+    date_parts = [timestamp.strftime("%Y"), timestamp.strftime("%m"), timestamp.strftime("%d")]
+    station_dir = STORY_OUTPUT_DIR / station_slug
+    target_dir = station_dir.joinpath(*date_parts)
+    base_name = f"Story_{safe_artist}_{safe_title}_{timestamp.strftime('%H%M%S')}"
+    audio_path = target_dir / f"{base_name}.mp3"
+    text_path = target_dir / f"{base_name}.txt"
 
-    STORY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    target_dir.mkdir(parents=True, exist_ok=True)
     write_story_text_file(story_text, text_path)
     synthesize_story_audio(story_text, audio_path)
 
     return StoryAssets(
-        text_path=text_path, audio_path=audio_path, story_text=story_text
+        text_path=text_path,
+        audio_path=audio_path,
+        story_text=story_text,
+        remote_path="/".join(
+            ["AI Stories", station_slug, *date_parts, f"{base_name}.mp3"]
+        ),
     )
 
 
@@ -425,7 +444,6 @@ def wait_for_track_and_inject(
     client: AzuraCastClient,
     station_slug: str,
     station_id: Optional[int],
-    preceding_track: UpcomingTrack,
     target_track: UpcomingTrack,
     telnet_command: str,
     lead_seconds: int,
@@ -440,7 +458,7 @@ def wait_for_track_and_inject(
     pushed_request_id: Optional[str] = None
 
     print(
-        f"Waiting for preceding track '{preceding_track.artist} - {preceding_track.title}' to reach the injection point..."
+        f"Waiting for target song '{target_track.artist} - {target_track.title}' to start playing..."
     )
     while dt.datetime.now(dt.timezone.utc) < deadline:
         status = client.get_now_playing(station_slug)
@@ -448,36 +466,104 @@ def wait_for_track_and_inject(
         song_payload = now_payload.get("song") or {}
         remaining = now_payload.get("remaining")
 
-        if is_song_match(song_payload, preceding_track):
+        if is_song_match(song_payload, target_track):
             track_detected = True
             if remaining is not None:
-                print(f"Preceding track playing; remaining time: {remaining}s")
+                print(f"Target song playing; remaining time: {remaining}s")
             if remaining is None or remaining <= lead_seconds:
-                print("Injecting story via interrupting_requests before the selected song...")
+                print("Injecting story via interrupting_requests...")
                 response = client.send_telnet_command(station_id, telnet_command)
                 pushed_request_id = extract_telnet_response(response)
                 break
         elif track_detected:
             print(
-                "Preceding track finished earlier than expected; injecting story immediately before the selected song..."
+                "Target song finished earlier than expected; injecting story immediately..."
             )
             response = client.send_telnet_command(station_id, telnet_command)
             pushed_request_id = extract_telnet_response(response)
             break
-        elif is_song_match(song_payload, target_track):
-            raise RuntimeError(
-                "The selected song started playing before the story could be queued; injection would no longer precede the track."
-            )
 
         time.sleep(max(1, poll_interval))
 
-    if pushed_request_id is None:
-        if not track_detected:
-            raise RuntimeError(
-                f"Timed out waiting for preceding track '{preceding_track.artist} - {preceding_track.title}' to play."
-            )
+    if pushed_request_id is None and not track_detected:
+        raise RuntimeError(
+            f"Timed out waiting for track '{target_track.artist} - {target_track.title}' to play."
+        )
 
     return pushed_request_id
+
+
+def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
+    if keep_days <= 0:
+        return
+
+    base_dir = STORY_OUTPUT_DIR / station_slug
+    if not base_dir.exists():
+        return
+
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=keep_days)
+    for file_path in base_dir.rglob("*"):
+        if file_path.is_file() and file_path.suffix.lower() in {".mp3", ".txt"}:
+            try:
+                file_mtime = dt.datetime.fromtimestamp(
+                    file_path.stat().st_mtime, tz=dt.timezone.utc
+                )
+            except (OSError, ValueError):
+                continue
+            if file_mtime < cutoff:
+                try:
+                    file_path.unlink(missing_ok=True)
+                except OSError:
+                    print(f"Warning: failed to remove local story file {file_path}")
+
+    # Remove empty directories (but keep the station root)
+    for dir_path in sorted(base_dir.rglob("*"), key=lambda p: len(str(p)), reverse=True):
+        if dir_path.is_dir():
+            try:
+                next(dir_path.iterdir())
+            except StopIteration:
+                try:
+                    dir_path.rmdir()
+                except OSError:
+                    pass
+
+
+def cleanup_remote_stories(
+    client: AzuraCastClient, station_slug: str, keep_days: int
+) -> None:
+    if keep_days <= 0:
+        return
+
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=keep_days)
+    cutoff_ts = cutoff.timestamp()
+    prefix = f"AI Stories/{station_slug}/"
+
+    try:
+        media_files = client.list_media_files(station_slug)
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: unable to list remote media files for cleanup: {exc}")
+        return
+
+    for entry in media_files:
+        path = entry.get("path") or ""
+        if not path.startswith(prefix):
+            continue
+        mtime = entry.get("mtime")
+        media_id = entry.get("id") or entry.get("media_id")
+        if media_id is None or mtime is None:
+            continue
+        try:
+            if float(mtime) >= cutoff_ts:
+                continue
+        except (TypeError, ValueError):
+            continue
+        try:
+            client.delete_media_file(station_slug, int(media_id))
+            print(f"Deleted remote story file '{path}' (media_id={media_id})")
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"Warning: failed to delete remote story file '{path}' (media_id={media_id}): {exc}"
+            )
 
 
 def run(args: argparse.Namespace) -> None:
@@ -520,58 +606,53 @@ def run(args: argparse.Namespace) -> None:
         f"Now playing: {current_song.get('artist', 'Unknown Artist')} - {current_song.get('title', 'Unknown Title')}"
     )
 
+    current_track_candidate: Optional[UpcomingTrack] = None
+    if (
+        current_song
+        and current_song.get("artist")
+        and current_song.get("title")
+        and current_remaining is not None
+        and current_remaining >= args.current_min_remaining
+    ):
+        current_track_candidate = UpcomingTrack(
+            queue_id=current_song.get("id") or "now-playing",
+            song_id=current_song.get("id"),
+            artist=current_song.get("artist", ""),
+            title=current_song.get("title", ""),
+            starts_at=None,
+            duration=int(current_duration) if current_duration is not None else None,
+            raw={"source": "now_playing", "remaining": current_remaining},
+        )
+        print(
+            f"Including current track for selection (remaining {current_remaining}s)."
+        )
+
     raw_queue = client.get_upcoming_queue(args.station)
     upcoming_tracks = parse_upcoming_queue(raw_queue)
-    if not upcoming_tracks:
+    if not upcoming_tracks and current_track_candidate is None:
         raise RuntimeError("No upcoming tracks found in station queue.")
 
-    selection_pool = upcoming_tracks[: args.selection_count]
+    selection_pool: List[UpcomingTrack] = []
+    if current_track_candidate is not None:
+        selection_pool.append(current_track_candidate)
+
+    remaining_slots = args.selection_count - len(selection_pool)
+    if remaining_slots > 0:
+        selection_pool.extend(upcoming_tracks[:remaining_slots])
+    elif len(selection_pool) > args.selection_count:
+        selection_pool = selection_pool[: args.selection_count]
+
+    if not selection_pool:
+        raise RuntimeError("No tracks available to choose from.")
+
     selected_track = select_song_with_ai(selection_pool)
     print(
         f"Selected upcoming song: {selected_track.artist} - {selected_track.title} (queue_id={selected_track.queue_id})"
     )
-
-    preceding_track: Optional[UpcomingTrack] = None
-    for idx, track in enumerate(upcoming_tracks):
-        if track.queue_id == selected_track.queue_id:
-            if idx == 0:
-                if not current_song or not current_song.get("title"):
-                    raise RuntimeError(
-                        "Unable to determine the currently playing song to schedule the story before the selected track."
-                    )
-                preceding_track = UpcomingTrack(
-                    queue_id=current_song.get("id") or "now-playing",
-                    song_id=current_song.get("id"),
-                    artist=current_song.get("artist", ""),
-                    title=current_song.get("title", ""),
-                    starts_at=None,
-                    duration=(
-                        int(current_duration)
-                        if current_duration is not None
-                        else None
-                    ),
-                    raw={
-                        "source": "now_playing",
-                        "remaining": current_remaining,
-                    },
-                )
-            else:
-                preceding_track = upcoming_tracks[idx - 1]
-            break
-
-    if preceding_track is None:
-        raise RuntimeError(
-            "Could not locate the track that precedes the selected song in the upcoming queue."
-        )
-    monitoring_source = preceding_track.raw.get("source")
-    if monitoring_source == "now_playing":
-        print(
-            "Story will play after the current song and before the selected track."
-        )
+    if selected_track.raw.get("source") == "now_playing":
+        print("Story will play immediately after the current song.")
     else:
-        print(
-            f"Story will play after '{preceding_track.artist} - {preceding_track.title}' and before the selected track."
-        )
+        print("Story will play after the selected track.")
 
     station_display_name = (station.get("name") or args.station).strip()
     if args.station.lower() == "neuralforge":
@@ -580,7 +661,7 @@ def run(args: argparse.Namespace) -> None:
         selected_track.artist, selected_track.title, station_display_name
     )
     assets = ensure_story_assets(
-        selected_track.artist, selected_track.title, story_text
+        args.station, selected_track.artist, selected_track.title, story_text
     )
     print(f"Story text saved to {assets.text_path}")
     print(f"Story audio saved to {assets.audio_path}")
@@ -592,7 +673,7 @@ def run(args: argparse.Namespace) -> None:
     upload_response = client.upload_media(
         args.station,
         assets.audio_path,
-        remote_path=f"AI Stories/{assets.audio_path.name}",
+        remote_path=assets.remote_path,
     )
     media_id = derive_media_id(upload_response, assets.audio_path.name)
     if not media_id:
@@ -624,7 +705,6 @@ def run(args: argparse.Namespace) -> None:
             client=client,
             station_slug=args.station,
             station_id=station.get("id"),
-            preceding_track=preceding_track,
             target_track=selected_track,
             telnet_command=telnet_command,
             lead_seconds=args.inject_lead_seconds,
@@ -643,10 +723,13 @@ def run(args: argparse.Namespace) -> None:
     else:
         print("Story queued via interrupting_requests.")
 
+    cleanup_local_stories(args.station, args.keep_local_days)
+    cleanup_remote_stories(client, args.station, args.keep_remote_days)
+
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Generate a short story about an upcoming AzuraCast song and inject it immediately before that song."
+        description="Generate a short story about an upcoming AzuraCast song and inject it immediately after that song."
     )
     parser.add_argument(
         "--base-url",
@@ -698,6 +781,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=60,
         help="Include the current song in selection only if it has at least this many seconds remaining (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--keep-local-days",
+        type=int,
+        default=3,
+        help="Retain locally generated story assets for this many days (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--keep-remote-days",
+        type=int,
+        default=7,
+        help="Retain uploaded story assets on AzuraCast for this many days (default: %(default)s).",
     )
     return parser
 

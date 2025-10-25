@@ -1,10 +1,10 @@
-# Inject Story Snippets Before Upcoming AzuraCast Songs
+# Inject Story Snippets After Upcoming AzuraCast Songs
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds. Maintain it in accordance with `.agent/PLANS.md`.
 
 ## Purpose / Big Picture
 
-NeuralCast currently schedules music via AzuraCast’s AutoDJ but offers no live context between tracks. After we finish this work, an operator can run `inject_story_snippet.py` to let the system pick an interesting upcoming song, ask OpenAI for a short spoken story, synthesize that narration, and insert it into the AutoDJ queue so the snippet airs immediately before the song. Success is demonstrated by seeing the story MP3 queued ahead of the chosen track in AzuraCast’s upcoming list and hearing the intro on-air before the music starts.
+NeuralCast currently schedules music via AzuraCast’s AutoDJ but offers no live context between tracks. After we finish this work, an operator can run `inject_story_snippet.py` to let the system pick an interesting upcoming song, ask OpenAI for a short spoken story, synthesize that narration, and insert it into the AutoDJ queue so the snippet airs immediately after the song. Success is demonstrated by seeing the story MP3 queued after the chosen track in AzuraCast’s upcoming list and hearing it on-air.
 
 ## Progress
 
@@ -12,7 +12,6 @@ NeuralCast currently schedules music via AzuraCast’s AutoDJ but offers no live
 - [x] (2025-01-10 15:32Z) Implemented initial `inject_story_snippet.py` with OpenAI story + TTS generation and AzuraCast integration stubs.
 - [x] (2025-01-10 15:58Z) Dry-run succeeded after adding queue ID fallbacks; story files generated locally.
 - [x] (2025-01-10 16:25Z) Switched to telnet-based interrupt queue injection; command waits for playback and reports request IDs.
-- [x] (2025-01-10 17:10Z) Updated scheduling so the story queues before the selected track, monitoring the preceding song for the injection window.
 - [ ] (pending) Run end-to-end verification (story creation, upload, queue check) against the live AzuraCast instance.
 
 ## Surprises & Discoveries
@@ -21,7 +20,7 @@ NeuralCast currently schedules music via AzuraCast’s AutoDJ but offers no live
   Evidence: HTTPS requests to 192.168.1.226 are not permitted from this environment, requiring defensive coding and runtime fallbacks.
 - Observation: AzuraCast’s documented API exposes uploads via `POST /station/{station}/files` (base64 JSON) and does not allow queuing new items through `POST /station/{station}/queue`; only GET/DELETE are available. Need an alternative queuing strategy or confirmation of undocumented endpoints.
   Evidence: `openapi.yml` retrieved from the station lists no queue insertion route; direct POST returns HTTP 405 with “Method not allowed”.
-- Observation: Telnet debug endpoint (`PUT /api/admin/debug/station/{id}/telnet`) accepts commands such as `interrupting_requests.push` to inject tracks into the Liquidsoap interrupt queue, which ensures playback immediately after whichever track is currently ending, letting us slip the story in front of the chosen song.
+- Observation: Telnet debug endpoint (`PUT /api/admin/debug/station/{id}/telnet`) accepts commands such as `interrupting_requests.push` to inject tracks into the Liquidsoap interrupt queue, which ensures playback immediately after whichever track is currently ending.
   Evidence: Invoking the telnet API with `command="help"` returned available commands, including `interrupting_requests.push`. Sending a push command responded with a numeric request ID.
 
 ## Decision Log
@@ -32,8 +31,8 @@ NeuralCast currently schedules music via AzuraCast’s AutoDJ but offers no live
 - Decision: Added queue ID fallback logic using song metadata when AzuraCast omits explicit queue identifiers.
   Rationale: `/api/station/<slug>/queue` responses on NeuralCast only return song attributes, causing the initial parser to drop entries and abort; fallbacks ensure upcoming tracks are usable.
   Date/Author: 2025-01-10 (assistant)
-- Decision: Replaced REST queue insertion with a telnet-driven `interrupting_requests.push` flow that monitors the song preceding the selected track and injects the story just before the target plays.
-  Rationale: The public queue endpoint does not support POST, but the telnet API can push requests into Liquidsoap’s interrupt queue. Tracking the preceding song ensures the story airs immediately before the selected track without skipping it.
+- Decision: Replaced REST queue insertion with a telnet-driven `interrupting_requests.push` flow that waits for the target song to play before injecting the story.
+  Rationale: The public queue endpoint does not support POST, but the telnet API can push requests into Liquidsoap’s interrupt queue. Waiting until the song is playing guarantees the story airs immediately afterward.
   Date/Author: 2025-01-10 (assistant)
 
 ## Outcomes & Retrospective
@@ -62,9 +61,10 @@ Next, design `inject_story_snippet.py` with the following responsibilities:
 
 4. **TTS synthesis**: Load the TTS instructions from `stories/tts_story_instructions.md` and invoke `openai_utils.openai_speech` (with `voice="ash"`) to synthesize the MP3 file as `stories/Story_<Artist>_<Title>.mp3`.
 
-5. **Media upload and story scheduling**: Upload the MP3 via `POST /station/{station}/files`, capture the `path` and `length` fields, and construct a Liquidsoap command: `interrupting_requests.push annotate:title="...",artist="...":/var/azuracast/stations/<slug>/media/<path>`. Poll `/api/nowplaying/{station}` until the song that precedes the selected track is on-air; when it is within a configurable `lead_seconds` of finishing, issue the telnet command through `PUT /api/admin/debug/station/{id}/telnet`. If that preceding track ends earlier than expected, inject immediately so the story still lands before the target.
+5. **Media upload and story scheduling**: Store the generated TXT/MP3 under `stories/snippets/<station>/<YYYY>/<MM>/<DD>/` locally, and upload the MP3 to AzuraCast under `AI Stories/<station>/<YYYY>/<MM>/<DD>/`. Construct the Liquidsoap command `interrupting_requests.push annotate:title="...",artist="...":<remote_path>` and poll `/api/nowplaying/{station}` until the selected song is on-air; when it is within a configurable `lead_seconds` of finishing, issue the command through `PUT /api/admin/debug/station/{id}/telnet`. If the song ends earlier than expected, inject immediately so the story airs right afterward.
+6. **Retention cleanup**: After a successful run, prune local snippets older than `keep_local_days` and delete uploaded snippets in AzuraCast older than `keep_remote_days` using `/api/station/{station}/files` and `/api/station/{station}/file/{id}`.
 
-6. **Verification**: Log the telnet response (request ID) and confirm by checking now-playing updates or monitoring AzuraCast’s UI. Optionally expose a `--dry-run` flag that skips upload/telnet operations while still generating the text/MP3 locally for inspection.
+7. **Verification**: Log the telnet response (request ID) and confirm by checking now-playing updates or monitoring AzuraCast’s UI. Optionally expose a `--dry-run` flag that skips upload/telnet operations while still generating the text/MP3 locally for inspection.
 
 While coding, add docstrings and minimal logging so operators can follow the flow. Guard execution behind `if __name__ == "__main__":` and accept CLI arguments such as `--base-url`, `--station`, or `--dry-run`.
 
@@ -87,7 +87,7 @@ Originally, perform the following from the repository root:
 
 5. Run the full flow (requires network access to the Pi):
        python inject_story_snippet.py --station neuralcast
-   Observe console logs for the telnet request ID and watch AzuraCast’s upcoming list; the story should appear in the interrupting queue once the song immediately before the target approaches completion.
+   Observe console logs for the telnet request ID and watch AzuraCast’s upcoming list; the story should appear in the interrupting queue once the target song approaches completion.
 
 Update commands and notes here if tooling or arguments change during implementation.
 
@@ -97,7 +97,7 @@ Acceptance requires successfully uploading and injecting one story. Run:
 
     python inject_story_snippet.py --station neuralcast
 
-Expect output summarizing the chosen upcoming song, generated story file paths, uploaded media ID, and the telnet request ID returned after pushing to `interrupting_requests`. During playback, confirm that the story airs immediately before the selected song (e.g., by monitoring `/api/nowplaying/neuralcast` or listening to the stream).
+Expect output summarizing the chosen upcoming song, generated story file paths, uploaded media ID, and the telnet request ID returned after pushing to `interrupting_requests`. During playback, confirm that the story airs immediately after the selected song (e.g., by monitoring `/api/nowplaying/neuralcast` or listening to the stream).
 
 ## Idempotence and Recovery
 
@@ -109,7 +109,7 @@ Capture key evidence once available, such as:
 
     Selected upcoming song: <Artist> - <Title> (queue ID XYZ)
     Story text stored at: stories/snippets/Story_<Artist>_<Title>.txt
-    Story MP3 uploaded as media ID <UUID>; queued position immediately before <queue entry>.
+    Story MP3 uploaded as media ID <UUID>; queued position immediately after <queue entry>.
 
 Attach excerpts of the queue JSON response showing ordering to this section during implementation.
 
@@ -129,7 +129,13 @@ New script `inject_story_snippet.py` must provide:
     def synthesize_story_audio(text: str, outfile: pathlib.Path) -> None:
         """Create TTS audio using stories/tts_story_instructions.md and the Ash voice."""
 
-    def wait_for_track_and_inject(client: AzuraCastClient, station_slug: str, station_id: int, preceding_track: UpcomingTrack, target_track: UpcomingTrack, telnet_command: str, *, lead_seconds: int, timeout_seconds: int, poll_interval: int) -> Optional[str]:
-        """Monitor the preceding song and push the story via the Liquidsoap interrupt queue so it airs before the target track."""
+    def wait_for_track_and_inject(client: AzuraCastClient, station_slug: str, station_id: int, target_track: UpcomingTrack, telnet_command: str, *, lead_seconds: int, timeout_seconds: int, poll_interval: int) -> Optional[str]:
+        """Wait for the selected song and push the story via the Liquidsoap interrupt queue so it airs immediately afterward."""
 
-Data classes like `UpcomingTrack` should clarify required fields (artist, title, song_id, queue_id). The client wrapper must expose methods for now-playing retrieval, upcoming queue inspection, media upload, and issuing telnet commands. Depend on `requests`, `pathlib`, `dotenv`, and the local OpenAI utilities. Document any additional pip dependencies if new packages become necessary.
+    def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
+        """Remove local snippet files older than the retention window and tidy empty folders."""
+
+    def cleanup_remote_stories(client: AzuraCastClient, station_slug: str, keep_days: int) -> None:
+        """Delete uploaded snippet files older than the retention window via the AzuraCast files API."""
+
+Data classes like `UpcomingTrack` should clarify required fields (artist, title, song_id, queue_id). The client wrapper must expose methods for now-playing retrieval, upcoming queue inspection, media upload, file deletion, and issuing telnet commands. Depend on `requests`, `pathlib`, `dotenv`, and the local OpenAI utilities. Document any additional pip dependencies if new packages become necessary.
