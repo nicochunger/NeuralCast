@@ -393,7 +393,7 @@ def escape_annotation_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def build_interrupting_command(
+def build_request_command(
     media_full_path: str,
     story_artist: str,
     story_title: str,
@@ -406,10 +406,7 @@ def build_interrupting_command(
     if duration is not None and duration > 0:
         annotations.append(f'duration="{duration}"')
     annotation_block = ",".join(annotations)
-    return (
-        f"interrupting_requests.push annotate:{annotation_block}:"
-        f"{media_full_path}"
-    )
+    return f"requests.push annotate:{annotation_block}:{media_full_path}"
 
 
 def is_song_match(song_payload: Dict, track: UpcomingTrack) -> bool:
@@ -471,13 +468,13 @@ def wait_for_track_and_inject(
             if remaining is not None:
                 print(f"Target song playing; remaining time: {remaining}s")
             if remaining is None or remaining <= lead_seconds:
-                print("Injecting story via interrupting_requests...")
+                print("Queuing story via requests.push...")
                 response = client.send_telnet_command(station_id, telnet_command)
                 pushed_request_id = extract_telnet_response(response)
                 break
         elif track_detected:
             print(
-                "Target song finished earlier than expected; injecting story immediately..."
+                "Target song finished earlier than expected; queuing story immediately..."
             )
             response = client.send_telnet_command(station_id, telnet_command)
             pushed_request_id = extract_telnet_response(response)
@@ -694,7 +691,7 @@ def run(args: argparse.Namespace) -> None:
             except (TypeError, ValueError):
                 story_duration = None
 
-    telnet_command = build_interrupting_command(
+    telnet_command = build_request_command(
         media_full_path=full_media_path,
         story_artist="NeuralCast AI",
         story_title=f"Historia: {selected_track.title}",
@@ -712,16 +709,16 @@ def run(args: argparse.Namespace) -> None:
             poll_interval=args.poll_interval,
         )
     except RuntimeError as exc:
-        print(f"Error while waiting to inject story: {exc}")
+        print(f"Error while waiting to queue story: {exc}")
         print(
-            "The story MP3 is uploaded; you can inject it manually via Liquidsoap telnet with:\n"
+            "The story MP3 is uploaded; you can queue it manually via Liquidsoap telnet with:\n"
             f"  {telnet_command}"
         )
         raise
     if request_id:
-        print(f"Story queued via interrupting_requests with request ID {request_id}.")
+        print(f"Story queued via requests.push with request ID {request_id}.")
     else:
-        print("Story queued via interrupting_requests.")
+        print("Story queued via requests.push.")
 
     cleanup_local_stories(args.station, args.keep_local_days)
     cleanup_remote_stories(client, args.station, args.keep_remote_days)
@@ -762,7 +759,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--inject-lead-seconds",
         type=int,
         default=15,
-        help="Seconds before song completion to trigger the story injection (default: %(default)s).",
+        help="Seconds before song completion to queue the story request (default: %(default)s).",
     )
     parser.add_argument(
         "--inject-timeout",
