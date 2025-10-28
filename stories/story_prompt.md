@@ -5,12 +5,12 @@ Requirements:
 * The story **must be written in Spanish (Rioplatense)**.
 * Tone: natural, calm, spontaneous — like someone speaking live from a radio studio (think Aspen-style warmth), not reading a rehearsed script.
 * Voice: serene, mature, slightly nostalgic, authentic. Don’t dramatize or overact.
+* Because this goes out immediately after the song ends, acknowledge it — e.g. “recién escuchamos…”, “eso fue…”, “acabamos de escuchar…”. etc
 * Use natural filler words and small hesitations to sound human, e.g. “bueno…”, “viste…”, “no sé…”, “lo loco es que…”, “en realidad…”, short pauses, etc.
 * Avoid grandiloquent or poetic lines — it should sound like a simple, conversational recollection or anecdote about the song.
-* Length: brief — suitable to be read in about **40–60 seconds** on air.
+* Length: brief — aim for roughly **150–250 words** so it fits into ~45–90 seconds on air.
 * Keep it spontaneous, with natural rhythm and small colloquial touches, nothing that sounds obviously scripted.
 * Do not include links, web addresses, or numeric reference markers like “[1]”.
-* This sni
 
 Fact-checking:
 
