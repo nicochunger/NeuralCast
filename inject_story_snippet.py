@@ -324,9 +324,9 @@ def ensure_story_assets(
     safe_artist = sanitize_filename_component(artist).replace("'", "")
     safe_title = sanitize_filename_component(title).replace("'", "")
     timestamp = dt.datetime.now()
-    date_parts = [timestamp.strftime("%Y"), timestamp.strftime("%m"), timestamp.strftime("%d")]
+    date_str = timestamp.strftime("%Y-%m-%d")
     station_dir = STORY_OUTPUT_DIR / station_slug
-    target_dir = station_dir.joinpath(*date_parts)
+    target_dir = station_dir / date_str
     base_name = f"Story_{safe_artist}_{safe_title}_{timestamp.strftime('%H%M%S')}"
     audio_path = target_dir / f"{base_name}.mp3"
     text_path = target_dir / f"{base_name}.txt"
@@ -340,7 +340,7 @@ def ensure_story_assets(
         audio_path=audio_path,
         story_text=story_text,
         remote_path="/".join(
-            ["AI Stories", station_slug, *date_parts, f"{base_name}.mp3"]
+            ["AI Stories", station_slug, date_str, f"{base_name}.mp3"]
         ),
     )
 
@@ -454,6 +454,11 @@ def wait_for_track_and_inject(
     track_detected = False
     pushed_request_id: Optional[str] = None
 
+    if lead_seconds > 0:
+        print(
+            "Note: inject_lead_seconds is ignored; story will be queued as soon as the song starts."
+        )
+
     print(
         f"Waiting for target song '{target_track.artist} - {target_track.title}' to start playing..."
     )
@@ -467,11 +472,10 @@ def wait_for_track_and_inject(
             track_detected = True
             if remaining is not None:
                 print(f"Target song playing; remaining time: {remaining}s")
-            if remaining is None or remaining <= lead_seconds:
-                print("Queuing story via requests.push...")
-                response = client.send_telnet_command(station_id, telnet_command)
-                pushed_request_id = extract_telnet_response(response)
-                break
+            print("Queuing story via requests.push...")
+            response = client.send_telnet_command(station_id, telnet_command)
+            pushed_request_id = extract_telnet_response(response)
+            break
         elif track_detected:
             print(
                 "Target song finished earlier than expected; queuing story immediately..."
@@ -759,7 +763,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--inject-lead-seconds",
         type=int,
         default=15,
-        help="Seconds before song completion to queue the story request (default: %(default)s).",
+        help="(Deprecated) Previously delayed queueing; currently ignored because the story queues as soon as the song starts.",
     )
     parser.add_argument(
         "--inject-timeout",
