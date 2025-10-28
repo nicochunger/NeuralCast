@@ -203,6 +203,36 @@ def parse_upcoming_queue(queue_payload: Sequence[Dict]) -> List[UpcomingTrack]:
     return parsed
 
 
+def tracks_equal(a: UpcomingTrack, b: UpcomingTrack) -> bool:
+    if a.queue_id and b.queue_id and a.queue_id == b.queue_id:
+        return True
+    if a.song_id and b.song_id and a.song_id == b.song_id:
+        return True
+    return (
+        (a.artist or "").strip().lower() == (b.artist or "").strip().lower()
+        and (a.title or "").strip().lower() == (b.title or "").strip().lower()
+    )
+
+
+def find_following_track(
+    selected: UpcomingTrack,
+    current_track_candidate: Optional[UpcomingTrack],
+    upcoming_tracks: Sequence[UpcomingTrack],
+) -> Optional[UpcomingTrack]:
+    if (
+        current_track_candidate is not None
+        and tracks_equal(selected, current_track_candidate)
+    ):
+        return upcoming_tracks[0] if upcoming_tracks else None
+
+    for idx, track in enumerate(upcoming_tracks):
+        if tracks_equal(selected, track):
+            if idx + 1 < len(upcoming_tracks):
+                return upcoming_tracks[idx + 1]
+            return None
+    return None
+
+
 def select_song_with_ai(
     upcoming: Sequence[UpcomingTrack],
     model: str = "gpt-5-mini",
@@ -292,12 +322,16 @@ def cleanup_story_text(raw: str) -> str:
     return cleaned.strip()
 
 
-def generate_story_text(artist: str, title: str, station: str) -> str:
+def generate_story_text(
+    artist: str, title: str, station: str, next_artist: str, next_title: str
+) -> str:
     template = STORY_PROMPT_PATH.read_text(encoding="utf-8")
     prompt = (
         template.replace("[ARTIST]", artist)
         .replace("[TITLE]", title)
         .replace("[STATION]", station)
+        .replace("[NEXT_ARTIST]", next_artist)
+        .replace("[NEXT_TITLE]", next_title)
     )
     story = openai_text_completion(prompt=prompt, model="gpt-5-search-api")
     return cleanup_story_text(story)
@@ -646,7 +680,24 @@ def run(args: argparse.Namespace) -> None:
     if not selection_pool:
         raise RuntimeError("No tracks available to choose from.")
 
-    selected_track = select_song_with_ai(selection_pool)
+    eligible_selection_pool: List[UpcomingTrack] = []
+    for track in selection_pool:
+        next_track_candidate = find_following_track(
+            track, current_track_candidate, upcoming_tracks
+        )
+        if next_track_candidate is not None:
+            eligible_selection_pool.append(track)
+        else:
+            print(
+                f"Skipping '{track.artist} - {track.title}' because there is no known song queued to follow it."
+            )
+
+    if not eligible_selection_pool:
+        raise RuntimeError(
+            "No eligible tracks with a known following song are available for story injection."
+        )
+
+    selected_track = select_song_with_ai(eligible_selection_pool)
     print(
         f"Selected upcoming song: {selected_track.artist} - {selected_track.title} (queue_id={selected_track.queue_id})"
     )
@@ -655,11 +706,26 @@ def run(args: argparse.Namespace) -> None:
     else:
         print("Story will play after the selected track.")
 
+    following_track = find_following_track(
+        selected_track, current_track_candidate, upcoming_tracks
+    )
+    if following_track is None:
+        raise RuntimeError(
+            "Failed to determine which song follows the selected track; cannot craft segue."
+        )
+    print(
+        f"Story will introduce the next song: {following_track.artist} - {following_track.title}."
+    )
+
     station_display_name = (station.get("name") or args.station).strip()
     if args.station.lower() == "neuralforge":
         station_display_name = "NéuralForsh"
     story_text = generate_story_text(
-        selected_track.artist, selected_track.title, station_display_name
+        selected_track.artist,
+        selected_track.title,
+        station_display_name,
+        following_track.artist,
+        following_track.title,
     )
     assets = ensure_story_assets(
         args.station, selected_track.artist, selected_track.title, story_text
