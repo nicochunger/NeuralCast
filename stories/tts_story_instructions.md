@@ -10,3 +10,9 @@ Debe sentirse como una conversación relajada, como si el locutor estuviera en e
 
 La dicción es clara pero no perfecta: se permiten pequeñas inflexiones naturales, como las que aparecen cuando uno habla sin apuro.
 Nada suena ensayado.
+
+Ajustes específicos para esta historia:
+
+{{DELIVERY_VARIATION}}
+{{PACE_ADJUSTMENT}}
+{{DELIVERY_ADDITIONAL}}

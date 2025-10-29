@@ -22,10 +22,26 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from openai_utils import openai_speech, openai_text_completion
 from playlist_utils import sanitize_filename_component
+from story_variation import (
+    DELIVERY_VARIANTS,
+    NARRATIVE_VARIANTS,
+    DeliveryVariant,
+    NarrativeVariant,
+    compute_story_seed,
+    deterministic_variant_choice,
+    iter_recent_ids,
+    load_style_history,
+    save_style_history,
+    update_style_history,
+)
 
 STORY_PROMPT_PATH = pathlib.Path("stories/story_prompt.md")
 TTS_INSTRUCTIONS_PATH = pathlib.Path("stories/tts_story_instructions.md")
 STORY_OUTPUT_DIR = pathlib.Path("stories") / "snippets"
+STYLE_HISTORY_PATH = pathlib.Path("stories/style_history.json")
+STYLE_HISTORY_MAX_ENTRIES = 60
+NARRATIVE_AVOID_WINDOW = 3
+DELIVERY_AVOID_WINDOW = 3
 
 
 @dataclass
@@ -323,28 +339,59 @@ def cleanup_story_text(raw: str) -> str:
 
 
 def generate_story_text(
-    artist: str, title: str, station: str, next_artist: str, next_title: str
+    artist: str,
+    title: str,
+    station: str,
+    next_artist: str,
+    next_title: str,
+    narrative_variant: NarrativeVariant,
 ) -> str:
     template = STORY_PROMPT_PATH.read_text(encoding="utf-8")
-    prompt = (
-        template.replace("[ARTIST]", artist)
-        .replace("[TITLE]", title)
-        .replace("[STATION]", station)
-        .replace("[NEXT_ARTIST]", next_artist)
-        .replace("[NEXT_TITLE]", next_title)
-    )
+    prompt = template
+    replacements = {
+        "ARTIST": artist,
+        "TITLE": title,
+        "STATION": station,
+        "NEXT_ARTIST": next_artist,
+        "NEXT_TITLE": next_title,
+    }
+    for key, value in replacements.items():
+        prompt = prompt.replace(f"[{key}]", value)
+
+    variant_replacements = {
+        "INTRO_STYLE": narrative_variant.intro_instruction,
+        "BODY_STYLE": narrative_variant.body_instruction,
+        "OUTRO_STYLE": narrative_variant.outro_instruction,
+        "FILLER_WORDS": narrative_variant.filler_words,
+    }
+    for key, value in variant_replacements.items():
+        prompt = prompt.replace(f"{{{{{key}}}}}", value)
+
     story = openai_text_completion(prompt=prompt, model="gpt-5-search-api")
     return cleanup_story_text(story)
 
 
-def synthesize_story_audio(story_text: str, outfile: pathlib.Path) -> None:
-    tts_instructions = TTS_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
+def synthesize_story_audio(
+    story_text: str,
+    outfile: pathlib.Path,
+    delivery_variant: DeliveryVariant,
+) -> None:
+    tts_template = TTS_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
+    instructions = tts_template
+    delivery_replacements = {
+        "DELIVERY_VARIATION": delivery_variant.delivery_instruction,
+        "PACE_ADJUSTMENT": delivery_variant.pace_instruction,
+        "DELIVERY_ADDITIONAL": delivery_variant.additional_prompts,
+    }
+    for key, value in delivery_replacements.items():
+        instructions = instructions.replace(f"{{{{{key}}}}}", value)
+
     openai_speech(
         text=story_text,
         outfile=str(outfile),
         model="gpt-4o-mini-tts",
         voice="ash",
-        instructions=tts_instructions,
+        instructions=instructions,
     )
 
 
@@ -353,7 +400,11 @@ def write_story_text_file(story_text: str, outfile: pathlib.Path) -> None:
 
 
 def ensure_story_assets(
-    station_slug: str, artist: str, title: str, story_text: str
+    station_slug: str,
+    artist: str,
+    title: str,
+    story_text: str,
+    delivery_variant: DeliveryVariant,
 ) -> StoryAssets:
     safe_artist = sanitize_filename_component(artist).replace("'", "")
     safe_title = sanitize_filename_component(title).replace("'", "")
@@ -367,7 +418,7 @@ def ensure_story_assets(
 
     target_dir.mkdir(parents=True, exist_ok=True)
     write_story_text_file(story_text, text_path)
-    synthesize_story_audio(story_text, audio_path)
+    synthesize_story_audio(story_text, audio_path, delivery_variant)
 
     return StoryAssets(
         text_path=text_path,
@@ -720,21 +771,54 @@ def run(args: argparse.Namespace) -> None:
     station_display_name = (station.get("name") or args.station).strip()
     if args.station.lower() == "neuralforge":
         station_display_name = "NéuralForsh"
+
+    story_seed = compute_story_seed(
+        station=args.station,
+        artist=selected_track.artist,
+        title=selected_track.title,
+        next_artist=following_track.artist,
+        next_title=following_track.title,
+    )
+    history = load_style_history(STYLE_HISTORY_PATH)
+    narrative_recent = list(iter_recent_ids(history, args.station, "narrative_id"))
+    delivery_recent = list(iter_recent_ids(history, args.station, "delivery_id"))
+    _, narrative_variant = deterministic_variant_choice(
+        seed=f"{story_seed}|narrative",
+        variants=NARRATIVE_VARIANTS,
+        recent_ids=narrative_recent,
+        avoid_window=NARRATIVE_AVOID_WINDOW,
+    )
+    _, delivery_variant = deterministic_variant_choice(
+        seed=f"{story_seed}|delivery",
+        variants=DELIVERY_VARIANTS,
+        recent_ids=delivery_recent,
+        avoid_window=DELIVERY_AVOID_WINDOW,
+    )
+    print(
+        f"Narrative style selected: {narrative_variant.style_id} — {narrative_variant.description}"
+    )
+    print(f"Delivery style selected: {delivery_variant.style_id} — {delivery_variant.description}")
+
     story_text = generate_story_text(
         selected_track.artist,
         selected_track.title,
         station_display_name,
         following_track.artist,
         following_track.title,
+        narrative_variant,
     )
     assets = ensure_story_assets(
-        args.station, selected_track.artist, selected_track.title, story_text
+        args.station,
+        selected_track.artist,
+        selected_track.title,
+        story_text,
+        delivery_variant,
     )
     print(f"Story text saved to {assets.text_path}")
     print(f"Story audio saved to {assets.audio_path}")
 
     if args.dry_run:
-        print("Dry-run mode enabled; skipping upload and queue injection.")
+        print("Dry-run mode enabled; skipping upload, queue injection, and style history update.")
         return
 
     upload_response = client.upload_media(
@@ -789,6 +873,16 @@ def run(args: argparse.Namespace) -> None:
         print(f"Story queued via requests.push with request ID {request_id}.")
     else:
         print("Story queued via requests.push.")
+
+    update_style_history(
+        history=history,
+        station=args.station,
+        seed=story_seed,
+        narrative_id=narrative_variant.style_id,
+        delivery_id=delivery_variant.style_id,
+        max_entries=STYLE_HISTORY_MAX_ENTRIES,
+    )
+    save_style_history(STYLE_HISTORY_PATH, history)
 
     cleanup_local_stories(args.station, args.keep_local_days)
     cleanup_remote_stories(client, args.station, args.keep_remote_days)
@@ -846,7 +940,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--current-min-remaining",
         type=int,
-        default=60,
+        default=75,
         help="Include the current song in selection only if it has at least this many seconds remaining (default: %(default)s).",
     )
     parser.add_argument(

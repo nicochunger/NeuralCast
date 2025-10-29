@@ -5,3 +5,4 @@ __pycache__/
 *.mp3
 .vscode/
 stories/snippets/
+stories/style_history.json

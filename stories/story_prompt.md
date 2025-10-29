@@ -13,6 +13,13 @@ Requirements:
 * Keep it spontaneous, with natural rhythm and small colloquial touches, nothing that sounds obviously scripted.
 * Do not include links, web addresses, or numeric reference markers like “[1]”.
 
+Style cues to weave into the narration (mantain the Aspen warmth while applying them):
+
+* {{INTRO_STYLE}}
+* {{BODY_STYLE}}
+* {{OUTRO_STYLE}}
+* {{FILLER_WORDS}}
+
 Fact-checking:
 
 * Before including any factual claims (dates, recording facts, chart positions, anecdotes), research online and verify them.
