@@ -569,7 +569,17 @@ def _resolve_destination_playlist(
     return sorted(candidates.keys())[0]
 
 
-def _append_release_to_playlist(csv_path: Path, release: ArtistRelease) -> None:
+def _append_release_to_playlist(
+    csv_path: Path, release: ArtistRelease, dry_run: bool
+) -> None:
+    action = (
+        f"Dry run: would append '{release.artist} - {release.title}' to {csv_path.name}"
+        if dry_run
+        else f"Appending '{release.artist} - {release.title}' to {csv_path.name}"
+    )
+    logger.info(action)
+    if dry_run:
+        return
     try:
         df = pd.read_csv(csv_path)
     except Exception as exc:  # noqa: BLE001
@@ -613,6 +623,7 @@ def _move_track_audio(
     source_dir_name: str,
     destination_dir_name: str,
     release: ArtistRelease,
+    dry_run: bool,
 ) -> None:
     if not audio_root:
         return
@@ -621,7 +632,16 @@ def _move_track_audio(
         logger.debug(f"Audio source directory missing: {src_dir}")
         return
     dest_dir = audio_root / destination_dir_name
+    if dry_run:
+        logger.info(
+            f"Dry run: would move audio for '{release.artist} - {release.title}'"
+            f" from {src_dir} to {dest_dir}"
+        )
+        return
     dest_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(
+        f"Moving audio for '{release.artist} - {release.title}' from {src_dir} to {dest_dir}"
+    )
     target_key = _normalize_audio_label(release.artist, release.title)
     for candidate in src_dir.iterdir():
         if not candidate.is_file():
@@ -632,9 +652,11 @@ def _move_track_audio(
         if candidate_key == target_key or target_key in candidate_key:
             dest_path = dest_dir / candidate.name
             candidate.replace(dest_path)
-            logger.debug(f"Moved {candidate.name} to {dest_dir}")
+            logger.info(f"Moved {candidate.name} to {dest_dir}")
             return
-    logger.debug(f"No audio found for {release.artist} - {release.title} in {src_dir}")
+    logger.warning(
+        f"No audio found for {release.artist} - {release.title} in {src_dir}; nothing moved"
+    )
 
 
 def move_outdated_releases(
@@ -642,17 +664,41 @@ def move_outdated_releases(
     artist_playlist_map: dict[str, dict[Path, set[str]]],
     audio_root: Optional[Path],
     new_releases_dir_name: str,
+    dry_run: bool,
 ) -> None:
     if not releases:
         return
-    logger.info(f"Archiving {len(releases)} expired tracks from New Releases")
+    migrations: list[tuple[ArtistRelease, Path]] = []
     for release in releases:
         destination = _resolve_destination_playlist(release, artist_playlist_map)
         if not destination:
             logger.warning(f"No destination playlist for {release.artist} - {release.title}")
             continue
-        _append_release_to_playlist(destination, release)
-        _move_track_audio(audio_root, new_releases_dir_name, destination.stem, release)
+        migrations.append((release, destination))
+        if not dry_run:
+            _append_release_to_playlist(destination, release, dry_run=dry_run)
+            _move_track_audio(
+                audio_root,
+                new_releases_dir_name,
+                destination.stem,
+                release,
+                dry_run=dry_run,
+            )
+    if not migrations:
+        return
+    action_phrase = (
+        "Dry run: would move the following tracks to permanent playlists"
+        if dry_run
+        else "Moved the following tracks to permanent playlists"
+    )
+    logger.info(action_phrase)
+    for release, destination in migrations:
+        logger.info(
+            "  - %s - %s -> %s",
+            release.artist,
+            release.title,
+            destination.name,
+        )
 
 
 def fetch_recent_releases(
@@ -930,6 +976,28 @@ def main() -> None:
         seen_tracks=existing_ids,
         seen_keys=existing_keys,
     )
+    if new_releases:
+        download_phrase = (
+            "Dry run: the following tracks would be downloaded"
+            if args.dry_run
+            else "The following tracks will be downloaded"
+        )
+        logger.info(download_phrase)
+        for release in new_releases:
+            release_date = (
+                release.release_date.date().isoformat()
+                if isinstance(release.release_date, datetime)
+                else "unknown date"
+            )
+            logger.info(
+                "  - %s - %s (%s, %s)",
+                release.artist,
+                release.title,
+                release.album,
+                release_date,
+            )
+    else:
+        logger.info("No new tracks to download this run.")
 
     combined = valid_existing + new_releases
     combined.sort(key=lambda item: (item.release_date, item.popularity or 0), reverse=True)
@@ -953,6 +1021,7 @@ def main() -> None:
             artist_playlist_map,
             audio_root,
             "New Releases",  # always use this for the source dir
+            dry_run=args.dry_run,
         )
 
     if final_releases:
