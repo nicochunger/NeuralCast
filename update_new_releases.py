@@ -31,7 +31,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+_METADATA_DIRNAME = "metadata"
 _METADATA_FILENAME = "New Releases.metadata.json"
+_ARTIST_CACHE_FILENAME = "ArtistIDs.json"
+_KNOWN_TRACK_SAMPLE_SIZE = 8
+
+
+def _normalize_artist_key(name: str) -> str:
+    normalized = unicodedata.normalize("NFKC", name or "")
+    collapsed = re.sub(r"\s+", " ", normalized).strip()
+    return collapsed.casefold()
+
+
+@dataclass
+class ArtistIDCache:
+    entries: dict[str, str]
+    dirty: bool = False
+
+    def get(self, artist_name: str) -> Optional[str]:
+        return self.entries.get(_normalize_artist_key(artist_name))
+
+    def set(self, artist_name: str, artist_id: str) -> None:
+        if not artist_id:
+            return
+        key = _normalize_artist_key(artist_name)
+        if self.entries.get(key) == artist_id:
+            return
+        self.entries[key] = artist_id
+        self.dirty = True
+
+    def remove(self, artist_name: str) -> None:
+        key = _normalize_artist_key(artist_name)
+        if key in self.entries:
+            del self.entries[key]
+            self.dirty = True
+
+
+def _metadata_dir(playlists_dir: Path) -> Path:
+    return playlists_dir.parent / _METADATA_DIRNAME
+
+
+def _metadata_path(playlists_dir: Path) -> Path:
+    return _metadata_dir(playlists_dir) / _METADATA_FILENAME
+
+
+def _artist_cache_path(playlists_dir: Path) -> Path:
+    return _metadata_dir(playlists_dir) / _ARTIST_CACHE_FILENAME
+
+
+def _legacy_metadata_file(playlists_dir: Path, filename: str) -> Path:
+    return playlists_dir / filename
+
+
+def _resolve_metadata_file(playlists_dir: Path, filename: str) -> Path:
+    new_path = _metadata_dir(playlists_dir) / filename
+    if new_path.exists():
+        return new_path
+    legacy_path = _legacy_metadata_file(playlists_dir, filename)
+    if legacy_path.exists():
+        logger.info(
+            f"Using legacy metadata path {legacy_path} for {filename}. "
+            f"It will be migrated to {_METADATA_DIRNAME}/ on next write."
+        )
+        return legacy_path
+    return new_path
+
+
+def load_artist_id_cache(playlists_dir: Path) -> ArtistIDCache:
+    path = _resolve_metadata_file(playlists_dir, _ARTIST_CACHE_FILENAME)
+    if not path.exists():
+        return ArtistIDCache(entries={})
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Failed reading artist cache {path}: {exc}")
+        return ArtistIDCache(entries={})
+    if not isinstance(data, dict):
+        logger.warning(f"Unexpected artist cache structure in {path}")
+        return ArtistIDCache(entries={})
+    entries: dict[str, str] = {}
+    for key, value in data.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            continue
+        entries[key] = value
+    return ArtistIDCache(entries=entries)
+
+
+def save_artist_id_cache(playlists_dir: Path, cache: ArtistIDCache) -> None:
+    if not cache.dirty:
+        return
+    path = _artist_cache_path(playlists_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(cache.entries, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    logger.info(f"Wrote {len(cache.entries)} artist IDs to {path}")
 
 
 @dataclass
@@ -161,6 +256,115 @@ def _artist_has_known_track(
             if any(art.get("id") == artist_id for art in artists if art.get("id")):
                 return True
     return False
+
+
+def _fetch_artist_by_id(sp: Spotify, artist_id: str) -> Optional[dict]:
+    if not artist_id:
+        return None
+    while True:
+        try:
+            return sp.artist(artist_id)
+        except SpotifyException as exc:
+            if exc.http_status == 429:
+                retry_after = int(exc.headers.get("Retry-After", "5"))
+                logger.warning(
+                    f"Rate limited fetching artist {artist_id}, sleeping {retry_after}s"
+                )
+                time.sleep(retry_after)
+                continue
+            logger.error(f"Spotify artist lookup failed for {artist_id}: {exc}")
+            return None
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"Unexpected error fetching artist {artist_id}: {exc}")
+            return None
+
+
+def _search_artist_using_known_tracks(
+    sp: Spotify, artist_name: str, known_titles: Optional[set[str]]
+) -> Optional[dict]:
+    if not known_titles:
+        return None
+    normalized_target = _normalize_artist_key(artist_name)
+    titles = sorted(title for title in known_titles if title)[:_KNOWN_TRACK_SAMPLE_SIZE]
+    for title in titles:
+        query = f'track:"{title}" artist:"{artist_name}"'
+        while True:
+            try:
+                resp = sp.search(q=query, type="track", limit=5)
+                break
+            except SpotifyException as exc:
+                if exc.http_status == 429:
+                    retry_after = int(exc.headers.get("Retry-After", "5"))
+                    logger.warning(
+                        f"Rate limited during artist disambiguation for '{artist_name}', sleeping {retry_after}s"
+                    )
+                    time.sleep(retry_after)
+                    continue
+                logger.error(
+                    f"Spotify search failed for known title '{title}' ({artist_name}): {exc}"
+                )
+                resp = None
+                break
+        if not resp:
+            continue
+        for track in resp.get("tracks", {}).get("items", []):
+            artists = track.get("artists", [])
+            for art in artists:
+                art_name = art.get("name", "")
+                if _normalize_artist_key(art_name) != normalized_target:
+                    continue
+                artist_id = art.get("id")
+                if not artist_id:
+                    continue
+                logger.debug(
+                    f"Resolved artist '{artist_name}' via known title '{title}' (track {track.get('id')})"
+                )
+                return _fetch_artist_by_id(sp, artist_id) or {
+                    "id": artist_id,
+                    "name": art_name,
+                }
+    return None
+
+
+def _resolve_artist(
+    sp: Spotify,
+    artist_name: str,
+    known_titles: Optional[set[str]],
+    cache: Optional[ArtistIDCache],
+) -> Optional[dict]:
+    cached_id = cache.get(artist_name) if cache else None
+    if cached_id:
+        artist = _fetch_artist_by_id(sp, cached_id)
+        if artist:
+            if known_titles:
+                if _artist_has_known_track(
+                    sp, artist.get("id", ""), artist_name, known_titles
+                ):
+                    logger.debug(f"Resolved artist '{artist_name}' from cache (verified)")
+                    return artist
+                logger.warning(
+                    f"Cached artist ID mismatch for '{artist_name}', refreshing lookup"
+                )
+                cache.remove(artist_name)
+            else:
+                logger.debug(f"Resolved artist '{artist_name}' from cache")
+                return artist
+        logger.info(f"Removing stale artist cache entry for '{artist_name}'")
+        cache.remove(artist_name)
+
+    artist = _search_artist_using_known_tracks(sp, artist_name, known_titles)
+    if artist:
+        if cache and artist.get("id"):
+            cache.set(artist_name, artist.get("id", ""))
+        return artist
+
+    artist = _best_artist_match(sp, artist_name, known_titles)
+    if artist and cache and artist.get("id"):
+        if not known_titles:
+            cache.set(artist_name, artist["id"])
+        elif _artist_has_known_track(sp, artist["id"], artist_name, known_titles):
+            cache.set(artist_name, artist["id"])
+    return artist
 
 
 def _best_artist_match(
@@ -392,10 +596,6 @@ def _normalize_audio_label(*parts: str) -> str:
     return re.sub(r"[^a-z0-9]", "", normalized.casefold())
 
 
-def _metadata_path(playlists_dir: Path) -> Path:
-    return playlists_dir / _METADATA_FILENAME
-
-
 def _normalize_metadata_component(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value or "")
     return normalized.strip().casefold()
@@ -413,7 +613,7 @@ def _metadata_key(artist: str, title: str, album: str, year: int) -> str:
 
 
 def _load_metadata_entries(playlists_dir: Path) -> dict[str, dict]:
-    path = _metadata_path(playlists_dir)
+    path = _resolve_metadata_file(playlists_dir, _METADATA_FILENAME)
     if not path.exists():
         return {}
     try:
@@ -451,6 +651,7 @@ def _save_metadata_entries(
         }
     payload = {"entries": entries}
     path = _metadata_path(playlists_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
         handle.write("\n")
@@ -702,10 +903,14 @@ def move_outdated_releases(
 
 
 def fetch_recent_releases(
-    sp: Spotify, artist_name: str, cutoff: datetime, known_titles: Optional[set[str]] = None
+    sp: Spotify,
+    artist_name: str,
+    cutoff: datetime,
+    known_titles: Optional[set[str]] = None,
+    artist_cache: Optional[ArtistIDCache] = None,
 ) -> list[ArtistRelease]:
     logger.debug(f"Fetching recent releases for artist: {artist_name}")
-    artist = _best_artist_match(sp, artist_name, known_titles)
+    artist = _resolve_artist(sp, artist_name, known_titles, artist_cache)
     if not artist:
         logger.debug(f"No artist found for {artist_name}")
         return []
@@ -728,6 +933,13 @@ def fetch_recent_releases(
         # Choose the first track in album order to represent the release (skip "Live")
         tracks.sort(key=lambda t: (t.get("disc_number", 0), t.get("track_number", 0)))
         track = tracks[0]
+        if not any(
+            (art.get("id") == artist_id) for art in track.get("artists", []) if art.get("id")
+        ):
+            logger.debug(
+                f"Skipping track '{track.get('name', '')}' because artist ID {artist_id} is not present"
+            )
+            continue
         title = track.get("name", "").strip()
         album_name = album.get("name", "").strip()
         # Skip non-new variants by robust patterns
@@ -772,6 +984,7 @@ def build_new_releases(
     min_popularity: int = 0,
     prefer_singles: bool = False,
     known_tracks: Optional[dict[str, set[str]]] = None,
+    artist_cache: Optional[ArtistIDCache] = None,
     cutoff: Optional[datetime] = None,
     seen_tracks: Optional[Set[str]] = None,
     seen_keys: Optional[Set[str]] = None,
@@ -788,7 +1001,9 @@ def build_new_releases(
         start=1,
     ):
         artist_titles = (known_tracks or {}).get(artist, set())
-        candidates = fetch_recent_releases(sp, artist, cutoff, artist_titles)
+        candidates = fetch_recent_releases(
+            sp, artist, cutoff, artist_titles, artist_cache=artist_cache
+        )
         if not candidates:
             continue
         _annotate_popularity(sp, candidates)
@@ -950,6 +1165,7 @@ def main() -> None:
 
     artists, artist_tracks, artist_playlist_map = load_station_artists(playlists_dir)
     logger.info(f"Loaded {len(artists)} artists from {playlists_dir}")
+    artist_cache = load_artist_id_cache(playlists_dir)
 
     # Always use [station]/songs as audio root, and playlist name as subdirectory
     audio_root = station_dir / "songs"
@@ -972,10 +1188,12 @@ def main() -> None:
         min_popularity=args.min_popularity,
         prefer_singles=args.prefer_singles,
         known_tracks=artist_tracks,
+        artist_cache=artist_cache,
         cutoff=cutoff,
         seen_tracks=existing_ids,
         seen_keys=existing_keys,
     )
+    save_artist_id_cache(playlists_dir, artist_cache)
     if new_releases:
         download_phrase = (
             "Dry run: the following tracks would be downloaded"

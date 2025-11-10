@@ -43,12 +43,31 @@ STATION = "neuralcast"
 
 TTS = False  # turn off if you only want music
 VOICE_NAME = "Adam"  # ElevenLabs voice
+_METADATA_DIRNAME = "metadata"
+_METADATA_FILENAME = "New Releases.metadata.json"
+
+
+def _resolve_metadata_paths(playlists_dir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
+    """Return (read_path, write_path) for the New Releases metadata file with legacy fallback."""
+    metadata_dir = playlists_dir.parent / _METADATA_DIRNAME
+    preferred_path = metadata_dir / _METADATA_FILENAME
+    legacy_path = playlists_dir / _METADATA_FILENAME
+    if preferred_path.exists():
+        return preferred_path, preferred_path
+    if legacy_path.exists():
+        print(
+            f"ℹ️ Using legacy metadata path {legacy_path} for New Releases; "
+            f"it will migrate to {preferred_path} on next write."
+        )
+        return legacy_path, preferred_path
+    return preferred_path, preferred_path
 
 
 def remove_new_releases_metadata_entries(
     playlists_dir: pathlib.Path, songs_to_remove: List[Song]
 ) -> int:
-    metadata_path = playlists_dir / "New Releases.metadata.json"
+    read_path, write_path = _resolve_metadata_paths(playlists_dir)
+    metadata_path = read_path if read_path.exists() else write_path
     if not songs_to_remove:
         return 0
     if not metadata_path.exists():
@@ -58,7 +77,7 @@ def remove_new_releases_metadata_entries(
         return 0
 
     try:
-        with metadata_path.open("r", encoding="utf-8") as handle:
+        with read_path.open("r", encoding="utf-8") as handle:
             payload = json.load(handle)
     except Exception as exc:  # noqa: BLE001
         print(f"⚠️ Failed to parse JSON from metadata file {metadata_path}: {exc}")
@@ -151,18 +170,19 @@ def remove_new_releases_metadata_entries(
     if removed > 0:
         output_payload = {"entries": entries} if wrapped else entries
         try:
-            with metadata_path.open("w", encoding="utf-8") as handle:
+            write_path.parent.mkdir(parents=True, exist_ok=True)
+            with write_path.open("w", encoding="utf-8") as handle:
                 json.dump(output_payload, handle, indent=2, sort_keys=True)
                 handle.write("\n")
             print(
-                f"🗂️ Updated metadata file: {metadata_path.name} (removed {removed} entr{'y' if removed == 1 else 'ies'})"
+                f"🗂️ Updated metadata file: {write_path.name} (removed {removed} entr{'y' if removed == 1 else 'ies'})"
             )
         except TypeError as exc:
-            print(f"⚠️ JSON serialization error while writing metadata file {metadata_path}: {exc}")
+            print(f"⚠️ JSON serialization error while writing metadata file {write_path}: {exc}")
         except OSError as exc:
-            print(f"⚠️ File write permission error for metadata file {metadata_path}: {exc}")
+            print(f"⚠️ File write permission error for metadata file {write_path}: {exc}")
         except Exception as exc:  # noqa: BLE001
-            print(f"⚠️ Unexpected error while writing metadata file {metadata_path}: {exc}")
+            print(f"⚠️ Unexpected error while writing metadata file {write_path}: {exc}")
 
     for song in missing:
         song_year = normalize_year(song.year)
