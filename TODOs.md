@@ -13,4 +13,6 @@
 
 ## Low Priority
 
- - [ ] Work on realtime TTS snippets injection module
+ - [x] Work on realtime TTS snippets injection module
+ - [ ] Put script in Pi/server and make it run periodically every ~2 hours. Not during the night.
+ - [ ] Experiment with other TTS models
