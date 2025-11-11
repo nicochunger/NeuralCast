@@ -21,6 +21,11 @@ The mellow, easy-listening side of prog—lush synths, warm Rhodes piano, gentle
 Chart-topping ’80s–’90s pop anthems with irresistible hooks and powerhouse vocals—think Michael Jackson, Madonna, Whitney Houston, ABBA, and icons alike.
 
 *1980 – 2000*
+## Punk Rock
+
+High‑energy punk and ska‑punk from first‑wave pioneers to modern anthems—Ramones, Sex Pistols, The Clash, Bad Religion, Rancid, Green Day, NOFX, Pennywise, blink‑182 and more, plus ska‑punk staples like Ska‑P and Operation Ivy.
+
+*1976 – present*
 
 ## Rock Nacional
 
