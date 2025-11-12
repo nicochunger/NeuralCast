@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import textwrap
 import time
 import warnings
@@ -425,7 +426,7 @@ def ensure_story_assets(
         audio_path=audio_path,
         story_text=story_text,
         remote_path="/".join(
-            ["AI Stories", station_slug, date_str, f"{base_name}.mp3"]
+            ["AI Stories", date_str, f"{base_name}.mp3"]
         ),
     )
 
@@ -588,6 +589,8 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
         return
 
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=keep_days)
+    cutoff_date = cutoff.date()
+    date_dir_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
     for file_path in base_dir.rglob("*"):
         if file_path.is_file() and file_path.suffix.lower() in {".mp3", ".txt"}:
             try:
@@ -602,16 +605,35 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
                 except OSError:
                     print(f"Warning: failed to remove local story file {file_path}")
 
-    # Remove empty directories (but keep the station root)
-    for dir_path in sorted(base_dir.rglob("*"), key=lambda p: len(str(p)), reverse=True):
-        if dir_path.is_dir():
+    # Remove dated directories once they fall outside the retention window
+    for dir_path in base_dir.iterdir():
+        if (
+            dir_path.is_dir()
+            and date_dir_pattern.match(dir_path.name)
+        ):
             try:
-                next(dir_path.iterdir())
-            except StopIteration:
+                dir_date = dt.datetime.strptime(dir_path.name, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if dir_date < cutoff_date:
                 try:
-                    dir_path.rmdir()
+                    shutil.rmtree(dir_path)
                 except OSError:
-                    pass
+                    print(f"Warning: failed to remove dated directory {dir_path}")
+
+    # Remove empty directories (but keep the station root)
+    for dir_path in sorted(
+        base_dir.rglob("*"), key=lambda p: len(str(p)), reverse=True
+    ):
+        if dir_path == base_dir or not dir_path.is_dir():
+            continue
+        try:
+            next(dir_path.iterdir())
+        except StopIteration:
+            try:
+                dir_path.rmdir()
+            except OSError:
+                pass
 
 
 def cleanup_remote_stories(
@@ -622,7 +644,7 @@ def cleanup_remote_stories(
 
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=keep_days)
     cutoff_ts = cutoff.timestamp()
-    prefix = f"AI Stories/{station_slug}/"
+    prefix = "AI Stories/"
 
     try:
         media_files = client.list_media_files(station_slug)
