@@ -104,3 +104,9 @@ Timeless Irish storytelling through traditional and contemporary folk—The Chie
 Soft-rock and adult-contemporary staples that evoke relaxed alpine mornings and cozy lodge afternoons—warm melodies with a mountain-air feel.
 
 *1980 – 2000*
+
+## Acoustic Singer‑Songwriter
+
+Intimate, lyric‑forward acoustic storytelling—fingerpicked guitars, hushed vocals and spare arrangements spanning 60s folk foundations through today’s indie troubadours. A quieter, more confessional lane than Aspen Vibes, focused on stripped‑back performances and emotional clarity.
+
+*1965 – present*
