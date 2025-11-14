@@ -4,7 +4,7 @@
 
  - [x] Add TTS snippets for NeuralForge
  - [x] Update the snippets for NeuralCast
- - [ ] Duplicate reggae playlists so that they also play during the day
+ - [x] Duplicate reggae playlists so that they also play during the day
  - [x] Fix timing of normal TTS snippest to not interfere with the one before Aspen Night
 
 ## Normal Priority
