@@ -12,6 +12,8 @@ load_dotenv()
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 _OPENAI_CLIENT: Optional[openai.OpenAI] = None
+_MODULE_DIR = pathlib.Path(__file__).resolve().parent
+_HOST_INSTRUCTIONS_PATH = _MODULE_DIR / "host_instructions_prompt.txt"
 
 
 def get_openai_client() -> openai.OpenAI:
@@ -81,9 +83,7 @@ def make_fun_fact(artist: str, title: str) -> str:
 
 
 def tts(text: str, outfile: str):
-    instruction_prompt = (
-        pathlib.Path("host_instructions_prompt.txt").read_text().strip()
-    )
+    instruction_prompt = _HOST_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
     openai_speech(
         text=text,
         outfile=outfile,

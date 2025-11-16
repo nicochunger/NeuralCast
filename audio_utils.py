@@ -85,8 +85,14 @@ def tag_mp3(
     _log("🔊 Applying ReplayGain")
     try:
         subprocess.run(["mp3gain", "-q", "-r", "-k", str(path)], check=True)
+    except FileNotFoundError as exc:
+        _log(
+            f"⚠️ mp3gain not available ({exc}); continuing without ReplayGain normalization"
+        )
     except subprocess.CalledProcessError as exc:
         _log(f"⚠️ Error applying ReplayGain: {exc}")
+    except OSError as exc:  # pragma: no cover - unexpected OS-level failure
+        _log(f"⚠️ ReplayGain skipped due to OS error: {exc}")
 
 
 def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
@@ -103,6 +109,7 @@ def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
         "-o",
         outfile,
         "--quiet",
+        "--no-playlist",
     ]
     subprocess.run(cmd, check=True)
     print(f"Downloaded: {outfile}")

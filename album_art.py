@@ -9,7 +9,11 @@ from difflib import SequenceMatcher
 
 import musicbrainzngs
 import requests
-from IPython.display import Image as IPyImage, display
+try:  # Optional dependency; only needed inside notebook debugging helpers
+    from IPython.display import Image as IPyImage, display
+except ImportError:  # pragma: no cover - IPython is optional for CLI users
+    IPyImage = None
+    display = None
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError
 
@@ -798,8 +802,13 @@ def show_embedded_art(mp3_path: str):
     print(f"[show] Selected APIC type={getattr(apic, 'type', None)}, MIME={mime}")
 
     fmt = "png" if "png" in (mime or "").lower() else "jpeg"
-    print(f"[show] Displaying image (format={fmt}, fixed width=400)...")
-    display(IPyImage(data=apic.data, format=fmt, width=400))
+    if display is None or IPyImage is None:
+        print(
+            "[show] IPython display helpers not installed; skipping inline preview."
+        )
+    else:
+        print(f"[show] Displaying image (format={fmt}, fixed width=400)...")
+        display(IPyImage(data=apic.data, format=fmt, width=400))
 
     # Save to a temporary file to view
     fd, path = tempfile.mkstemp(suffix=f".{fmt}")

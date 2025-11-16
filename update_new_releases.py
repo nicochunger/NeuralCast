@@ -1154,7 +1154,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     logger.info(f"Starting update for station: {args.station}")
-    station_dir = Path(args.station)
+    script_dir = Path(__file__).resolve().parent
+    raw_station_path = Path(args.station)
+    station_dir = (
+        raw_station_path
+        if raw_station_path.is_absolute()
+        else script_dir / raw_station_path
+    )
     playlists_dir = station_dir / "playlists"
     logger.debug(
         f"Station directory: {station_dir}, Playlists directory: {playlists_dir}"
