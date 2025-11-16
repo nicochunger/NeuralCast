@@ -282,12 +282,13 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 entry["songs"] = filtered_songs
                 entry["needs_save"] = True
                 entry["removed_via_marker"] = removed_count
-        if entry["deletions"] and entry["name"].casefold() == "new releases":
-            removed_metadata = remove_new_releases_metadata_entries(
-                entry["file"].parent, entry["deletions"]
-            )
-            if removed_metadata:
-                entry["metadata_removed"] = removed_metadata
+
+            if entry["deletions"] and entry["name"].casefold() == "new releases":
+                removed_metadata = remove_new_releases_metadata_entries(
+                    entry["file"].parent, entry["deletions"]
+                )
+                if removed_metadata:
+                    entry["metadata_removed"] = removed_metadata
 
     # Store all songs across playlists for repetition analysis
     all_songs_by_playlist = {}
@@ -334,19 +335,8 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         if not songs:
             print(f"No valid songs found in {playlist_file}")
             entry["songs"] = songs
+            all_songs_by_playlist[playlist_name] = []
             continue
-
-        # Store songs for analysis BEFORE any further processing
-        all_songs_by_playlist[playlist_name] = [
-            Song(
-                artist=song.artist,
-                title=song.title,
-                year=song.year,
-                album=song.album,
-                validated=song.validated,
-            )
-            for song in songs
-        ]
 
         entry["songs"] = songs
 
@@ -824,6 +814,17 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             print(
                 f"   🗑️ {total_removed} invalid song(s) removed from playlist and files deleted"
             )
+
+        all_songs_by_playlist[playlist_name] = [
+            Song(
+                artist=song.artist,
+                title=song.title,
+                year=song.year,
+                album=song.album,
+                validated=song.validated,
+            )
+            for song in songs
+        ]
 
         print(f"Finished processing playlist: {playlist_name}")
 
