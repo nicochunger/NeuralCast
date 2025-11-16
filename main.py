@@ -427,6 +427,7 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     song.year,
                     playlist_name,
                     song.album,
+                    log_prefix="      ",
                 )
 
                 if backup_path and backup_path.exists():
@@ -522,8 +523,15 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
 
         # In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
         if dry_run and existing_songs:
-            print("\n🖊️ DRY-RUN: Auditing and fixing ID3 tags for existing songs...")
+            print("\n🖊️ DRY-RUN: Auditing existing MP3 tags and album art...")
+            refreshed = 0
+            untouched = 0
             for song, song_path in existing_songs:
+                track_label = (
+                    f"{song.artist or 'Unknown Artist'} - "
+                    f"{song.title or song_path.stem}"
+                )
+                status_lines: List[str] = []
                 try:
                     audio = EasyID3(str(song_path))
                     cur_artist = (
@@ -540,8 +548,8 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                         audio.get("album", [""])[0] if audio.get("album") else ""
                     )
                 except Exception as e:
-                    print(
-                        f"   • {song_path.name}: cannot read tags ({e}), writing fresh tags"
+                    status_lines.append(
+                        f"⚠️ Cannot read tags ({e}); rewriting metadata + album art"
                     )
                     tag_mp3(
                         str(song_path),
@@ -550,7 +558,12 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                         song.year,
                         playlist_name,
                         song.album,
+                        log_prefix="      ",
                     )
+                    refreshed += 1
+                    print(f"   • {track_label} ({song_path.name})")
+                    for line in status_lines:
+                        print(f"      {line}")
                     continue
 
                 needs = []
@@ -570,8 +583,10 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     # CSV has no album but file has one; do not erase it
                     pass
 
-                if needs:
-                    print(f"   • {song_path.name}: updating tags ({', '.join(needs)})")
+                update_needed = bool(needs)
+                if update_needed:
+                    status_lines.append(f"Updating fields: {', '.join(needs)}")
+                    status_lines.append("Reapplying album art")
                     tag_mp3(
                         str(song_path),
                         song.artist,
@@ -579,7 +594,20 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                         song.year,
                         playlist_name,
                         song.album,
+                        log_prefix="      ",
                     )
+                    refreshed += 1
+                else:
+                    status_lines.append("✅ Tags already match; no changes needed")
+                    untouched += 1
+
+                print(f"   • {track_label} ({song_path.name})")
+                for line in status_lines:
+                    print(f"      {line}")
+
+            print(
+                f"   Summary: refreshed {refreshed} file(s), {untouched} already up to date."
+            )
 
         # Validate existing songs (only unvalidated ones)
         songs_to_remove_from_playlist = []
@@ -764,7 +792,13 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     print(f"⬇ [{idx}/{valid_count}] Downloading: {artist} - {title}")
                     youtube_to_mp3(f"{artist} {title}", str(song_path))
                     tag_mp3(
-                        str(song_path), artist, title, year, playlist_name, song.album
+                        str(song_path),
+                        artist,
+                        title,
+                        year,
+                        playlist_name,
+                        song.album,
+                        log_prefix="      ",
                     )
                     print(f"✓ Downloaded and tagged: {artist} - {title}")
                     downloaded_count += 1

@@ -28,6 +28,13 @@ musicbrainzngs.set_useragent("NeuralCast", "0.1", "neuralcast@example.com")
 _LOGGER = logging.getLogger(__name__)
 
 
+def _styled_warning(message: str, *, prefix: str = "   ") -> None:
+    """Mirror the album art / ReplayGain log style for warnings."""
+    formatted = f"{prefix}⚠️ {message}"
+    print(formatted)
+    _LOGGER.warning(message)
+
+
 @dataclass(frozen=True)
 class AlbumMatch:
     album: str
@@ -658,11 +665,8 @@ def lookup_album_via_openai(artist: str, title: str) -> Optional[str]:
             model="gpt-4o-mini-search-preview",
         )
     except Exception as exc:
-        _LOGGER.warning(
-            "OpenAI album lookup failed for %s - %s: %s",
-            cleaned_artist,
-            cleaned_title,
-            exc,
+        _styled_warning(
+            f"OpenAI album lookup failed for {cleaned_artist} - {cleaned_title}: {exc}"
         )
         return None
 

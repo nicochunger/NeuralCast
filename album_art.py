@@ -23,6 +23,13 @@ MAX_RELEASES_PER_GROUP = 6
 MAX_TOTAL_CANDIDATES = 14
 
 _RELEASE_CACHE: dict[str, dict] = {}
+_CANDIDATE_CACHE: dict[tuple[str, str], list[dict]] = {}
+_COVER_ART_CACHE: dict[str, tuple[bytes, str, str]] = {}
+
+
+def _log_line(message: str, *, prefix: str = "", icon: str | None = "ℹ️") -> None:
+    symbol = f"{icon} " if icon else ""
+    print(f"{prefix}{symbol}{message}")
 
 
 def _log_skip(entry: dict):
@@ -34,7 +41,7 @@ def _log_skip(entry: dict):
             f.flush()
             os.fsync(f.fileno())
     except Exception as e:
-        print(f"-> Failed to write skip log: {e}")
+        _log_line(f"Failed to write skip log: {e}", icon="⚠️")
 
 
 def _parse_release_date(date_str: str) -> datetime.datetime:
@@ -269,10 +276,10 @@ def _get_release_details(release_id: str) -> dict | None:
             release_id, includes=["artists", "release-groups", "labels"]
         )
     except musicbrainzngs.WebServiceError as exc:
-        print(f"-> Failed to fetch release {release_id}: {exc}")
+        _log_line(f"Failed to fetch release {release_id}: {exc}", icon="⚠️")
         return None
     except Exception as exc:
-        print(f"-> Unexpected error fetching release {release_id}: {exc}")
+        _log_line(f"Unexpected error fetching release {release_id}: {exc}", icon="⚠️")
         return None
 
     release = response.get("release")
@@ -284,6 +291,11 @@ def _get_release_details(release_id: str) -> dict | None:
 def _collect_release_candidates(artist: str, album: str) -> list[dict]:
     normalized_artist = _normalize_string(artist)
     normalized_album = _normalize_string(album)
+    cache_key = ((artist or "").strip().lower(), (album or "").strip().lower())
+
+    cached_candidates = _CANDIDATE_CACHE.get(cache_key)
+    if cached_candidates is not None:
+        return cached_candidates
 
     preliminary_scores: dict[str, float] = {}
     metadata: dict[str, dict] = {}
@@ -300,10 +312,10 @@ def _collect_release_candidates(artist: str, album: str) -> list[dict]:
                 artist=artist, release=album, strict=True, limit=25
             )
         except musicbrainzngs.WebServiceError as exc:
-            print(f"-> MusicBrainz release-group search error: {exc}")
+            _log_line(f"MusicBrainz release-group search error: {exc}", icon="⚠️")
             rg_result = {}
     except musicbrainzngs.WebServiceError as exc:
-        print(f"-> MusicBrainz release-group search error: {exc}")
+        _log_line(f"MusicBrainz release-group search error: {exc}", icon="⚠️")
         rg_result = {}
 
     release_group_candidates: list[tuple[float, dict]] = []
@@ -324,7 +336,7 @@ def _collect_release_candidates(artist: str, album: str) -> list[dict]:
         try:
             expanded = musicbrainzngs.get_release_group_by_id(group_id, includes=["releases"])
         except musicbrainzngs.WebServiceError as exc:
-            print(f"-> Failed to expand release-group {group_id}: {exc}")
+            _log_line(f"Failed to expand release-group {group_id}: {exc}", icon="⚠️")
             continue
 
         release_list = expanded.get("release-group", {}).get("release-list", [])
@@ -363,10 +375,10 @@ def _collect_release_candidates(artist: str, album: str) -> list[dict]:
         try:
             release_result = musicbrainzngs.search_releases(artist=artist, release=album, limit=25)
         except musicbrainzngs.WebServiceError as exc:
-            print(f"-> MusicBrainz release search error: {exc}")
+            _log_line(f"MusicBrainz release search error: {exc}", icon="⚠️")
             release_result = {}
     except musicbrainzngs.WebServiceError as exc:
-        print(f"-> MusicBrainz release search error: {exc}")
+        _log_line(f"MusicBrainz release search error: {exc}", icon="⚠️")
         release_result = {}
 
     for idx, release in enumerate(release_result.get("release-list", [])):
@@ -428,7 +440,9 @@ def _collect_release_candidates(artist: str, album: str) -> list[dict]:
         )
     )
 
-    return candidates[:MAX_TOTAL_CANDIDATES]
+    final_candidates = candidates[:MAX_TOTAL_CANDIDATES]
+    _CANDIDATE_CACHE[cache_key] = final_candidates
+    return final_candidates
 
 
 def _image_sort_key(image: dict) -> tuple[int, int, int, int]:
@@ -453,7 +467,11 @@ def _image_sort_key(image: dict) -> tuple[int, int, int, int]:
     return (approved, is_front, comment_penalty, order)
 
 
-def _download_cover_art(release_id: str):
+def _download_cover_art(release_id: str, *, log_prefix: str = ""):
+    cached_art = _COVER_ART_CACHE.get(release_id)
+    if cached_art is not None:
+        return cached_art
+
     art_url = None
     try:
         image_list = musicbrainzngs.get_image_list(release_id)
@@ -474,9 +492,17 @@ def _download_cover_art(release_id: str):
             thumbnails = selected.get("thumbnails") or {}
             art_url = selected.get("image") or thumbnails.get("large") or thumbnails.get("small")
     except musicbrainzngs.ResponseError as exc:
-        print(f"-> Cover Art Archive metadata not available for release {release_id}: {exc}")
+        _log_line(
+            f"Cover Art Archive metadata not available for release {release_id}: {exc}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
     except Exception as exc:
-        print(f"-> Unexpected error retrieving cover art metadata for {release_id}: {exc}")
+        _log_line(
+            f"Unexpected error retrieving cover art metadata for {release_id}: {exc}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
 
     if not art_url:
         art_url = f"https://coverartarchive.org/release/{release_id}/front"
@@ -485,7 +511,9 @@ def _download_cover_art(release_id: str):
     response.raise_for_status()
     image_data = response.content
     mime_type = response.headers.get("Content-Type", "image/jpeg")
-    return image_data, mime_type, art_url
+    result = (image_data, mime_type, art_url)
+    _COVER_ART_CACHE[release_id] = result
+    return result
 
 
 def _embed_image(mp3_path: str, image_data: bytes, mime_type: str):
@@ -498,25 +526,40 @@ def _embed_image(mp3_path: str, image_data: bytes, mime_type: str):
     audio.save(mp3_path)
 
 
-def embed_from_release_id(mp3_path: str, release_id: str, release_title: str | None = None):
+def embed_from_release_id(
+    mp3_path: str,
+    release_id: str,
+    release_title: str | None = None,
+    *,
+    log_prefix: str = "",
+):
+    friendly_name = os.path.basename(mp3_path) or mp3_path
     try:
-        image_data, mime_type, art_url = _download_cover_art(release_id)
-        print(f"-> Successfully downloaded cover art from {art_url}")
+        image_data, mime_type, art_url = _download_cover_art(release_id, log_prefix=log_prefix)
+        _log_line(f"Downloaded cover art from {art_url}", icon="🎨", prefix=log_prefix)
         _embed_image(mp3_path, image_data, mime_type)
         if release_title:
-            print(
-                f"-> Successfully embedded artwork into '{mp3_path}' (Release: '{release_title}')"
+            _log_line(
+                f"Embedded artwork from '{release_title}' into '{friendly_name}'",
+                icon="🎨",
+                prefix=log_prefix,
             )
         else:
-            print(f"-> Successfully embedded artwork into '{mp3_path}'")
+            _log_line(
+                f"Embedded artwork into '{friendly_name}'", icon="🎨", prefix=log_prefix
+            )
         return True
     except requests.exceptions.RequestException as e:
         # Do not log here; let caller try other releases and log only if all fail.
-        print(f"-> Failed to download cover art: {e}")
+        _log_line(f"Failed to download cover art: {e}", icon="⚠️", prefix=log_prefix)
         return False
     except Exception as e:
         # Do not log here; let caller handle final logging.
-        print(f"-> An unexpected error occurred while embedding from release id: {e}")
+        _log_line(
+            f"Unexpected error while embedding from release {release_id}: {e}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
         return False
 
 
@@ -527,20 +570,33 @@ def _legacy_exact_match_attempt(
     *,
     skip_release_ids: set[str],
     attempted_release_ids: list[str],
+    log_prefix: str = "",
 ) -> tuple[bool, dict]:
     normalized_album = album.strip().lower()
     try:
         result = musicbrainzngs.search_releases(artist=artist, release=album, limit=25)
     except musicbrainzngs.WebServiceError as exc:
-        print(f"-> MusicBrainz API error during legacy fallback: {exc}")
+        _log_line(
+            f"MusicBrainz API error during legacy fallback: {exc}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
         return False, {"reason": "musicbrainz_error", "error": str(exc)}
     except Exception as exc:
-        print(f"-> Unexpected error during legacy fallback: {exc}")
+        _log_line(
+            f"Unexpected error during legacy fallback: {exc}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
         return False, {"reason": "unexpected_error", "error": str(exc)}
 
     releases = result.get("release-list", [])
     if not releases:
-        print("-> No releases found for given artist/album query (legacy fallback).")
+        _log_line(
+            "No releases found for given artist/album query (legacy fallback).",
+            icon="ℹ️",
+            prefix=log_prefix,
+        )
         return False, {"reason": "no_releases"}
 
     exact_matches = [
@@ -550,7 +606,11 @@ def _legacy_exact_match_attempt(
     ]
 
     if not exact_matches:
-        print("-> No exact (case-insensitive) title match found (legacy fallback).")
+        _log_line(
+            "No exact (case-insensitive) title match found (legacy fallback).",
+            icon="ℹ️",
+            prefix=log_prefix,
+        )
         return False, {
             "reason": "no_exact_case_insensitive_match",
             "sample_titles": [r.get("title") for r in releases[:5]],
@@ -566,9 +626,11 @@ def _legacy_exact_match_attempt(
 
     exact_matches.sort(key=_sort_key)
 
-    print(
-        f"-> Legacy fallback found {len(exact_matches)} exact match(es): "
-        + ", ".join([r.get("title", "?") for r in exact_matches])
+    _log_line(
+        f"Legacy fallback found {len(exact_matches)} exact match(es): "
+        + ", ".join([r.get("title", '?') for r in exact_matches]),
+        icon="🎨",
+        prefix=log_prefix,
     )
 
     attempted_ids = []
@@ -577,10 +639,16 @@ def _legacy_exact_match_attempt(
         if not release_id or release_id in skip_release_ids:
             continue
         release_title = release.get("title", album)
-        print(f"-> Trying legacy exact-match release '{release_title}' (ID: {release_id})")
+        _log_line(
+            f"Trying legacy exact-match release '{release_title}' (ID: {release_id})",
+            icon="↳",
+            prefix=f"{log_prefix}  ",
+        )
         attempted_ids.append(release_id)
         attempted_release_ids.append(release_id)
-        if embed_from_release_id(mp3_path, release_id, release_title):
+        if embed_from_release_id(
+            mp3_path, release_id, release_title, log_prefix=f"{log_prefix}  "
+        ):
             return True, {}
 
     if not attempted_ids:
@@ -592,19 +660,30 @@ def _legacy_exact_match_attempt(
     }
 
 
-def embed_from_artist_album(mp3_path: str, artist: str, album: str):
+def embed_from_artist_album(
+    mp3_path: str, artist: str, album: str, *, log_prefix: str = ""
+):
     """
     Embed cover art for an MP3 by looking up the most relevant MusicBrainz release
     for the given artist and album. The search uses release-group heuristics plus a
     legacy exact-title fallback for safety.
     """
-    print(f"Searching for album '{album}' by '{artist}' on MusicBrainz...")
+    detail_prefix = f"{log_prefix}   "
+    _log_line(
+        f"Searching for album '{album}' by '{artist}' on MusicBrainz...",
+        icon="🎨",
+        prefix=log_prefix,
+    )
 
     candidates = _collect_release_candidates(artist, album)
     attempted_release_ids: list[str] = []
 
     if not candidates:
-        print("-> No high-confidence release candidates found; falling back to legacy logic.")
+        _log_line(
+            "No high-confidence release candidates found; falling back to legacy logic.",
+            icon="ℹ️",
+            prefix=log_prefix,
+        )
 
     eligible_candidates = [
         candidate for candidate in candidates if candidate.get("final_score", 0) >= 60
@@ -637,13 +716,17 @@ def embed_from_artist_album(mp3_path: str, artist: str, album: str):
             debug_parts.append(f"status={status}")
         debug_summary = ", ".join(debug_parts)
 
-        print(
-            f"-> Candidate release '{release_title}' (ID: {release_id})"
-            + (f" [{debug_summary}]" if debug_summary else "")
+        _log_line(
+            f"Candidate release '{release_title}' (ID: {release_id})"
+            + (f" [{debug_summary}]" if debug_summary else ""),
+            icon="↳",
+            prefix=detail_prefix,
         )
 
         attempted_release_ids.append(release_id)
-        if embed_from_release_id(mp3_path, release_id, release_title):
+        if embed_from_release_id(
+            mp3_path, release_id, release_title, log_prefix=detail_prefix
+        ):
             return
 
     legacy_success, legacy_info = _legacy_exact_match_attempt(
@@ -652,6 +735,7 @@ def embed_from_artist_album(mp3_path: str, artist: str, album: str):
         album,
         skip_release_ids=set(attempted_release_ids),
         attempted_release_ids=attempted_release_ids,
+        log_prefix=detail_prefix,
     )
     if legacy_success:
         return
@@ -691,7 +775,11 @@ def embed_from_artist_album(mp3_path: str, artist: str, album: str):
         log_entry["legacy_fallback"] = legacy_info
 
     _log_skip(log_entry)
-    print("-> Failed to embed cover art after trying available candidates.")
+    _log_line(
+        "Failed to embed cover art after trying available candidates.",
+        icon="⚠️",
+        prefix=log_prefix,
+    )
 
 
 def show_embedded_art(mp3_path: str):

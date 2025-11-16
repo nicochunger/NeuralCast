@@ -27,9 +27,18 @@ def tag_mp3(
     year: str,
     genre: str,
     album: Optional[str] = None,
+    *,
+    log_prefix: str = "",
 ):
-    print(
-        f"Tagging {path} with artist: {artist}, title: {title}, year: {year}, genre: {genre}"
+    file_name = os.path.basename(path)
+    trimmed_album = str(album).strip() if album else ""
+
+    def _log(message: str) -> None:
+        prefix = log_prefix or ""
+        print(f"{prefix}{message}")
+
+    _log(
+        f"↻ Tagging '{file_name}' (artist: {artist}, title: {title}, year: {year}, genre: {genre})"
     )
     audio = ensure_easyid3(path)
     audio["artist"] = artist
@@ -42,9 +51,11 @@ def tag_mp3(
 
     if album and str(album).strip():
         try:
-            embed_from_artist_album(path, artist, str(album).strip())
+            _log("🎨 Embedding album art via MusicBrainz")
+            embed_from_artist_album(path, artist, trimmed_album, log_prefix=log_prefix)
+            _log("   ✓ Album art embedded")
         except Exception as exc:
-            print(f"Warning: Failed to embed cover art from MusicBrainz: {exc}")
+            _log(f"⚠️ Failed to embed cover art from MusicBrainz: {exc}")
     else:
         try:
             id3 = ID3(path)
@@ -67,12 +78,15 @@ def tag_mp3(
                     )
                 )
             id3.save(path)
+            _log("🎨 Attached fallback thumbnail art")
+        else:
+            _log("🎨 No fallback thumbnail art available")
 
-    print(f"Applying ReplayGain to {path}")
+    _log("🔊 Applying ReplayGain")
     try:
-        subprocess.run(["mp3gain", "-r", "-k", str(path)], check=True)
+        subprocess.run(["mp3gain", "-q", "-r", "-k", str(path)], check=True)
     except subprocess.CalledProcessError as exc:
-        print(f"Error applying ReplayGain to {path}: {exc}")
+        _log(f"⚠️ Error applying ReplayGain: {exc}")
 
 
 def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
