@@ -22,6 +22,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from tqdm import tqdm
 import unicodedata
 
+from album_lookup import guess_album
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -819,6 +821,70 @@ def _append_release_to_playlist(
     logger.debug(f"Appended '{release.title}' to {csv_path.name}")
 
 
+def _promote_release_album(release: ArtistRelease) -> bool:
+    """Update release.album to studio album when a confident match exists."""
+
+    current_album = (release.album or "").strip()
+    current_type = (release.album_type or "").strip().casefold()
+    should_attempt = release.is_single or not current_album or current_type != "album"
+    if not should_attempt:
+        return False
+
+    try:
+        match = guess_album(
+            release.artist,
+            release.title,
+            prefer_spotify=True,
+            min_confidence=0.55,
+            allow_fallback=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Album lookup failed for %s - %s: %s",
+            release.artist,
+            release.title,
+            exc,
+        )
+        return False
+
+    if not match:
+        return False
+
+    new_album = (match.album or "").strip()
+    if not new_album:
+        return False
+
+    new_type = (match.album_type or "").strip().casefold()
+    if new_type != "album":
+        return False
+
+    normalized_current = current_album.casefold()
+    normalized_new = new_album.casefold()
+    album_changed = normalized_current != normalized_new
+    type_changed = current_type != "album"
+
+    if not album_changed and not type_changed and not release.is_single:
+        return False
+
+    previous_label = current_album or "single"
+    release.album = new_album
+    release.album_type = match.album_type or "album"
+    release.is_single = False
+    if match.release_date:
+        release.year = match.release_date.year
+    if match.track_id:
+        release.track_id = match.track_id
+
+    logger.info(
+        "Updated album metadata for %s - %s: %s -> %s",
+        release.artist,
+        release.title,
+        previous_label,
+        new_album,
+    )
+    return True
+
+
 def _move_track_audio(
     audio_root: Optional[Path],
     source_dir_name: str,
@@ -875,6 +941,7 @@ def move_outdated_releases(
         if not destination:
             logger.warning(f"No destination playlist for {release.artist} - {release.title}")
             continue
+        _promote_release_album(release)
         migrations.append((release, destination))
         if not dry_run:
             _append_release_to_playlist(destination, release, dry_run=dry_run)
