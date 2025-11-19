@@ -1,4 +1,5 @@
 """High-quality album lookup helpers for artist/title pairs."""
+
 from __future__ import annotations
 
 import difflib
@@ -47,6 +48,7 @@ class AlbumMatch:
     track_name: Optional[str] = None
     title_score: float = 0.0
     artist_score: float = 0.0
+    album_artist_score: float = 0.0
     popularity: Optional[int] = None
     flags: Sequence[str] = ()
 
@@ -66,6 +68,12 @@ _BAD_ALBUM_TERMS = (
     "special edition",
     "super deluxe",
     "karaoke",
+    "collector's edition",
+    "collectors edition",
+    "platinum edition",
+    "expanded edition",
+    "redux",
+    "tour edition",
 )
 
 _FEATURE_RE = re.compile(r"\s+(feat|featuring|ft|with)\.? .*$", re.IGNORECASE)
@@ -76,6 +84,13 @@ _SUFFIX_RE = re.compile(
 )
 _NON_ALNUM_RE = re.compile(r"[^0-9a-z]+")
 _MULTISPACE_RE = re.compile(r"\s+")
+_YEAR_REMASTER_RE = re.compile(
+    r"\b(19|20)\d{2}\s+(remaster(?:ed)?|remix(?:es)?|edition)",
+    re.IGNORECASE,
+)
+_CITY_YEAR_RE = re.compile(r"^[A-Za-z'’]+(?:\s+[A-Za-z'’]+){0,3}\s(19|20)\d{2}$")
+_DATESTAMP_RE = re.compile(r"\b(19|20)\d{2}[-/](?:0?[1-9]|1[0-2])")
+_ALBUM_ARTIST_MISMATCH_THRESHOLD = 0.7
 
 LIVE_ALBUM_HINTS = (
     " live ",
@@ -106,6 +121,8 @@ LIVE_ALBUM_HINTS = (
 _CLEAN_KEYWORD_FRAGMENTS = (
     "remaster",
     "remastered",
+    "mix",
+    "mixes",
     "remix",
     "remixes",
     "deluxe",
@@ -125,6 +142,14 @@ _CLEAN_KEYWORD_FRAGMENTS = (
     "versions",
     "edition",
     "editions",
+    "mono",
+    "stereo",
+    "mono mix",
+    "stereo mix",
+    "mono version",
+    "stereo version",
+    "mono edit",
+    "stereo edit",
 )
 
 _CLEAN_PARENS_RE = re.compile(r"\s*[\(\[]([^)\]]+)[\)\]]", re.IGNORECASE)
@@ -154,6 +179,11 @@ def _has_live_indicator(value: str) -> bool:
     for marker in LIVE_ALBUM_HINTS:
         if marker in lower:
             return True
+    stripped = value.strip()
+    if _CITY_YEAR_RE.match(stripped):
+        return True
+    if _DATESTAMP_RE.search(stripped):
+        return True
     return False
 
 
@@ -180,6 +210,11 @@ def _clean_album_name(name: str) -> str:
     cleaned = re.sub(r"\s+", " ", cleaned)
     cleaned = cleaned.strip(" -–—:,")
     cleaned = cleaned.strip()
+    paren_match = re.match(r"^\(([^)]+)\)\s*(.*)$", cleaned)
+    if paren_match:
+        inner, remainder = paren_match.groups()
+        cleaned = f"{inner} {remainder}".strip()
+    cleaned = cleaned.rstrip("?").strip()
 
     if not cleaned:
         return name.strip()
@@ -219,10 +254,17 @@ def _album_type_rank(album_type: Optional[str]) -> int:
 
 def _is_reissue(name: str) -> bool:
     lowered = (name or "").lower()
-    return any(term in lowered for term in _BAD_ALBUM_TERMS)
+    if any(term in lowered for term in _BAD_ALBUM_TERMS):
+        return True
+    # Check for year-based patterns like "2015 Remaster"
+    if _YEAR_REMASTER_RE.search(name):
+        return True
+    return False
 
 
-def _parse_spotify_release_date(date_str: Optional[str], precision: Optional[str]) -> Optional[datetime]:
+def _parse_spotify_release_date(
+    date_str: Optional[str], precision: Optional[str]
+) -> Optional[datetime]:
     if not date_str:
         return None
     try:
@@ -277,11 +319,13 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
         track_name = item.get("name") or ""
         normalized_track = _normalize_title(track_name)
         title_score = _ratio(query_title, normalized_track)
-        if title_score < 0.6:
+        if title_score < 0.55:
             continue
         track_is_live = _has_live_indicator(track_name)
 
-        candidate_artists = [entry.get("name", "") for entry in item.get("artists") or []]
+        candidate_artists = [
+            entry.get("name", "") for entry in item.get("artists") or []
+        ]
         candidate_tokens = [_normalize_artist_token(a) for a in candidate_artists if a]
 
         artist_score_candidates = [
@@ -292,7 +336,7 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
         ]
 
         artist_score = max(artist_score_candidates, default=0.0)
-        if artist_score < 0.45:
+        if artist_score < 0.40:
             if not any(
                 query_artist in candidate_artist or candidate_artist in query_artist
                 for query_artist in artist_tokens
@@ -303,6 +347,9 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
         album_obj = item.get("album") or {}
         album_name = album_obj.get("name") or ""
         album_type = album_obj.get("album_type") or album_obj.get("type")
+        album_artists = [
+            entry.get("name", "") for entry in album_obj.get("artists") or []
+        ]
         album_is_live = _has_live_indicator(album_name)
         release_date = _parse_spotify_release_date(
             album_obj.get("release_date"),
@@ -311,18 +358,51 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
         is_reissue = _is_reissue(album_name)
         album_rank = _album_type_rank(album_type)
 
+        # Detect tribute albums and covers
+        is_tribute = any(
+            keyword in album_name.lower()
+            for keyword in ["tribute", "cover", "karaoke", "in the style of"]
+        )
+
+        # Check if artist name strongly suggests tribute/cover
+        artist_names_lower = " ".join(candidate_artists).lower()
+        is_tribute = is_tribute or any(
+            keyword in artist_names_lower
+            for keyword in ["tribute", "karaoke", "orchestra", "ensemble"]
+        )
+
+        album_artist_tokens = [_normalize_artist_token(a) for a in album_artists if a]
+        album_artist_score_candidates = [
+            _ratio(query_artist, album_artist)
+            for query_artist in artist_tokens
+            for album_artist in album_artist_tokens
+            if query_artist and album_artist
+        ]
+        album_artist_score = max(album_artist_score_candidates, default=0.0)
+
         popularity = int(item.get("popularity") or 0)
         penalty = 0.08 * album_rank
         if is_reissue:
-            penalty += 0.1
+            penalty += 0.15
         if track_is_live:
             penalty += 0.3
         if album_is_live:
             penalty += 0.2
+        # Heavy penalty for tribute/cover albums
+        if is_tribute:
+            penalty += 0.4
+        # Penalty for weak artist matches (likely covers/tributes)
+        if artist_score < 0.60:
+            penalty += 0.2
+        if album_artist_score < _ALBUM_ARTIST_MISMATCH_THRESHOLD:
+            penalty += 0.25
         exact_title = track_name.strip().lower() == title.strip().lower()
         if not exact_title:
             penalty += 0.05
         bonus = 0.05 if exact_title else 0.0
+        # Bonus for strong artist match
+        if artist_score >= 0.85:
+            bonus += 0.05
 
         confidence = max(
             0.0,
@@ -343,6 +423,8 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
             flags.append("live_album")
         if popularity < 10:
             flags.append("low_popularity")
+        if album_artist_score < _ALBUM_ARTIST_MISMATCH_THRESHOLD:
+            flags.append("album_artist_mismatch")
 
         raw_album = album_name.strip()
         clean_album = _clean_album_name(raw_album)
@@ -359,6 +441,7 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
                 track_name=track_name,
                 title_score=title_score,
                 artist_score=artist_score,
+                album_artist_score=album_artist_score,
                 popularity=popularity,
                 flags=tuple(flags),
             )
@@ -394,7 +477,9 @@ def _parse_musicbrainz_date(date_str: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def _musicbrainz_candidates(artist: str, title: str, limit: int = 5) -> List[AlbumMatch]:
+def _musicbrainz_candidates(
+    artist: str, title: str, limit: int = 5
+) -> List[AlbumMatch]:
     if not artist or not title:
         return []
 
@@ -428,7 +513,9 @@ def _musicbrainz_candidates(artist: str, title: str, limit: int = 5) -> List[Alb
             for credit in artist_credits
             if isinstance(credit, dict)
         ]
-        candidate_artists = [_normalize_artist_token(name) for name in artist_names if name]
+        candidate_artists = [
+            _normalize_artist_token(name) for name in artist_names if name
+        ]
         artist_score_candidates = [
             _ratio(query_artist, candidate_artist)
             for query_artist in query_artists
@@ -455,7 +542,9 @@ def _musicbrainz_candidates(artist: str, title: str, limit: int = 5) -> List[Alb
 
             mb_score = recording.get("ext-score")
             try:
-                ext_confidence = float(mb_score) / 100.0 if mb_score is not None else 0.0
+                ext_confidence = (
+                    float(mb_score) / 100.0 if mb_score is not None else 0.0
+                )
             except Exception:
                 ext_confidence = 0.0
 
@@ -473,7 +562,9 @@ def _musicbrainz_candidates(artist: str, title: str, limit: int = 5) -> List[Alb
                     album=_clean_album_name(raw_album),
                     source="musicbrainz",
                     confidence=confidence,
-                    album_type=primary_type.lower() if isinstance(primary_type, str) else None,
+                    album_type=primary_type.lower()
+                    if isinstance(primary_type, str)
+                    else None,
                     raw_album=raw_album,
                     release_date=release_date,
                     track_id=None,
@@ -511,14 +602,16 @@ def album_candidates(
     spotify_matches: List[AlbumMatch] = []
     musicbrainz_matches: List[AlbumMatch] = []
 
+    mb_limit = min(limit, 10)
+
     if prefer_spotify:
         spotify_matches = _spotify_candidates(artist, title, limit=limit)
         if spotify_matches:
             return spotify_matches
-        musicbrainz_matches = _musicbrainz_candidates(artist, title, limit=limit)
+        musicbrainz_matches = _musicbrainz_candidates(artist, title, limit=mb_limit)
         return musicbrainz_matches
 
-    musicbrainz_matches = _musicbrainz_candidates(artist, title, limit=limit)
+    musicbrainz_matches = _musicbrainz_candidates(artist, title, limit=mb_limit)
     if musicbrainz_matches:
         return musicbrainz_matches
     return _spotify_candidates(artist, title, limit=limit)
@@ -535,7 +628,8 @@ def _prefer_official(matches: Sequence[AlbumMatch]) -> List[AlbumMatch]:
 
     def is_official(match: AlbumMatch) -> bool:
         return any(
-            flag.lower() == "status:official" or flag.lower().startswith("status:official")
+            flag.lower() == "status:official"
+            or flag.lower().startswith("status:official")
             for flag in match.flags
         )
 
@@ -544,17 +638,38 @@ def _prefer_official(matches: Sequence[AlbumMatch]) -> List[AlbumMatch]:
 
     def is_single(match: AlbumMatch) -> bool:
         album_type = (match.album_type or "").lower()
-        return album_type == "single" or "type:single" in {flag.lower() for flag in match.flags}
+        return album_type == "single" or "type:single" in {
+            flag.lower() for flag in match.flags
+        }
 
     non_live = apply_preference(
         matches_list,
-        lambda match: "live_track" not in match.flags and "live_album" not in match.flags,
+        lambda match: "live_track" not in match.flags
+        and "live_album" not in match.flags,
     )
-    official_albums = [match for match in non_live if is_official(match) and is_album(match)]
+    aligned_album_artists = apply_preference(
+        non_live,
+        lambda match: "album_artist_mismatch" not in match.flags
+        or (match.album_type or "").lower() == "single",
+    )
+    non_live = aligned_album_artists
+    official_albums = [
+        match for match in non_live if is_official(match) and is_album(match)
+    ]
     if official_albums:
         return official_albums
 
-    album_matches = [match for match in non_live if is_album(match)]
+    def has_strong_album_artist(match: AlbumMatch) -> bool:
+        score = getattr(match, "album_artist_score", 0.0) or 0.0
+        if score == 0.0 and match.source != "spotify":
+            return True
+        return score >= 0.8 or match.artist_score >= 0.9
+
+    album_matches = [
+        match
+        for match in non_live
+        if is_album(match) and has_strong_album_artist(match)
+    ]
     if album_matches:
         return album_matches
 
@@ -562,11 +677,61 @@ def _prefer_official(matches: Sequence[AlbumMatch]) -> List[AlbumMatch]:
     if official_matches:
         return official_matches
 
-    non_single_matches = [match for match in non_live if not is_single(match)]
+    non_single_matches = [
+        match
+        for match in non_live
+        if not is_single(match) and has_strong_album_artist(match)
+    ]
     if non_single_matches:
         return non_single_matches
 
     return non_live
+
+
+def _prefer_earliest_studio_album(matches: Sequence[AlbumMatch]) -> List[AlbumMatch]:
+    """Filter matches to prefer the earliest studio album release.
+
+    This prioritizes the original studio album over remasters and deluxe editions
+    by selecting albums from the earliest release year.
+    """
+    if not matches:
+        return []
+
+    # Filter for studio albums (non-live)
+    studio_albums = [
+        m
+        for m in matches
+        if (m.album_type or "").lower() == "album"
+        and "live_album" not in m.flags
+        and "live_track" not in m.flags
+    ]
+
+    if not studio_albums:
+        return list(matches)
+
+    strong_artist = [m for m in studio_albums if m.artist_score >= 0.65]
+    candidate_pool = strong_artist or studio_albums
+
+    # Sort by release date (earliest first) then popularity/confidence
+    candidate_pool.sort(
+        key=lambda m: (
+            m.release_date or datetime(3000, 1, 1),
+            -(m.popularity or 0),
+            -m.confidence,
+        )
+    )
+    earliest_date = candidate_pool[0].release_date
+
+    # Return all albums from the earliest year (handle multiple releases same year)
+    if earliest_date:
+        same_year = [
+            m
+            for m in candidate_pool
+            if m.release_date and m.release_date.year == earliest_date.year
+        ]
+        return same_year if same_year else candidate_pool[:1]
+
+    return candidate_pool[:1]
 
 
 def guess_album(
@@ -579,7 +744,17 @@ def guess_album(
 ) -> Optional[AlbumMatch]:
     def sort_key(match: AlbumMatch) -> tuple:
         popularity = match.popularity if match.popularity is not None else -1
-        return (_album_type_rank(match.album_type), -popularity, -match.confidence)
+        # For studio albums, prioritize by release date over popularity
+        is_studio = (match.album_type or "").lower() == "album"
+        release_key = match.release_date or datetime(3000, 1, 1)
+        if not (is_studio and not _is_reissue(match.raw_album or match.album)):
+            release_key = datetime(4000, 1, 1)
+        return (
+            _album_type_rank(match.album_type),
+            release_key,
+            -popularity,
+            -match.confidence,
+        )
 
     primary_matches = album_candidates(artist, title, prefer_spotify=prefer_spotify)
     if not primary_matches:
@@ -588,8 +763,28 @@ def guess_album(
     if not primary_matches:
         return None
 
-    confident = [match for match in primary_matches if match.confidence >= min_confidence]
+    confident = [
+        match for match in primary_matches if match.confidence >= min_confidence
+    ]
+    non_live_confident = [
+        match
+        for match in confident
+        if "live_album" not in match.flags and "live_track" not in match.flags
+    ]
+    if non_live_confident:
+        confident = non_live_confident
+    elif confident and all(
+        "live_album" in match.flags or "live_track" in match.flags
+        for match in confident
+    ):
+        confident = []
     if confident:
+        # Try to get earliest studio album from confident matches
+        earliest_studio = _prefer_earliest_studio_album(confident)
+        if earliest_studio:
+            earliest_studio.sort(key=sort_key)
+            return earliest_studio[0]
+        # Fallback to original logic
         confident.sort(key=sort_key)
         return confident[0]
 
@@ -604,6 +799,11 @@ def guess_album(
         ]
         if fallback_confident:
             fallback_confident = _prefer_official(fallback_confident)
+            # Also try earliest studio album for fallback
+            earliest_fallback = _prefer_earliest_studio_album(fallback_confident)
+            if earliest_fallback:
+                earliest_fallback.sort(key=sort_key)
+                return earliest_fallback[0]
             fallback_confident.sort(key=sort_key)
             return fallback_confident[0]
 
@@ -630,62 +830,9 @@ def get_official_album_name(
     return None
 
 
-def lookup_album_via_openai(artist: str, title: str) -> Optional[str]:
-    """Ask the OpenAI search model for the canonical album of the specified song.
-
-    Requires ``OPENAI_API_KEY`` to be configured via ``openai_utils``. Returns the
-    album name provided by the model or ``None`` when no confident answer is found.
-    The helper requests ``gpt-4o-mini-search-preview`` so the model can research the
-    song online and is instructed to reply with a single album title.
-    """
-    # The web browsing tool is too expensive to call. Disabled for now.
-    return
-    cleaned_artist = (artist or "").strip()
-    cleaned_title = (title or "").strip()
-    if not cleaned_artist or not cleaned_title:
-        return None
-
-    system_prompt = (
-        "You are a meticulous music metadata researcher. When identifying an album "
-        "for a song you must use your browsing tools to verify the canonical studio "
-        "album or primary commercial release. Answer with the album title only."
-    )
-    user_prompt = (
-        "Identify the official album that first included the given song. If there are "
-        "multiple versions, prefer the primary studio album release over compilations "
-        "or reissues. Respond with only the album name, nothing else.\n"
-        f"Artist: {cleaned_artist}\n"
-        f"Song title: {cleaned_title}"
-    )
-
-    try:
-        response = openai_text_completion(
-            prompt=user_prompt,
-            system_prompt=system_prompt,
-            model="gpt-4o-mini-search-preview",
-        )
-    except Exception as exc:
-        _styled_warning(
-            f"OpenAI album lookup failed for {cleaned_artist} - {cleaned_title}: {exc}"
-        )
-        return None
-
-    if not response:
-        return None
-
-    first_line = response.strip().splitlines()[0].strip()
-    normalized = first_line.strip('"“”')
-    if not normalized:
-        return None
-    if normalized.lower() in {"unknown", "not sure", "n/a"}:
-        return None
-    return normalized
-
-
 __all__ = [
     "AlbumMatch",
     "album_candidates",
     "guess_album",
     "get_official_album_name",
-    "lookup_album_via_openai",
 ]
