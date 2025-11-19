@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 import re
 import sys
@@ -24,13 +23,47 @@ import unicodedata
 
 from album_lookup import guess_album
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    # handlers=[logging.StreamHandler(sys.stdout)]
-)
-logger = logging.getLogger(__name__)
+_DEBUG_ENABLED = False
+
+
+def _env_flag(value: str | None) -> bool:
+    normalized = (value or "").strip().lower()
+    return normalized in {"1", "true", "yes", "on"}
+
+
+def set_debug_mode(enabled: bool) -> None:
+    """Allow CLI/env flags to toggle verbose logging."""
+
+    global _DEBUG_ENABLED
+    _DEBUG_ENABLED = enabled or _env_flag(os.getenv("NC_DEBUG"))
+
+
+def _emit(icon: str, message: str) -> None:
+    print(f"{icon} {message}")
+
+
+def log_info(message: str) -> None:
+    _emit("ℹ️", message)
+
+
+def log_success(message: str) -> None:
+    _emit("✅", message)
+
+
+def log_warning(message: str) -> None:
+    _emit("⚠️", message)
+
+
+def log_error(message: str) -> None:
+    _emit("❌", message)
+
+
+def log_debug(message: str) -> None:
+    if _DEBUG_ENABLED:
+        _emit("⋯", message)
+
+
+set_debug_mode(False)
 
 
 _METADATA_DIRNAME = "metadata"
@@ -91,7 +124,7 @@ def _resolve_metadata_file(playlists_dir: Path, filename: str) -> Path:
         return new_path
     legacy_path = _legacy_metadata_file(playlists_dir, filename)
     if legacy_path.exists():
-        logger.info(
+        log_info(
             f"Using legacy metadata path {legacy_path} for {filename}. "
             f"It will be migrated to {_METADATA_DIRNAME}/ on next write."
         )
@@ -107,10 +140,10 @@ def load_artist_id_cache(playlists_dir: Path) -> ArtistIDCache:
         with path.open("r", encoding="utf-8") as handle:
             data = json.load(handle)
     except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Failed reading artist cache {path}: {exc}")
+        log_warning(f"Failed reading artist cache {path}: {exc}")
         return ArtistIDCache(entries={})
     if not isinstance(data, dict):
-        logger.warning(f"Unexpected artist cache structure in {path}")
+        log_warning(f"Unexpected artist cache structure in {path}")
         return ArtistIDCache(entries={})
     entries: dict[str, str] = {}
     for key, value in data.items():
@@ -128,7 +161,7 @@ def save_artist_id_cache(playlists_dir: Path, cache: ArtistIDCache) -> None:
     with path.open("w", encoding="utf-8") as handle:
         json.dump(cache.entries, handle, indent=2, sort_keys=True)
         handle.write("\n")
-    logger.info(f"Wrote {len(cache.entries)} artist IDs to {path}")
+    log_success(f"Cached {len(cache.entries)} artist IDs → {path}")
 
 
 @dataclass
@@ -164,20 +197,20 @@ def load_station_artists(
     artists: set[str] = set()
     artist_tracks: dict[str, set[str]] = {}
     artist_playlist_map: dict[str, dict[Path, set[str]]] = {}
-    logger.debug(f"Scanning playlists directory: {playlists_dir}")
+    log_debug(f"Scanning playlists directory: {playlists_dir}")
     for csv_path in playlists_dir.glob("*.csv"):
-        logger.debug(f"Checking file: {csv_path}")
+        log_debug(f"Checking file: {csv_path}")
         if csv_path.name.lower() == "new releases.csv":
-            logger.debug(f"Skipping New Releases file: {csv_path}")
+            log_debug(f"Skipping New Releases file: {csv_path}")
             continue
         try:
             df = pd.read_csv(csv_path)
-            logger.debug(f"Loaded CSV: {csv_path} with columns: {df.columns.tolist()}")
+            log_debug(f"Loaded CSV: {csv_path} with columns: {df.columns.tolist()}")
         except Exception as exc:  # noqa: BLE001
-            logger.warning(f"Failed reading {csv_path}: {exc}")
+            log_warning(f"Failed reading {csv_path}: {exc}")
             continue
         if "Artist" not in df.columns:
-            logger.debug(f"No 'Artist' column in {csv_path}, skipping file.")
+            log_debug(f"No 'Artist' column in {csv_path}, skipping file.")
             continue
         titles_col = "Title" if "Title" in df.columns else None
         for _, row in df.iterrows():
@@ -199,14 +232,14 @@ def load_station_artists(
                     playlist_tracks.add(title_str)
             else:
                 artist_tracks.setdefault(name, set())
-    logger.debug(f"Found {len(artists)} unique artists: {sorted(artists)}")
+    log_debug(f"Found {len(artists)} unique artists: {sorted(artists)}")
     return sorted(artists), artist_tracks, artist_playlist_map
 
 
 def parse_release_date(date_str: str, precision: str) -> Optional[datetime]:
-    logger.debug(f"Parsing release date '{date_str}' with precision '{precision}'")
+    log_debug(f"Parsing release date '{date_str}' with precision '{precision}'")
     if not date_str:
-        logger.debug("No date string provided, returning None")
+        log_debug("No date string provided, returning None")
         return None
     try:
         match precision:
@@ -219,12 +252,12 @@ def parse_release_date(date_str: str, precision: str) -> Optional[datetime]:
                     month=1, day=1, tzinfo=UTC
                 )
             case _:
-                logger.debug(f"Unknown precision '{precision}', returning None")
+                log_debug(f"Unknown precision '{precision}', returning None")
                 return None
-        logger.debug(f"Parsed date: {dt}")
+        log_debug(f"Parsed date: {dt}")
         return dt
     except ValueError as e:
-        logger.debug(
+        log_debug(
             f"ValueError parsing date '{date_str}' with precision '{precision}': {e}"
         )
         return None
@@ -244,12 +277,12 @@ def _artist_has_known_track(
             except SpotifyException as exc:
                 if exc.http_status == 429:
                     retry_after = int(exc.headers.get("Retry-After", "5"))
-                    logger.warning(
+                    log_warning(
                         f"Rate limited during known track search, sleeping {retry_after}s"
                     )
                     time.sleep(retry_after)
                     continue
-                logger.error(
+                log_error(
                     f"Spotify search failed for known track '{title}' ({artist_name}): {exc}"
                 )
                 return False
@@ -269,15 +302,15 @@ def _fetch_artist_by_id(sp: Spotify, artist_id: str) -> Optional[dict]:
         except SpotifyException as exc:
             if exc.http_status == 429:
                 retry_after = int(exc.headers.get("Retry-After", "5"))
-                logger.warning(
+                log_warning(
                     f"Rate limited fetching artist {artist_id}, sleeping {retry_after}s"
                 )
                 time.sleep(retry_after)
                 continue
-            logger.error(f"Spotify artist lookup failed for {artist_id}: {exc}")
+            log_error(f"Spotify artist lookup failed for {artist_id}: {exc}")
             return None
         except Exception as exc:  # noqa: BLE001
-            logger.error(f"Unexpected error fetching artist {artist_id}: {exc}")
+            log_error(f"Unexpected error fetching artist {artist_id}: {exc}")
             return None
 
 
@@ -297,12 +330,12 @@ def _search_artist_using_known_tracks(
             except SpotifyException as exc:
                 if exc.http_status == 429:
                     retry_after = int(exc.headers.get("Retry-After", "5"))
-                    logger.warning(
+                    log_warning(
                         f"Rate limited during artist disambiguation for '{artist_name}', sleeping {retry_after}s"
                     )
                     time.sleep(retry_after)
                     continue
-                logger.error(
+                log_error(
                     f"Spotify search failed for known title '{title}' ({artist_name}): {exc}"
                 )
                 resp = None
@@ -318,7 +351,7 @@ def _search_artist_using_known_tracks(
                 artist_id = art.get("id")
                 if not artist_id:
                     continue
-                logger.debug(
+                log_debug(
                     f"Resolved artist '{artist_name}' via known title '{title}' (track {track.get('id')})"
                 )
                 return _fetch_artist_by_id(sp, artist_id) or {
@@ -342,16 +375,16 @@ def _resolve_artist(
                 if _artist_has_known_track(
                     sp, artist.get("id", ""), artist_name, known_titles
                 ):
-                    logger.debug(f"Resolved artist '{artist_name}' from cache (verified)")
+                    log_debug(f"Resolved artist '{artist_name}' from cache (verified)")
                     return artist
-                logger.warning(
+                log_warning(
                     f"Cached artist ID mismatch for '{artist_name}', refreshing lookup"
                 )
                 cache.remove(artist_name)
             else:
-                logger.debug(f"Resolved artist '{artist_name}' from cache")
+                log_debug(f"Resolved artist '{artist_name}' from cache")
                 return artist
-        logger.info(f"Removing stale artist cache entry for '{artist_name}'")
+        log_info(f"Removing stale artist cache entry for '{artist_name}'")
         cache.remove(artist_name)
 
     artist = _search_artist_using_known_tracks(sp, artist_name, known_titles)
@@ -373,7 +406,7 @@ def _best_artist_match(
     sp: Spotify, artist_name: str, known_titles: Optional[set[str]] = None
 ) -> Optional[dict]:
     query = f'artist:"{artist_name}"'
-    logger.debug(f"Searching for artist: {artist_name} with query: {query}")
+    log_debug(f"Searching for artist: {artist_name} with query: {query}")
     while True:
         try:
             res = sp.search(q=query, type="artist", limit=10)
@@ -381,20 +414,20 @@ def _best_artist_match(
         except SpotifyException as exc:
             if exc.http_status == 429:
                 retry_after = int(exc.headers.get("Retry-After", "5"))
-                logger.warning(f"Rate limited during artist search, sleeping {retry_after}s")
+                log_warning(f"Rate limited during artist search, sleeping {retry_after}s")
                 time.sleep(retry_after)
                 continue
-            logger.error(f"Spotify search failed for {artist_name}: {exc}")
+            log_error(f"Spotify search failed for {artist_name}: {exc}")
             return None
     items = res.get("artists", {}).get("items", [])
-    logger.debug(
+    log_debug(
         f"Artist search returned {len(items)} items for {artist_name}: {[item.get('name') for item in items]}"
     )
     exact_matches = [
         item for item in items if item.get("name", "").casefold() == artist_name.casefold()
     ]
     if not exact_matches:
-        logger.debug(f"No exact match found for artist: {artist_name}")
+        log_debug(f"No exact match found for artist: {artist_name}")
         return None
     if len(exact_matches) == 1 or not known_titles:
         return exact_matches[0]
@@ -403,9 +436,9 @@ def _best_artist_match(
         if not artist_id:
             continue
         if _artist_has_known_track(sp, artist_id, artist_name, known_titles):
-            logger.debug(f"Disambiguated artist '{artist_name}' using known titles")
+            log_debug(f"Disambiguated artist '{artist_name}' using known titles")
             return candidate
-    logger.debug(f"Multiple exact matches for '{artist_name}', returning the first one by default")
+    log_debug(f"Multiple exact matches for '{artist_name}', returning the first one by default")
     return exact_matches[0]
 
 
@@ -454,33 +487,33 @@ def _is_alt_or_reissue(title: str, album_name: str) -> bool:
 def _album_tracks_by_artist(sp: Spotify, album_id: str, artist_id: str) -> list[dict]:
     tracks: list[dict] = []
     offset = 0
-    logger.debug(f"Fetching tracks for album {album_id} and artist {artist_id}")
+    log_debug(f"Fetching tracks for album {album_id} and artist {artist_id}")
     while True:
         page = sp.album_tracks(album_id, limit=50, offset=offset)
         items = page.get("items", [])
-        logger.debug(
+        log_debug(
             f"Fetched {len(items)} tracks at offset {offset} for album {album_id}"
         )
         if not items:
-            logger.debug(
+            log_debug(
                 f"No more tracks found for album {album_id} at offset {offset}"
             )
             break
         for track in items:
             artists = track.get("artists", [])
-            logger.debug(
+            log_debug(
                 f"Track '{track.get('name', '')}' artists: {[art.get('id') for art in artists]}"
             )
             if any(art.get("id") == artist_id for art in artists if art.get("id")):
-                logger.debug(
+                log_debug(
                     f"Track '{track.get('name', '')}' matches artist {artist_id}"
                 )
                 tracks.append(track)
         if not page.get("next"):
-            logger.debug(f"No next page for album tracks in album {album_id}")
+            log_debug(f"No next page for album tracks in album {album_id}")
             break
         offset += len(items)
-    logger.debug(
+    log_debug(
         f"Total tracks found for artist {artist_id} in album {album_id}: {len(tracks)}"
     )
     return tracks
@@ -491,7 +524,7 @@ def _iter_recent_albums(
 ) -> Iterable[tuple[datetime, dict]]:
     offset = 0
     seen_albums: set[str] = set()
-    logger.debug(f"Fetching recent albums for artist {artist_id} after {cutoff}")
+    log_debug(f"Fetching recent albums for artist {artist_id} after {cutoff}")
     while True:
         try:
             page = sp.artist_albums(
@@ -504,42 +537,42 @@ def _iter_recent_albums(
         except SpotifyException as exc:
             if exc.http_status == 429:
                 retry_after = int(exc.headers.get("Retry-After", "5"))
-                logger.warning(
+                log_warning(
                     f"Rate limited during albums fetch, sleeping {retry_after}s"
                 )
                 time.sleep(retry_after)
                 continue
-            logger.error(f"Spotify albums failed for {artist_id}: {exc}")
+            log_error(f"Spotify albums failed for {artist_id}: {exc}")
             break
         items = page.get("items", [])
-        logger.debug(
+        log_debug(
             f"Fetched {len(items)} albums at offset {offset} for artist {artist_id}"
         )
         if not items:
-            logger.debug(
+            log_debug(
                 f"No more albums found for artist {artist_id} at offset {offset}"
             )
             break
         for album in items:
             album_id = album.get("id")
-            logger.debug(f"Processing album: {album_id}")
+            log_debug(f"Processing album: {album_id}")
             if not album_id or album_id in seen_albums:
-                logger.debug(f"Skipping album {album_id}: already seen or missing ID")
+                log_debug(f"Skipping album {album_id}: already seen or missing ID")
                 continue
             seen_albums.add(album_id)
             release = parse_release_date(
                 album.get("release_date", ""), album.get("release_date_precision", "")
             )
-            logger.debug(f"Album {album_id} release date: {release}")
+            log_debug(f"Album {album_id} release date: {release}")
             if not release or release < cutoff:
-                logger.debug(
+                log_debug(
                     f"Skipping album {album_id}: release date {release} before cutoff {cutoff}"
                 )
                 continue
-            logger.debug(f"Yielding album {album_id} released on {release}")
+            log_debug(f"Yielding album {album_id} released on {release}")
             yield release, album
         if not page.get("next"):
-            logger.debug(f"No next page for artist albums for artist {artist_id}")
+            log_debug(f"No next page for artist albums for artist {artist_id}")
             break
         offset += len(items)
 
@@ -555,12 +588,12 @@ def _fetch_popularity_bulk(sp: Spotify, track_ids: list[str]) -> dict[str, int]:
         except SpotifyException as exc:
             if exc.http_status == 429:
                 retry_after = int(exc.headers.get("Retry-After", "5"))
-                logger.warning(
+                log_warning(
                     f"Rate limited during tracks fetch, sleeping {retry_after}s"
                 )
                 time.sleep(retry_after)
                 continue
-            logger.error(f"Spotify tracks batch failed: {exc}")
+            log_error(f"Spotify tracks batch failed: {exc}")
             break
         for t in resp.get("tracks") or []:
             if not t:
@@ -622,13 +655,13 @@ def _load_metadata_entries(playlists_dir: Path) -> dict[str, dict]:
         with path.open("r", encoding="utf-8") as handle:
             raw = json.load(handle)
     except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Failed reading metadata file {path}: {exc}")
+        log_warning(f"Failed reading metadata file {path}: {exc}")
         return {}
     if isinstance(raw, dict):
         entries = raw.get("entries", raw)
         if isinstance(entries, dict):
             return entries
-    logger.warning(f"Unexpected metadata structure in {path}")
+    log_warning(f"Unexpected metadata structure in {path}")
     return {}
 
 
@@ -636,7 +669,7 @@ def _save_metadata_entries(
     playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool
 ) -> None:
     if dry_run:
-        logger.info("Dry run: not writing metadata JSON")
+        log_info("Dry run: not writing metadata JSON")
         return
     entries: dict[str, dict] = {}
     for item in releases:
@@ -657,19 +690,19 @@ def _save_metadata_entries(
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
         handle.write("\n")
-    logger.info(f"Wrote metadata for {len(entries)} tracks to {path}")
+    log_success(f"Stored metadata for {len(entries)} tracks → {path}")
 
 
 def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
     path = playlists_dir / "New Releases.csv"
     if not path.exists():
-        logger.debug("New Releases.csv not found; starting from empty state")
+        log_debug("New Releases.csv not found; starting from empty state")
         return []
     metadata_entries = _load_metadata_entries(playlists_dir)
     try:
         df = pd.read_csv(path)
     except Exception as exc:  # noqa: BLE001
-        logger.error(f"Failed reading {path}: {exc}")
+        log_error(f"Failed reading {path}: {exc}")
         return []
     releases: list[ArtistRelease] = []
     for _, row in df.iterrows():
@@ -693,7 +726,7 @@ def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
                 if release_dt.tzinfo is None:
                     release_dt = release_dt.replace(tzinfo=UTC)
             except ValueError:
-                logger.debug(f"Invalid ReleaseDate '{release_raw}' for {artist} - {title}")
+                log_debug(f"Invalid ReleaseDate '{release_raw}' for {artist} - {title}")
         elif isinstance(metadata, dict):
             meta_release_raw = metadata.get("ReleaseDate")
             if isinstance(meta_release_raw, str) and meta_release_raw:
@@ -702,7 +735,7 @@ def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
                     if release_dt.tzinfo is None:
                         release_dt = release_dt.replace(tzinfo=UTC)
                 except ValueError:
-                    logger.debug(
+                    log_debug(
                         f"Invalid metadata ReleaseDate '{meta_release_raw}' for {artist} - {title}"
                     )
         track_id = str(row.get("TrackID", "")).strip()
@@ -780,20 +813,20 @@ def _append_release_to_playlist(
         if dry_run
         else f"Appending '{release.artist} - {release.title}' to {csv_path.name}"
     )
-    logger.info(action)
+    log_info(action)
     if dry_run:
         return
     try:
         df = pd.read_csv(csv_path)
     except Exception as exc:  # noqa: BLE001
-        logger.error(f"Failed reading {csv_path}: {exc}")
+        log_error(f"Failed reading {csv_path}: {exc}")
         return
     if {"Artist", "Title"}.issubset(df.columns):
         duplicate = (
             df["Artist"].fillna("").str.strip().str.casefold() == release.artist.casefold()
         ) & (df["Title"].fillna("").str.strip().str.casefold() == release.title.casefold())
         if duplicate.any():
-            logger.debug(
+            log_debug(
                 f"Track already present in {csv_path.name}: {release.artist} - {release.title}"
             )
             return
@@ -818,7 +851,7 @@ def _append_release_to_playlist(
         row["Title"] = release.title
     appended = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
     appended.to_csv(csv_path, index=False)
-    logger.debug(f"Appended '{release.title}' to {csv_path.name}")
+    log_debug(f"Appended '{release.title}' to {csv_path.name}")
 
 
 def _promote_release_album(release: ArtistRelease) -> bool:
@@ -839,11 +872,8 @@ def _promote_release_album(release: ArtistRelease) -> bool:
             allow_fallback=True,
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning(
-            "Album lookup failed for %s - %s: %s",
-            release.artist,
-            release.title,
-            exc,
+        log_warning(
+            f"Album lookup failed for {release.artist} - {release.title}: {exc}"
         )
         return False
 
@@ -875,12 +905,8 @@ def _promote_release_album(release: ArtistRelease) -> bool:
     if match.track_id:
         release.track_id = match.track_id
 
-    logger.info(
-        "Updated album metadata for %s - %s: %s -> %s",
-        release.artist,
-        release.title,
-        previous_label,
-        new_album,
+    log_info(
+        f"Updated album metadata for {release.artist} - {release.title}: {previous_label} -> {new_album}"
     )
     return True
 
@@ -896,17 +922,17 @@ def _move_track_audio(
         return
     src_dir = audio_root / source_dir_name
     if not src_dir.exists():
-        logger.debug(f"Audio source directory missing: {src_dir}")
+        log_debug(f"Audio source directory missing: {src_dir}")
         return
     dest_dir = audio_root / destination_dir_name
     if dry_run:
-        logger.info(
+        log_info(
             f"Dry run: would move audio for '{release.artist} - {release.title}'"
             f" from {src_dir} to {dest_dir}"
         )
         return
     dest_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(
+    log_info(
         f"Moving audio for '{release.artist} - {release.title}' from {src_dir} to {dest_dir}"
     )
     target_key = _normalize_audio_label(release.artist, release.title)
@@ -919,9 +945,9 @@ def _move_track_audio(
         if candidate_key == target_key or target_key in candidate_key:
             dest_path = dest_dir / candidate.name
             candidate.replace(dest_path)
-            logger.info(f"Moved {candidate.name} to {dest_dir}")
+            log_info(f"Moved {candidate.name} to {dest_dir}")
             return
-    logger.warning(
+    log_warning(
         f"No audio found for {release.artist} - {release.title} in {src_dir}; nothing moved"
     )
 
@@ -939,7 +965,7 @@ def move_outdated_releases(
     for release in releases:
         destination = _resolve_destination_playlist(release, artist_playlist_map)
         if not destination:
-            logger.warning(f"No destination playlist for {release.artist} - {release.title}")
+            log_warning(f"No destination playlist for {release.artist} - {release.title}")
             continue
         _promote_release_album(release)
         migrations.append((release, destination))
@@ -959,13 +985,10 @@ def move_outdated_releases(
         if dry_run
         else "Moved the following tracks to permanent playlists"
     )
-    logger.info(action_phrase)
+    log_info(action_phrase)
     for release, destination in migrations:
-        logger.info(
-            "  - %s - %s -> %s",
-            release.artist,
-            release.title,
-            destination.name,
+        log_info(
+            f"  • {release.artist} – {release.title} → {destination.name}"
         )
 
 
@@ -976,16 +999,16 @@ def fetch_recent_releases(
     known_titles: Optional[set[str]] = None,
     artist_cache: Optional[ArtistIDCache] = None,
 ) -> list[ArtistRelease]:
-    logger.debug(f"Fetching recent releases for artist: {artist_name}")
+    log_debug(f"Fetching recent releases for artist: {artist_name}")
     artist = _resolve_artist(sp, artist_name, known_titles, artist_cache)
     if not artist:
-        logger.debug(f"No artist found for {artist_name}")
+        log_debug(f"No artist found for {artist_name}")
         return []
 
     artist_id = artist.get("id")
-    logger.debug(f"Artist ID for '{artist_name}': {artist_id}")
+    log_debug(f"Artist ID for '{artist_name}': {artist_id}")
     if not artist_id:
-        logger.debug(f"No artist ID found for {artist_name}")
+        log_debug(f"No artist ID found for {artist_name}")
         return []
 
     candidates: list[ArtistRelease] = []
@@ -1003,7 +1026,7 @@ def fetch_recent_releases(
         if not any(
             (art.get("id") == artist_id) for art in track.get("artists", []) if art.get("id")
         ):
-            logger.debug(
+            log_debug(
                 f"Skipping track '{track.get('name', '')}' because artist ID {artist_id} is not present"
             )
             continue
@@ -1037,9 +1060,9 @@ def fetch_recent_releases(
     # Sort newest first (popularity annotation/ranking happens later)
     candidates.sort(key=lambda item: item.release_date, reverse=True)
     if not candidates:
-        logger.debug(f"No recent releases found for {artist_name}")
+        log_debug(f"No recent releases found for {artist_name}")
     else:
-        logger.debug(f"Found {len(candidates)} candidates for {artist_name}")
+        log_debug(f"Found {len(candidates)} candidates for {artist_name}")
     return candidates
 
 
@@ -1061,7 +1084,7 @@ def build_new_releases(
     seen_track_ids: Set[str] = set(seen_tracks or set())
     seen_title_keys: Set[str] = set(seen_keys or set())
     artists_list = list(artists)
-    logger.debug(f"Building new releases for {len(artists_list)} artists with cutoff {cutoff}")
+    log_debug(f"Building new releases for {len(artists_list)} artists with cutoff {cutoff}")
 
     for idx, artist in enumerate(
         tqdm(artists_list, desc="Artists", unit="artist", disable=not sys.stdout.isatty()),
@@ -1076,7 +1099,7 @@ def build_new_releases(
         _annotate_popularity(sp, candidates)
         filtered = [c for c in candidates if (c.popularity or 0) >= min_popularity]
         if not filtered:
-            logger.debug(f"No candidates passed min_popularity for {artist}")
+            log_debug(f"No candidates passed min_popularity for {artist}")
             continue
 
         def rank_key(r: ArtistRelease):
@@ -1101,7 +1124,7 @@ def build_new_releases(
                 break
 
     releases.sort(key=lambda item: (item.release_date, item.popularity or 0), reverse=True)
-    logger.debug(f"Total new releases collected this run: {len(releases)}")
+    log_debug(f"Total new releases collected this run: {len(releases)}")
     return releases
 
 
@@ -1109,9 +1132,9 @@ def save_new_releases(
     playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool
 ) -> None:
     output_path = playlists_dir / "New Releases.csv"
-    logger.debug(f"Saving new releases to {output_path}, dry_run={dry_run}")
+    log_debug(f"Saving new releases to {output_path}, dry_run={dry_run}")
     if not releases:
-        logger.info("No new releases to write.")
+        log_info("No new releases to write.")
         print("No new releases to write.", file=sys.stderr)
         return
     sorted_releases = sorted(
@@ -1143,9 +1166,9 @@ def save_new_releases(
             }
         )
     df_preview = pd.DataFrame(preview_rows)
-    logger.debug(f"Preview DataFrame to be written:\n{df_preview}")
+    log_debug(f"Preview DataFrame to be written:\n{df_preview}")
     if dry_run:
-        logger.info("Dry run: not writing CSV")
+        log_info("Dry run: not writing CSV")
         print("Dry run: not writing CSV", file=sys.stderr)
         if not df_preview.empty:
             print(df_preview.to_string(index=False), flush=True)
@@ -1153,27 +1176,27 @@ def save_new_releases(
     df_csv = pd.DataFrame(csv_rows)
     df_csv.to_csv(output_path, index=False)
     _save_metadata_entries(playlists_dir, sorted_releases, dry_run)
-    logger.info(f"Wrote {len(df_csv)} tracks to {output_path}")
+    log_success(f"Wrote {len(df_csv)} tracks → {output_path}")
     print(f"Wrote {len(df_csv)} tracks to {output_path}", flush=True)
 
 
 def build_spotify_client() -> Spotify:
-    logger.debug("Loading Spotify credentials from .env")
+    log_debug("Loading Spotify credentials from .env")
     load_dotenv(dotenv_path=".env", override=False)
     cid = os.getenv("SPOTIFY_CLIENT_ID")
     secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-    logger.debug(
+    log_debug(
         f"SPOTIFY_CLIENT_ID: {cid}, SPOTIFY_CLIENT_SECRET: {'set' if secret else 'missing'}"
     )
     if not cid or not secret:
-        logger.error(
+        log_error(
             "Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
         )
         raise SystemExit(
             "Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
         )
     auth = SpotifyClientCredentials(client_id=cid, client_secret=secret)
-    logger.debug("Spotify client initialized")
+    log_debug("Spotify client initialized")
     return Spotify(auth_manager=auth)
 
 
@@ -1215,12 +1238,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Prefer singles when ranking candidates (default: off)",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed debug output",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    logger.info(f"Starting update for station: {args.station}")
+    set_debug_mode(args.verbose)
+    log_info(f"Starting update for station: {args.station}")
     script_dir = Path(__file__).resolve().parent
     raw_station_path = Path(args.station)
     station_dir = (
@@ -1229,21 +1258,21 @@ def main() -> None:
         else script_dir / raw_station_path
     )
     playlists_dir = station_dir / "playlists"
-    logger.debug(
+    log_debug(
         f"Station directory: {station_dir}, Playlists directory: {playlists_dir}"
     )
     if not playlists_dir.exists():
-        logger.error(f"Playlists directory not found: {playlists_dir}")
+        log_error(f"Playlists directory not found: {playlists_dir}")
         raise SystemExit(f"Playlists directory not found: {playlists_dir}")
 
     artists, artist_tracks, artist_playlist_map = load_station_artists(playlists_dir)
-    logger.info(f"Loaded {len(artists)} artists from {playlists_dir}")
+    log_info(f"Loaded {len(artists)} artists from {playlists_dir}")
     artist_cache = load_artist_id_cache(playlists_dir)
 
     # Always use [station]/songs as audio root, and playlist name as subdirectory
     audio_root = station_dir / "songs"
     if not audio_root.exists():
-        logger.debug(f"Audio root not found; skipping audio moves: {audio_root}")
+        log_debug(f"Audio root not found; skipping audio moves: {audio_root}")
         audio_root = None
 
     cutoff = datetime.now(UTC) - timedelta(days=args.days)
@@ -1273,22 +1302,18 @@ def main() -> None:
             if args.dry_run
             else "The following tracks will be downloaded"
         )
-        logger.info(download_phrase)
+        log_info(download_phrase)
         for release in new_releases:
             release_date = (
                 release.release_date.date().isoformat()
                 if isinstance(release.release_date, datetime)
                 else "unknown date"
             )
-            logger.info(
-                "  - %s - %s (%s, %s)",
-                release.artist,
-                release.title,
-                release.album,
-                release_date,
+            log_info(
+                f"  • {release.artist} – {release.title} ({release.album}, {release_date})"
             )
     else:
-        logger.info("No new tracks to download this run.")
+        log_info("No new tracks to download this run.")
 
     combined = valid_existing + new_releases
     combined.sort(key=lambda item: (item.release_date, item.popularity or 0), reverse=True)
@@ -1316,10 +1341,10 @@ def main() -> None:
         )
 
     if final_releases:
-        logger.info(f"Collected {len(final_releases)} recent tracks")
+        log_info(f"Collected {len(final_releases)} recent tracks")
         print(f"Collected {len(final_releases)} recent tracks", flush=True)
     else:
-        logger.info("No releases found within the window")
+        log_info("No releases found within the window")
         print("No releases found within the window", flush=True)
     save_new_releases(playlists_dir, final_releases, dry_run=args.dry_run)
 
