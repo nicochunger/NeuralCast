@@ -6,7 +6,7 @@
       "Popularity": 30,
       "ReleaseDate": "2025-10-29T00:00:00+00:00",
       "TrackID": "4z2X3y2ZLlddtNAnzUK8lh",
-      "Validated": false
+      "Validated": true
     },
     "aephanemer|la r\u00e8gle du jeu|la r\u00e8gle du jeu|2025": {
       "AlbumType": "single",
@@ -30,7 +30,7 @@
       "Popularity": 33,
       "ReleaseDate": "2025-10-31T00:00:00+00:00",
       "TrackID": "4XOfb3hHTbXKqDiqpgzPpP",
-      "Validated": false
+      "Validated": true
     },
     "alestorm|gardyloo|gardyloo|2025": {
       "AlbumType": "single",
@@ -158,14 +158,6 @@
       "Popularity": 32,
       "ReleaseDate": "2025-10-30T00:00:00+00:00",
       "TrackID": "4daZCldTz38XQesXnDk8zX",
-      "Validated": false
-    },
-    "dartagnan|mosqueteros - en espa\u00f1ol|mosqueteros - en espa\u00f1ol|2025": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Popularity": 40,
-      "ReleaseDate": "2025-07-18T00:00:00+00:00",
-      "TrackID": "663A9Myl42m3wRCN6ISUlf",
       "Validated": true
     },
     "def leppard|seagull|seagull|2025": {
@@ -174,7 +166,7 @@
       "Popularity": 46,
       "ReleaseDate": "2025-10-23T00:00:00+00:00",
       "TrackID": "7CytSpgno2zLlSDIqpsGv9",
-      "Validated": false
+      "Validated": true
     },
     "elvenking|children of decadence|children of decadence|2025": {
       "AlbumType": "single",
@@ -182,7 +174,7 @@
       "Popularity": 41,
       "ReleaseDate": "2025-10-31T00:00:00+00:00",
       "TrackID": "6Ni70pulrtiWwftMoWEDTZ",
-      "Validated": false
+      "Validated": true
     },
     "equilibrium|bloodwood|bloodwood|2025": {
       "AlbumType": "single",
@@ -198,7 +190,7 @@
       "Popularity": 45,
       "ReleaseDate": "2025-10-28T00:00:00+00:00",
       "TrackID": "21rdzUlsx68q9FLOKJgfPs",
-      "Validated": false
+      "Validated": true
     },
     "equilibrium|i'll be thunder|i'll be thunder|2025": {
       "AlbumType": "single",
@@ -214,7 +206,7 @@
       "Popularity": 39,
       "ReleaseDate": "2025-11-06T00:00:00+00:00",
       "TrackID": "01OuTCfQH5RKwMDaVvNEZ1",
-      "Validated": false
+      "Validated": true
     },
     "fairyland|\u0443\u0442\u0440\u043e \u0443 \u043f\u043e\u0440\u043e\u0433\u0430|\u0434\u043e\u043c \u043f\u043e\u0441\u0440\u0435\u0434\u0438 \u0440\u043e\u043c\u0430\u0448\u0435\u043a|2025": {
       "AlbumType": "album",
@@ -222,7 +214,7 @@
       "Popularity": 7,
       "ReleaseDate": "2025-10-13T00:00:00+00:00",
       "TrackID": "3j5A0qcuZ8dEk9u4xbxNRs",
-      "Validated": false
+      "Validated": true
     },
     "feuerschwanz|knightclub (feat. dag sdp)|knightclub|2025": {
       "AlbumType": "album",
@@ -230,7 +222,7 @@
       "Popularity": 42,
       "ReleaseDate": "2025-08-22T00:00:00+00:00",
       "TrackID": "5vQKsgFdSmXpw5EMabMcO0",
-      "Validated": false
+      "Validated": true
     },
     "feuerschwanz|sam the brave|sam the brave|2025": {
       "AlbumType": "single",
@@ -238,7 +230,7 @@
       "Popularity": 40,
       "ReleaseDate": "2025-08-19T00:00:00+00:00",
       "TrackID": "7rvVV5Yufusop6x7OnqZj9",
-      "Validated": false
+      "Validated": true
     },
     "helloween|giants on the run|giants & monsters|2025": {
       "AlbumType": "album",
@@ -262,7 +254,7 @@
       "Popularity": 21,
       "ReleaseDate": "2025-10-30T00:00:00+00:00",
       "TrackID": "4RSgPrlsP3sxjuzljkqF8c",
-      "Validated": false
+      "Validated": true
     },
     "korpiklaani|got the time|got the time|2025": {
       "AlbumType": "single",
@@ -270,7 +262,7 @@
       "Popularity": 42,
       "ReleaseDate": "2025-11-05T00:00:00+00:00",
       "TrackID": "0cuT5kNhxJT4IQ1bR521zr",
-      "Validated": false
+      "Validated": true
     },
     "leprous|take on me - musora session|take on me (musora session)|2025": {
       "AlbumType": "single",
@@ -279,6 +271,14 @@
       "ReleaseDate": "2025-08-20T00:00:00+00:00",
       "TrackID": "4kXXgjWfmCgK0uR1kSqvFb",
       "Validated": true
+    },
+    "megadeth|i don't care|i don't care|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 60,
+      "ReleaseDate": "2025-11-14T00:00:00+00:00",
+      "TrackID": "75lwu2RtEifLzaSLkbFcNe",
+      "Validated": false
     },
     "megadeth|tipping point|tipping point|2025": {
       "AlbumType": "single",
@@ -382,7 +382,7 @@
       "Popularity": 32,
       "ReleaseDate": "2025-11-07T00:00:00+00:00",
       "TrackID": "0PmxhU5oKKjNYbw11QTQau",
-      "Validated": false
+      "Validated": true
     },
     "omnium gatherum|my pain|my pain|2025": {
       "AlbumType": "single",
@@ -399,6 +399,14 @@
       "ReleaseDate": "2025-09-24T00:00:00+00:00",
       "TrackID": "0lYzDTXUo7iSoyCmKBT3Xl",
       "Validated": true
+    },
+    "pathfinder|sacred path|sacred path|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 0,
+      "ReleaseDate": "2025-09-05T00:00:00+00:00",
+      "TrackID": "2iSSe6IrXOqPVSLDiddbzw",
+      "Validated": false
     },
     "primal fear|tears of fire|tears of fire|2025": {
       "AlbumType": "single",
@@ -438,7 +446,7 @@
       "Popularity": 62,
       "ReleaseDate": "2025-10-17T00:00:00+00:00",
       "TrackID": "0MxqiUhIbMwIEOYTgdNbxb",
-      "Validated": false
+      "Validated": true
     },
     "sabaton|the duelist|the duelist|2025": {
       "AlbumType": "single",
@@ -478,7 +486,7 @@
       "Popularity": 48,
       "ReleaseDate": "2025-10-24T00:00:00+00:00",
       "TrackID": "2EoEWFukrxKAMt0BrKrtvN",
-      "Validated": false
+      "Validated": true
     },
     "scorpions|in search of the peace of mind|from the first sting|2025": {
       "AlbumType": "album",
@@ -486,7 +494,7 @@
       "Popularity": 0,
       "ReleaseDate": "2025-10-17T00:00:00+00:00",
       "TrackID": "2pqGgPfPX2P3Rn3I8CT2sv",
-      "Validated": false
+      "Validated": true
     },
     "scorpions|mind like a tree|mind like a tree|2025": {
       "AlbumType": "single",
@@ -504,13 +512,21 @@
       "TrackID": "659lSEpj2x1hRdpLCSO5Wk",
       "Validated": true
     },
+    "smokey bastard|orangina|unreleased curiosities|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 18,
+      "ReleaseDate": "2025-11-14T00:00:00+00:00",
+      "TrackID": "5TpLmbF0ziEm4jGyT2fj8T",
+      "Validated": false
+    },
     "subway to sally|r\u00e4uber und narren (feat. schandmaul)|r\u00e4uber und narren (feat. schandmaul)|2025": {
       "AlbumType": "single",
       "IsSingle": true,
       "Popularity": 39,
       "ReleaseDate": "2025-11-05T00:00:00+00:00",
       "TrackID": "01UEQTiJP9IqEIIMGPIA7W",
-      "Validated": false
+      "Validated": true
     },
     "svartsot|como poden per sas caulpas|peregrinus|2025": {
       "AlbumType": "album",
@@ -550,7 +566,7 @@
       "Popularity": 26,
       "ReleaseDate": "2025-11-07T00:00:00+00:00",
       "TrackID": "7neTaVHGrTnkqaogELOVBW",
-      "Validated": false
+      "Validated": true
     },
     "t\u00fdr|the rune (2025)|the rune (2025)|2025": {
       "AlbumType": "single",
@@ -574,7 +590,7 @@
       "Popularity": 46,
       "ReleaseDate": "2025-10-24T00:00:00+00:00",
       "TrackID": "44hlnl2j6eJznAPYS8Y5QY",
-      "Validated": false
+      "Validated": true
     },
     "versengold|falscher leuchtturm (feat. madsen)|falscher leuchtturm (feat. madsen)|2025": {
       "AlbumType": "single",
@@ -607,6 +623,14 @@
       "ReleaseDate": "2025-10-03T00:00:00+00:00",
       "TrackID": "3tTKSytlt2zRwuNYwEB1j5",
       "Validated": true
+    },
+    "victorius|raptor squad attack|raptor squad attack|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 25,
+      "ReleaseDate": "2025-11-13T00:00:00+00:00",
+      "TrackID": "2D73bXsF40DJBWzyfwVH5k",
+      "Validated": false
     },
     "vintersorg|efter dis kommer dimma|vattenkrafternas spel|2025": {
       "AlbumType": "album",
