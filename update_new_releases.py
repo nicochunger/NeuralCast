@@ -43,7 +43,7 @@ def _emit(icon: str, message: str) -> None:
 
 
 def log_info(message: str) -> None:
-    _emit("ℹ️", message)
+    _emit("💡", message)
 
 
 def log_success(message: str) -> None:
