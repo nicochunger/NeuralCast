@@ -1,84 +1,85 @@
-Artist,Title,Album,Year
-Megadeth,I Don't Care,I Don't Care,2025
-Smokey Bastard,Orangina,Unreleased Curiosities,2025
-Victorius,Raptor Squad Attack,Raptor Squad Attack,2025
-Omnium Gatherum,May the Bridges We Burn Light the Way,May The Bridges We Burn Light The Way,2025
-The Saw Doctors,Tuam Beat,Tuam Beat,2025
-Evergrey,OXYGEN!,OXYGEN!,2025
-Korpiklaani,Got The Time,Got The Time,2025
-Subway to Sally,Räuber und Narren (feat. Schandmaul),Räuber und Narren (feat. Schandmaul),2025
-Elvenking,Children of Decadence,Children of Decadence,2025
-Aephanemer,Échos d'un Monde Perdu,Utopie,2025
-Dark Moor,Viviendo en un mal sueño,Viviendo en un mal sueño,2025
-Iron Savior,Fame,Fame,2025
-Aephanemer,Contrepoint,Contrepoint,2025
-Equilibrium,Borrowed Waters,Borrowed Waters,2025
-Santiano,Tanzen wie die Teufel,Da braut sich was zusammen,2025
-Versengold,Dans op de Deel,Dans op de Deel,2025
-Def Leppard,Seagull,Seagull,2025
-Sabaton,Templars,Legends,2025
-Scorpions,In Search of the Peace of Mind,From The First Sting,2025
-Fairyland,Утро у порога,Дом посреди ромашек,2025
-Venom,jhunt si,jhunt si,2025
-Megadeth,Tipping Point,Tipping Point,2025
-Celestial Aeon Project,Witchy Vibes for Halloween,Witchy Vibes for Halloween,2025
-Victorius,Dino Race From Outer Space,Dino Race From Outer Space,2025
-Equilibrium,I'll Be Thunder,I'll Be Thunder,2025
-Scorpions,You & I,You & I,2025
-Amorphis,The Circle,Borderland,2025
-Celestial Aeon Project,Boo! Pumpkin Dance,Boo! Pumpkin Dance,2025
-Vintersorg,Efter Dis Kommer Dimma,Vattenkrafternas Spel,2025
-Mors Principium Est,Of Death,Darkness Invisible,2025
-Aephanemer,Le Cimetière Marin,Le Cimetière Marin,2025
-Omnium Gatherum,Walking Ghost Phase,Walking Ghost Phase,2025
-Versengold,Paint the Town Green,Paint the Town Green,2025
-The Dreadnoughts,Polka Pit,Polka Pit,2025
-Celestial Aeon Project,Cute Halloween Spookiness,Cute Halloween Magic,2025
-Arch Enemy,Break the Spell,Break the Spell,2025
-Celestial Aeon Project,Eerie Fairy Tale,Eerie Fairy Tale,2025
-Santiano,Dann bin ich weg,Dann bin ich weg,2025
-Between the Buried and Me,Things We Tell Ourselves in the Dark,The Blue Nowhere,2025
-Sabaton,Crossing the Rubicon (feat. NOTHING MORE),Crossing the Rubicon (feat. NOTHING MORE),2025
-Celestial Aeon Project,Waltz of the Undead,Waltz of the Undead,2025
-Mors Principium Est,All Life is Evil,All Life is Evil,2025
-Motörhead,Neat Neat Neat,Neat Neat Neat,2025
-Celestial Aeon Project,Season of Witchy Vibes,Season of Witchy Vibes,2025
-Saltatio Mortis,Angels,Angels,2025
-Mr. Hurley & Die Pulveraffen,Piraten: Megageil!,S.O.S.,2025
-Primal Fear,The Hunter,Domination,2025
-Svartsot,Como Poden Per Sas Caulpas,Peregrinus,2025
-Pathfinder,Sacred Path,Sacred Path,2025
-Between the Buried and Me,The Blue Nowhere,The Blue Nowhere,2025
-Celestial Aeon Project,Haunted Music Box,Haunted Music Box,2025
-Equilibrium,Bloodwood,Bloodwood,2025
-Scorpions,Mind Like A Tree,Mind Like A Tree,2025
-Helloween,Giants On The Run,Giants & Monsters,2025
-Månegarm,I skogsfruns famn (feat. Lea Grawsiö Lindström),Edsvuren,2025
-Aephanemer,La Règle du Jeu,La Règle du Jeu,2025
-Månegarm,En Blodvittneskrans,En blodvittneskrans,2025
-Versengold,Falscher Leuchtturm (feat. Madsen),Falscher Leuchtturm (feat. Madsen),2025
-Feuerschwanz,Knightclub (feat. Dag SDP),Knightclub,2025
-Mr. Hurley & Die Pulveraffen,Mehr ist Mehr,Mehr ist Mehr,2025
-Vintersorg,Störtsjö,Störtsjö,2025
-Leprous,Take on Me - Musora Session,Take on Me (Musora Session),2025
-Feuerschwanz,Sam The Brave,Sam The Brave,2025
-Týr,The Rune (2025),The Rune (2025),2025
-The Dreadnoughts,Tarantella Bang Boom,Tarantella Bang Boom,2025
-Young Dubliners,Stop Shaking Your Head,Stop Shaking Your Head,2025
-Mr. Hurley & Die Pulveraffen,Die Nacht ist noch jung,Die Nacht ist noch jung,2025
-Wolfheart,Carnivore,Carnivore,2025
-Amorphis,Dancing Shadow,Dancing Shadow,2025
-Omnium Gatherum,My Pain,My Pain,2025
-Antti Martikainen,Mists of Alfheim,Odyssey,2025
-Versengold,Schiff aus Glas,Schiff aus Glas,2025
-Primal Fear,Tears of Fire,Tears of Fire,2025
-Mors Principium Est,Summoning the Dark,Summoning the Dark,2025
-Svartsot,Simplicitas,Simplicitas,2025
-Sabaton,The Duelist,The Duelist,2025
-Rhapsody of Fire,Fuego Valyrio,Fuego Valyrio,2025
-Saltatio Mortis,Equinox,WELTENWANDERER - Von Träumen & Krawall,2025
-Helloween,Universe (Gravity For Hearts),Universe (Gravity For Hearts),2025
-Mr. Hurley & Die Pulveraffen,All Hail the Captain,All Hail the Captain,2025
-Between the Buried and Me,Absent Thereafter,Absent Thereafter,2025
-Alestorm,Gardyloo,Gardyloo,2025
-Månegarm,Rodhins hav (feat. Ellinor Videfors),Rodhins hav,2025
+Artist,Title,Album,Year,Validated
+Megadeth,I Don't Care,I Don't Care,2025,True
+Smokey Bastard,Orangina,Unreleased Curiosities,2025,True
+Victorius,Raptor Squad Attack,Raptor Squad Attack,2025,True
+Omnium Gatherum,May the Bridges We Burn Light the Way,May The Bridges We Burn Light The Way,2025,True
+The Saw Doctors,Tuam Beat,Tuam Beat,2025,True
+Evergrey,OXYGEN!,OXYGEN!,2025,True
+Korpiklaani,Got The Time,Got The Time,2025,True
+Subway to Sally,Räuber und Narren (feat. Schandmaul),Räuber und Narren (feat. Schandmaul),2025,True
+Elvenking,Children of Decadence,Children of Decadence,2025,True
+Aephanemer,Échos d'un Monde Perdu,Utopie,2025,True
+Dark Moor,Viviendo en un mal sueño,Viviendo en un mal sueño,2025,True
+Iron Savior,Fame,Fame,2025,True
+Aephanemer,Contrepoint,Contrepoint,2025,True
+Equilibrium,Borrowed Waters,Borrowed Waters,2025,True
+Santiano,Tanzen wie die Teufel,Da braut sich was zusammen,2025,True
+Versengold,Dans op de Deel,Dans op de Deel,2025,True
+Def Leppard,Seagull,Seagull,2025,True
+Sabaton,Templars,Legends,2025,True
+Scorpions,In Search of the Peace of Mind,From The First Sting,2025,True
+Fairyland,Утро у порога,Дом посреди ромашек,2025,True
+Venom,jhunt si,jhunt si,2025,True
+Megadeth,Tipping Point,Tipping Point,2025,True
+Celestial Aeon Project,Witchy Vibes for Halloween,Witchy Vibes for Halloween,2025,True
+Victorius,Dino Race From Outer Space,Dino Race From Outer Space,2025,True
+Equilibrium,I'll Be Thunder,I'll Be Thunder,2025,True
+Scorpions,You & I,You & I,2025,True
+Amorphis,The Circle,Borderland,2025,True
+Celestial Aeon Project,Boo! Pumpkin Dance,Boo! Pumpkin Dance,2025,True
+Vintersorg,Efter Dis Kommer Dimma,Vattenkrafternas Spel,2025,True
+Mors Principium Est,Of Death,Darkness Invisible,2025,True
+Aephanemer,Le Cimetière Marin,Le Cimetière Marin,2025,True
+Omnium Gatherum,Walking Ghost Phase,Walking Ghost Phase,2025,True
+Versengold,Paint the Town Green,Paint the Town Green,2025,True
+The Dreadnoughts,Polka Pit,Polka Pit,2025,True
+Celestial Aeon Project,Cute Halloween Spookiness,Cute Halloween Magic,2025,True
+Arch Enemy,Break the Spell,Break the Spell,2025,True
+Celestial Aeon Project,Eerie Fairy Tale,Eerie Fairy Tale,2025,True
+Santiano,Dann bin ich weg,Dann bin ich weg,2025,True
+Between the Buried and Me,Things We Tell Ourselves in the Dark,The Blue Nowhere,2025,True
+Sabaton,Crossing the Rubicon (feat. NOTHING MORE),Crossing the Rubicon (feat. NOTHING MORE),2025,True
+Celestial Aeon Project,Waltz of the Undead,Waltz of the Undead,2025,True
+Mors Principium Est,All Life is Evil,All Life is Evil,2025,True
+Motörhead,Neat Neat Neat,Neat Neat Neat,2025,True
+Celestial Aeon Project,Season of Witchy Vibes,Season of Witchy Vibes,2025,True
+Saltatio Mortis,Angels,Angels,2025,True
+Mr. Hurley & Die Pulveraffen,Piraten: Megageil!,S.O.S.,2025,True
+Primal Fear,The Hunter,Domination,2025,True
+Svartsot,Como Poden Per Sas Caulpas,Peregrinus,2025,True
+Pathfinder,Sacred Path,Sacred Path,2025,True
+Between the Buried and Me,The Blue Nowhere,The Blue Nowhere,2025,True
+Celestial Aeon Project,Haunted Music Box,Haunted Music Box,2025,True
+Equilibrium,Bloodwood,Bloodwood,2025,True
+Scorpions,Mind Like A Tree,Mind Like A Tree,2025,True
+Helloween,Giants On The Run,Giants & Monsters,2025,True
+Månegarm,I skogsfruns famn (feat. Lea Grawsiö Lindström),Edsvuren,2025,True
+Aephanemer,La Règle du Jeu,La Règle du Jeu,2025,True
+Månegarm,En Blodvittneskrans,En blodvittneskrans,2025,True
+Versengold,Falscher Leuchtturm (feat. Madsen),Falscher Leuchtturm (feat. Madsen),2025,True
+Feuerschwanz,Knightclub (feat. Dag SDP),Knightclub,2025,True
+Mr. Hurley & Die Pulveraffen,Mehr ist Mehr,Mehr ist Mehr,2025,True
+Vintersorg,Störtsjö,Störtsjö,2025,True
+Leprous,Take on Me - Musora Session,Take on Me (Musora Session),2025,True
+Feuerschwanz,Sam The Brave,Sam The Brave,2025,True
+Týr,The Rune (2025),The Rune (2025),2025,True
+The Dreadnoughts,Tarantella Bang Boom,Tarantella Bang Boom,2025,True
+Young Dubliners,Stop Shaking Your Head,Stop Shaking Your Head,2025,True
+Mr. Hurley & Die Pulveraffen,Die Nacht ist noch jung,Die Nacht ist noch jung,2025,True
+Wolfheart,Carnivore,Carnivore,2025,True
+Amorphis,Dancing Shadow,Dancing Shadow,2025,True
+Omnium Gatherum,My Pain,My Pain,2025,True
+Antti Martikainen,Mists of Alfheim,Odyssey,2025,True
+Versengold,Schiff aus Glas,Schiff aus Glas,2025,True
+Primal Fear,Tears of Fire,Tears of Fire,2025,True
+Mors Principium Est,Summoning the Dark,Summoning the Dark,2025,True
+Svartsot,Simplicitas,Simplicitas,2025,True
+Sabaton,The Duelist,The Duelist,2025,True
+Rhapsody of Fire,Fuego Valyrio,Fuego Valyrio,2025,True
+Saltatio Mortis,Equinox,WELTENWANDERER - Von Träumen & Krawall,2025,True
+Helloween,Universe (Gravity For Hearts),Universe (Gravity For Hearts),2025,True
+Mr. Hurley & Die Pulveraffen,All Hail the Captain,All Hail the Captain,2025,True
+Between the Buried and Me,Absent Thereafter,Absent Thereafter,2025,True
+Alestorm,Gardyloo,Gardyloo,2025,True
+Månegarm,Rodhins hav (feat. Ellinor Videfors),Rodhins hav,2025,True
+Celestial Aeon Project,Medieval Dance,Medieval Dance,2025,True
