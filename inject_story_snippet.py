@@ -64,6 +64,29 @@ class StoryAssets:
     remote_path: str
 
 
+def extract_current_listeners(now_playing_payload: Dict) -> Optional[int]:
+    """Extract the current listener count from AzuraCast's now-playing payload."""
+    listener_fields: List[Optional[int]] = []
+    if isinstance(now_playing_payload, dict):
+        direct_listeners = now_playing_payload.get("listeners")
+        if isinstance(direct_listeners, dict):
+            listener_fields.append(direct_listeners.get("current"))
+
+        now_playing_block = now_playing_payload.get("now_playing")
+        if isinstance(now_playing_block, dict):
+            block_listeners = now_playing_block.get("listeners")
+            if isinstance(block_listeners, dict):
+                listener_fields.append(block_listeners.get("current"))
+
+    for candidate in listener_fields:
+        try:
+            if candidate is not None:
+                return int(candidate)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 class AzuraCastClient:
     """Thin AzuraCast API helper focused on queue manipulation."""
 
@@ -714,6 +737,24 @@ def run(args: argparse.Namespace) -> None:
         f"Now playing: {current_song.get('artist', 'Unknown Artist')} - {current_song.get('title', 'Unknown Title')}"
     )
 
+    listener_count = extract_current_listeners(now_playing_payload)
+    if listener_count is None:
+        print("Current listeners: unavailable in now-playing payload.")
+    else:
+        print(f"Current listeners: {listener_count}")
+
+    if args.min_listeners > 0:
+        if listener_count is None:
+            print(
+                f"Unable to determine listener count and --min-listeners is set to {args.min_listeners}; skipping story injection."
+            )
+            return
+        if listener_count < args.min_listeners:
+            print(
+                f"Only {listener_count} listener(s) connected (< {args.min_listeners} required); skipping story injection."
+            )
+            return
+
     current_track_candidate: Optional[UpcomingTrack] = None
     if (
         current_song
@@ -930,6 +971,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=3,
         help="Number of upcoming songs to consider when choosing via OpenAI.",
+    )
+    parser.add_argument(
+        "--min-listeners",
+        type=int,
+        default=1,
+        help="Require at least this many current listeners before generating or injecting a story (default: %(default)s; set to 0 to disable).",
     )
     parser.add_argument(
         "--dry-run",
