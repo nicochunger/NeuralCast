@@ -12,14 +12,18 @@ from typing import Sequence
 
 def _ensure_project_root() -> None:
     root = Path(__file__).resolve().parents[1]
+    src = root / "src"
     root_str = str(root)
+    src_str = str(src)
+    if src_str not in sys.path:
+        sys.path.insert(0, src_str)
     if root_str not in sys.path:
         sys.path.insert(0, root_str)
 
 
 _ensure_project_root()
 
-from album_lookup import guess_album
+from neuralcast.metadata.album_lookup import guess_album
 
 
 def _normalize(value: str | None) -> str:

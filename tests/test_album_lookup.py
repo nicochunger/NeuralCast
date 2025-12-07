@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """Test script to validate album lookup improvements."""
 
-from album_lookup import guess_album
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from neuralcast.metadata.album_lookup import guess_album
 
 # Test cases from implementation plan
 test_cases = [

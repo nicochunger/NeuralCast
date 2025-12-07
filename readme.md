@@ -2,6 +2,13 @@
 
 NeuralCast's `main.py` script manages station-specific music libraries by reading CSV playlists from `<station>/playlists`, ensuring the matching MP3 catalog under `<station>/songs`, and keeping metadata synchronized. Use `--station` to pick which station directory to process and `--dry-run` when you only want to audit existing files without downloading new audio.
 
+## Repository layout
+
+- `src/neuralcast/` — packaged modules (pipelines, playlists, audio, metadata, stories, services) now house the Python logic.
+- Root shims (`main.py`, `update_new_releases.py`, `inject_story_snippet.py`) keep existing commands working by delegating into `neuralcast.cli.*`.
+- Station data stays at repo root (`NeuralCast/`, `NeuralForge/`), alongside generated logs/reports.
+- Assets live under `src/neuralcast/assets/` (fallback art, prompts, story snippets/history), notebooks under `notebooks/`, and utility scripts under `tools/`.
+
 ---
 
 For contributor expectations and workflow details, see [Repository Guidelines](AGENTS.md).
@@ -15,7 +22,7 @@ Install the core runtime and audio tooling before running the pipeline:
 - `yt-dlp` and `ffmpeg` for converting YouTube sources to MP3.
 - `mp3gain` so downloaded tracks can be normalized during tagging.
 
-(Optionally configure text-to-speech credentials if you plan to enable the commented `openai_utils` integrations, but they are not required for playlist upkeep.)
+(Optionally configure text-to-speech credentials if you plan to enable the commented `neuralcast.services.openai_client` integrations, but they are not required for playlist upkeep.)
 
 ---
 
@@ -80,4 +87,4 @@ After processing, the station root (next to `playlists/` and `songs/`) receives 
 
 ## Future Enhancements
 
-`openai_utils` hooks are still available for speech generation and trivia drops, and the project can be extended with automated scheduling or prompt-driven playlist creation when those features are reintroduced. For now, `main.py` focuses on keeping curated CSV playlists synchronized with your on-disk MP3 catalog.
+OpenAI hooks (`neuralcast.services.openai_client`) are still available for speech generation and trivia drops, and the project can be extended with automated scheduling or prompt-driven playlist creation when those features are reintroduced. For now, `main.py` focuses on keeping curated CSV playlists synchronized with your on-disk MP3 catalog.

@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import os
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError, error
 
-from album_art import embed_from_artist_album
+from neuralcast.audio.album_art import embed_from_artist_album
+from neuralcast.config import ASSETS_ROOT
 
 
 def ensure_easyid3(path: str) -> EasyID3:
@@ -65,9 +67,9 @@ def tag_mp3(
             id3 = ID3(path)
         except error:
             id3 = ID3()
-        thumbnail_path = os.path.join(os.path.dirname(__file__), "Thumbnail_logo.png")
-        if os.path.exists(thumbnail_path):
-            with open(thumbnail_path, "rb") as img:
+        thumbnail_path = ASSETS_ROOT / "images" / "Thumbnail_logo.png"
+        if thumbnail_path.exists():
+            with thumbnail_path.open("rb") as img:
                 id3.add(
                     APIC(
                         encoding=3,

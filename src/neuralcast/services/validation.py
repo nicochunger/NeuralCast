@@ -14,7 +14,7 @@ import spotipy
 from requests import Session
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from models import Song, ValidationResult
+from neuralcast.models import Song, ValidationResult
 
 # Load environment variables from .env file
 # Keeping this here avoids requiring callers to import dotenv themselves.

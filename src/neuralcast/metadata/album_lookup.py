@@ -18,7 +18,7 @@ from spotipy import Spotify
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from openai_utils import openai_text_completion
+from neuralcast.services.openai_client import openai_text_completion
 
 # Ensure environment variables (e.g., Spotify credentials) are available.
 dotenv.load_dotenv()

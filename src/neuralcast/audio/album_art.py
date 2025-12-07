@@ -6,6 +6,7 @@ import tempfile
 import unicodedata
 from collections import defaultdict
 from difflib import SequenceMatcher
+from pathlib import Path
 
 import musicbrainzngs
 import requests
@@ -17,10 +18,12 @@ except ImportError:  # pragma: no cover - IPython is optional for CLI users
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError
 
+from neuralcast.config import ensure_logs_dir
+
 # Set up musicbrainzngs library
 musicbrainzngs.set_useragent("NeuralCastArtEmbedder", "1.0", "https://github.com/your-repo")
 
-LOG_FILE = os.path.join(os.path.dirname(__file__), "logs/album_art_skipped.log")
+LOG_FILE = ensure_logs_dir() / "album_art_skipped.log"
 
 MAX_RELEASE_GROUPS = 6
 MAX_RELEASES_PER_GROUP = 6
@@ -38,9 +41,8 @@ def _log_line(message: str, *, prefix: str = "", icon: str | None = "ℹ️") ->
 
 def _log_skip(entry: dict):
     try:
-        # Ensure directory exists (in case LOG_FILE points to a subdir)
-        os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with LOG_FILE.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             f.flush()
             os.fsync(f.fileno())

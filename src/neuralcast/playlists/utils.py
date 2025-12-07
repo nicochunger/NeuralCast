@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from mutagen.easyid3 import EasyID3
 
-from models import Song
+from neuralcast.models import Song
 
 DELETE_MARKER = "[DEL]"
 _YOUTUBE_HOST_FRAGMENTS = ("youtube.com", "youtu.be")

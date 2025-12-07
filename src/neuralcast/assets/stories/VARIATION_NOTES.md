@@ -8,8 +8,8 @@ What changed
 
 * `story_variation.py` defines curated narrative and delivery variants. Each entry includes short instructions that still respect the Aspen-style tone while nudging the story toward a slightly different angle (anécdota cálida, dato curioso, paseo por la ciudad, etc.).
 * `inject_story_snippet.py` computes a deterministic seed from the station slug, the selected song, and the following song. That seed selects both a narrative variant (for the text prompt) and a delivery variant (for TTS instructions). The same seed always produces the same pair.
-* `stories/story_prompt.md` and `stories/tts_story_instructions.md` now contain placeholder tokens (`{{INTRO_STYLE}}`, `{{DELIVERY_VARIATION}}`, …) that the script fills with the chosen variant directions before calling OpenAI.
-* A JSON history file (`stories/style_history.json`) stores the most recent combinations per station so the selector can avoid repeating the exact same style in consecutive runs.
+* `src/neuralcast/assets/stories/story_prompt.md` and `src/neuralcast/assets/stories/tts_story_instructions.md` now contain placeholder tokens (`{{INTRO_STYLE}}`, `{{DELIVERY_VARIATION}}`, …) that the script fills with the chosen variant directions before calling OpenAI.
+* A JSON history file (`src/neuralcast/assets/stories/style_history.json`) stores the most recent combinations per station so the selector can avoid repeating the exact same style in consecutive runs.
 
 How selection works
 -------------------
@@ -21,7 +21,7 @@ How selection works
 Managing history
 ----------------
 
-* Location: `stories/style_history.json`. Each station key stores up to 60 recent entries with the seed, narrative ID, delivery ID, and a timestamp.
+* Location: `src/neuralcast/assets/stories/style_history.json`. Each station key stores up to 60 recent entries with the seed, narrative ID, delivery ID, and a timestamp.
 * Dry-run behavior: running `python inject_story_snippet.py --dry-run` logs which variants it would use but **does not** write to the history file. History updates happen only after a story is successfully queued on AzuraCast.
 * Reset: delete the JSON file to clear history. The loader will recreate it on the next non-dry-run execution. If the file becomes corrupted, the script emits a warning and starts fresh automatically.
 

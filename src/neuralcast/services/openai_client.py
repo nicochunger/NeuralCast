@@ -2,18 +2,18 @@
 from __future__ import annotations
 
 import os
-import pathlib
 from typing import Optional
 
 import openai
 from dotenv import load_dotenv
 
+from neuralcast.config import ASSETS_ROOT
+
 load_dotenv()
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 _OPENAI_CLIENT: Optional[openai.OpenAI] = None
-_MODULE_DIR = pathlib.Path(__file__).resolve().parent
-_HOST_INSTRUCTIONS_PATH = _MODULE_DIR / "host_instructions_prompt.txt"
+_HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
 
 
 def get_openai_client() -> openai.OpenAI:

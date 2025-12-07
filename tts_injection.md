@@ -38,10 +38,10 @@ Create a **new Python script** (e.g., `inject_story_snippet.py`) that can automa
    * Read the base story prompt from:
 
      ```
-     stories/story_prompt.md
+     src/neuralcast/assets/stories/story_prompt.md
      ```
    * This prompt contains placeholders `[TITLE]` and `[ARTIST]` that must be dynamically replaced with the selected song’s title and artist before sending it to the LLM.
-   * Use the OpenAI API for text generation (you can reuse the **OpenAI utility functions** already defined in `openai_utils.py`).
+   * Use the OpenAI API for text generation (you can reuse the **OpenAI utility functions** already defined in `src/neuralcast/services/openai_client.py`).
    * If those existing utils are not appropriate for this purpose, create minimal new ones within the script.
    * You may use `context7 MCP` to gather metadata about relevant packages or dependencies if needed.
 
@@ -51,14 +51,14 @@ Create a **new Python script** (e.g., `inject_story_snippet.py`) that can automa
    * For TTS, use the instruction text found in:
 
      ```
-     stories/tts_story_instructions.md
+     src/neuralcast/assets/stories/tts_story_instructions.md
      ```
 
      (This file defines how the voice should sound and behave.)
    * Save the audio file locally as:
 
      ```
-     stories/Story_<Artist>_<Title>.mp3
+     src/neuralcast/assets/stories/Story_<Artist>_<Title>.mp3
      ```
 
 4. **Inject the TTS MP3 into AzuraCast**
