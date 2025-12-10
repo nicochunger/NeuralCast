@@ -30,10 +30,11 @@ from neuralcast.stories.variation import (
     DeliveryVariant,
     NarrativeVariant,
     compute_story_seed,
-    deterministic_variant_choice,
     iter_recent_ids,
     load_style_history,
+    PREFERRED_PAIRINGS,
     save_style_history,
+    select_variants_with_pairing,
     update_style_history,
 )
 
@@ -847,22 +848,34 @@ def run(args: argparse.Namespace) -> None:
     history = load_style_history(STYLE_HISTORY_PATH)
     narrative_recent = list(iter_recent_ids(history, args.station, "narrative_id"))
     delivery_recent = list(iter_recent_ids(history, args.station, "delivery_id"))
-    _, narrative_variant = deterministic_variant_choice(
-        seed=f"{story_seed}|narrative",
-        variants=NARRATIVE_VARIANTS,
-        recent_ids=narrative_recent,
-        avoid_window=NARRATIVE_AVOID_WINDOW,
+    (
+        narrative_variant,
+        delivery_variant,
+        chosen_pair,
+    ) = select_variants_with_pairing(
+        seed=story_seed,
+        narrative_variants=NARRATIVE_VARIANTS,
+        delivery_variants=DELIVERY_VARIANTS,
+        pairings=PREFERRED_PAIRINGS,
+        narrative_recent=narrative_recent,
+        delivery_recent=delivery_recent,
+        narrative_avoid_window=NARRATIVE_AVOID_WINDOW,
+        delivery_avoid_window=DELIVERY_AVOID_WINDOW,
     )
-    _, delivery_variant = deterministic_variant_choice(
-        seed=f"{story_seed}|delivery",
-        variants=DELIVERY_VARIANTS,
-        recent_ids=delivery_recent,
-        avoid_window=DELIVERY_AVOID_WINDOW,
-    )
-    print(
-        f"Narrative style selected: {narrative_variant.style_id} — {narrative_variant.description}"
-    )
-    print(f"Delivery style selected: {delivery_variant.style_id} — {delivery_variant.description}")
+    if chosen_pair:
+        print(
+            "Paired styles selected: "
+            f"{narrative_variant.style_id} (narrative) + {delivery_variant.style_id} (delivery)"
+        )
+        print(f"Narrative description: {narrative_variant.description}")
+        print(f"Delivery description: {delivery_variant.description}")
+    else:
+        print(
+            f"Narrative style selected: {narrative_variant.style_id} — {narrative_variant.description}"
+        )
+        print(
+            f"Delivery style selected: {delivery_variant.style_id} — {delivery_variant.description}"
+        )
 
     story_text = generate_story_text(
         selected_track.artist,

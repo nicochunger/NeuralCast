@@ -6,8 +6,8 @@ This document summarizes how the story generator introduces controlled variety s
 What changed
 ------------
 
-* `story_variation.py` defines curated narrative and delivery variants. Each entry includes short instructions that still respect the Aspen-style tone while nudging the story toward a slightly different angle (anécdota cálida, dato curioso, paseo por la ciudad, etc.).
-* `inject_story_snippet.py` computes a deterministic seed from the station slug, the selected song, and the following song. That seed selects both a narrative variant (for the text prompt) and a delivery variant (for TTS instructions). The same seed always produces the same pair.
+* `story_variation.py` defines curated narrative and delivery variants plus preferred pairings that avoid odd combos. Each entry includes short instructions that still respect the Aspen-style tone while nudging the story toward a specific angle (anécdota cálida, dato curioso, postal sonora, etc.).
+* `inject_story_snippet.py` computes a deterministic seed from the station slug, the selected song, and the following song. That seed tries to pick a curated narrative+delivery pairing first; if recency blocks everything, it falls back to independent draws. The same seed always produces the same selection under the same history.
 * `src/neuralcast/assets/stories/story_prompt.md` and `src/neuralcast/assets/stories/tts_story_instructions.md` now contain placeholder tokens (`{{INTRO_STYLE}}`, `{{DELIVERY_VARIATION}}`, …) that the script fills with the chosen variant directions before calling OpenAI.
 * A JSON history file (`src/neuralcast/assets/stories/style_history.json`) stores the most recent combinations per station so the selector can avoid repeating the exact same style in consecutive runs.
 
@@ -15,7 +15,7 @@ How selection works
 -------------------
 
 1. Seed generation concatenates the lowercased station, current song artist/title, and the next song artist/title, then hashes the string with SHA-256.
-2. Two deterministic draws run off that seed (one for narrative, one for delivery). The helper shuffles the candidate list with a seeded RNG, then picks the first entry that has not been used in the last three stories for that station. If all variants were used recently it falls back to the deterministic top pick, ensuring the output is still predictable.
+2. The selector first tries to draw from the curated pairings list with deterministic weighting, respecting the “avoid the last three uses” rule for both narrative and delivery. If nothing is available, it shrinks the avoid window and finally falls back to independent deterministic draws so it never blocks.
 3. The template placeholders are replaced by the variant instructions. The resulting prompt stays very close to the original guidance while injecting the new color.
 
 Managing history
@@ -38,10 +38,28 @@ Testing tips
 * Use the deterministic helpers in a Python shell to preview selections without calling the OpenAI APIs:
 
       python - <<'PY'
-      from story_variation import compute_story_seed, deterministic_variant_choice, NARRATIVE_VARIANTS, DELIVERY_VARIANTS
+      from story_variation import (
+          compute_story_seed,
+          select_variants_with_pairing,
+          NARRATIVE_VARIANTS,
+          DELIVERY_VARIANTS,
+          PREFERRED_PAIRINGS,
+      )
+
       seed = compute_story_seed('neuralcast', 'Soda Stereo', 'De Música Ligera', 'Fito Páez', 'Mariposa Tecknicolor')
-      print(deterministic_variant_choice(f"{seed}|narrative", NARRATIVE_VARIANTS, [], 3)[1])
-      print(deterministic_variant_choice(f"{seed}|delivery", DELIVERY_VARIANTS, [], 3)[1])
+      narrative, delivery, pair = select_variants_with_pairing(
+          seed=seed,
+          narrative_variants=NARRATIVE_VARIANTS,
+          delivery_variants=DELIVERY_VARIANTS,
+          pairings=PREFERRED_PAIRINGS,
+          narrative_recent=[],
+          delivery_recent=[],
+          narrative_avoid_window=3,
+          delivery_avoid_window=3,
+      )
+      print("Narrative:", narrative.style_id, narrative.description)
+      print("Delivery:", delivery.style_id, delivery.description)
+      print("Paired?" , bool(pair))
       PY
 
 * Before publishing changes, run `python inject_story_snippet.py --station NeuralCast --dry-run` on a networked environment to confirm both the prompt and TTS instructions reflect the expected styles.

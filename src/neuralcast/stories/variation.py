@@ -35,6 +35,15 @@ class DeliveryVariant:
     additional_prompts: str
 
 
+@dataclass(frozen=True)
+class VariantPairing:
+    """Curated narrative/delivery pairing with optional weighting."""
+
+    narrative_id: str
+    delivery_id: str
+    weight: int = 1
+
+
 NARRATIVE_VARIANTS: Sequence[NarrativeVariant] = (
     NarrativeVariant(
         style_id="warm-anecdote",
@@ -69,12 +78,36 @@ NARRATIVE_VARIANTS: Sequence[NarrativeVariant] = (
         filler_words="incorporá frases como 'acá entre nosotros', 'te cuento', 'en cabina' para pintar el ambiente.",
     ),
     NarrativeVariant(
-        style_id="city-walk",
-        description="Paseo por Buenos Aires mientras suena la canción.",
-        intro_instruction="Invitá a caminar por un rincón de Buenos Aires evocando sonidos de la ciudad que combinan con la canción.",
-        body_instruction="Mencioná detalles sensoriales —olor a café, tranvías imaginarios, alguna plaza— enlazados con el tema.",
-        outro_instruction="Cerrá sugiriendo que la próxima canción acompaña la misma caminata con otro ánimo.",
-        filler_words="sumá frases como 'ponele', 'me pasa que', 'medio así' para mantener ritmo relajado.",
+        style_id="sonic-postcard",
+        description="Postal sonora breve desde la cabina o la sala, con detalles acústicos concretos.",
+        intro_instruction="Abrí como si apoyarás el micrófono al ambiente: mencioná una luz tenue, el zumbido de la consola o un rebote de reverb.",
+        body_instruction="Enlazá la canción con un detalle audible específico (una cola de reverb, un delay corto, un paneo raro) y cómo te hace sentir en cabina.",
+        outro_instruction="Cerrá dejando flotando un sonido imaginado que anticipa la próxima pista, como si la mezcla siguiera viva.",
+        filler_words="usá onomatopeyas suaves tipo 'shh', 'clac', 'mmm' y guiños como 'escuchá esto' para mantener textura.",
+    ),
+    NarrativeVariant(
+        style_id="time-shift-echo",
+        description="Salto temporal a un año concreto, conectando clima cultural con la canción y hoy.",
+        intro_instruction="Arrancá anclando la canción en un año preciso con un detalle palpable (un objeto, slang, programa de TV o gadget).",
+        body_instruction="Contrastá cómo sonaba o se vivía entonces frente a ahora, sin nostalgia melosa: marcá diferencias táctiles.",
+        outro_instruction="Presentá el próximo tema como eco actualizado de aquel año, invitando a escuchar el diálogo entre épocas.",
+        filler_words="sumá marcas temporales tipo 'en esa época', 'cuando recién', 'mirá lo que cambió' sin caer en 'qué tiempos aquellos'.",
+    ),
+    NarrativeVariant(
+        style_id="micro-instrument-focus",
+        description="Zoom a un gesto mínimo de un instrumento y la historia que abre.",
+        intro_instruction="Introducí la canción nombrando un detalle microscópico: un hi-hat respirando, un slide de bajo, un patch de sintetizador.",
+        body_instruction="Contá una mini-historia o contexto alrededor de ese gesto (quién lo decidió, cómo se grabó, qué inspiró).",
+        outro_instruction="Dale paso al siguiente tema destacando otro instrumento que continuará la conversación sonora.",
+        filler_words="meté frases como 'fijate en', 'se escucha apenas', 'ese matiz' para dirigir la escucha sin sobre-explicar.",
+    ),
+    NarrativeVariant(
+        style_id="chain-reaction",
+        description="Traza un enlace inesperado entre esta canción y otra influencia que empuja a la siguiente.",
+        intro_instruction="Arrancá revelando una conexión rara: un sample escondido, un músico de sesión, un remix olvidado.",
+        body_instruction="Explicá cómo ese enlace modificó el carácter de la canción o disparó algo en otra escena o género.",
+        outro_instruction="Cerrá adelantando que la próxima canción sigue esa reacción en cadena y qué parte de la vibra hereda.",
+        filler_words="usá guiños como 'seguí el hilo', 'esto no es casual', 'mirá la cadena' para mantener tensión narrativa.",
     ),
 )
 
@@ -114,6 +147,52 @@ DELIVERY_VARIANTS: Sequence[DeliveryVariant] = (
         pace_instruction="Solicitá un tempo medio con caídas suaves al final de cada frase.",
         additional_prompts="Sumá que al presentar la canción siguiente deje una sonrisa audible y un 'quedate ahí' muy sutil.",
     ),
+    DeliveryVariant(
+        style_id="off-air-whisper",
+        description="Inicio como si el mic estuviera apagado, acercamiento íntimo antes de abrir señal.",
+        delivery_instruction="Pedí que arranque con voz al ras del mic, casi privada, y que suba apenas la presencia al dar el dato clave.",
+        pace_instruction="Tempo corto con respiraciones audibles y una micro-pausa justo al 'salir al aire'.",
+        additional_prompts="Aclarar que las 's' y 'f' se suavicen como si cuidara no activar el limitador; cerrar con un 'seguí ahí' mínimo.",
+    ),
+    DeliveryVariant(
+        style_id="tape-saturated",
+        description="Color de cinta ligeramente warble, consonantes redondeadas.",
+        delivery_instruction="Indicá que imagine la voz pasando por una cassette con borde cálido: ataque lento, graves redondeados.",
+        pace_instruction="Pedir un tempo medio-lento con caídas suaves, como si el motor de la cinta aflojara levemente.",
+        additional_prompts="Sumá que arrastre un poco las vocales largas y deje un pequeño 'wow/flutter' imaginario al final de frases.",
+    ),
+    DeliveryVariant(
+        style_id="metronome-led",
+        description="Frases acompasadas a un click interior entre 92-96 BPM sin sonar robótico.",
+        delivery_instruction="Solicitá que marque leves acentos en cada cuatro tiempos, como quien cabecea al beat anterior.",
+        pace_instruction="Pedir que pause micro-segundos en el 2 y 4, manteniendo flujo natural.",
+        additional_prompts="Recordá que no rapee: solo deja que el pulso se note en respiraciones y cierres de palabra.",
+    ),
+    DeliveryVariant(
+        style_id="fade-in-handoff",
+        description="Entrada como si viniera de otro locutor o una charla interna, ajustando foco al aire.",
+        delivery_instruction="Pedí que inicie mid-thought, luego afine dicción en la segunda frase y aterrice en tono nítido.",
+        pace_instruction="Tempo medio con primer frase más difusa y las siguientes claras; cierre con un fader imaginario bajando.",
+        additional_prompts="Cerrá con un guiño tipo 'seguí ahí' o 'queda lo mejor' mientras baja la intensidad de voz.",
+    ),
+)
+
+PREFERRED_PAIRINGS: Sequence[VariantPairing] = (
+    VariantPairing("warm-anecdote", "calm-late-night", weight=2),
+    VariantPairing("warm-anecdote", "storyteller-intimate", weight=1),
+    VariantPairing("curious-fact", "bright-morning", weight=2),
+    VariantPairing("curious-fact", "metronome-led", weight=1),
+    VariantPairing("listener-memory", "sunset-reflection", weight=2),
+    VariantPairing("listener-memory", "calm-late-night", weight=1),
+    VariantPairing("studio-behind-scenes", "fade-in-handoff", weight=1),
+    VariantPairing("studio-behind-scenes", "tape-saturated", weight=1),
+    VariantPairing("sonic-postcard", "tape-saturated", weight=2),
+    VariantPairing("sonic-postcard", "off-air-whisper", weight=1),
+    VariantPairing("time-shift-echo", "storyteller-intimate", weight=2),
+    VariantPairing("micro-instrument-focus", "metronome-led", weight=2),
+    VariantPairing("micro-instrument-focus", "tape-saturated", weight=1),
+    VariantPairing("chain-reaction", "rhythmic-groove", weight=2),
+    VariantPairing("chain-reaction", "fade-in-handoff", weight=1),
 )
 
 
@@ -183,6 +262,131 @@ def deterministic_variant_choice(
     # Fallback: deterministic first element from shuffled order
     fallback_index = order[0]
     return fallback_index, variants[fallback_index]
+
+
+def _weighted_deterministic_choice(seed: str, pairings: Sequence[VariantPairing]) -> VariantPairing:
+    """Pick a pairing using a deterministic RNG and simple weights."""
+
+    rng = random.Random(_hash_to_int(f"{seed}|pairing-weight"))
+    total_weight = sum(max(pair.weight, 0) for pair in pairings)
+    if total_weight <= 0:
+        return pairings[0]
+
+    threshold = rng.uniform(0, total_weight)
+    cumulative = 0.0
+    for pair in pairings:
+        cumulative += max(pair.weight, 0)
+        if threshold <= cumulative:
+            return pair
+
+    return pairings[-1]
+
+
+def _filter_pairings_for_recency(
+    pairings: Sequence[VariantPairing],
+    narrative_avoid: Sequence[str],
+    delivery_avoid: Sequence[str],
+    narrative_lookup: Dict[str, NarrativeVariant],
+    delivery_lookup: Dict[str, DeliveryVariant],
+) -> List[VariantPairing]:
+    """Return pairings that respect the avoid windows and exist in current inventories."""
+
+    narrative_blocked = set(narrative_avoid)
+    delivery_blocked = set(delivery_avoid)
+    filtered: List[VariantPairing] = []
+    for pair in pairings:
+        if pair.weight <= 0:
+            continue
+        if pair.narrative_id not in narrative_lookup:
+            continue
+        if pair.delivery_id not in delivery_lookup:
+            continue
+        if pair.narrative_id in narrative_blocked:
+            continue
+        if pair.delivery_id in delivery_blocked:
+            continue
+        filtered.append(pair)
+    return filtered
+
+
+def deterministic_pairing_choice(
+    seed: str,
+    pairings: Sequence[VariantPairing],
+    narrative_variants: Sequence[NarrativeVariant],
+    delivery_variants: Sequence[DeliveryVariant],
+    narrative_recent: Sequence[str],
+    delivery_recent: Sequence[str],
+    narrative_avoid_window: int,
+    delivery_avoid_window: int,
+) -> Optional[VariantPairing]:
+    """Select a curated pairing, relaxing recency windows if needed."""
+
+    narrative_lookup = {item.style_id: item for item in narrative_variants}
+    delivery_lookup = {item.style_id: item for item in delivery_variants}
+
+    max_shrink = max(narrative_avoid_window, delivery_avoid_window)
+    for shrink in range(max_shrink + 1):
+        narrative_window = max(narrative_avoid_window - shrink, 0)
+        delivery_window = max(delivery_avoid_window - shrink, 0)
+        narrative_avoid = list(narrative_recent)[:narrative_window]
+        delivery_avoid = list(delivery_recent)[:delivery_window]
+        candidates = _filter_pairings_for_recency(
+            pairings=pairings,
+            narrative_avoid=narrative_avoid,
+            delivery_avoid=delivery_avoid,
+            narrative_lookup=narrative_lookup,
+            delivery_lookup=delivery_lookup,
+        )
+        if candidates:
+            return _weighted_deterministic_choice(seed=seed, pairings=candidates)
+
+    return None
+
+
+def select_variants_with_pairing(
+    seed: str,
+    narrative_variants: Sequence[NarrativeVariant],
+    delivery_variants: Sequence[DeliveryVariant],
+    pairings: Sequence[VariantPairing],
+    narrative_recent: Sequence[str],
+    delivery_recent: Sequence[str],
+    narrative_avoid_window: int,
+    delivery_avoid_window: int,
+) -> Tuple[NarrativeVariant, DeliveryVariant, Optional[VariantPairing]]:
+    """Choose narrative/delivery variants, preferring curated pairings."""
+
+    narrative_lookup = {item.style_id: item for item in narrative_variants}
+    delivery_lookup = {item.style_id: item for item in delivery_variants}
+
+    chosen_pair = deterministic_pairing_choice(
+        seed=seed,
+        pairings=pairings,
+        narrative_variants=narrative_variants,
+        delivery_variants=delivery_variants,
+        narrative_recent=narrative_recent,
+        delivery_recent=delivery_recent,
+        narrative_avoid_window=narrative_avoid_window,
+        delivery_avoid_window=delivery_avoid_window,
+    )
+    if chosen_pair:
+        narrative_variant = narrative_lookup.get(chosen_pair.narrative_id)
+        delivery_variant = delivery_lookup.get(chosen_pair.delivery_id)
+        if narrative_variant and delivery_variant:
+            return narrative_variant, delivery_variant, chosen_pair
+
+    _, narrative_variant = deterministic_variant_choice(
+        seed=f"{seed}|narrative",
+        variants=narrative_variants,
+        recent_ids=narrative_recent,
+        avoid_window=narrative_avoid_window,
+    )
+    _, delivery_variant = deterministic_variant_choice(
+        seed=f"{seed}|delivery",
+        variants=delivery_variants,
+        recent_ids=delivery_recent,
+        avoid_window=delivery_avoid_window,
+    )
+    return narrative_variant, delivery_variant, None
 
 
 StyleHistory = Dict[str, List[Dict[str, str]]]
