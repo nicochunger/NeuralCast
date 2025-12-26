@@ -45,6 +45,7 @@ def backfill_playlist(
     dry_run: bool = False,
     prefer_spotify: bool = True,
     min_confidence: float = 0.5,
+    overwrite_existing: bool = False,
 ) -> tuple[int, list[tuple[str, str]]]:
     with playlist_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
@@ -78,7 +79,7 @@ def backfill_playlist(
             continue
 
         existing_album = _normalize(row.get(album_col))
-        if existing_album:
+        if existing_album and not overwrite_existing:
             continue
 
         match = guess_album(
@@ -90,12 +91,20 @@ def backfill_playlist(
         )
 
         if match:
-            row[album_col] = match.album
-            updates += 1
-            print(
-                f"Filled album for '{artist} - {title}': {match.album} "
-                f"(source={match.source}, confidence={match.confidence:.2f})"
-            )
+            if existing_album != match.album:
+                row[album_col] = match.album
+                updates += 1
+                if existing_album:
+                    print(
+                        f"Updated album for '{artist} - {title}': "
+                        f"'{existing_album}' -> '{match.album}' "
+                        f"(source={match.source}, confidence={match.confidence:.2f})"
+                    )
+                else:
+                    print(
+                        f"Filled album for '{artist} - {title}': {match.album} "
+                        f"(source={match.source}, confidence={match.confidence:.2f})"
+                    )
         else:
             failures.append((artist, title))
             print(f"⚠️  No album match for '{artist} - {title}'")
@@ -135,6 +144,11 @@ def parse_args() -> argparse.Namespace:
         help="Minimum confidence required to accept an album guess.",
     )
     parser.add_argument(
+        "--overwrite-existing",
+        action="store_true",
+        help="Re-look up and overwrite existing album names.",
+    )
+    parser.add_argument(
         "--prefer-musicbrainz",
         action="store_true",
         help="Prefer MusicBrainz over Spotify.",
@@ -156,6 +170,7 @@ def main() -> None:
             dry_run=args.dry_run,
             prefer_spotify=prefer_spotify,
             min_confidence=args.min_confidence,
+            overwrite_existing=args.overwrite_existing,
         )
         total_updates += updates
         total_failures.extend(failures)

@@ -20,6 +20,7 @@ from mutagen.easyid3 import EasyID3
 
 from neuralcast.config import PROJECT_ROOT
 from neuralcast.audio.download import tag_mp3, youtube_to_mp3
+from neuralcast.metadata.album_lookup import guess_album
 from neuralcast.models import Song, ValidationResult
 from neuralcast.playlists.utils import (
     backfill_songs_from_library,
@@ -37,7 +38,7 @@ from neuralcast.services.openai_client import (
     openai_text_completion,
     tts,
 )
-from neuralcast.services.validation import perform_song_validation
+from neuralcast.services.validation import perform_song_validation, verified_album
 
 
 # The following paths will be set dynamically based on the station argument
@@ -201,6 +202,42 @@ def remove_new_releases_metadata_entries(
         )
 
     return removed
+
+
+def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
+    album_value = (song.album or "").strip()
+    if album_value:
+        try:
+            if verified_album(song.artist, song.title, album_value):
+                return song, False
+        except Exception as exc:
+            print(
+                f"Warning: Album check failed for {song.artist} - {song.title}: {exc}"
+            )
+
+    try:
+        match = guess_album(
+            song.artist,
+            song.title,
+            prefer_spotify=True,
+            min_confidence=0.55,
+            allow_fallback=True,
+        )
+    except Exception as exc:
+        print(f"Warning: Album lookup failed for {song.artist} - {song.title}: {exc}")
+        return song, False
+
+    if not match or not match.album:
+        return song, False
+
+    new_album = (match.album or "").strip()
+    if not new_album:
+        return song, False
+    if album_value and new_album.casefold() == album_value.casefold():
+        return song, False
+
+    updated_song = song.copy(update={"album": new_album})
+    return updated_song, True
 
 
 def main(station_name: str, dry_run: bool = False):  # dry_run flag
@@ -671,6 +708,26 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                 print(f"\n✅ All existing songs are already validated")
         else:
             print(f"\n📁 No existing songs to validate")
+
+        if missing_songs:
+            updated_missing: List[Tuple[Song, pathlib.Path]] = []
+            album_backfilled = 0
+
+            for song, song_path in missing_songs:
+                updated_song, album_changed = _backfill_album_for_missing_song(song)
+                if album_changed and updated_song.validated:
+                    updated_song = updated_song.copy(update={"validated": False})
+                if album_changed:
+                    replace_song_entry(songs, updated_song)
+                    validation_updates = True
+                    album_backfilled += 1
+                updated_missing.append((updated_song, song_path))
+
+            missing_songs = updated_missing
+            if album_backfilled:
+                print(
+                    f"Updated album metadata for {album_backfilled} song(s) pending download"
+                )
 
         # Validate missing songs (ensure BOTH previously validated and newly validated get downloaded)
         # BUGFIX: Previously, if any unvalidated songs existed, already validated-but-missing songs
