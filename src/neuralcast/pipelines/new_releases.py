@@ -1183,7 +1183,7 @@ def save_new_releases(
 
 def build_spotify_client() -> Spotify:
     log_debug("Loading Spotify credentials from .env")
-    load_dotenv(dotenv_path=".env", override=False)
+    load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=False)
     cid = os.getenv("SPOTIFY_CLIENT_ID")
     secret = os.getenv("SPOTIFY_CLIENT_SECRET")
     log_debug(
@@ -1247,17 +1247,50 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _resolve_station_paths(station_arg: str) -> tuple[Path, Path]:
+    raw_path = Path(station_arg)
+    candidates = (
+        [raw_path]
+        if raw_path.is_absolute()
+        else [raw_path, PROJECT_ROOT / raw_path]
+    )
+
+    def casefold_dir_match(target: Path) -> Optional[Path]:
+        parent = target.parent
+        if not parent.exists():
+            return None
+        target_name = target.name.casefold()
+        for entry in parent.iterdir():
+            if entry.is_dir() and entry.name.casefold() == target_name:
+                return entry
+        return None
+
+    for candidate in candidates:
+        if candidate.name.lower() == "playlists":
+            playlists_dir = candidate
+            station_dir = candidate.parent
+        else:
+            station_dir = candidate
+            playlists_dir = candidate / "playlists"
+        if playlists_dir.exists():
+            return station_dir, playlists_dir
+
+        matched_station = casefold_dir_match(station_dir)
+        if matched_station:
+            matched_playlists = matched_station / "playlists"
+            if matched_playlists.exists():
+                return matched_station, matched_playlists
+
+    # Fall back to the original behavior for consistent error messaging.
+    station_dir = candidates[-1]
+    return station_dir, station_dir / "playlists"
+
+
 def main() -> None:
     args = parse_args()
     set_debug_mode(args.verbose)
     log_info(f"Starting update for station: {args.station}")
-    raw_station_path = Path(args.station)
-    station_dir = (
-        raw_station_path
-        if raw_station_path.is_absolute()
-        else PROJECT_ROOT / raw_station_path
-    )
-    playlists_dir = station_dir / "playlists"
+    station_dir, playlists_dir = _resolve_station_paths(args.station)
     log_debug(
         f"Station directory: {station_dir}, Playlists directory: {playlists_dir}"
     )
