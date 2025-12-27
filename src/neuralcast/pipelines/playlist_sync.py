@@ -206,9 +206,15 @@ def remove_new_releases_metadata_entries(
 
 def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     album_value = (song.album or "").strip()
+    track_label = f"{song.artist} - {song.title}"
+    if album_value:
+        print(f"   • Rechecking album for {track_label}: {album_value}")
+    else:
+        print(f"   • Backfilling album for {track_label} (missing)")
     if album_value:
         try:
             if verified_album(song.artist, song.title, album_value):
+                print(f"     ✓ Album verified: {album_value}")
                 return song, False
         except Exception as exc:
             print(
@@ -228,14 +234,20 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
         return song, False
 
     if not match or not match.album:
+        print(f"     ⚠️ No album match found for {track_label}")
         return song, False
 
     new_album = (match.album or "").strip()
     if not new_album:
+        print(f"     ⚠️ No album match found for {track_label}")
         return song, False
     if album_value and new_album.casefold() == album_value.casefold():
+        print(f"     ↳ Album unchanged after lookup: {new_album}")
         return song, False
 
+    print(
+        f"     ✓ Selected album: {new_album} (source {match.source}, confidence {match.confidence:.2f})"
+    )
     updated_song = song.copy(update={"album": new_album})
     return updated_song, True
 
