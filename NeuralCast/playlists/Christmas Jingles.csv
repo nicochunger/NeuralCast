@@ -1,30 +1,30 @@
 Artist,Title,Album,Year,Validated
 Bing Crosby,White Christmas,Merry Christmas,1945,True
 Bing Crosby & The Andrews Sisters,Jingle Bells,Merry Christmas,1945,True
-Nat King Cole,The Christmas Song (Chestnuts Roasting on an Open Fire),The Christmas Song,1963,False
-Gene Autry,Rudolph the Red-Nosed Reindeer,Rudolph the Red-Nosed Reindeer (Single),1949,False
-Jackson 5,Santa Claus Is Comin' to Town,Jackson 5 Christmas Album,1970,False
-Bobby Helms,Jingle Bell Rock,Jingle Bell Rock (Single),1957,False
+Nat King Cole,The Christmas Song (Chestnuts Roasting on an Open Fire),A Sentimental Christmas With Nat King Cole And Friends: Cole Classics Reimagined,1963,True
+Gene Autry,Rudolph the Red-Nosed Reindeer,Rudolph The Red Nosed Reindeer And Other Christmas Classics,1949,True
+Jackson 5,Santa Claus Is Comin' to Town,Christmas Album,1970,True
+Bobby Helms,Jingle Bell Rock,A Little Darlin' Christmas,1957,True
 Brenda Lee,Rockin' Around the Christmas Tree,Merry Christmas from Brenda Lee,1964,True
 Elvis Presley,Blue Christmas,Elvis' Christmas Album,1957,True
 Frank Sinatra,Have Yourself a Merry Little Christmas,A Jolly Christmas from Frank Sinatra,1957,True
-Harry Simeone Chorale,The Little Drummer Boy,Sing We Now of Christmas,1958,False
+Harry Simeone Chorale,The Little Drummer Boy,The Little Drummer Boy,1958,True
 The Ronettes,Sleigh Ride,A Christmas Gift for You from Philles Records,1963,True
 Mariah Carey,All I Want for Christmas Is You,Merry Christmas,1994,True
-Gene Autry,Frosty the Snowman,Frosty the Snowman (Single),1950,False
-Gene Autry,Here Comes Santa Claus (Right Down Santa Claus Lane),Here Comes Santa Claus (Single),1947,False
+Gene Autry,Frosty the Snowman,Rudolph The Red Nosed Reindeer And Other Christmas Classics,1950,True
+Gene Autry,Here Comes Santa Claus (Right Down Santa Claus Lane),Rudolph The Red Nosed Reindeer And Other Christmas Classics,1947,True
 Andy Williams,It's the Most Wonderful Time of the Year,The Andy Williams Christmas Album,1963,True
 Bing Crosby & Carol Richards,Silver Bells,Merry Christmas,1950,True
 Johnny Mathis,Winter Wonderland,Merry Christmas,1958,True
 Burl Ives,A Holly Jolly Christmas,A Holly Jolly Christmas,1964,True
 Darlene Love,Christmas (Baby Please Come Home),A Christmas Gift for You,1963,True
 Bing Crosby,I'll Be Home for Christmas,Merry Christmas,1945,True
-Los Fronterizos,La Peregrinación,Navidad Nuestra,1965,False
-Los Fronterizos,Los Reyes Magos,Navidad Nuestra,1965,False
-Los Fronterizos,La Anunciación,Navidad Nuestra,1965,False
-Los Fronterizos,El Nacimiento,Navidad Nuestra,1965,False
-Los Fronterizos,Los Pastores,Navidad Nuestra,1965,False
-Los Fronterizos,La Huida,Navidad Nuestra,1965,False
+Los Fronterizos,La Peregrinación,La Peregrinación,1965,True
+Los Fronterizos,Los Reyes Magos,La Peregrinación,1965,True
+Los Fronterizos,La Anunciación,Misa Criolla,1965,True
+Los Fronterizos,El Nacimiento,Misa Criolla,1965,True
+Los Fronterizos,Los Pastores,Misa Criolla,1965,True
+Los Fronterizos,La Huida,Misa Criolla,1965,True
 Daniel Toro,Zamba de Navidad,20 Grandes Éxitos Vol. 2,1976,True
 Mercedes Sosa,Navidad de Juanito Laguna,Navidad con Mercedes Sosa,1970,True
 Mercedes Sosa,Navidad en Verano,Navidad con Mercedes Sosa,1970,True
@@ -45,20 +45,20 @@ still,Still,still,Wiener Sängerknaben,True
 Boney M.,Mary's Boy Child/Oh My Lord,Christmas Album,1981,True
 Melanie Thornton,Wonderful Dream (Holidays Are Coming),Wonderful Dream (Holidays Are Coming) - Single,2001,True
 Helene Fischer,"Kling, Glöckchen, klingelingeling",Weihnachten,2015,True
-Dresdner Kreuzchor,In dulci jubilo,Weihnachtliche Chormusik,1995,False
+Dresdner Kreuzchor,In dulci jubilo,"Weihnachten Mit Dem Dresdner Kreuzchor, Christmas Songs",1995,True
 Heintje,Morgen kommt der Weihnachtsmann,Weihnachten mit Heintje,1968,True
 Helene Fischer,Fröhliche Weihnacht überall,Weihnachten,2015,True
 Rolf Zuckowski,In der Weihnachtsbäckerei,Winterkinder,1987,True
-Rundfunk-Kinderchor Leipzig,Lasst uns froh und munter sein,Ihr Kinderlein Kommet,1975,False
-Wham!,Last Christmas,Last Christmas (Single),1984,False
+Rundfunk-Kinderchor Leipzig,Lasst uns froh und munter sein,Weihnachtszeit - Schönste Zeit,1975,True
+Wham!,Last Christmas,George Michael & Wham! Last Christmas: The Original Motion Picture Soundtrack,1984,True
 Band Aid,Do They Know It's Christmas?,Do They Know It's Christmas? (Single),1984,True
-The Pogues feat. Kirsty MacColl,Fairytale of New York,If I Should Fall from Grace with God,1988,False
+The Pogues feat. Kirsty MacColl,Fairytale of New York,Stereoplay Special CD 74: Pop Goes Wave,1988,True
 Slade,Merry Xmas Everybody,Merry Xmas Everybody (Single),1973,True
 Wizzard,I Wish It Could Be Christmas Everyday,I Wish It Could Be Christmas Everyday (Single),1973,True
-John Lennon & Yoko Ono,Happy Xmas (War Is Over),Happy Xmas (War Is Over) (Single),1971,False
-Elton John,Step into Christmas,Step into Christmas (Single),1973,False
-Jona Lewie,Stop the Cavalry,Stop the Cavalry (Single),1980,False
-The Pretenders,2000 Miles,Learning to Crawl,1984,False
+John Lennon & Yoko Ono,Happy Xmas (War Is Over),Imagine,1971,True
+Elton John,Step into Christmas,Caribou,1973,True
+Jona Lewie,Stop the Cavalry,Heart Skips Beat,1980,True
+The Pretenders,2000 Miles,The Singles,1984,True
 Cliff Richard,Mistletoe and Wine,Private Collection 1979–1988,1988,True
 Celtic Woman,The Wexford Carol,A Christmas Celebration,2006,True
 Michael Bublé,It's Beginning to Look a Lot Like Christmas,Christmas,2011,True
@@ -66,16 +66,16 @@ Justin Bieber,Mistletoe,Under the Mistletoe,2011,True
 Celine Dion,O Holy Night,These Are Special Times,1998,True
 Joni Mitchell,River,Blue,1971,True
 Tino Rossi,Petit Papa Noël,Petit Papa Noël (Single),1946,True
-Luciano Pavarotti,Tu scendi dalle stelle,Christmas with the Three Tenors,1976,False
+Luciano Pavarotti,Tu scendi dalle stelle,Weihnachten mit den 3 Tenören,1976,True
 Raphael,La canción del tamborilero,Raphael canta la Navidad,1965,True
 Coro Infantil de Santo Amaro de Oeiras,A Todos um Bom Natal,A Todos um Bom Natal,1980,True
-Carlos Galhardo,Boas Festas,Boas Festas (Single),1933,False
+Carlos Galhardo,Boas Festas,Boas Festas!,1933,True
 Simone,Então É Natal,25 de Dezembro,1995,True
-Orphei Drängar,"Jul, jul, strålande jul","Jul, jul, strålande jul",1986,False
+Orphei Drängar,"Jul, jul, strålande jul",Christmas Music from Sweden,1986,True
 José Feliciano,Feliz Navidad,Feliz Navidad,1970,True
 Eugene Ormandy & The Philadelphia Orchestra,Carol of the Bells,The Joy of Christmas,1962,True
 Whitney Houston,Joy to the World,The Preacher's Wife,1996,True
-King's College Choir,Hark! The Herald Angels Sing,Carols from King's,2012,False
+King's College Choir,Hark! The Herald Angels Sing,"Christmas at King's College, Cambridge",2012,True
 Nat King Cole,Deck the Halls,The Magic of Christmas,1960,True
 Pentatonix,God Rest Ye Merry Gentlemen,A Pentatonix Christmas,2016,True
 Bing Crosby,Do You Hear What I Hear?,I Wish You a Merry Christmas,1962,True
@@ -84,12 +84,12 @@ Bing Crosby & The Andrews Sisters,Mele Kalikimaka,Merry Christmas,1950,True
 Vince Guaraldi Trio,Christmas Time Is Here,A Charlie Brown Christmas,1965,True
 Josh Groban,Believe,The Polar Express,2004,True
 Trans-Siberian Orchestra,Christmas Eve/Sarajevo 12/24,Christmas Eve and Other Stories,1996,True
-Chuck Berry,Run Rudolph Run,Run Rudolph Run (Single),1958,False
-Paul McCartney,Wonderful Christmastime,Wonderful Christmastime (Single),1979,False
+Chuck Berry,Run Rudolph Run,Rock 'N' Roll Rarities,1958,True
+Paul McCartney,Wonderful Christmastime,McCartney II,1979,True
 Thurl Ravenscroft,"You're a Mean One, Mr. Grinch",How the Grinch Stole Christmas,1966,True
 Bing Crosby,Adeste Fideles (O Come All Ye Faithful),Merry Christmas,1945,True
 John Denver & The Muppets,We Wish You a Merry Christmas,A Christmas Together,1979,True
 Jackson 5,I Saw Mommy Kissing Santa Claus,Jackson 5 Christmas Album,1970,True
-Eartha Kitt,Santa Baby,Santa Baby (Single),1953,False
+Eartha Kitt,Santa Baby,Heavenly Eartha,1953,True
 Dean Martin,Let It Snow! Let It Snow! Let It Snow!,A Winter Romance,1959,True
 Alvin & The Chipmunks,The Chipmunk Song (Christmas Don't Be Late),Let's All Sing With The Chipmunks,1958,True
