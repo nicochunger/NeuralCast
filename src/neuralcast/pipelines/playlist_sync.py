@@ -38,7 +38,11 @@ from neuralcast.services.openai_client import (
     openai_text_completion,
     tts,
 )
-from neuralcast.services.validation import perform_song_validation, verified_album
+from neuralcast.services.validation import (
+    perform_song_validation,
+    verified,
+    verified_album,
+)
 
 
 # The following paths will be set dynamically based on the station argument
@@ -721,6 +725,24 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
         else:
             print(f"\n📁 No existing songs to validate")
 
+        invalid_songs: List[Tuple[Song, pathlib.Path]] = []
+        if missing_songs:
+            print("\n🔎 Checking availability for missing songs before album recheck...")
+            available_missing: List[Tuple[Song, pathlib.Path]] = []
+            for song, song_path in missing_songs:
+                print(f"   • Checking availability: {song.artist} - {song.title}")
+                if verified(song.artist, song.title):
+                    available_missing.append((song, song_path))
+                else:
+                    invalid_songs.append((song, song_path))
+                    songs_to_remove_from_playlist.append(song)
+                    print(f"❌ Not found: {song.artist} - {song.title}")
+            missing_songs = available_missing
+            if invalid_songs:
+                print(
+                    f"   🗑️ Removed {len(invalid_songs)} unavailable song(s) before album recheck"
+                )
+
         if missing_songs:
             updated_missing: List[Tuple[Song, pathlib.Path]] = []
             album_backfilled = 0
@@ -758,7 +780,6 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             )
 
             newly_validated: List[Tuple[Song, pathlib.Path]] = []
-            invalid_songs: List[Tuple[Song, pathlib.Path]] = []
 
             for song, song_path in unvalidated_missing:
                 result = perform_song_validation(song, playlist_name, invalid_albums)
@@ -800,10 +821,9 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
             print(f"   Invalid/not found songs: {invalid_count}")
         else:
             # No unvalidated songs; all missing songs are already validated
-            invalid_songs = []
             valid_songs = pre_validated_missing  # all of them
             valid_count = len(valid_songs)
-            invalid_count = 0
+            invalid_count = len(invalid_songs)
             print(
                 f"\n⏭️ No unvalidated missing songs. {valid_count} already validated song(s) pending download."
             )
