@@ -15,6 +15,9 @@ Global storytelling assets now live under `src/neuralcast/assets/stories/`, whic
 ## Station Metadata & Spotify Cache
 `update_new_releases.py` and `main.py` both rely on `<station>/metadata/New Releases.metadata.json` to store structured playlist metadata plus `<station>/metadata/ArtistIDs.json` for cached Spotify artist IDs. The helpers automatically fall back to legacy copies under `playlists/` but will rewrite them into `metadata/` on the next save—do not delete the directory. When songs leave `New Releases.csv`, `main.py` calls `remove_new_releases_metadata_entries` so the JSON stays in sync; keep these files committed alongside the playlists whenever you touch release data.
 
+## Playlist Editing
+When adding new songs to playlist CSVs, always set the `Validated` column to `False` for the new rows so the pipeline can re-validate them.
+
 ## Coding Style & Naming Conventions
 Follow Black-compatible, 4-space indentation with type hints where practical; the existing modules use dataclasses, Optional typing, and explicit return types. Function names stay snake_case (`youtube_to_mp3`), while classes and dataclasses use PascalCase (`AlbumMatch`). MP3 filenames should remain `Artist - Title.mp3`, sanitized via `sanitize_filename_component`. Keep side-effecting scripts guarded by `if __name__ == "__main__":` blocks to support imports.
 
