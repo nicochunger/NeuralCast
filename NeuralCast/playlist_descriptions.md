@@ -110,3 +110,9 @@ Soft-rock and adult-contemporary staples that evoke relaxed alpine mornings and 
 Intimate, lyric‑forward acoustic storytelling—fingerpicked guitars, hushed vocals and spare arrangements spanning 60s folk foundations through today’s indie troubadours. A quieter, more confessional lane than Aspen Vibes, focused on stripped‑back performances and emotional clarity.
 
 *1965 – present*
+
+## Symphonic Classics
+
+A majestic journey through orchestral mastery—from the timeless genius of Beethoven, Mozart, and Vivaldi to the cinematic grandeur of Hans Zimmer and John Williams, plus modern classical fusions (Symphoniacs, 2CELLOS).
+
+*1700 – present*
