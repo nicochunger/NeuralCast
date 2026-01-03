@@ -179,3 +179,9 @@ Sun-drenched beats and saxophone hooks for endless summer vibes. Featuring the r
 High-energy, genre-blending Y2K anthems that defined a generation—pop icons like Britney Spears and *NSYNC, pop-punk staples Blink-182 and Linkin Park, and rap-rock trailblazers Eminem alongside the era’s biggest guilty-pleasure hooks.
 
 *1998 – 2003*
+
+## The Modern Frontier
+
+To truly represent the "present" on the living map, NeuralCast must go beyond Billboard hits to include the genres that define the 21st-century digital zeitgeist: K-Pop, Global Urban (Salsa/Merengue), Video Game Music, and Viral Meme tracks. These genres represent the "Eclectic Discovery" lane for younger audiences who engage with music through social media and digital platforms. Recognition in this domain is often driven by "virality"—tracks that become cultural phenomena through TikTok, YouTube, or gaming.
+
+*1985 – present*
