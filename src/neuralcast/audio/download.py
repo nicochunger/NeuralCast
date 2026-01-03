@@ -34,18 +34,20 @@ def tag_mp3(
 ):
     file_name = os.path.basename(path)
     trimmed_album = str(album).strip() if album else ""
+    trimmed_year = str(year).strip() if year is not None else ""
 
     def _log(message: str) -> None:
         prefix = log_prefix or ""
         print(f"{prefix}{message}")
 
     _log(
-        f"↻ Tagging '{file_name}' (artist: {artist}, title: {title}, year: {year}, genre: {genre})"
+        f"↻ Tagging '{file_name}' (artist: {artist}, title: {title}, year: {trimmed_year}, genre: {genre})"
     )
     audio = ensure_easyid3(path)
     audio["artist"] = artist
     audio["title"] = title
-    audio["date"] = year
+    if trimmed_year and trimmed_year.casefold() != "unknown":
+        audio["date"] = trimmed_year
     audio["genre"] = genre
     if album and str(album).strip():
         audio["album"] = str(album).strip()

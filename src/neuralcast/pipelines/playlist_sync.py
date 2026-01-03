@@ -210,6 +210,8 @@ def remove_new_releases_metadata_entries(
 
 def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     album_value = (song.album or "").strip()
+    year_value = str(song.year).strip() if song.year is not None else ""
+    missing_year = not year_value or year_value.casefold() == "unknown"
     track_label = f"{song.artist} - {song.title}"
     if album_value:
         print(f"   • Rechecking album for {track_label}: {album_value}")
@@ -219,7 +221,8 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
         try:
             if verified_album(song.artist, song.title, album_value):
                 print(f"     ✓ Album verified: {album_value}")
-                return song, False
+                if not missing_year:
+                    return song, False
         except Exception as exc:
             print(
                 f"Warning: Album check failed for {song.artist} - {song.title}: {exc}"
@@ -245,14 +248,26 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     if not new_album:
         print(f"     ⚠️ No album match found for {track_label}")
         return song, False
-    if album_value and new_album.casefold() == album_value.casefold():
+
+    updated_fields = {}
+    if not album_value or new_album.casefold() != album_value.casefold():
+        updated_fields["album"] = new_album
+        print(
+            f"     ✓ Selected album: {new_album} (source {match.source}, confidence {match.confidence:.2f})"
+        )
+    elif album_value:
         print(f"     ↳ Album unchanged after lookup: {new_album}")
+
+    if missing_year and match.release_date:
+        new_year = str(match.release_date.year)
+        if new_year and new_year != year_value:
+            updated_fields["year"] = new_year
+            print(f"     ✓ Selected year: {new_year} (from release date)")
+
+    if not updated_fields:
         return song, False
 
-    print(
-        f"     ✓ Selected album: {new_album} (source {match.source}, confidence {match.confidence:.2f})"
-    )
-    updated_song = song.copy(update={"album": new_album})
+    updated_song = song.copy(update=updated_fields)
     return updated_song, True
 
 
@@ -619,8 +634,10 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
                     needs.append("artist")
                 if cur_title.strip() != song.title.strip():
                     needs.append("title")
-                if cur_year.strip() != song.year.strip():
-                    needs.append("year")
+                year_value = (song.year or "").strip()
+                if year_value and year_value.casefold() != "unknown":
+                    if cur_year.strip() != year_value:
+                        needs.append("year")
                 if cur_genre.strip() != playlist_name:
                     needs.append("genre")
                 if song.album and str(song.album).strip():

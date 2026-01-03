@@ -102,6 +102,7 @@ def load_playlist(
 
     songs: List[Song] = []
     marked_for_deletion: List[Song] = []
+    missing_year_count = 0
 
     for _, row in df.iterrows():
         artist_raw = (
@@ -155,12 +156,14 @@ def load_playlist(
             needs_save = True
             continue
 
-        if artist and title and year:
+        if artist and title:
+            if not year:
+                missing_year_count += 1
             songs.append(
                 Song(
                     artist=artist,
                     title=title,
-                    year=year,
+                    year=year or "",
                     album=album,
                     validated=validated,
                     override_url=override_url,
@@ -170,6 +173,11 @@ def load_playlist(
             print(
                 f"Warning: Skipping incomplete row in {playlist_path}: Artist={artist}, Title={title}, Year={year}"
             )
+
+    if missing_year_count:
+        print(
+            f"Warning: {missing_year_count} row(s) missing Year in {playlist_path}; leaving blank"
+        )
 
     return songs, needs_save, marked_for_deletion, df
 
