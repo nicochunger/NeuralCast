@@ -1,0 +1,3394 @@
+# NeuralCast Playlist Songs
+
+## Acoustic Singer-Songwriter
+
+- Elliott Smith - Between the Bars
+- Ray LaMontagne - Trouble
+- Gregory Alan Isakov - Amsterdam
+- The Tallest Man on Earth - Love Is All
+- Nick Mulvey - Fever to the Form
+- Radical Face - Welcome Home
+- Alexi Murdoch - Orange Sky
+- Foy Vance - Guiding Light
+- Ben Harper - Walk Away
+- John Prine - Angel from Montgomery
+- Townes Van Zandt - If I Needed You
+- Gillian Welch - Everything Is Free
+- Joni Mitchell - A Case of You
+- Jackson C. Frank - Blues Run the Game
+- Vashti Bunyan - Diamond Day
+- Bert Jansch - Needle of Death
+- Laura Marling - Ghosts
+- Fionn Regan - Be Good or Be Gone
+- Keaton Henson - You
+- James Vincent McMorrow - If I Had a Boat
+- Novo Amor - Anchor
+- Bear's Den - Agape
+- Daughter - Youth
+- Matt Corby - Resolution
+- Dermot Kennedy - An Evening I Will Not Forget
+- City and Colour - The Girl
+- Amos Lee - Arms of a Woman
+- Brett Dennen - Ain't No Reason
+- M. Ward - Chinese Translation
+- Ryan Adams - Oh My Sweet Carolina
+- Jason Isbell - Cover Me Up
+- Noah Gundersen - Family
+- The Paper Kites - Bloom
+- SYML - Where's My Love
+- Ben Rector - When a Heart Breaks
+- Seafret - Oceans
+- William Fitzsimmons - Passion Play
+- The Civil Wars - Poison & Wine
+- Michael Kiwanuka - Home Again
+- Andy Shauf - The Magician
+- Rayland Baxter - Yellow Eyes
+- Lissie - When I'm Alone
+- Aimee Mann - Wise Up
+- Shawn Colvin - Sunny Came Home
+- John Martyn - May You Never
+- Sandy Denny - Who Knows Where the Time Goes?
+- Phoebe Bridgers - Motion Sickness
+- Julien Baker - Appointments
+- Sharon Van Etten - Seventeen
+- Hollow Coves - The Woods
+
+## Aspen Vibes
+
+- 10,000 Maniacs - Because the Night
+- a-ha - Take On Me
+- ABBA - The Winner Takes It All
+- Ace - How Long
+- Adele - Rolling in the Deep
+- Adele - Set Fire to the Rain
+- Adele - Someone Like You
+- Aerosmith - I Don't Want to Miss a Thing
+- Air Supply - All Out of Love
+- Air Supply - Making Love Out of Nothing at All
+- Al Stewart - Year of the Cat
+- Alanis Morissette - Ironic
+- America - A Horse with No Name
+- America - Ventura Highway
+- Amy Grant - Baby Baby
+- Annie Lennox - Why
+- Avril Lavigne - I'm with You
+- Bee Gees - How Deep Is Your Love
+- Bette Midler - Wind Beneath My Wings
+- Bill Withers - Ain't No Sunshine
+- Billy Joel - Piano Man
+- Billy Joel - The River of Dreams
+- Billy Joel - Uptown Girl
+- Black - Wonderful Life
+- Blind Melon - No Rain
+- Bob Dylan - Knockin' on Heaven's Door
+- Bon Jovi - Bed of Roses
+- Bonnie Raitt - I Can't Make You Love Me
+- Boston - More Than a Feeling
+- Brandi Carlile - The Story
+- Bread - Make It with You
+- Bruce Springsteen - Streets of Philadelphia
+- Bruno Mars - When I Was Your Man
+- Bryan Adams - Heaven
+- Bryan Adams - Summer of '69
+- Carly Simon - You're So Vain
+- Carole King - It's Too Late
+- Carole King - You've Got a Friend
+- Cat Stevens - Peace Train
+- Cat Stevens - Wild World
+- Chicago - Hard to Say I'm Sorry
+- Chicago - You're the Inspiration
+- Chris Isaak - Wicked Game
+- Christina Perri - A Thousand Years
+- Christopher Cross - Sailing
+- Colbie Caillat - Bubbly
+- Coldplay - Fix You
+- Coldplay - Paradise
+- Coldplay - The Scientist
+- Counting Crows - Mr. Jones
+- Crosby, Stills & Nash - Our House
+- Crosby, Stills, Nash & Young - Helplessly Hoping
+- Crowded House - Don't Dream It's Over
+- Cyndi Lauper - Time After Time
+- Dan Fogelberg - Leader of the Band
+- Dan Fogelberg - Longer
+- Dave Matthews Band - Crash into Me
+- Dave Matthews Band - Satellite
+- David Gray - Babylon
+- DeBarge - Rhythm of the Night
+- Del Amitri - Nothing Ever Happens
+- Dido - Thank You
+- Dire Straits - Sultans of Swing
+- Dire Straits - Walk of Life
+- Dixie Chicks - Travelin' Soldier
+- Don McLean - American Pie
+- Eagles - Hotel California
+- Eagles - Love Will Keep Us Alive
+- Eagles - Tequila Sunrise
+- Ed Sheeran - Thinking Out Loud
+- Edwin McCain - I'll Be
+- Elton John - I Guess That's Why They Call It the Blues
+- Elton John - Rocket Man
+- Elton John - Sacrifice
+- Elton John - Tiny Dancer
+- Elton John - Your Song
+- Enya - Orinoco Flow
+- Eric Clapton - Tears in Heaven
+- Europe - The Final Countdown
+- Extreme - More Than Words
+- Faith Hill - Breathe
+- Five for Fighting - 100 Years
+- Five for Fighting - Superman
+- Fleetwood Mac - Everywhere
+- Fleetwood Mac - Landslide
+- Fleetwood Mac - Little Lies
+- Foreigner - I Want to Know What Love Is
+- Foxes - Let Go for Tonight
+- Fun. - Some Nights
+- Garth Brooks - If Tomorrow Never Comes
+- Gavin DeGraw - I Don't Want to Be
+- George Ezra - Budapest
+- George Michael - Careless Whisper
+- George Michael - Freedom! '90
+- Glen Hansard - Falling Slowly
+- Gloria Estefan - Rhythm Is Gonna Get You
+- Goo Goo Dolls - Iris
+- Gordon Lightfoot - If You Could Read My Mind
+- Gotye - Somebody That I Used to Know
+- Guns N' Roses - November Rain
+- Heart - Alone
+- Hootie & the Blowfish - Only Wanna Be with You
+- Hozier - Take Me to Church
+- Huey Lewis & The News - The Power of Love
+- Human League - Don't You Want Me?
+- Hunter Hayes - Wanted
+- Idina Menzel - Let It Go
+- Il Divo - Hallelujah
+- Imagine Dragons - Demons
+- Ingrid Michaelson - The Way I Am
+- INXS - Devil Inside
+- INXS - Need You Tonight
+- Iron & Wine - Naked as We Came
+- Israel Kamakawiwoʻole - Over the Rainbow
+- Jack Johnson - Better Together
+- Jackson Browne - Running on Empty
+- James Bay - Hold Back the River
+- James Blunt - You're Beautiful
+- James Taylor - Fire and Rain
+- James Taylor - Her Town Too
+- James Taylor - You've Got a Friend
+- Janet Jackson - Again
+- Jason Mraz - I'm Yours
+- Jeff Buckley - Hallelujah
+- Jewel - You Were Meant for Me
+- Jim Croce - I Got a Name
+- Jim Croce - Operator (That's Not the Way It Feels)
+- Jim Croce - Time in a Bottle
+- John Denver - Take Me Home, Country Roads
+- John Legend - All of Me
+- John Lennon - Imagine
+- John Mayer - Gravity
+- Jon Bon Jovi - Always
+- Journey - Don't Stop Believin'
+- Kansas - Dust in the Wind
+- Katie Melua - Nine Million Bicycles
+- Keane - Somewhere Only We Know
+- Keith Urban - Somebody Like You
+- Kelly Clarkson - Because of You
+- Kenny Loggins - Forever
+- Kenny Rogers - Lady
+- Kings of Leon - Use Somebody
+- KT Tunstall - Black Horse and the Cherry Tree
+- LeAnn Rimes - How Do I Live
+- Led Zeppelin - Stairway to Heaven
+- Leona Lewis - Bleeding Love
+- Leonard Cohen - Hallelujah
+- Level 42 - Lessons in Love
+- Lifehouse - Hanging by a Moment
+- Linda Ronstadt - Blue Bayou
+- Lionel Richie - Hello
+- Little River Band - The Night Owls
+- Lonestar - Amazed
+- Luther Vandross - Dance with My Father
+- Madonna - Crazy for You
+- Maroon 5 - She Will Be Loved
+- Matchbox Twenty - Unwell
+- Maxwell - Ascension (Don't Ever Wonder)
+- Mazzy Star - Fade Into You
+- Michael Bolton - How Am I Supposed to Live Without You
+- Michael Bublé - Haven't Met You Yet
+- Michael Jackson - Human Nature
+- Michelle Branch - Everywhere
+- Mike + The Mechanics - The Living Years
+- Mumford & Sons - I Will Wait
+- Natalie Imbruglia - Torn
+- Neil Young - Heart of Gold
+- Nelly Furtado - I'm Like a Bird
+- New Radicals - You Get What You Give
+- Niall Horan - Slow Hands
+- Nickelback - How You Remind Me
+- No Doubt - Don't Speak
+- Norah Jones - Come Away with Me
+- NSYNC - This I Promise You
+- Oasis - Wonderwall
+- Of Monsters and Men - Little Talks
+- Olivia Newton-John - Magic
+- One Direction - What Makes You Beautiful
+- OneRepublic - Apologize
+- Opus - Live Is Life
+- Orchestral Manoeuvres In The Dark - If You Leave
+- Owl City - Fireflies
+- Passenger - Let Her Go
+- Paul Simon - Kodachrome
+- Paul Simon - Me and Julio Down by the Schoolyard
+- Paul Young - Every Time You Go Away
+- Peter Cetera - Glory of Love
+- Peter Gabriel - In Your Eyes
+- Phil Collins - Another Day in Paradise
+- Phil Collins - In the Air Tonight
+- Pink - Try
+- Pink Floyd - Wish You Were Here
+- Plain White T's - Hey There Delilah
+- PM Dawn - Set Adrift on Memory Bliss
+- Queen - A Kind of Magic
+- Queen - Bohemian Rhapsody
+- Queen - Hammer to Fall
+- Queen - I Want to Break Free
+- Queen - Princes of the Universe
+- Queen - These Are the Days of Our Lives
+- Queen - Who Wants to Live Forever
+- Queen & David Bowie - Under Pressure
+- R.E.M. - Losing My Religion
+- R.E.M. - Nightswimming
+- Reo Speedwagon - Can't Fight This Feeling
+- Richard Marx - Right Here Waiting
+- Rick Astley - Never Gonna Give You Up
+- Rick Springfield - Jessie's Girl
+- Robbie Williams - Angels
+- Robbie Williams - Feel
+- Robbie Williams - She's the One
+- Rod Stewart - Forever Young
+- Rod Stewart - Maggie May
+- Roxette - It Must Have Been Love
+- Sade - Paradise
+- Sade - Smooth Operator
+- Sam Smith - Stay with Me
+- Sarah McLachlan - Angel
+- Scorpions - Still Loving You
+- Seal - Kiss from a Rose
+- Seals and Crofts - Summer Breeze
+- Selena Gomez - Lose You to Love Me
+- Shania Twain - You're Still the One
+- Sheryl Crow - Strong Enough
+- Simon & Garfunkel - Bridge Over Troubled Water
+- Simon & Garfunkel - The Boxer
+- Simple Minds - Don't You (Forget About Me)
+- Simply Red - Holding Back the Years
+- Sinead O'Connor - Nothing Compares 2 U
+- Snow Patrol - Chasing Cars
+- Spandau Ballet - True
+- Steely Dan - FM (No Static at All)
+- Sting - Fields of Gold
+- Supertramp - Give a Little Bit
+- Talking Heads - This Must Be the Place (Naive Melody)
+- Taylor Swift - You Belong with Me
+- Tears for Fears - Change
+- Tears for Fears - Everybody Wants to Rule the World
+- The Beatles - Hey Jude
+- The Beatles - Let It Be
+- The Byrds - Ballad of Easy Rider
+- The Cars - Drive
+- The Cranberries - Linger
+- The Cure - Lovesong
+- The Doobie Brothers - Listen to the Music
+- The Fray - How to Save a Life
+- The Killers - Mr. Brightside
+- The Lumineers - Ho Hey
+- The Mamas & The Papas - California Dreamin'
+- The Police - Every Breath You Take
+- The Rolling Stones - Angie
+- The Verve - Bitter Sweet Symphony
+- Toni Braxton - Un-Break My Heart
+- Tori Amos - Winter
+- Toto - Africa
+- Toto - Rosanna
+- Tracy Chapman - Fast Car
+- Train - Drops of Jupiter
+- U2 - Beautiful Day
+- U2 - One
+- U2 - Where the Streets Have No Name
+- U2 - With or Without You
+- UB40 - Can't Help Falling in Love
+- UB40 - Red Red Wine
+- Usher - Burn
+- Usher - You Make Me Wanna...
+- Van Halen - Why Can't This Be Love
+- Van Morrison - Have I Told You Lately
+- Vance Joy - Mess is Mine
+- Vance Joy - Riptide
+- Vanessa Carlton - A Thousand Miles
+- Vanessa Williams - Save the Best for Last
+- Vangelis - Conquest of Paradise
+- Vertical Horizon - Everything You Want
+- Vince Gill - I Still Believe in You
+- Westlife - My Love
+- Wet Wet Wet - Love Is All Around
+- Wham! - Freedom
+- Whitney Houston - I Wanna Dance with Somebody (Who Loves Me)
+- Whitney Houston - The Greatest Love of All
+- Will Young - Leave Right Now
+- Wilson Phillips - Hold On
+- Wynonna Judd - No One Else on Earth
+- X Ambassadors - Jungle
+- X Ambassadors - Unsteady
+- Xavier Rudd - Follow the Sun
+- Xscape - Just Kickin' It
+- XTC - Dear God
+- Yanni - One Man's Dream
+- Yazoo - Only You
+- Yes - Love Will Find a Way
+- Yes - Owner of a Lonely Heart
+- Zac Brown Band - Colder Weather
+- Zayn Malik - Pillowtalk
+- Zella Day - Hypnotic
+- Ziggy Marley - Love Is My Religion
+- Zucchero - Diamante
+- Coldplay - Yellow
+- John Mayer - Slow Dancing in a Burning Room
+- Norah Jones - Don't Know Why
+- Sarah McLachlan - I Will Remember You
+- Dido - Here with Me
+- Natalie Merchant - Carnival
+- Tracy Chapman - Baby Can I Hold You
+- James Taylor - Carolina in My Mind
+- Bread - Everything I Own
+- Seals and Crofts - Diamond Girl
+- Paul Simon - Mother and Child Reunion
+- Sting - Fragile
+- Peter Gabriel - Solsbury Hill
+- Crowded House - Fall at Your Feet
+- R.E.M. - Everybody Hurts
+- Radiohead - High and Dry
+- Damien Rice - The Blower's Daughter
+- Nick Drake - Pink Moon
+- José González - Heartbeats
+- Bon Iver - Skinny Love
+- Sufjan Stevens - Mystery of Love
+- A Great Big World - Say Something
+- Lewis Capaldi - Someone You Loved
+- James Arthur - Say You Won't Let Go
+- Kodaline - All I Want
+- Ben Howard - Only Love
+- The Script - The Man Who Can't Be Moved
+- Keane - Everybody's Changing
+- Lifehouse - You and Me
+- The Fray - You Found Me
+- Goo Goo Dolls - Name
+- Hootie & the Blowfish - Let Her Cry
+- Duran Duran - Ordinary World
+- Celine Dion - Because You Loved Me
+- Bonnie Tyler - Total Eclipse of the Heart
+- Foreigner - Waiting for a Girl Like You
+- Chicago - If You Leave Me Now
+- Styx - Babe
+- Richard Marx - Now and Forever
+- George Michael - One More Try
+- Savage Garden - Truly Madly Deeply
+- Enrique Iglesias - Hero
+- Sade - By Your Side
+- The Corrs - Runaway
+- Annie Lennox - No More 'I Love You's'
+- Christopher Cross - Arthur's Theme (Best That You Can Do)
+- Elton John - Sorry Seems to Be the Hardest Word
+- Billy Joel - She's Always a Woman
+- Enigma - Return to Innocence
+- Lana Del Rey - Young and Beautiful
+- 10cc - I'm Not in Love
+- A-ha - Hunting High and Low
+- ABBA - Fernando
+- Adele - Hello
+- Adele - Make You Feel My Love
+- Alison Krauss - When You Say Nothing at All
+- All-4-One - I Swear
+- Alicia Keys - If I Ain't Got You
+- Alicia Keys - No One
+- Ambrosia - Biggest Part of Me
+- Ambrosia - How Much I Feel
+- Amy Winehouse - Back to Black
+- Angus & Julia Stone - Big Jet Plane
+- Backstreet Boys - I Want It That Way
+- Barbra Streisand - Woman in Love
+- Barry Manilow - Mandy
+- Bee Gees - To Love Somebody
+- Ben E. King - Stand by Me
+- Ben Folds - The Luckiest
+- Berlin - Take My Breath Away
+- Billy Ocean - Suddenly
+- Birdy - Wings
+- Bon Jovi - Thank You for Loving Me
+- Boyz II Men - End of the Road
+- Boyz II Men - I'll Make Love to You
+- Bread - If
+- Bryan Adams - Please Forgive Me
+- Bryan Adams - Have You Ever Really Loved a Woman?
+- Calum Scott - You Are the Reason
+- Celine Dion - My Heart Will Go On
+- Celine Dion - The Power of Love
+- Cheap Trick - The Flame
+- Chris de Burgh - The Lady in Red
+- Chris Stapleton - Tennessee Whiskey
+- Colbie Caillat - Realize
+- Colbie Caillat - Fallin' for You
+- Commodores - Easy
+- Commodores - Three Times a Lady
+- Culture Club - Do You Really Want to Hurt Me
+- Damien Rice - Cannonball
+- Daniel Powter - Bad Day
+- Deep Blue Something - Breakfast at Tiffany's
+- Duncan Sheik - Barely Breathing
+- Eagles - Desperado
+- Eagles - Best of My Love
+- Earth, Wind & Fire - After the Love Has Gone
+- Ed Sheeran - Perfect
+- Ed Sheeran - Photograph
+- Ed Sheeran - The A Team
+- Ellie Goulding - How Long Will I Love You
+- Ellie Goulding - Love Me Like You Do
+- Elton John - Candle in the Wind
+- Elton John - Daniel
+- Elton John - Can You Feel the Love Tonight
+- Elvis Presley - Always on My Mind
+- Enya - Only Time
+- Frou Frou - Let Go
+- Gary Jules - Mad World
+- George Harrison - My Sweet Lord
+- George Michael - Jesus to a Child
+- George Michael - Father Figure
+- Gerry Rafferty - Baker Street
+- Gladys Knight & The Pips - Midnight Train to Georgia
+- Goo Goo Dolls - Slide
+- Hall & Oates - Sara Smile
+- Hall & Oates - One on One
+- Harry Styles - Sign of the Times
+- Heart - These Dreams
+- Hozier - Work Song
+- INXS - Never Tear Us Apart
+- James Blunt - Goodbye My Lover
+- Jason Mraz - Lucky
+- Jeff Buckley - Lover, You Should've Come Over
+- Jennifer Warnes & Joe Cocker - Up Where We Belong
+- John Denver - Annie's Song
+- John Denver - Sunshine on My Shoulders
+- John Legend - Ordinary People
+- John Mayer - Daughters
+- John Mellencamp - Jack & Diane
+- John Waite - Missing You
+- Johnny Hates Jazz - Shattered Dreams
+- Joshua Radin - I'd Rather Be with You
+- Journey - Open Arms
+- K-Ci & JoJo - All My Life
+- Keane - Bedshaped
+- Lady A - Need You Now
+- Lana Del Rey - Video Games
+- Leona Lewis - Run
+- Lifehouse - Broken
+- Lionel Richie - Stuck on You
+- Lionel Richie - Truly
+- Lionel Richie - Say You, Say Me
+- Live - Lightning Crashes
+- Mariah Carey - Hero
+- Mariah Carey - Without You
+- Matchbox Twenty - If You're Gone
+- Michael Bublé - Home
+- Michael Jackson - Man in the Mirror
+- Michael Jackson - You Are Not Alone
+- Michael McDonald - I Keep Forgettin' (Every Time You're Near)
+- Norah Jones - Sunrise
+- Jason Mraz - 93 Million Miles
+- Sade - No Ordinary Love
+- The Cranberries - Dreams
+- Fleetwood Mac - Songbird
+- Sarah McLachlan - Adia
+- James Morrison - You Give Me Something
+- James Bay - Let It Go
+- Damien Rice - 9 Crimes
+- John Mayer - Stop This Train
+- Hozier - Cherry Wine
+- Coldplay - Sparks
+- Bon Iver - Holocene
+- Angus & Julia Stone - Chateau
+- Amos Lee - Sweet Pea
+- Ray LaMontagne - Let It Be Me
+- Nick Drake - Northern Sky
+- Iron & Wine - Flightless Bird, American Mouth
+- Lord Huron - The Night We Met
+- The National - I Need My Girl
+- The Paper Kites - Bloom
+- The Shins - New Slang
+- Band of Horses - No One's Gonna Love You
+- Feist - 1234
+- Milky Chance - Stolen Dance
+- Cigarettes After Sex - Apocalypse
+- Daughter - Youth
+- Angus & Julia Stone - Snow
+- Leon Bridges - River
+- Michael Kiwanuka - Cold Little Heart
+- Phoebe Bridgers - Motion Sickness
+- The Lumineers - Ophelia
+- Vance Joy - Georgia
+- The Head and the Heart - Rivers and Roads
+- Fleet Foxes - White Winter Hymnal
+- Bon Iver - Re: Stacks
+- José González - Crosses
+- Sufjan Stevens - To Be Alone With You
+- Gregory Alan Isakov - The Stable Song
+- Eddie Vedder - Hard Sun
+- Jack Johnson - Banana Pancakes
+- First Aid Kit - Emmylou
+- Sarah McLachlan - Building a Mystery
+- Ed Sheeran - Happier
+- Adele - Turning Tables
+- David Gray - This Year's Love
+- The Script - Breakeven
+- Snow Patrol - Run
+- Kodaline - High Hopes
+- Lord Huron - Ends of the Earth
+- The Avett Brothers - I and Love and You
+- Angus & Julia Stone - Heart Beats Slow
+- Laura Marling - Sophia
+- Alexi Murdoch - Orange Sky
+- Andrew Belle - In My Veins
+- Blind Pilot - Half Moon
+- Joshua Radin - Winter
+- First Aid Kit - Fireworks
+- Hollow Coves - The Woods
+- City and Colour - The Girl
+- Tracy Chapman - Give Me One Reason
+- Sting - Shape of My Heart
+- Dido - White Flag
+- Jewel - Foolish Games
+
+## Christmas Jingles
+
+- Bing Crosby - White Christmas
+- Bing Crosby & The Andrews Sisters - Jingle Bells
+- Nat King Cole - The Christmas Song (Chestnuts Roasting on an Open Fire)
+- Gene Autry - Rudolph the Red-Nosed Reindeer
+- Jackson 5 - Santa Claus Is Comin' to Town
+- Bobby Helms - Jingle Bell Rock
+- Brenda Lee - Rockin' Around the Christmas Tree
+- Elvis Presley - Blue Christmas
+- Frank Sinatra - Have Yourself a Merry Little Christmas
+- Harry Simeone Chorale - The Little Drummer Boy
+- The Ronettes - Sleigh Ride
+- Mariah Carey - All I Want for Christmas Is You
+- Gene Autry - Frosty the Snowman
+- Gene Autry - Here Comes Santa Claus (Right Down Santa Claus Lane)
+- Andy Williams - It's the Most Wonderful Time of the Year
+- Bing Crosby & Carol Richards - Silver Bells
+- Johnny Mathis - Winter Wonderland
+- Burl Ives - A Holly Jolly Christmas
+- Darlene Love - Christmas (Baby Please Come Home)
+- Bing Crosby - I'll Be Home for Christmas
+- Los Fronterizos - La Peregrinación
+- Los Fronterizos - Los Reyes Magos
+- Los Fronterizos - La Anunciación
+- Los Fronterizos - El Nacimiento
+- Los Fronterizos - Los Pastores
+- Los Fronterizos - La Huida
+- Daniel Toro - Zamba de Navidad
+- Mercedes Sosa - Navidad de Juanito Laguna
+- Mercedes Sosa - Navidad en Verano
+- Miranda! - Navidad
+- Attaque 77 - Papá llegó borracho (Navidad)
+- Él Mató a un Policía Motorizado - Villancico del final
+- Sumo - Noche de paz
+- Helene Fischer - Stille Nacht
+- Helene Fischer - O du fröhliche
+- Helene Fischer - Ihr Kinderlein kommet
+- Helene Fischer - Alle Jahre wieder
+- Helene Fischer - Süßer die Glocken nie klingen
+- Helene Fischer - Es ist ein Ros entsprungen
+- Helene Fischer - O Tannenbaum
+- Heintje - Leise rieselt der Schnee
+- Heintje - Kommet, ihr Hirten
+- still - Still
+- Boney M. - Mary's Boy Child/Oh My Lord
+- Melanie Thornton - Wonderful Dream (Holidays Are Coming)
+- Helene Fischer - Kling, Glöckchen, klingelingeling
+- Dresdner Kreuzchor - In dulci jubilo
+- Heintje - Morgen kommt der Weihnachtsmann
+- Helene Fischer - Fröhliche Weihnacht überall
+- Rolf Zuckowski - In der Weihnachtsbäckerei
+- Rundfunk-Kinderchor Leipzig - Lasst uns froh und munter sein
+- Wham! - Last Christmas
+- Band Aid - Do They Know It's Christmas?
+- The Pogues feat. Kirsty MacColl - Fairytale of New York
+- Slade - Merry Xmas Everybody
+- Wizzard - I Wish It Could Be Christmas Everyday
+- John Lennon & Yoko Ono - Happy Xmas (War Is Over)
+- Elton John - Step into Christmas
+- Jona Lewie - Stop the Cavalry
+- The Pretenders - 2000 Miles
+- Cliff Richard - Mistletoe and Wine
+- Celtic Woman - The Wexford Carol
+- Michael Bublé - It's Beginning to Look a Lot Like Christmas
+- Justin Bieber - Mistletoe
+- Celine Dion - O Holy Night
+- Joni Mitchell - River
+- Tino Rossi - Petit Papa Noël
+- Luciano Pavarotti - Tu scendi dalle stelle
+- Raphael - La canción del tamborilero
+- Coro Infantil de Santo Amaro de Oeiras - A Todos um Bom Natal
+- Carlos Galhardo - Boas Festas
+- Simone - Então É Natal
+- Orphei Drängar - Jul, jul, strålande jul
+- José Feliciano - Feliz Navidad
+- Eugene Ormandy & The Philadelphia Orchestra - Carol of the Bells
+- Whitney Houston - Joy to the World
+- King's College Choir - Hark! The Herald Angels Sing
+- Nat King Cole - Deck the Halls
+- Pentatonix - God Rest Ye Merry Gentlemen
+- Bing Crosby - Do You Hear What I Hear?
+- The Beach Boys - Little Saint Nick
+- Bing Crosby & The Andrews Sisters - Mele Kalikimaka
+- Vince Guaraldi Trio - Christmas Time Is Here
+- Josh Groban - Believe
+- Trans-Siberian Orchestra - Christmas Eve/Sarajevo 12/24
+- Chuck Berry - Run Rudolph Run
+- Paul McCartney - Wonderful Christmastime
+- Thurl Ravenscroft - You're a Mean One, Mr. Grinch
+- Bing Crosby - Adeste Fideles (O Come All Ye Faithful)
+- John Denver & The Muppets - We Wish You a Merry Christmas
+- Jackson 5 - I Saw Mommy Kissing Santa Claus
+- Eartha Kitt - Santa Baby
+- Dean Martin - Let It Snow! Let It Snow! Let It Snow!
+- Alvin & The Chipmunks - The Chipmunk Song (Christmas Don't Be Late)
+
+## Classic Pop
+
+- a-ha - Stay on These Roads
+- a-ha - Take On Me
+- ABBA - Gimme! Gimme! Gimme! (A Man After Midnight)
+- ABBA - One of Us
+- ABBA - Super Trouper
+- ABBA - The Winner Takes It All
+- Ace of Base - All That She Wants
+- Ace of Base - Don't Turn Around
+- Ace of Base - The Sign
+- Air Supply - All Out of Love
+- Air Supply - Making Love Out of Nothing at All
+- Aqua - Barbie Girl
+- Backstreet Boys - As Long as You Love Me
+- Backstreet Boys - Everybody (Backstreet's Back)
+- Backstreet Boys - I Want It That Way
+- Backstreet Boys - Quit Playing Games (with My Heart)
+- Belinda Carlisle - Circle in the Sand
+- Belinda Carlisle - Heaven Is a Place on Earth
+- Belinda Carlisle - Mad About You
+- Blondie - Call Me
+- Blondie - Rapture
+- Bon Jovi - Always
+- Bon Jovi - Livin' on a Prayer
+- Bon Jovi - You Give Love a Bad Name
+- Boyz II Men - End of the Road
+- Boyz II Men - I'll Make Love to You
+- Brandy & Monica - The Boy Is Mine
+- Britney Spears - ...Baby One More Time
+- Britney Spears - Oops!... I Did It Again
+- Bryan Adams - Heaven
+- Bryan Adams - Summer of '69
+- C+C Music Factory - Gonna Make You Sweat (Everybody Dance Now)
+- Celine Dion - My Heart Will Go On
+- Celine Dion - The Power of Love
+- Cher - Believe
+- Cher - If I Could Turn Back Time
+- Christina Aguilera - Genie in a Bottle
+- Christina Aguilera - What a Girl Wants
+- Cindy Lauper - Girls Just Want to Have Fun
+- Cindy Lauper - Time After Time
+- Cindy Lauper - True Colors
+- Culture Club - Do You Really Want to Hurt Me
+- Culture Club - Karma Chameleon
+- Culture Club - Time (Clock of the Heart)
+- Cyndi Lauper - Girls Just Want to Have Fun
+- Cyndi Lauper - She Bop
+- Cyndi Lauper - Time After Time
+- Daryl Hall & John Oates - Kiss on My List
+- Daryl Hall & John Oates - Maneater
+- Daryl Hall & John Oates - Private Eyes
+- Debbie Gibson - Foolish Beat
+- Debbie Gibson - Lost in Your Eyes
+- Duran Duran - Hungry Like the Wolf
+- Duran Duran - Ordinary World
+- Duran Duran - Rio
+- Duran Duran - The Reflex
+- En Vogue - Free Your Mind
+- En Vogue - Hold On
+- Eurythmics - Here Comes the Rain Again
+- Eurythmics - Sweet Dreams (Are Made of This)
+- Eurythmics - Would I Lie to You?
+- Genesis - Invisible Touch
+- Genesis - Land of Confusion
+- George Michael - Careless Whisper
+- George Michael - Faith
+- George Michael - Father Figure
+- Gloria Estefan & Miami Sound Machine - Conga
+- Gloria Estefan & Miami Sound Machine - Rhythm Is Gonna Get You
+- Janet Jackson - Escapade
+- Janet Jackson - Miss You Much
+- Janet Jackson - Rhythm Nation
+- Janet Jackson - That's the Way Love Goes
+- Katrina and the Waves - Walking on Sunshine
+- Kylie Minogue - I Should Be So Lucky
+- Kylie Minogue - The Loco-Motion
+- Lionel Richie - All Night Long (All Night)
+- Lionel Richie - Hello
+- Lisa Lisa & Cult Jam - Head to Toe
+- Lisa Stansfield - All Around the World
+- Lou Bega - Mambo No. 5
+- Madonna - Into the Groove
+- Madonna - Like a Prayer
+- Madonna - Like a Virgin
+- Madonna - Material Girl
+- Madonna - Papa Don't Preach
+- Madonna - Vogue
+- Mariah Carey - Always Be My Baby
+- Mariah Carey - Fantasy
+- Mariah Carey - Hero
+- Mariah Carey - One Sweet Day
+- Mariah Carey - Vision of Love
+- Men at Work - Down Under
+- Michael Jackson - Bad
+- Michael Jackson - Beat It
+- Michael Jackson - Billie Jean
+- Michael Jackson - Black or White
+- Michael Jackson - Man in the Mirror
+- Michael Jackson - Smooth Criminal
+- Michael Jackson - Thriller
+- Montell Jordan - This Is How We Do It
+- Mr. Mister - Broken Wings
+- Mr. Mister - Kyrie
+- N Sync - Bye Bye Bye
+- N Sync - Tearin' Up My Heart
+- Neneh Cherry - Buffalo Stance
+- New Kids on the Block - Step by Step
+- New Kids on the Block - You Got It (The Right Stuff)
+- Oasis - Don't Look Back in Anger
+- Oasis - Wonderwall
+- Olivia Newton-John - Magic
+- Olivia Newton-John - Physical
+- Pat Benatar - Love Is a Battlefield
+- Pat Benatar - We Belong
+- Paula Abdul - Forever Your Girl
+- Paula Abdul - Opposites Attract
+- Paula Abdul - Straight Up
+- Pet Shop Boys - Always on My Mind
+- Pet Shop Boys - West End Girls
+- Peter Gabriel - Sledgehammer
+- Phil Collins - Against All Odds (Take a Look at Me Now)
+- Phil Collins - Another Day in Paradise
+- Phil Collins - In the Air Tonight
+- Phil Collins - Sussudio
+- PM Dawn - Set Adrift on Memory Bliss
+- Prince - 1999
+- Prince - Kiss
+- Prince - Let's Go Crazy
+- Prince - Purple Rain
+- Prince - Raspberry Beret
+- Prince - When Doves Cry
+- R.E.M. - Losing My Religion
+- Rick Astley - Never Gonna Give You Up
+- Roxette - Dressed for Success
+- Roxette - It Must Have Been Love
+- Roxette - Listen to Your Heart
+- Roxette - The Look
+- Sade - No Ordinary Love
+- Sade - Smooth Operator
+- Sade - Your Love Is King
+- Salt-N-Pepa - Push It
+- Salt-N-Pepa - Shoop
+- Seal - Kiss from a Rose
+- Shania Twain - You're Still the One
+- Simply Red - Holding Back the Years
+- Sinéad O'Connor - Nothing Compares 2 U
+- Spice Girls - 2 Become 1
+- Spice Girls - Say You'll Be There
+- Spice Girls - Wannabe
+- Tears for Fears - Everybody Wants to Rule the World
+- Tears for Fears - Shout
+- The B-52's - Love Shack
+- Tiffany - Could've Been
+- Tiffany - I Think We're Alone Now
+- Tina Turner - Private Dancer
+- Tina Turner - What's Love Got to Do with It
+- TLC - No Scrubs
+- TLC - Waterfalls
+- Toni Basil - Mickey
+- Toto - Africa
+- Toto - Rosanna
+- U2 - With or Without You
+- UB40 - Red Red Wine
+- Vanilla Ice - Ice Ice Baby
+- Wham! - Last Christmas
+- Wham! - Wake Me Up Before You Go-Go
+- Whitney Houston - Greatest Love of All
+- Whitney Houston - How Will I Know
+- Whitney Houston - I Wanna Dance with Somebody (Who Loves Me)
+- Whitney Houston - I Will Always Love You
+- Whitney Houston - I'm Your Baby Tonight
+- Whitney Houston - Saving All My Love for You
+- U2 - I Still Haven't Found What I'm Looking For
+
+## Classic Reggae
+
+- Althea & Donna - Uptown Top Ranking
+- Alton Ellis - I'm Still in Love with You
+- Aswad - Back to Africa
+- Aswad - Don't Turn Around
+- Aswad - Dub Fire
+- Aswad - Love Fire
+- Aswad - Warrior Charge
+- Augustus Pablo - East of the River Nile
+- Augustus Pablo - Java
+- Augustus Pablo - King Tubby Meets the Rockers Uptown
+- Barrington Levy - Under Mi Sensi
+- Big Youth - S-90 Skank
+- Black Uhuru - Chill Out
+- Black Uhuru - General Penitentiary
+- Black Uhuru - Guess Who's Coming to Dinner
+- Black Uhuru - Sinsemilla
+- Black Uhuru - Sponji Reggae
+- Black Uhuru - What Is Life
+- Bob Marley - Buffalo Soldier
+- Bob Marley - Could You Be Loved
+- Bob Marley - Exodus
+- Bob Marley - Get Up, Stand Up
+- Bob Marley - I Shot the Sheriff
+- Bob Marley - Jamming
+- Bob Marley - Natural Mystic
+- Bob Marley - No Woman, No Cry
+- Bob Marley - One Love/People Get Ready
+- Bob Marley - Positive Vibration
+- Bob Marley - Redemption Song
+- Bob Marley - Roots, Rock, Reggae
+- Bob Marley - Stir It Up
+- Bob Marley - Three Little Birds
+- Bob Marley - Waiting in Vain
+- Bunny Wailer - Blackheart Man
+- Bunny Wailer - Dreamland
+- Burning Spear - Columbus
+- Burning Spear - Door Peep
+- Burning Spear - Farover
+- Burning Spear - Jah No Dead
+- Burning Spear - Jah Nuh Dead
+- Burning Spear - Marcus Garvey
+- Burning Spear - Slavery Days
+- Burning Spear - Social Living
+- Culture - Get Ready
+- Culture - Harder Than the Rest
+- Culture - I Pray
+- Culture - International Herb
+- Culture - Two Sevens Clash
+- Delroy Wilson - Better Must Come
+- Dennis Brown - Cassandra
+- Dennis Brown - Here I Come
+- Dennis Brown - How Could I Leave
+- Dennis Brown - Love Has Found Its Way
+- Dennis Brown - Money in My Pocket
+- Dennis Brown - Open the Gate
+- Dennis Brown - Revolution
+- Dennis Brown - Westbound Train
+- Desmond Dekker - 007 (Shanty Town)
+- Desmond Dekker - Israelites
+- Eek-A-Mouse - Ganja Smuggling
+- Freddie McGregor - Big Ship
+- Freddie McGregor - Prophecy
+- Gregory Isaacs - Cool Down the Pace
+- Gregory Isaacs - Hold Me Tight
+- Gregory Isaacs - Love Is Overdue
+- Gregory Isaacs - My Number One
+- Gregory Isaacs - Night Nurse
+- Gregory Isaacs - Rumours
+- Gregory Isaacs - Soon Forward
+- Gregory Isaacs - Stranger in Town
+- Gregory Isaacs - Tune In
+- Horace Andy - Children of Israel
+- Horace Andy - Government Land
+- Horace Andy - Skylarking
+- Israel Vibration - Cool and Calm
+- Israel Vibration - Rudeboy Shufflin'
+- Israel Vibration - The Same Song
+- Jacob Miller - Tenement Yard
+- Jimmy Cliff - Many Rivers to Cross
+- Jimmy Cliff - Reggae Night
+- Jimmy Cliff - Sitting in Limbo
+- Jimmy Cliff - The Harder They Come
+- Jimmy Cliff - Vietnam
+- Jimmy Cliff - You Can Get It If You Really Want
+- John Holt - Ali Baba
+- John Holt - Stick By Me
+- John Holt - The Tide Is High
+- John Holt - Up Park Camp
+- Johnny Nash - I Can See Clearly Now
+- Johnny Osbourne - Truths and Rights
+- Junior Murvin - Police and Thieves
+- Junior Murvin - Solomon
+- Ken Boothe - Artibella
+- Ken Boothe - Everything I Own
+- Ken Boothe - Freedom Street
+- Lee "Scratch" Perry & The Upsetters - Return of Django
+- Linton Kwesi Johnson - Di Great Insohreckshan
+- Linton Kwesi Johnson - Dread Beat an' Blood
+- Linton Kwesi Johnson - Independent Intavenshan
+- Linton Kwesi Johnson - Inglan Is a Bitch
+- Linton Kwesi Johnson - Sonny's Lettah
+- Max Romeo - Chase the Devil
+- Max Romeo - War Ina Babylon
+- Pablo Moses - I Man a Grasshopper
+- Pablo Moses - Ready, Aim, Fire
+- Peter Tosh - Brand New Second Hand
+- Peter Tosh - Bush Doctor
+- Peter Tosh - Don't Look Back
+- Peter Tosh - Downpressor Man
+- Peter Tosh - Equal Rights
+- Peter Tosh - Johnny B. Goode
+- Peter Tosh - Legalize It
+- Peter Tosh - Mystic Man
+- Peter Tosh - Steppin' Razor
+- Sister Nancy - Bam Bam
+- Steel Pulse - Blues Dance Raid
+- Steel Pulse - Can't Stand It
+- Steel Pulse - Chant a Psalm
+- Steel Pulse - Ku Klux Klan
+- Steel Pulse - Roller Skates
+- Steel Pulse - Sound System
+- Steel Pulse - Steppin' Out
+- Steel Pulse - Your House
+- Sugar Minott - Good Thing Going
+- The Abyssinians - Declaration of Rights
+- The Abyssinians - Satta Massagana
+- The Congos - Fisherman
+- The Gladiators - Jah Works
+- The Heptones - Book of Rules
+- The Melodians - Rivers of Babylon
+- The Mighty Diamonds - I Need a Roof
+- The Mighty Diamonds - Pass the Kouchie
+- The Pioneers - Long Shot Kick De Bucket
+- Third World - 96 Degrees in the Shade
+- Third World - 96° in the Shade
+- Third World - Cool Meditation
+- Third World - Forbidden Love
+- Third World - Now That We Found Love
+- Third World - Now That We've Found Love
+- Third World - Reggae Ambassador
+- Third World - Sense of Purpose
+- Third World - Talk to Me
+- Third World - Try Jah Love
+- Toots & the Maytals - Beautiful Woman
+- Toots & the Maytals - Don't Trouble Trouble
+- Toots & the Maytals - Funky Kingston
+- Toots & the Maytals - Live It Up
+- Toots & the Maytals - Pomp and Pride
+- Toots & the Maytals - Pressure Drop
+- Toots & the Maytals - Reggae Got Soul
+- Toots & the Maytals - Sweet and Dandy
+- Toots & the Maytals - Take Me Home, Country Roads
+- Toots and the Maytals - 54-46 Was My Number
+- Toots and the Maytals - Monkey Man
+- Toots and the Maytals - Pressure Drop
+- U-Roy - Wake the Town
+- UB40 - Food for Thought
+- UB40 - I Got You Babe
+- UB40 - Kingston Town
+- UB40 - One in Ten
+- UB40 - Please Don't Make Me Cry
+- UB40 - Red Red Wine
+
+## Classic Rock
+
+- AC/DC - Back in Black
+- AC/DC - Highway to Hell
+- AC/DC - Stiff Upper Lip
+- AC/DC - You Shook Me All Night Long
+- Aerosmith - Dream On
+- Aerosmith - Dude (Looks Like a Lady)
+- Aerosmith - Sweet Emotion
+- Aerosmith - Walk This Way
+- Alice in Chains - Man in the Box
+- Bad Company - Can't Get Enough
+- Bad Company - Feel Like Makin' Love
+- Badfinger - Day After Day
+- Badfinger - No Matter What
+- Big Brother & the Holding Company - Piece of My Heart
+- Billy Idol - Rebel Yell
+- Billy Squier - The Stroke
+- Black Sabbath - Iron Man
+- Black Sabbath - Paranoid
+- Black Sabbath - War Pigs
+- Blink-182 - All the Small Things
+- Blue Cheer - Summertime Blues
+- Blue Öyster Cult - (Don't Fear) The Reaper
+- Bob Dylan - Like a Rolling Stone
+- Bon Jovi - Bad Medicine
+- Bon Jovi - Livin' on a Prayer
+- Bon Jovi - Wanted Dead or Alive
+- Bon Jovi - You Give Love a Bad Name
+- Boston - Foreplay/Long Time
+- Boston - More Than a Feeling
+- Boston - Peace of Mind
+- Bruce Springsteen - Badlands
+- Bruce Springsteen - Born to Run
+- Bruce Springsteen - Dancing in the Dark
+- Bryan Adams - Heaven
+- Bryan Adams - Run to You
+- Bryan Adams - Summer of '69
+- Buffalo Springfield - For What It's Worth
+- Cheap Trick - Surrender
+- Collective Soul - Shine
+- Cream - Badge
+- Cream - Crossroads
+- Cream - Sunshine of Your Love
+- Cream - White Room
+- Creedence Clearwater Revival - Bad Moon Rising
+- Creedence Clearwater Revival - Fortunate Son
+- Creedence Clearwater Revival - Proud Mary
+- Creedence Clearwater Revival - Up Around the Bend
+- Crosby, Stills, Nash & Young - Teach Your Children
+- David Bowie - Rebel Rebel
+- David Bowie - Space Oddity
+- David Bowie - Ziggy Stardust
+- Deep Purple - Black Night
+- Deep Purple - Highway Star
+- Deep Purple - Smoke on the Water
+- Def Leppard - Hysteria
+- Def Leppard - Photograph
+- Def Leppard - Pour Some Sugar on Me
+- Def Leppard - Rock of Ages
+- Derek and the Dominos - Layla
+- Dire Straits - Money for Nothing
+- Dire Straits - Sultans of Swing
+- Eric Clapton - After Midnight
+- Eurythmics - Sweet Dreams (Are Made of This)
+- Fleetwood Mac - Go Your Own Way
+- Fleetwood Mac - Rhiannon
+- Foo Fighters - Big Me
+- Foo Fighters - Breakout
+- Foo Fighters - Everlong
+- Foo Fighters - Generator
+- Foo Fighters - Learn to Fly
+- Foo Fighters - Monkey Wrench
+- Foo Fighters - My Hero
+- Foo Fighters - This Is a Call
+- Foreigner - Cold As Ice
+- Foreigner - Hot Blooded
+- Foreigner - Juke Box Hero
+- Genesis - Land of Confusion
+- Golden Earring - Radar Love
+- Goo Goo Dolls - Iris
+- Grand Funk Railroad - I'm Your Captain (Closer to Home)
+- Green Day - Basket Case
+- Guns N' Roses - Don't Cry
+- Guns N' Roses - November Rain
+- Guns N' Roses - Paradise City
+- Guns N' Roses - Sweet Child o' Mine
+- Guns N' Roses - Welcome to the Jungle
+- Heart - Barracuda
+- Heart - Crazy on You
+- INXS - Need You Tonight
+- INXS - What You Need
+- Iron Butterfly - In-A-Gadda-Da-Vida
+- James Gang - Funk #49
+- Jefferson Airplane - Somebody to Love
+- Jefferson Airplane - White Rabbit
+- Jethro Tull - Locomotive Breath
+- Jimi Hendrix - All Along the Watchtower
+- Jimi Hendrix - Purple Haze
+- Joan Jett & the Blackhearts - I Love Rock 'n' Roll
+- Joe Walsh - Life's Been Good
+- Joe Walsh - Rocky Mountain Way
+- John Mellencamp - Jack & Diane
+- Journey - Any Way You Want It
+- Journey - Don't Stop Believin'
+- Journey - Wheel in the Sky
+- Kansas - Carry On Wayward Son
+- Kansas - Dust in the Wind
+- Kings of Leon - California Waiting
+- Kiss - Detroit Rock City
+- Led Zeppelin - Black Dog
+- Led Zeppelin - Communication Breakdown
+- Led Zeppelin - D'yer Mak'er
+- Led Zeppelin - Immigrant Song
+- Led Zeppelin - Ramble On
+- Led Zeppelin - Rock and Roll
+- Led Zeppelin - Stairway to Heaven
+- Led Zeppelin - Whole Lotta Love
+- Lynyrd Skynyrd - Free Bird
+- Lynyrd Skynyrd - Sweet Home Alabama
+- Matchbox Twenty - Push
+- MC5 - Kick Out the Jams
+- Metallica - Enter Sandman
+- Motley Crue - Kickstart My Heart
+- Motley Crue - Shout at the Devil
+- Mountain - Mississippi Queen
+- Nirvana - Smells Like Teen Spirit
+- No Doubt - Just a Girl
+- Oasis - Don't Look Back in Anger
+- Oasis - Wonderwall
+- Pat Benatar - Hit Me With Your Best Shot
+- Pat Benatar - Shadows of the Night
+- Pearl Jam - Alive
+- Phil Collins - In the Air Tonight
+- Pink Floyd - Another Brick in the Wall, Part 2
+- Pink Floyd - Comfortably Numb
+- Pink Floyd - Money
+- Pink Floyd - Wish You Were Here
+- Procol Harum - A Whiter Shade of Pale
+- Queen - Bohemian Rhapsody
+- Queen - Killer Queen
+- Queen - We Are the Champions
+- Queen - We Will Rock You
+- R.E.M. - Losing My Religion
+- R.E.M. - The One I Love
+- Radiohead - Creep
+- Red Hot Chili Peppers - Under the Bridge
+- Rush - Limelight
+- Rush - The Spirit of Radio
+- Rush - Tom Sawyer
+- Santana - Black Magic Woman
+- Santana - Oye Como Va
+- Scorpions - Rock You Like a Hurricane
+- Smashing Pumpkins - Today
+- Soundgarden - Black Hole Sun
+- Steppenwolf - Born to Be Wild
+- Steppenwolf - Magic Carpet Ride
+- Steve Miller Band - The Joker
+- Stone Temple Pilots - Plush
+- Styx - Come Sail Away
+- Styx - Renegade
+- Survivor - Eye of the Tiger
+- Talking Heads - Psycho Killer
+- The Allman Brothers Band - Ramblin' Man
+- The Band - The Weight
+- The Beatles - A Hard Day's Night
+- The Beatles - All You Need Is Love
+- The Beatles - Come Together
+- The Beatles - Eleanor Rigby
+- The Beatles - Get Back
+- The Beatles - Help!
+- The Beatles - Here Comes the Sun
+- The Beatles - Hey Jude
+- The Beatles - Let It Be
+- The Beatles - Penny Lane
+- The Beatles - Revolution
+- The Beatles - Something
+- The Beatles - While My Guitar Gently Weeps
+- The Beatles - Yellow Submarine
+- The Beatles - Yesterday
+- The Black Crowes - Hard to Handle
+- The Cars - Just What I Needed
+- The Clash - London Calling
+- The Clash - Should I Stay or Should I Go
+- The Clash - Train in Vain
+- The Doors - Break On Through (To the Other Side)
+- The Doors - Hello, I Love You
+- The Doors - Light My Fire
+- The Doors - Riders on the Storm
+- The Eagles - Hotel California
+- The Eagles - Life in the Fast Lane
+- The Eagles - One of These Nights
+- The Eagles - Take It Easy
+- The Jimi Hendrix Experience - All Along the Watchtower
+- The Jimi Hendrix Experience - Hey Joe
+- The Jimi Hendrix Experience - Purple Haze
+- The Jimi Hendrix Experience - Voodoo Child (Slight Return)
+- The Kinks - Lola
+- The Kinks - You Really Got Me
+- The Police - Every Breath You Take
+- The Police - Roxanne
+- The Ramones - Blitzkrieg Bop
+- The Rolling Stones - (I Can't Get No) Satisfaction
+- The Rolling Stones - Angie
+- The Rolling Stones - Brown Sugar
+- The Rolling Stones - Gimme Shelter
+- The Rolling Stones - Jumpin' Jack Flash
+- The Rolling Stones - Miss You
+- The Rolling Stones - Paint It, Black
+- The Rolling Stones - Start Me Up
+- The Rolling Stones - Street Fighting Man
+- The Rolling Stones - Sympathy for the Devil
+- The Stray Cats - Stray Cat Strut
+- The Who - Baba O'Riley
+- The Who - Behind Blue Eyes
+- The Who - My Generation
+- The Who - Pinball Wizard
+- The Who - Who Are You
+- The Who - Won't Get Fooled Again
+- Thin Lizzy - The Boys Are Back in Town
+- Third Eye Blind - Semi-Charmed Life
+- Tom Petty & the Heartbreakers - American Girl
+- Tom Petty & the Heartbreakers - I Won't Back Down
+- Tom Petty & the Heartbreakers - Refugee
+- Tom Petty and the Heartbreakers - Free Fallin'
+- U2 - Pride (In the Name of Love)
+- U2 - Sunday Bloody Sunday
+- U2 - With or Without You
+- Van Halen - Jump
+- Van Halen - Runnin' with the Devil
+- Vanilla Fudge - You Keep Me Hangin' On
+- Weezer - Say It Ain't So
+- ZZ Top - La Grange
+- ZZ Top - Tush
+
+## Contemporary Pop
+
+- Adele - Hello
+- Adele - Rolling in the Deep
+- AJR - Bang!
+- AJR - Weak
+- Ariana Grande - Thank U Next
+- Ariana Grande - We Can't Be Friends (Wait for Your Love)
+- Avicii - Levels
+- Avicii - Wake Me Up
+- Bad Bunny - Dakiti
+- Bastille - Happier
+- Bastille - Pompeii
+- Billie Eilish - Bad Guy
+- Billie Eilish - Happier Than Ever
+- Black Eyed Peas - Just Can't Get Enough
+- Black Eyed Peas - The Time (Dirty Bit)
+- BLACKPINK - How You Like That
+- Bruno Mars - 24K Magic
+- Bruno Mars - Locked Out of Heaven
+- BTS - Butter
+- BTS - Dynamite
+- Camila Cabello - Havana
+- Camila Cabello - Señorita
+- Cardi B - Bodak Yellow
+- Cardi B - WAP
+- Carly Rae Jepsen - Call Me Maybe
+- Carly Rae Jepsen - I Really Like You
+- Charlie Puth - Attention
+- Charlie Puth - We Don't Talk Anymore
+- Clean Bandit - Rather Be
+- Clean Bandit - Rockabye
+- Daft Punk - Get Lucky
+- Daft Punk - Lose Yourself to Dance
+- David Guetta - Hey Mama
+- David Guetta - Titanium
+- Demi Lovato - SORRY NOT SORRY
+- Doja Cat - Paint The Town Red
+- Doja Cat - Say So
+- Drake - God's Plan
+- Drake - One Dance
+- Dua Lipa - Levitating
+- Dua Lipa - New Rules
+- Ed Sheeran - Bad Habits
+- Ed Sheeran - Celestial
+- Ed Sheeran - Shape of You
+- Ellie Goulding - Lights
+- Ellie Goulding - Love Me Like You Do
+- Flo Rida - Good Feeling
+- Flo Rida - Whistle
+- Gotye - Eyes Wide Open
+- Gotye - Somebody That I Used to Know
+- Harry Styles - As It Was
+- Harry Styles - Sign of the Times
+- Hozier - Take Me to Church
+- Hozier - Too Sweet
+- Imagine Dragons - Believer
+- Imagine Dragons - Radioactive
+- Jack Harlow - First Class
+- Jack Harlow - Lovin on Me
+- Jason Derulo - Talk Dirty
+- Jason Derulo - Want to Want Me
+- Jonas Brothers - Sucker
+- Jonas Brothers - What a Man Gotta Do
+- Justin Bieber - Peaches
+- Justin Bieber - Sorry
+- Justin Timberlake - Can't Stop the Feeling!
+- Justin Timberlake - Mirrors
+- Katy Perry - Firework
+- Katy Perry - Roar
+- Kelly Clarkson - Piece by Piece
+- Kelly Clarkson - Stronger (What Doesn't Kill You)
+- Kendrick Lamar - Humble
+- Kendrick Lamar - Not Like Us
+- Kygo - Firestone
+- Lady Gaga - Born This Way
+- Lady Gaga - Rain on Me
+- Lil Nas X - Montero (Call Me by Your Name)
+- Lil Nas X - Old Town Road
+- Lizzo - About Damn Time
+- Lizzo - Truth Hurts
+- Luis Fonsi - Despacito
+- Luis Fonsi - Échame la Culpa
+- Macklemore & Ryan Lewis - Can't Hold Us
+- Macklemore & Ryan Lewis - Thrift Shop
+- Major Lazer - Cold Water
+- Major Lazer - Lean On
+- Mark Ronson - Nothing Breaks Like a Heart
+- Mark Ronson - Uptown Funk
+- Maroon 5 - Girls Like You
+- Maroon 5 - Moves Like Jagger
+- Marshmello - Friends
+- Marshmello - Happier
+- Meghan Trainor - All About That Bass
+- Meghan Trainor - Made You Look
+- Miley Cyrus - Flowers
+- Miley Cyrus - Wrecking Ball
+- Nicki Minaj - Super Bass
+- Olivia Rodrigo - Drivers License
+- Olivia Rodrigo - Vampire
+- OMI - Cheerleader
+- OMI - Hula Hoop
+- One Direction - Story of My Life
+- One Direction - What Makes You Beautiful
+- Pharrell Williams - Freedom
+- Pink - Just Give Me a Reason
+- Pink - Raise Your Glass
+- Post Malone - Circles
+- Post Malone - I Had Some Help
+- Psy - Gangnam Style
+- Psy - Gentleman
+- Rihanna - Diamonds
+- Rihanna - We Found Love
+- Robin Thicke - Blurred Lines
+- Robin Thicke - Give It 2 U
+- Sabrina Carpenter - Nonsense
+- Sabrina Carpenter - Please Please Please
+- Sam Smith - Stay With Me
+- Sam Smith - Unholy
+- Selena Gomez - Hands to Myself
+- Selena Gomez - Lose You to Love Me
+- Shaboozey - A Bar Song (Tipsy)
+- Shakira - Girl Like Me
+- Shakira - Waka Waka (This Time for Africa)
+- Shawn Mendes - Stitches
+- Shawn Mendes - There's Nothing Holdin' Me Back
+- Sia - Chandelier
+- Sia - Cheap Thrills
+- Silento - Watch Me (Whip/Nae Nae)
+- SZA - Kill Bill
+- Teddy Swims - Lose Control
+- Teddy Swims - The Door
+- The Chainsmokers - Closer
+- The Chainsmokers - Something Just Like This
+- The Weeknd - Blinding Lights
+- The Weeknd - Starboy
+- Tones and I - Dance Monkey
+- Tones and I - Fly Away
+- Twenty One Pilots - Heathens
+- Twenty One Pilots - Stressed Out
+- Walk the Moon - One Foot
+- Walk the Moon - Shut Up and Dance
+- Wiz Khalifa - Black and Yellow
+- Wiz Khalifa - See You Again
+- X Ambassadors - Renegades
+- X Ambassadors - Unsteady
+- Zara Larsson - Lush Life
+- Zara Larsson - Symphony
+- Zedd - Clarity
+- Zedd - The Middle
+
+## Cumbia Villera
+
+- Amar Azul - Yo Me Enamore
+- Amar Azul - Yo Tomo
+- Amar Azul - Yo Tomo Licor
+- Damas Gratis - Atrevida
+- Damas Gratis - El Humo de Mi Fasito
+- Damas Gratis - El Viejo de la Bolsa
+- Damas Gratis - Laura
+- Damas Gratis - Los Dueños del Pabellón
+- Damas Gratis - Me Vas a Extrañar
+- Damas Gratis - No Te Creas Tan Importante
+- Damas Gratis - Se Te Ve La Tanga
+- El Dipy - Par-Tusa
+- El Polaco - Deja de Llorar
+- Flor de Piedra - Sos un Botón
+- Los Pibes Chorros - Andrea
+- Los Pibes Chorros - Duraznito
+- Los Pibes Chorros - El Prisionero
+- Los Pibes Chorros - El Tano Pastita
+- Los Pibes Chorros - Que Calor
+- Mala Fama - Gata
+- Mala Fama - La Marca de la Gorra
+- Rafaga - Agüita
+- Rafaga - La Luna y Tú
+- Rafaga - Maldito Corazón
+- Rafaga - Mentirosa
+- Rafaga - Muero de Frío
+- Rafaga - Una Cerveza
+- Rafaga - Volver a Empezar
+- Supermerk2 - La Resaka
+- Yerba Brava - La Cumbia de los Trapos
+- Yerba Brava - Pibe Cantina
+
+## Eclectic Discovery
+
+- Anderson .Paak - Am I Wrong
+- Anderson .Paak - Come Down
+- Anderson .Paak - The Bird
+- BadBadNotGood - Lavender (Nightfall Remix) [feat. Kaytranada & Snoop Dogg]
+- BadBadNotGood - Time Moves Slow
+- Blood Orange - Charcoal Baby
+- Blood Orange - You're Not Good Enough
+- Caribou - Can't Do Without You
+- Caribou - Home
+- Childish Gambino - Redbone
+- Childish Gambino - Sober
+- FKJ - Skyline
+- FKJ - Tadow
+- FKJ & Masego - Tadow
+- Flume - Never Be Like You
+- Flume - Rushing Back (feat. Vera Blue)
+- Flying Lotus - Never Catch Me
+- James Blake - Retrograde
+- Jungle - Busy Earnin'
+- Jungle - Casio
+- Jungle - Heavy, California
+- Kaytranada - 10% (feat. Kali Uchis)
+- KAYTRANADA - Glowed Up
+- Kaytranada - Glowed Up (feat. Anderson .Paak)
+- Kaytranada - Lite Spots
+- Kendrick Lamar - Wesley's Theory
+- Mac DeMarco - Chamber of Reflection
+- Mura Masa - Firefly
+- Mura Masa - Love$ick (feat. A$AP Rocky)
+- Tame Impala - The Less I Know the Better
+- The Internet - Come Over
+- The Internet - Girl
+- Thundercat - Dragonball Durag
+- Thundercat - Them Changes
+- Toro y Moi - Laws of the Universe
+- Toro y Moi - New Beat
+- Vulfpeck - Back Pocket
+- Vulfpeck - Dean Town
+
+## Evening Jazz & Bossa Nova
+
+- Miles Davis - So What
+- Miles Davis - Blue in Green
+- Miles Davis - Flamenco Sketches
+- Miles Davis - All Blues
+- Bill Evans - Peace Piece
+- Bill Evans - Waltz for Debby
+- Bill Evans - My Foolish Heart
+- The Dave Brubeck Quartet - Take Five
+- The Dave Brubeck Quartet - Blue Rondo à la Turk
+- Stan Getz & João Gilberto - The Girl from Ipanema
+- Stan Getz & João Gilberto - Corcovado (Quiet Nights of Quiet Stars)
+- Stan Getz & Charlie Byrd - Desafinado
+- Antônio Carlos Jobim - Wave
+- Antônio Carlos Jobim - Triste
+- Antônio Carlos Jobim - Dindi
+- Antônio Carlos Jobim - Meditation (Meditação)
+- João Gilberto - Chega de Saudade
+- Astrud Gilberto - The Shadow of Your Smile
+- Astrud Gilberto - Água de Beber
+- Sérgio Mendes & Brasil '66 - Mas Que Nada
+- Luiz Bonfá - Manhã de Carnaval
+- Baden Powell - Berimbau
+- Marcos Valle - Summer Samba (So Nice)
+- Vinícius de Moraes & Toquinho - Tarde em Itapoã
+- João Donato - A Rã
+- Nara Leão - O Barquinho
+- Stan Getz - Só Danço Samba
+- John Coltrane - Naima
+- John Coltrane - My Favorite Things
+- John Coltrane & Duke Ellington - In a Sentimental Mood
+- Thelonious Monk - Monk's Dream
+- Thelonious Monk - Ugly Beauty
+- Sonny Rollins - The Bridge
+- Sonny Rollins - Alfie's Theme
+- Dexter Gordon - Cheesecake
+- Dexter Gordon - I Guess I'll Hang My Tears Out to Dry
+- Hank Mobley - Soul Station
+- Hank Mobley - No Room for Squares
+- Grant Green - Idle Moments
+- Grant Green - Street of Dreams
+- Kenny Burrell - Midnight Blue
+- Wes Montgomery - Bumpin' on Sunset
+- Wes Montgomery - Four on Six
+- Herbie Hancock - Cantaloupe Island
+- Herbie Hancock - Maiden Voyage
+- Wayne Shorter - Speak No Evil
+- Wayne Shorter - Infant Eyes
+- Joe Henderson - Recorda Me
+- Eric Dolphy - Warm Canto
+- Charles Mingus - Goodbye Pork Pie Hat
+- Charles Mingus - Self-Portrait in Three Colors
+- Art Blakey & The Jazz Messengers - Moanin'
+- Horace Silver - Song for My Father
+- Lee Morgan - The Sidewinder
+- Donald Byrd - Cristo Redentor
+- Lou Donaldson - Blues Walk
+- Sonny Clark - Cool Struttin'
+- Kenny Dorham - Blue Bossa
+- Yusef Lateef - Love Theme from Spartacus
+- John Coltrane & Johnny Hartman - My One and Only Love
+- John Coltrane & Johnny Hartman - Lush Life
+- Bill Evans & Jim Hall - Skating in Central Park
+- Bill Evans & Jim Hall - I Hear a Rhapsody
+- Paul Desmond - Take Ten
+- Paul Desmond - Emily
+- Gerry Mulligan - Night Lights
+- Stan Getz & Charlie Byrd - Samba Triste
+- Cannonball Adderley - Autumn Leaves
+- Cannonball Adderley - Mercy, Mercy, Mercy
+- Freddie Hubbard - Little Sunflower
+- Freddie Hubbard - Up Jumped Spring
+- Ahmad Jamal - Poinciana
+- Oscar Peterson - Hymn to Freedom
+- Oscar Peterson - You Look Good to Me
+- Ramsey Lewis Trio - The 'In' Crowd
+- McCoy Tyner - Search for Peace
+- McCoy Tyner - Passion Dance
+- Wayne Shorter - Footprints
+- Jackie McLean - Appointment in Ghana
+- Andrew Hill - Black Fire
+- Bobby Hutcherson - Little B's Poem
+- Stan Tracey - Starless and Bible Black
+- Charles Lloyd - Forest Flower: Sunrise
+- Pharoah Sanders - Colors
+- Nina Simone - Wild Is the Wind
+- Nina Simone - I Loves You, Porgy
+- Sarah Vaughan - Misty
+- Ella Fitzgerald - Cry Me a River
+- Nancy Wilson & Cannonball Adderley - The Old Country
+- Tony Bennett & Bill Evans - Some Other Time
+- João Gilberto - Insensatez
+- Stan Getz & João Gilberto - O Grande Amor
+- Horace Silver - Peace
+- Duke Ellington & John Coltrane - My Little Brown Book
+
+## Folklore Argentino and Chamame
+
+- Mercedes Sosa - Alfonsina Y El Mar
+- Mercedes Sosa - Gracias A La Vida
+- Mercedes Sosa - Como La Cigarra
+- Mercedes Sosa - Canción Con Todos
+- Mercedes Sosa - Sólo Le Pido A Dios
+- Mercedes Sosa - Todo Cambia
+- Mercedes Sosa - Juana Azurduy
+- Mercedes Sosa - Duerme, Negrito
+- Mercedes Sosa - Zamba Para No Morir
+- Mercedes Sosa - Balderrama
+- Atahualpa Yupanqui - El Arriero
+- Atahualpa Yupanqui - Luna Tucumana
+- Atahualpa Yupanqui - Los Ejes de Mi Carreta
+- Atahualpa Yupanqui - Camino del Indio
+- Atahualpa Yupanqui - Zamba del Grillo
+- Jorge Cafrune - El Orejano
+- Jorge Cafrune - No Soy de Aquí... Ni Soy de Allá
+- Horacio Guarany - Si Se Calla el Cantor
+- Horacio Guarany - Caballo Que No Galopa
+- Horacio Guarany - La Villerita
+- Los Chalchaleros - La López Pereyra
+- Los Chalchaleros - Zamba de Vargas
+- Los Chalchaleros - La Nochera
+- Los Fronterizos - Zamba del Pañuelo
+- Los Fronterizos - La Peregrinación
+- Los Manseros Santiagueños - Añoranzas
+- Los Carabajal - Entre a Mi Pago Sin Golpear
+- Los Carabajal - La Flor Azul
+- Peteco Carabajal - La Estrella Azul
+- Peteco Carabajal - Perfume de Carnaval
+- Soledad - Tren Del Cielo
+- Soledad - A Don Ata
+- Soledad - Adonde Vayas
+- Chaqueño Palavecino - La Ley y La Trampa
+- Chaqueño Palavecino - Amor Salvaje
+- Los Nocheros - La Yapa
+- Los Nocheros - Chacarera Del Rancho
+- Los Nocheros - Entre La Tierra y El Cielo
+- Dúo Coplanacu - Chacarera de las Piedras
+- Raly Barrionuevo - Ey Paisano
+- Los Tekis - Hasta el Otro Carnaval
+- Ramona Galarza - Kilometro 11
+- Ramona Galarza - Merceditas
+- Ramona Galarza - Pueblero de Alla Ite
+- Ramona Galarza - Posadeña Linda
+- Los Alonsitos - Puente Pexoa
+- Los Alonsitos - Kilómetro 11
+- Los Alonsitos - Eterno Amor
+- Los Alonsitos - Niña del Ñangapirí
+- Los Alonsitos - Posadeña Linda
+
+## Funk & Soul
+
+- Al Green - Let's Stay Together
+- Aretha Franklin - Respect
+- Average White Band - Pick Up the Pieces
+- Betty Wright - Clean Up Woman
+- Bill Withers - Use Me
+- Bobby Womack - Across 110th Street
+- Booker T. & the MG's - Green Onions
+- Charles Wright & the Watts 103rd Street Rhythm Band - Express Yourself
+- Chic - Good Times
+- Chic - Le Freak
+- Commodores - Easy
+- Curtis Mayfield - Freddie's Dead
+- Curtis Mayfield - Move On Up
+- Curtis Mayfield - Superfly
+- Donny Hathaway - Someday We'll All Be Free
+- Earth, Wind & Fire - September
+- Earth, Wind & Fire - Shining Star
+- Funkadelic - One Nation Under a Groove
+- Gil Scott-Heron - The Revolution Will Not Be Televised
+- Isaac Hayes - Theme from Shaft
+- James Brown - Get Up (I Feel Like Being a) Sex Machine
+- James Brown - Get Up Offa That Thing
+- Kool & The Gang - Get Down on It
+- Kool & The Gang - Jungle Boogie
+- Labelle - Lady Marmalade
+- Marvin Gaye - I Heard It Through the Grapevine
+- Minnie Riperton - Lovin' You
+- Ohio Players - Fire
+- Parliament - Give Up the Funk (Tear the Roof Off the Sucker)
+- Prince - Kiss
+- Ray Charles - What'd I Say
+- Rick James - Give It to Me Baby
+- Roy Ayers - Everybody Loves the Sunshine
+- Sly & The Family Stone - Dance to the Music
+- Sly & The Family Stone - Family Affair
+- Sly & The Family Stone - Thank You (Falettinme Be Mice Elf Agin)
+- Stevie Wonder - Higher Ground
+- Stevie Wonder - Superstition
+- The Brothers Johnson - Strawberry Letter 23
+- The Commodores - Brick House
+- The Gap Band - You Dropped a Bomb on Me
+- The Isley Brothers - That Lady
+- The Jackson 5 - I Want You Back
+- The Meters - Cissy Strut
+- The O'Jays - Love Train
+- The Spinners - I'll Be Around
+- The Temptations - Papa Was a Rollin' Stone
+- Tower of Power - What Is Hip?
+- War - Low Rider
+
+## Golden HipHop
+
+- 2Pac - Ambitionz Az a Ridah
+- 2Pac - Changes
+- 2Pac - Dear Mama
+- 2Pac - Keep Ya Head Up
+- A Tribe Called Quest - Award Tour
+- A Tribe Called Quest - Check the Rhime
+- A Tribe Called Quest - Electric Relaxation
+- A Tribe Called Quest - Scenario
+- Arrested Development - Tennessee
+- Artifacts - Wrong Side of da Tracks
+- Big Daddy Kane - Ain't No Half-Steppin'
+- Big Daddy Kane - Smooth Operator
+- Big L - Ebonics
+- Big L - Put It On
+- Big Pun - Still Not a Player
+- Biz Markie - Just a Friend
+- Black Sheep - The Choice Is Yours (Revisited)
+- Black Star - Definition
+- Black Star - Respiration
+- Bone Thugs-N-Harmony - 1st of tha Month
+- Bone Thugs-N-Harmony - Tha Crossroads
+- Boogie Down Productions - My Philosophy
+- Boogie Down Productions - South Bronx
+- Brand Nubian - Slow Down
+- Camp Lo - Luchini AKA This Is It
+- Common - I Used to Love H.E.R.
+- Common - Resurrection
+- Common - The Light
+- Company Flow - 8 Steps to Perfection
+- Das EFX - They Want EFX
+- De La Soul - Me Myself and I
+- De La Soul - Stakes Is High
+- Digable Planets - Rebirth of Slick (Cool Like Dat)
+- Digital Underground - The Humpty Dance
+- Dilated Peoples - Work the Angles
+- DJ Jazzy Jeff & The Fresh Prince - Summertime
+- DMX - Party Up (Up in Here)
+- DMX - Ruff Ryders' Anthem
+- Dr. Dre - Nuthin' but a 'G' Thang
+- Dr. Dre - Still D.R.E.
+- Dr. Dre - The Next Episode
+- EPMD - Strictly Business
+- EPMD - You Gots to Chill
+- Eric B. & Rakim - Eric B. Is President
+- Eric B. & Rakim - Microphone Fiend
+- Eric B. & Rakim - Paid in Full
+- Fugees - Killing Me Softly With His Song
+- Gang Starr - Full Clip
+- Gang Starr - Mass Appeal
+- Gang Starr - Moment of Truth
+- Goodie Mob - Cell Therapy
+- GZA - Liquid Swords
+- House of Pain - Jump Around
+- Ice Cube - Check Yo Self
+- Ice Cube - It Was a Good Day
+- Ice Cube - Today Was a Good Day
+- Jay-Z - Can I Live
+- Jay-Z - Dead Presidents II
+- Jay-Z - Hard Knock Life (Ghetto Anthem)
+- Jeru the Damaja - Come Clean
+- Jurassic 5 - Concrete Schoolyard
+- Jurassic 5 - Quality Control
+- Kool G Rap & DJ Polo - Road to the Riches
+- KRS-One - Sound of da Police
+- Lauryn Hill - Doo Wop (That Thing)
+- LL Cool J - Mama Said Knock You Out
+- LL Cool J - Rock the Bells
+- Lord Finesse - Hip 2 Da Game
+- Lords of the Underground - Chief Rocka
+- Masta Ace Incorporated - Born to Roll
+- MC Lyte - Paper Thin
+- Method Man - Bring the Pain
+- Mobb Deep - Quiet Storm
+- Mobb Deep - Shook Ones Pt. II
+- Mobb Deep - Survival of the Fittest
+- Monie Love - It's a Shame (My Sister)
+- Mos Def - Mathematics
+- Mos Def - Ms. Fat Booty
+- Nas - If I Ruled the World (Imagine That)
+- Nas - Memory Lane (Sittin' in da Park)
+- Nas - N.Y. State of Mind
+- Nas - The World Is Yours
+- Naughty by Nature - Hip Hop Hooray
+- Naughty by Nature - O.P.P.
+- Organized Konfusion - Stress
+- OutKast - Elevators (Me & You)
+- OutKast - Rosa Parks
+- OutKast - Southernplayalisticadillacmuzik
+- Pete Rock & C.L. Smooth - They Reminisce Over You (T.R.O.Y.)
+- Public Enemy - Don't Believe the Hype
+- Public Enemy - Fight the Power
+- Public Enemy - Rebel Without a Pause
+- Queen Latifah - U.N.I.T.Y.
+- Raekwon - Criminology
+- Raekwon - Ice Cream
+- Redman - Tonight's Da Night
+- Salt-N-Pepa - Push It
+- Slick Rick - Children's Story
+- Slick Rick - Mona Lisa
+- Snoop Dogg - Gin and Juice
+- Snoop Dogg - Who Am I (What's My Name)?
+- Souls of Mischief - 93 'til Infinity
+- The Fugees - Ready or Not
+- The Notorious B.I.G. - Big Poppa
+- The Notorious B.I.G. - Hypnotize
+- The Notorious B.I.G. - Juicy
+- The Notorious B.I.G. - Mo Money Mo Problems
+- The Pharcyde - Passin' Me By
+- The Pharcyde - Runnin'
+- The Roots - The Next Movement
+- The Roots - You Got Me
+- Tupac Shakur - California Love
+- Warren G - Regulate
+- Warren G - This D.J.
+- Wu-Tang Clan - C.R.E.A.M.
+- Wu-Tang Clan - Protect Ya Neck
+- Wu-Tang Clan - Triumph
+
+## Heavy Metal Anthems
+
+- Metallica - Enter Sandman
+- Black Sabbath - Iron Man
+- AC/DC - Back in Black
+- Guns N' Roses - Welcome to the Jungle
+- Motörhead - Ace of Spades
+- Ozzy Osbourne - Crazy Train
+- Judas Priest - Breaking the Law
+- Iron Maiden - The Trooper
+- Megadeth - Symphony of Destruction
+- Pantera - Walk
+- Dio - Holy Diver
+- Slayer - Raining Blood
+- Twisted Sister - We're Not Gonna Take It
+- Quiet Riot - Cum On Feel the Noize
+- Rage Against the Machine - Killing in the Name
+- System of a Down - Chop Suey!
+- Slipknot - Duality
+- Alice Cooper - Poison
+- Rob Zombie - Dragula
+- Drowning Pool - Bodies
+- Skid Row - Youth Gone Wild
+- Scorpions - Rock You Like a Hurricane
+- Mötley Crüe - Kickstart My Heart
+- Disturbed - Down with the Sickness
+- Korn - Freak on a Leash
+
+## Indie Vibes
+
+- alt-J - Breezeblocks
+- Alvvays - Archie, Marry Me
+- Arctic Monkeys - Do I Wanna Know?
+- Beach Fossils - Down the Line
+- Billie Eilish - Ocean Eyes
+- Bon Iver - Holocene
+- Cage the Elephant - Come a Little Closer
+- Clairo - Sofia
+- Courtney Barnett - Pedestrian at Best
+- Fleet Foxes - White Winter Hymnal
+- Florence + The Machine - Dog Days Are Over
+- Foals - Mountain at My Gates
+- Glass Animals - Heat Waves
+- Grizzly Bear - Sleeping Ute
+- Haim - The Wire
+- Japanese Breakfast - Be Sweet
+- Lana Del Rey - Mariners Apartment Complex
+- Lorde - Ribs
+- Mac DeMarco - Chamber of Reflection
+- Metronomy - The Bay
+- MGMT - Electric Feel
+- Mitski - Nobody
+- Modest Mouse - Lampshades on Fire
+- Of Monsters and Men - Little Talks
+- Phoenix - Lisztomania
+- Real Estate - Darling
+- Tame Impala - Let It Happen
+- Tame Impala - The Less I Know the Better
+- The 1975 - Love It If We Made It
+- The 1975 - Somebody Else
+- The Shins - New Slang
+- The Strokes - Someday
+- The War on Drugs - Red Eyes
+- The xx - Intro
+- Two Door Cinema Club - Something Good Can Work
+- Vampire Weekend - Diane Young
+- Vampire Weekend - Harmony Hall
+
+## Irish Folk
+
+- Altan - A Tune for Frankie
+- Altan - Dulaman
+- Altan - Gleanntáin Ghlas' Ghaoth Dobhair
+- Altan - Mo Choill
+- Altan - The Sunset
+- Andy Irvine - Love to Be With You
+- Andy Irvine - My Heart's Tonight in Ireland
+- Andy Irvine - Rainy Sundays
+- Cara Dillon - The Lark in the Clear Air
+- Celtic Thunder - Danny Boy
+- Celtic Thunder - Fields of Athenry
+- Celtic Thunder - My Land
+- Celtic Thunder - You'll Never Walk Alone
+- Celtic Woman - Caledonia
+- Celtic Woman - Danny Boy
+- Celtic Woman - Orinoco Flow
+- Celtic Woman - The Voice
+- Christy Moore - Black Is the Colour
+- Christy Moore - Lisdoonvarna
+- Christy Moore - Ordinary Man
+- Christy Moore - Ride On
+- Christy Moore - The Voyage
+- Clannad - In a Lifetime
+- Clannad - Newgrange
+- Clannad - Robin (The Hooded Man)
+- Clannad - Something to Believe In
+- Clannad - Theme from Harry's Game
+- Damien Dempsey - It's All Good
+- Damien Dempsey - Sing All Our Cares Away
+- Damien Rice - 9 Crimes
+- Damien Rice - Cannonball
+- Damien Rice - Delicate
+- Damien Rice - The Blower's Daughter
+- Damien Rice - Volcano
+- Dolores Keane - Caledonia
+- Dolores Keane - Galway Bay
+- Enya - Anywhere Is
+- Enya - Caribbean Blue
+- Enya - May It Be
+- Enya - Only Time
+- Enya - Orinoco Flow
+- Flook - The Tortoise and the Hare
+- Gaelic Storm - Beggarman
+- Gaelic Storm - Drink the Night Away
+- Gaelic Storm - Scalliwag
+- Gaelic Storm - Tell Me Ma
+- Gaelic Storm - The Leaving of Liverpool
+- Gaelic Storm - The Storm
+- Glen Hansard - Bird of Sorrow
+- Glen Hansard - Falling Slowly
+- Glen Hansard - Love Don't Leave Me Waiting
+- Glen Hansard - Say It to Me Now
+- Glen Hansard - When Your Mind's Made Up
+- Hozier - Cherry Wine
+- Hozier - From Eden
+- Hozier - Nina Cried Power
+- Hozier - Someone New
+- Hozier - Take Me to Church
+- Johnny McEvoy - Mursheen Durkin
+- Johnny McEvoy - Nora
+- Johnny McEvoy - The Boston Burglar
+- Karan Casey - She Is Like the Swallow
+- Lankum - Cold Old Fire
+- Lankum - The Young People
+- Lisa Hannigan - Fall
+- Lisa Hannigan - I Don't Know
+- Lisa Hannigan - Lille
+- Lisa Hannigan - O Sleep
+- Lisa Hannigan - Passenger
+- Luka Bloom - Black Is the Colour
+- Luka Bloom - City of Chicago
+- Lunasa - Morning Nightcap
+- Lunasa - The Last Pint
+- Lunasa - The Merry Sisters of Fate
+- Mary Black - Columbus
+- Mary Black - No Frontiers
+- Mary Black - Past the Point of Rescue
+- Mary Black - Shine
+- Mary Black - Song for Ireland
+- Moving Hearts - Hiroshima Nagasaki Russian Roulette
+- Paddy Casey - Saints & Sinners
+- Paul Brady - Arthur McBride
+- Paul Brady - Nobody Knows
+- Paul Brady - Paradise Is Here
+- Planxty - Arthur McBride
+- Planxty - Blacksmith
+- Planxty - Raggle Taggle Gypsy
+- Planxty - The Blacksmith
+- Planxty - The Well Below the Valley
+- Planxty - When First Unto This Country
+- Sharon Shannon - Cavan Potholes
+- Sharon Shannon - Galway Girl
+- Sinead O'Connor - Molly Malone
+- Sinead O'Connor - The Foggy Dew
+- The Bothy Band - The Butterfly
+- The Chieftains - I Know My Love
+- The Chieftains - O’Sullivan's March
+- The Chieftains - The Foggy Dew
+- The Chieftains - The Long Black Veil
+- The Chieftains - The Mason's Apron
+- The Clancy Brothers - Brennan on the Moor
+- The Clancy Brothers - Johnny I Hardly Knew Ye
+- The Clancy Brothers - The Parting Glass
+- The Clancy Brothers - The Rising of the Moon
+- The Clancy Brothers - The Wild Rover
+- The Clancy Brothers - Whiskey You're the Devil
+- The Clancy Brothers - Wild Rover
+- The Corrs - Runaway
+- The Corrs - Toss the Feathers
+- The Dubliners - McAlpine's Fusiliers
+- The Dubliners - Rocky Road to Dublin
+- The Dubliners - Seven Drunken Nights
+- The Dubliners - The Auld Triangle
+- The Dubliners - The Black Velvet Band
+- The Dubliners - The Fields of Athenry
+- The Dubliners - The Irish Rover
+- The Dubliners - Whiskey in the Jar
+- The Gloaming - Samhradh Samhradh
+- The Gloaming - The Sailor's Bonnet
+- The High Kings - The Parting Glass
+- The High Kings - Whiskey in the Jar
+- The Irish Rovers - Drunken Sailor
+- The Irish Rovers - The Unicorn
+- The Pogues - Dirty Old Town
+- The Pogues - Streams of Whiskey
+- The Pogues - Thousands Are Sailing
+- The Wolfe Tones - A Nation Once Again
+- Tommy Makem - Four Green Fields
+- Tommy Makem - Gentle Annie
+- Tommy Makem - Red is the Rose
+- Tommy Makem - The Bold Fenian Men
+- Van Morrison - Celtic Ray
+- Van Morrison - Into the Mystic
+
+## Latin Pop
+
+- Alejandra Guzmán - Eternamente Bella
+- Alejandra Guzmán - Hacer el Amor Con Otro
+- Alejandra Guzmán - Míralo Mírala
+- Alejandra Guzmán - Yo Te Esperaba
+- Alejandro Sanz - Amiga Mía
+- Alejandro Sanz - Corazón Partío
+- Alejandro Sanz - Quisiera Ser
+- Alejandro Sanz - Y Solo Se Me Ocurre Amarte
+- Ana Gabriel - Simplemente Amigos
+- Ana Torroja - Sonrisa
+- Aterciopelados - Bolero Falaz
+- Azúcar Moreno - Bandido
+- Babasónicos - Putita
+- Bacilos - Caraluna
+- Belinda - Boba Niña Nice
+- Belinda - Lo Siento
+- Belinda - Vivir
+- Bersuit Vergarabat - La Argentinidad al Palo
+- Café Tacvba - Ingrata
+- Caifanes - No Dejes Que
+- Camila - Abrázame
+- Camila - Coleccionista de Canciones
+- Camila - Mientes
+- Camila - Todo Cambió
+- Carlos Vives - Carito
+- Carlos Vives - Fruta Fresca
+- Carlos Vives - La Tierra del Olvido
+- Carlos Vives - Pa' Mayte
+- Chancho en Piedra - Eligiendo una Reina
+- Charly García - Demoliendo Hoteles
+- Chayanne - Baila Baila
+- Chayanne - Dejaría Todo
+- Chayanne - Provócame
+- Chayanne - Salomé
+- Chayanne - Tiempo de Vals
+- Chayanne - Y Tú Te Vas
+- Control Machete - Sí Señor
+- Cristian Castro - Azul
+- Daniela Romo - De Mí Enamórate
+- David Bisbal - Ave María
+- David Bisbal - Bulería
+- David Bisbal - Dígale
+- David Bisbal - Silencio
+- Diego Torres - Color Esperanza
+- Diego Torres - Guapa
+- Diego Torres - Tratar de Estar Mejor
+- Divididos - Spaghetti del Rock
+- Emmanuel - La Chica de Humo
+- Enanitos Verdes - Lamento Boliviano
+- Enrique Iglesias - Addicted
+- Enrique Iglesias - Bailamos
+- Enrique Iglesias - Bailando
+- Enrique Iglesias - Be With You
+- Enrique Iglesias - Could I Have This Kiss Forever
+- Enrique Iglesias - Don't Turn Off the Lights
+- Enrique Iglesias - Escape
+- Enrique Iglesias - Hero
+- Enrique Iglesias - Love to See You Cry
+- Enrique Iglesias - Maybe
+- Enrique Iglesias - Mentiroso
+- Enrique Iglesias - Not in Love
+- Enrique Iglesias - Oyeme
+- Enrique Iglesias - Rhythm Divine
+- Fey - Media Naranja
+- Fito Páez - 11 y 6
+- Flans - No Controles
+- Gloria Trevi - Pelo Suelto
+- Ha*Ash - Perdón, Perdón
+- Inspector - Amargo Adiós
+- Jesse & Joy - Adiós
+- Jesse & Joy - Corre
+- Jesse & Joy - Espacio Sideral
+- Jesse & Joy - Llorar
+- Jesse & Joy - Volveré
+- Jesse & Joy - Ya No Quiero
+- José José - El Triste
+- José Luis Perales - Y Cómo Es Él
+- Juan Gabriel - Amor Eterno
+- Juanes - A Dios le Pido
+- Juanes - Bandera de Manos
+- Juanes - Dificil
+- Juanes - Es Por Ti
+- Juanes - Fotografía
+- Juanes - Fíjate Bien
+- Juanes - Gotas de Agua Dulce
+- Juanes - La Camisa Negra
+- Juanes - Me Enamora
+- Juanes - Nada Valgo Sin Tu Amor
+- Juanes - Para Tu Amor
+- Juanes - Rosario Tijeras
+- Juanes - Volverte a Ver
+- Julieta Venegas - Algo Está Cambiando
+- Julieta Venegas - Andar Conmigo
+- Julieta Venegas - De Mis Pasos
+- Julieta Venegas - Despechada
+- Julieta Venegas - Dulce Compañía
+- Julieta Venegas - Eres Para Mí
+- Julieta Venegas - Lento
+- Julieta Venegas - Limón y Sal
+- Julieta Venegas - Me Voy
+- Julieta Venegas - Mira la Vida
+- Julieta Venegas - Oleada
+- Julieta Venegas - Sería Feliz
+- Kabah - La Vida Que Va
+- La Ley - Mentira
+- La Santa Cecilia - Ice El Hielo
+- Laura Pausini - En Cambio No
+- Los Auténticos Decadentes - Loco
+- Los Bukis - Tu Cárcel
+- Los Fabulosos Cadillacs - Matador
+- Los Prisioneros - Tren al Sur
+- Los Tres - Dejate Caer
+- Lucero - Veleta
+- Luis Fonsi - Despacito
+- Luis Miguel - La Incondicional
+- Magneto - Vuela Vuela
+- Manu Chao - Bongo Bong
+- Manu Chao - Desaparecido
+- Manu Chao - Me Gustas Tú
+- Maná - Bendita Tu Luz
+- Maná - Clavado en un Bar
+- Maná - Corazón Espinado
+- Maná - En el Muelle de San Blas
+- Maná - Justicia Tierra y Libertad
+- Maná - Labios Compartidos
+- Maná - Lluvia al Corazón
+- Maná - Mariposa Traicionera
+- Maná - Ojalá Pudiera Borrarte
+- Maná - Perdido en un Barco
+- Maná - Rayando el Sol
+- Maná - Vivir Sin Aire
+- Maná - Ángel de Amor
+- Marc Anthony - Ahora Quien
+- Marc Anthony - Flor Pálida
+- Marc Anthony - Tu Amor Me Hace Bien
+- Marc Anthony - Valió la Pena
+- Marco Antonio Solís - Si No Te Hubieras Ido
+- Marta Sánchez - Desesperada
+- Mecano - Hijo de la Luna
+- Miguel Bosé - Amante Bandido
+- Miguel Mateos - Cuando Seas Grande
+- Molotov - Gimme Tha Power
+- Natalia Lafourcade - En el 2000
+- Natalia Lafourcade - Hasta la Raíz
+- Natalia Lafourcade - Nunca Es Suficiente
+- OV7 - Enloquéceme
+- Pandora - Como Te Va Mi Amor
+- Paulina Rubio - Algo Tienes
+- Paulina Rubio - Causa y Efecto
+- Paulina Rubio - Don't Say Goodbye
+- Paulina Rubio - El Último Adiós
+- Paulina Rubio - Mío
+- Paulina Rubio - Ni Una Sola Palabra
+- Paulina Rubio - Sexi Dance
+- Paulina Rubio - Te Quise Tanto
+- Paulina Rubio - Undeniable
+- Paulina Rubio - Y Yo Sigo Aquí
+- Plastilina Mosh - Niño Bomba
+- Reik - Me Niego
+- Ricardo Arjona - Como Duele
+- Ricardo Arjona - Dime Que No
+- Ricardo Arjona - El Problema
+- Ricardo Arjona - Historia de Taxi
+- Ricardo Arjona - Pingüinos en la Cama
+- Ricardo Arjona - Te Conozco
+- Ricky Martin - Asignatura Pendiente
+- Ricky Martin - Come to Me
+- Ricky Martin - Jaleo
+- Ricky Martin - La Copa de la Vida
+- Ricky Martin - Livin' la Vida Loca
+- Ricky Martin - Loaded
+- Ricky Martin - María
+- Ricky Martin - Nobody Wants to Be Lonely
+- Ricky Martin - Private Emotion
+- Ricky Martin - Shake Your Bon-Bon
+- Ricky Martin - She Bangs
+- Ricky Martin - Spanish Eyes
+- Selena - Como La Flor
+- Sentidos Opuestos - Fiesta
+- Shakira - Ciega Sordomuda
+- Shakira - Costume Makes the Clown
+- Shakira - Don't Bother
+- Shakira - Estoy Aquí
+- Shakira - Hips Don't Lie
+- Shakira - How Do You Do
+- Shakira - Illegal
+- Shakira - La Tortura
+- Shakira - Moscas en la Casa
+- Shakira - No Creo
+- Shakira - Ojos Así
+- Shakira - Poem to a Horse
+- Shakira - Ready for the Good Times
+- Shakira - Si Te Vas
+- Shakira - Suerte
+- Shakira - Te Dejo Madrid
+- Shakira - The One
+- Shakira - Underneath Your Clothes
+- Shakira - Whenever Wherever
+- Sin Bandera - Entra en Mi Vida
+- Sin Bandera - Que Me Alcance la Vida
+- Sin Bandera - Suelta Mi Mano
+- Sin Bandera - Te Vi Venir
+- Soda Stereo - De Música Ligera
+- Thalia - Arrasando
+- Thalia - Baby I'm in Love
+- Thalia - Cerca de Ti
+- Thalia - Entre el Mar y Una Estrella
+- Thalia - I Want You
+- Thalia - No Me Enseñaste
+- Thalia - Piel Morena
+- Thalia - Tú y Yo
+- Timbiriche - Con Todos Menos Conmigo
+- Virus - Wadu Wadu
+- Yuri - Maldita Primavera
+
+## Melodic EDM
+
+- 16 Bit Lolitas - Take It Or Leave It
+- Above & Beyond - Good For Me
+- Above & Beyond - Love Is Not Enough
+- Above & Beyond - No One On Earth
+- Above & Beyond - Small Moments
+- Above & Beyond - Sun In Your Eyes
+- Above & Beyond - We're All We Need
+- ATTLAS - Concussion
+- Audien - Wayfarer
+- Ben Böhmer - After Earth
+- Ben Böhmer - Beyond Beliefs
+- Ben Böhmer - Breathing
+- Ben Böhmer - In Memoriam
+- Ben Böhmer - Live in Cappadocia (Cercle)
+- Ben Böhmer - Promise You
+- Ben Böhmer - Vale
+- Ben Böhmer & Panama - Weightless
+- Bob Moses - Tearing Me Up
+- Bonobo - Cirrus
+- Bonobo - Kerala
+- CamelPhat & Elderbrook - Cola
+- Chicane - Autumn Tactics
+- Chicane - No Ordinary Morning
+- Chicane - Offshore
+- Chicane - Poppiholla
+- Chicane - Saltwater
+- Christian Löffler - Haul
+- Christian Löffler - Ry
+- Colyn - Amor
+- Colyn - Bridges In The Sky
+- Colyn - Patterns
+- Colyn - Resolve
+- Cosmic Gate - Be Your Sound
+- Cosmic Gate - Falling Back
+- Cosmic Gate - Ibiza Sunset Set
+- Cosmic Gate - Sunset Set - Playa del Carmen Mexico
+- Cosmic Gate - Yai (Here We Go Again)
+- CRi - From Me
+- CRi - Never Really Get There
+- Cubicolor - No Dancers
+- Cubicolor - Points Beyond
+- deadmau5 - I Remember
+- deadmau5 - Strobe
+- DJ Koze - Pick Up
+- DJ Koze - XTC
+- Eelke Kleijn - Ein Tag Am Strand
+- Eelke Kleijn - Mistakes I've Made
+- Eelke Kleijn - The Magician
+- Emancipator - Minor Cause
+- Eric Prydz - Opus
+- Forerunners - Lost in Translation
+- Gareth Emery - Long Way Home
+- Gareth Emery - Sansa
+- Illenium - Crawl Outta Love
+- Jan Blomqvist - Something Says
+- Jan Blomqvist - The Space In Between
+- Joris Voorn - Ringo
+- Kaskade - 4AM
+- Kavinsky - Nightcall
+- Kiasmos - Looped
+- Kiasmos - Swept
+- Kidnap - After All
+- Kidnap - Moments
+- Lane 8 - Aba
+- Lane 8 - Atlas
+- Lane 8 - Clarify
+- Lane 8 - Fingerprint
+- Lane 8 - Little Voices
+- Lane 8 - Midnight
+- Lane 8 - Skin & Bones
+- Lane 8 - Sunday Song
+- Lane 8 - The Rope
+- Luttrell - After All
+- Luttrell - Intergalactic Plastic
+- Luttrell - Into Clouds
+- Luttrell - Out of Me
+- Madeon - Finale
+- Marsh - Come Together
+- Marsh - Eu Topos
+- Marsh - Lailonie
+- Monolink - Father Ocean
+- Nora En Pure - Birthright
+- Nora En Pure - Come With Me
+- Nora En Pure - Lake Arrowhead
+- OceanLab - On A Good Day
+- ODESZA - A Moment Apart
+- ODESZA - Corners Of The Earth
+- ODESZA - How Did I Get Here
+- ODESZA - Late Night
+- ODESZA - Sun Models
+- Paul van Dyk - For An Angel
+- Paul van Dyk - Home
+- Paul van Dyk - Nothing But You
+- Paul van Dyk - Time of Our Lives
+- Petit Biscuit - Sunset Lover
+- Rufus Du Sol - Innerbloom
+- Rüfüs Du Sol - Desert Night
+- Rüfüs Du Sol - Innerbloom
+- Rüfüs Du Sol - Sundream
+- Sasha - Vapour Trails
+- Satin Jackets - Mirage
+- Solarstone - Late Summer Fields
+- Solarstone - Please
+- Solarstone - Seven Cities
+- Solarstone - Solarcoaster
+- Solarstone & Jes - Like A Waterfall
+- Solarstone & Orkidea - Slowmotion
+- Tinlicker - Nothing Without You
+- Tinlicker - Rebirth
+- Tinlicker & Helsloot - Because You Move Me
+- Tourist - We Stayed Up All Night
+- Tycho - A Walk
+- Tycho - Awake
+- Tycho - Montana
+- Yotto - A Very Cold DJ Set
+- Yotto - Another Riff For The Good Times
+- Yotto - Aviate
+- Yotto - Just Over
+- Yotto - Kantsu
+- Yotto - Marisa
+- Yotto - North
+- Yotto - Nova
+- Yotto - Radiate
+- Yotto - Slowly
+- Yotto - The One You Left Behind
+- Yotto - Walls
+- Yotto - Wilderness Girl
+
+## Millennial Nostalgia
+
+- *NSYNC - Bye Bye Bye
+- *NSYNC - Tearin' Up My Heart
+- 2Pac feat. K-Ci & JoJo - How Do U Want It
+- 50 Cent - In da Club
+- Alanis Morissette - You Oughta Know
+- Alicia Keys - Fallin'
+- Ashlee Simpson - Pieces of Me
+- Audioslave - Cochise
+- Audioslave - Like a Stone
+- Avril Lavigne - Complicated
+- Avril Lavigne - Girlfriend
+- Avril Lavigne - Sk8er Boi
+- B2K feat. P. Diddy - Bump, Bump, Bump
+- Backstreet Boys - I Want It That Way
+- Backstreet Boys - Larger Than Life
+- Backstreet Boys - Quit Playing Games (With My Heart)
+- Beastie Boys - Intergalactic
+- Beck - Where It's At
+- Beyoncé feat. Jay-Z - Crazy in Love
+- Blackstreet feat. Dr. Dre & Queen Pen - No Diggity
+- blink-182 - All the Small Things
+- blink-182 - Feeling This
+- Blink-182 - What's My Age Again?
+- Blur - Song 2
+- Bon Jovi - It's My Life
+- Bowling for Soup - 1985
+- Boys Like Girls - The Great Escape
+- Britney Spears - (You Drive Me) Crazy
+- Britney Spears - ...Baby One More Time
+- Britney Spears - Oops!... I Did It Again
+- Britney Spears - Toxic
+- Bush - Swallowed
+- Cascada - Everytime We Touch
+- Chamillionaire feat. Krayzie Bone - Ridin'
+- Christina Aguilera - Genie in a Bottle
+- Christina Aguilera - What a Girl Wants
+- Chumbawamba - Tubthumping
+- Ciara feat. Missy Elliott - 1, 2 Step
+- Coldplay - Yellow
+- Coolio feat. L.V. - Gangsta's Paradise
+- D12 - Purple Pills
+- Daft Punk - One More Time
+- Daft Punk - Technologic
+- Deftones - My Own Summer (Shove It)
+- Destiny's Child - Bills, Bills, Bills
+- Destiny's Child - Say My Name
+- Destiny's Child - Survivor
+- Disturbed - Down with the Sickness
+- Eminem - Lose Yourself
+- Eminem - My Name Is
+- Eminem - The Real Slim Shady
+- Eminem - Without Me
+- Evanescence - Bring Me to Life
+- Evanescence - Call Me When You're Sober
+- Eve featuring Gwen Stefani - Let Me Blow Ya Mind
+- Everclear - Father of Mine
+- Faithless - Insomnia
+- Fall Out Boy - Dance, Dance
+- Fall Out Boy - Sugar, We're Goin Down
+- Fall Out Boy - Thnks fr th Mmrs
+- Fastball - The Way
+- Fatboy Slim - The Rockafeller Skank
+- Fergie - Big Girls Don't Cry
+- Five - Everybody Get Up
+- Foo Fighters - The Pretender
+- Fort Minor feat. Styles of Beyond - Remember the Name
+- Fountains of Wayne - Stacy's Mom
+- Franz Ferdinand - Take Me Out
+- Gnarls Barkley - Crazy
+- Goo Goo Dolls - Iris
+- Goo Goo Dolls - Slide
+- Good Charlotte - Lifestyles of the Rich & Famous
+- Gorillaz - Clint Eastwood
+- Gorillaz - Feel Good Inc.
+- Green Day - American Idiot
+- Green Day - Basket Case
+- Green Day - Boulevard of Broken Dreams
+- Green Day - Good Riddance (Time of Your Life)
+- Green Day - When I Come Around
+- Hanson - MMMBop
+- Jay-Z & Linkin Park - Numb/Encore
+- Jennifer Lopez - Love Don't Cost a Thing
+- Jennifer Lopez - Waiting for Tonight
+- Jet - Are You Gonna Be My Girl
+- Jimmy Eat World - The Middle
+- JoJo - Leave (Get Out)
+- Justin Timberlake - Cry Me a River
+- Justin Timberlake feat. Timbaland - SexyBack
+- Kanye West - Stronger
+- Kanye West feat. Jamie Foxx - Gold Digger
+- Kelly Clarkson - Behind These Hazel Eyes
+- Kelly Clarkson - Since U Been Gone
+- Kid Rock - Bawitdaba
+- Korn - Freak on a Leash
+- Las Ketchup - The Ketchup Song
+- Lauryn Hill - Doo Wop (That Thing)
+- Lil Jon & The East Side Boyz - Get Low
+- Limp Bizkit - Rollin' (Air Raid Vehicle)
+- Linkin Park - Bleed It Out
+- Linkin Park - In the End
+- Linkin Park - Numb
+- Linkin Park - One Step Closer
+- Los Del Rio - Macarena (Bayside Boys Mix)
+- Lupe Fiasco - Kick, Push
+- M.I.A. - Paper Planes
+- Mario - Let Me Love You
+- Maroon 5 - This Love
+- Matchbox Twenty - 3AM
+- Metallica - King Nothing
+- Michael Jackson - Scream
+- Michelle Branch - Everywhere
+- Missy Elliott - Get Ur Freak On
+- Missy Elliott - Work It
+- Modest Mouse - Float On
+- My Chemical Romance - I'm Not Okay (I Promise)
+- My Chemical Romance - Welcome to the Black Parade
+- Nelly - Country Grammar (Hot...)
+- Nelly - Hot in Herre
+- Nelly Furtado - I'm Like a Bird
+- Nickelback - Photograph
+- No Doubt - Don't Speak
+- No Doubt - Just a Girl
+- NSYNC - Bye Bye Bye
+- Oasis - Wonderwall
+- Outkast - B.O.B (Bombs Over Baghdad)
+- OutKast - Ms. Jackson
+- P!nk - Get the Party Started
+- P!nk - Just Like a Pill
+- Panic! at the Disco - I Write Sins Not Tragedies
+- Papa Roach - Last Resort
+- Paramore - Misery Business
+- Plain White T's - Hey There Delilah
+- Queens of the Stone Age - No One Knows
+- Radiohead - Creep
+- Radiohead - Paranoid Android
+- Rage Against the Machine - Bulls on Parade
+- Red Hot Chili Peppers - Aeroplane
+- Red Hot Chili Peppers - By the Way
+- Red Hot Chili Peppers - Californication
+- Red Hot Chili Peppers - Dani California
+- Ricky Martin - Livin' la Vida Loca
+- Rihanna - Pon de Replay
+- Rihanna feat. Jay-Z - Umbrella
+- Santana feat. Rob Thomas - Smooth
+- Savage Garden - I Knew I Loved You
+- Sean Paul - Get Busy
+- Shaggy - It Wasn't Me
+- Shakira - Whenever, Wherever
+- Shakira feat. Wyclef Jean - Hips Don't Lie
+- Shania Twain - Man! I Feel Like a Woman!
+- Simple Plan - Welcome to My Life
+- Sisqó - Thong Song
+- Smash Mouth - All Star
+- Smash Mouth - Walkin' on the Sun
+- Snow Patrol - Chasing Cars
+- Soulja Boy Tell 'Em - Crank That (Soulja Boy)
+- Spice Girls - 2 Become 1
+- Spice Girls - Wannabe
+- Sublime - What I Got
+- Sugar Ray - Fly
+- Sum 41 - Fat Lip
+- System of a Down - B.Y.O.B.
+- System of a Down - Chop Suey!
+- The All-American Rejects - Move Along
+- The All-American Rejects - Swing, Swing
+- The Black Eyed Peas - Let's Get It Started
+- The Black Eyed Peas - My Humps
+- The Black Eyed Peas - Where Is the Love?
+- The Goo Goo Dolls - Iris
+- The Killers - Mr. Brightside
+- The Killers - When You Were Young
+- The Notorious B.I.G. - Mo Money Mo Problems
+- The Offspring - Pretty Fly (for a White Guy)
+- The Prodigy - Firestarter
+- The Pussycat Dolls feat. Busta Rhymes - Don't Cha
+- The Smashing Pumpkins - 1979
+- The Strokes - Last Nite
+- The Veronicas - Untouched
+- The Verve - Bitter Sweet Symphony
+- The Vines - Get Free
+- The White Stripes - Fell in Love with a Girl
+- The White Stripes - Seven Nation Army
+- Third Eye Blind - Semi-Charmed Life
+- Thirty Seconds to Mars - The Kill
+- Timbaland feat. Keri Hilson & D.O.E. - The Way I Are
+- TLC - No Scrubs
+- TLC - Waterfalls
+- Train - Drops of Jupiter (Tell Me)
+- Travis - Why Does It Always Rain on Me?
+- Usher - Yeah!
+- Usher feat. Lil Jon & Ludacris - Yeah!
+- Yellowcard - Ocean Avenue
+
+## Modern Reggae
+
+- Alborosie - Herbalist
+- Alborosie - Kingston Town
+- Blvk H3ro - Feet Don't Fail
+- Buju Banton - Steppa
+- Buju Banton - Trust
+- Chronixx - Here Comes Trouble
+- Chronixx - Likes
+- Chronixx - Skankin' Sweet
+- Collie Buddz - Blind to You
+- Collie Buddz - Love & Reggae
+- Common Kings - Wade in Your Water
+- Damian Marley - Living It Up
+- Etana - I Rise
+- Etana - Reggae
+- Gentleman - Dem Gone
+- Gentleman - You Remember
+- J Boog - Let's Do It Again
+- Jah9 - Heaven (Ready Fi Di Feeling)
+- Jesse Royal - LionOrder (feat. Protoje)
+- Jesse Royal - Modern Day Judas
+- Kabaka Pyramid - Reggae Music
+- Kabaka Pyramid - Well Done
+- Koffee - Raggamuffin
+- Koffee - Toast
+- Lila Iké - Second Chance
+- Lila Iké - Where I'm Coming From
+- Matisyahu - One Day
+- Matisyahu - Sunshine
+- Morgan Heritage - Selah
+- Protoje - Criminal
+- Protoje - Stylin'
+- Protoje feat. Chronixx - Who Knows
+- Queen Ifrica - Black Woman
+- Queen Ifrica - Trueversation (feat. Damian Marley)
+- Raging Fyah - Judgement Day
+- Romain Virgo - Cry Tears for You
+- Samory I - Rasta Nuh Gangsta
+- Sevana - If You Only Knew
+- Sevana - Mango
+- Sizzla - I'm Living
+- SOJA - Rest of My Life
+- Stick Figure - Sound of the Sea
+- Tarrus Riley - Just The Way You Are (Reggae)
+- Tarrus Riley - She's Royal
+- The Skints - This Town
+
+## Movie and TV Soundtracks
+
+- A-ha - Take On Me
+- Adele - Skyfall
+- Aerosmith - I Don't Want to Miss a Thing
+- Alan Silvestri - Back to the Future Theme
+- Bee Gees - Stayin' Alive
+- Berlin - Take My Breath Away
+- Bill Conti - Gonna Fly Now
+- Bill Medley & Jennifer Warnes - (I've Had) The Time of My Life
+- Billie Eilish - No Time To Die
+- Bobby McFerrin - Don't Worry Be Happy
+- Bobby Womack - Across 110th Street
+- Bonnie Tyler - Holding Out for a Hero
+- Celine Dion - My Heart Will Go On
+- Celine Dion & Peabo Bryson - Beauty and the Beast
+- Coolio - Gangsta's Paradise
+- Daft Punk - Derezzed
+- Danny Elfman - Batman Theme
+- Danny Elfman - The Simpsons Theme
+- David Bowie - Heroes
+- Dick Dale - Misirlou
+- Dido - Thank You
+- Elton John - Can You Feel the Love Tonight
+- Elton John - Circle of Life
+- Encanto Cast - We Don't Talk About Bruno
+- Ennio Morricone - Chi Mai
+- Ennio Morricone - The Ecstasy of Gold
+- Evanescence - Bring Me to Life
+- Florence + The Machine - Shake It Out
+- Gary Jules - Mad World
+- Grease Cast - Grease
+- Hans Zimmer - Interstellar Main Theme
+- Hans Zimmer - Time
+- Harold Faltermeyer - Axel F
+- Henry Mancini - The Pink Panther Theme
+- Huey Lewis & The News - The Power of Love
+- Idina Menzel - Let It Go
+- Imogen Heap - Hide and Seek
+- Irene Cara - Flashdance... What a Feeling
+- Joe Esposito - You're the Best
+- Joe Hisaishi - One Summer's Day
+- John Barry - James Bond Theme
+- John Williams - Indiana Jones Theme
+- John Williams - Jurassic Park Theme
+- John Williams - Star Wars Main Theme
+- John Williams - The Imperial March (Darth Vader's Theme)
+- Journey - Don't Stop Believin'
+- Kenny Loggins - Danger Zone
+- Kenny Loggins - Footloose
+- Labrinth & Zendaya - All for Us
+- Lady Gaga - Shallow
+- Lana Del Rey - Young and Beautiful
+- Limp Bizkit - Take a Look Around
+- Lorde - Yellow Flicker Beat
+- Ludovico Einaudi - Experience
+- Lynyrd Skynyrd - Free Bird
+- Madonna - Into the Groove
+- Mark Snow - The X-Files Theme
+- Michael Giacchino - Married Life
+- Mike Post - Law & Order Theme
+- Moby - Extreme Ways
+- Monty Norman - Dr. No Theme
+- Natalie Imbruglia - Torn
+- Olivia Newton-John & John Travolta - You're the One That I Want
+- Patrick Swayze - She's Like the Wind
+- Phil Collins - Son of Man
+- Phil Collins - Two Worlds
+- Phil Collins - You'll Be in My Heart
+- Prince - Purple Rain
+- Queen - Bohemian Rhapsody
+- Queen - Don't Stop Me Now
+- R.E.M. - Everybody Hurts
+- Ramin Djawadi - Game of Thrones Theme
+- Ramin Djawadi - Light of the Seven
+- Ramin Djawadi - Westworld Theme
+- Randy Newman - You've Got a Friend in Me
+- Ray Parker Jr. - Ghostbusters
+- Rembrandts - I'll Be There for You
+- Robin Williams - Friend Like Me
+- Rufus Wainwright - Hallelujah
+- Sam Smith - Writing's on the Wall
+- Seal - Kiss from a Rose
+- Sia - Elastic Heart
+- Simon & Garfunkel - The Sound of Silence
+- Simple Minds - Don't You (Forget About Me)
+- Sixpence None the Richer - Kiss Me
+- Smash Mouth - All Star
+- Snow Patrol - Chasing Cars
+- Stealers Wheel - Stuck in the Middle with You
+- Stevie Wonder - Superstition
+- Survivor - Eye of the Tiger
+- Tears for Fears - Everybody Wants to Rule the World
+- The Bangles - Walk Like an Egyptian
+- The Clash - Should I Stay or Should I Go
+- The Fray - How to Save a Life
+- The Police - Every Breath You Take
+- The Proclaimers - I'm Gonna Be (500 Miles)
+- The Rolling Stones - Gimme Shelter
+- The Seatbelts - Tank!
+- The Verve - Bitter Sweet Symphony
+- The Who - Baba O'Riley
+- Toto - Africa
+- U2 - Hold Me, Thrill Me, Kiss Me, Kill Me
+- Vangelis - Blade Runner Main Titles
+- Vangelis - Chariots of Fire
+- Whitney Houston - I Will Always Love You
+
+## Neo-Prog
+
+- Arena - Solomon
+- Arena - The Hanging Tree
+- Arena - The Visitor
+- Big Big Train - Victorian Brickwork
+- Comedy of Errors - Spirit
+- Credo - The Game
+- Flying Colors - Infinite Fire
+- Flying Colors - The Storm
+- Frost* - Black Light Machine
+- Frost* - Milliontown
+- Galahad - Empires Never Last
+- Gazpacho - Upside Down
+- Haken - Cockroach King
+- Haken - The Architect
+- IQ - Subterranea
+- IQ - The Road of Bones
+- IQ - Widow's Peak
+- Lazuli - 9 Hands Around The Marimba
+- Leprous - From the Flame
+- Lifesigns - At The End Of The World
+- Magic Pie - Change
+- Magic Pie - Motions of Desire
+- Marillion - Easter
+- Marillion - Kayleigh
+- Marillion - Neverland
+- Marillion - The Space
+- Moon Safari - A Kid Called Panic
+- Moon Safari - Bluebells
+- Moon Safari - Crossed the Rubicon
+- Moon Safari - Lover's End Pt. III: Skellefteå Serenade
+- Moon Safari - Methuselah's Children
+- Moon Safari - Moonwalk
+- Moon Safari - Other Half of the Sky
+- Mystery - Delusion Rain
+- Pain of Salvation - Beyond the Pale
+- Pallas - Cut and Run
+- Pallas - Ghostdancers
+- Pallas - Midas Touch
+- Pendragon - Indigo
+- Pendragon - Paintbox
+- Pendragon - The Voyager
+- Porcupine Tree - Anesthetize
+- Porcupine Tree - Trains
+- Riverside - Conceiving You
+- Riverside - Hyperactive
+- Riverside - Second Life Syndrome
+- Soen - Lucidity
+- Spock's Beard - Devil's Got My Throat
+- Spock's Beard - The Light
+- Steven Wilson - Drive Home
+- Sylvan - Deep Inside
+- Sylvan - In Chain
+- The Flower Kings - Garden of Dreams
+- The Flower Kings - Stardust We Are
+- The Flower Kings - The Truth Will Set You Free
+- The Neal Morse Band - Long Day
+- The Neal Morse Band - The Ways of a Fool
+- The Pineapple Thief - Nothing at Best
+- The Tangent - In Earnest
+- Threshold - Pilot in the Sky of Dreams
+- Transatlantic - All of the Above
+
+## Progressive Rock
+
+- Barclay James Harvest - Mockingbird
+- Camel - Air Born
+- Camel - Lady Fantasy
+- Camel - Song Within a Song
+- Electric Light Orchestra - Can't Get It Out of My Head
+- Electric Light Orchestra - Telephone Line
+- Genesis - Afterglow
+- Genesis - Firth of Fifth
+- Genesis - Ripples
+- Jethro Tull - Aqualung
+- Jethro Tull - Thick as a Brick
+- King Crimson - Starless
+- King Crimson - The Court of the Crimson King
+- Marillion - Kayleigh
+- Moody Blues - Nights in White Satin
+- Moody Blues - Question
+- Pink Floyd - Echoes
+- Pink Floyd - Us and Them
+- Pink Floyd - Wish You Were Here
+- Porcupine Tree - Trains
+- Renaissance - Carpet of the Sun
+- Renaissance - Northern Lights
+- Renaissance - Ocean Gypsy
+- Rush - Closer to the Heart
+- Steve Hackett - Spectral Mornings
+- Steven Wilson - Drive Home
+- Supertramp - Hide in Your Shell
+- Supertramp - School
+- Yes - And You and I
+- Yes - Roundabout
+
+## Punk Rock
+
+- Ska-P - El vals del obrero
+- Ska-P - Cannabis
+- Ska-P - Niño soldado
+- Ska-P - Intifada
+- Ska-P - Planeta Eskoria
+- Ska-P - El Gato López
+- Ska-P - Crimen Sollicitationis
+- Ska-P - El Libertador
+- Ska-P - Estampida
+- Ska-P - Ni Fu Ni Fa
+- Ramones - Blitzkrieg Bop
+- Ramones - I Wanna Be Sedated
+- Ramones - Sheena Is a Punk Rocker
+- Ramones - Rockaway Beach
+- Sex Pistols - Anarchy in the U.K.
+- Sex Pistols - God Save the Queen
+- Sex Pistols - Pretty Vacant
+- The Clash - London Calling
+- The Clash - Should I Stay or Should I Go
+- The Clash - Rock the Casbah
+- The Clash - White Riot
+- The Clash - I Fought the Law
+- The Damned - New Rose
+- The Damned - Neat Neat Neat
+- The Damned - Smash It Up
+- Buzzcocks - Ever Fallen in Love (With Someone You Shouldn't've)
+- Buzzcocks - What Do I Get?
+- Misfits - Last Caress
+- Misfits - Where Eagles Dare
+- Misfits - Hybrid Moments
+- Misfits - Die, Die My Darling
+- The Stooges - I Wanna Be Your Dog
+- Iggy and The Stooges - Search and Destroy
+- MC5 - Kick Out the Jams
+- The Jam - In the City
+- The Undertones - Teenage Kicks
+- The Ruts - Babylon's Burning
+- Stiff Little Fingers - Alternative Ulster
+- Stiff Little Fingers - Suspect Device
+- Sham 69 - If the Kids Are United
+- Sham 69 - Hurry Up Harry
+- X-Ray Spex - Oh Bondage! Up Yours!
+- The Stranglers - No More Heroes
+- The Adverts - Gary Gilmore's Eyes
+- The Saints - (I'm) Stranded
+- The Vibrators - Baby Baby
+- Dead Boys - Sonic Reducer
+- The Replacements - Bastards of Young
+- Descendents - Suburban Home
+- Descendents - I'm the One
+- Bad Religion - 21st Century (Digital Boy)
+- Bad Religion - American Jesus
+- Bad Religion - Sorrow
+- Bad Religion - Infected
+- NOFX - Linoleum
+- NOFX - Don't Call Me White
+- NOFX - The Separation of Church and Skate
+- Rancid - Time Bomb
+- Rancid - Ruby Soho
+- Rancid - Roots Radicals
+- Pennywise - Bro Hymn
+- Pennywise - Fuck Authority
+- Social Distortion - Story of My Life
+- Social Distortion - Ball and Chain
+- The Vandals - My Girlfriend's Dead
+- Lagwagon - May 16
+- Operation Ivy - Sound System
+- Operation Ivy - Knowledge
+- Green Day - Basket Case
+- Green Day - When I Come Around
+- Green Day - Welcome to Paradise
+- Green Day - Longview
+- Green Day - American Idiot
+- The Offspring - Come Out and Play
+- The Offspring - Self Esteem
+- The Offspring - The Kids Aren't Alright
+- blink-182 - Dammit
+- blink-182 - All the Small Things
+- blink-182 - What's My Age Again?
+- Sum 41 - Fat Lip
+- Sum 41 - In Too Deep
+- Sum 41 - Still Waiting
+- Good Charlotte - The Anthem
+- Simple Plan - I'm Just a Kid
+
+## Reggae Rock
+
+- 311 - All Mixed Up
+- 311 - Amber
+- 311 - Beautiful Disaster
+- 311 - Come Original
+- 311 - Creatures (For a While)
+- 311 - Down
+- 311 - Love Song
+- 311 - Sunset in July
+- Ballyhoo! - Cerveza
+- Ballyhoo! - Front Porch
+- Bedouin Soundclash - 12:59 Lullaby
+- Bedouin Soundclash - Mountain Top
+- Bedouin Soundclash - St. Andrews
+- Bedouin Soundclash - Walls Fall Down
+- Bedouin Soundclash - When the Night Feels My Song
+- Common Kings - Alcoholic
+- Common Kings - Always Beside You
+- Dirty Heads - Cabin by the Sea
+- Dirty Heads - Lay Me Down
+- Dirty Heads - Lift Me Up
+- Dirty Heads - Medusa
+- Dirty Heads - My Sweet Summer
+- Dirty Heads - Oxygen
+- Dirty Heads - Sound of Change
+- Dirty Heads - That's All I Need
+- Dirty Heads - Vacation
+- Fishbone - Alcoholic
+- Fishbone - Everyday Sunshine
+- Fishbone - Freddie's Dead
+- Fishbone - Sunless Saturday
+- Fishbone - When Problems Arise
+- Fortunate Youth - Jah Music
+- Fortunate Youth - Pass the Herb
+- Fortunate Youth - Sweet Love
+- Giant Panda Guerilla Dub Squad - Far Away
+- Giant Panda Guerilla Dub Squad - Pockets
+- Iration - Automatic
+- Iration - Cookie Jar
+- Iration - Falling
+- Iration - Hotting Up
+- Iration - Lost and Found
+- Iration - Press Play
+- Iration - Reelin'
+- Iration - Summer Nights
+- Iration - Time Bomb
+- Iration - Turn Around
+- J Boog - Good Love
+- J Boog - Let's Do It Again
+- J Boog - My Girl
+- J Boog - Sunshine Girl
+- John Brown's Body - Sky Juice
+- Katchafire - 100
+- Katchafire - Get Away
+- Katchafire - Giddy Up
+- Katchafire - Love Letter
+- Long Beach Dub Allstars - Kick Down
+- Long Beach Dub Allstars - Sunny Hours
+- Matisyahu - Jerusalem
+- Matisyahu - King Without a Crown
+- Matisyahu - One Day
+- Matisyahu - Sunshine
+- Michael Franti & Spearhead - Say Hey (I Love You)
+- Passafire - Black Dog
+- Passafire - Ghost Man
+- Passafire - Kilo
+- Passafire - Longshot
+- Passafire - Submersible
+- Pepper - Ashes
+- Pepper - Bring Me Along
+- Pepper - Crazy Love
+- Pepper - Give It Up
+- Pepper - No Control
+- Pepper - Same Ol
+- Pepper - Stone Love
+- Pepper - Stormtrooper
+- Pepper - Your Face
+- Rebelution - Celebrate
+- Rebelution - Count Me In
+- Rebelution - De-Stress
+- Rebelution - Feeling Alright
+- Rebelution - Good Vibes
+- Rebelution - Inhale Exhale
+- Rebelution - Lazy Afternoon
+- Rebelution - Ordinary Girl
+- Rebelution - Roots Reggae Music
+- Rebelution - Safe and Sound
+- Rebelution - Settle Down Easy
+- Rebelution - Sky is the Limit
+- Shwayze - Buzzin'
+- Skints - Electric
+- Skints - This Town
+- Slightly Stoopid - 2am
+- Slightly Stoopid - Anywhere I Go
+- Slightly Stoopid - Closer to the Sun
+- Slightly Stoopid - Collie Man
+- Slightly Stoopid - One Bright Day
+- Slightly Stoopid - The Prophet
+- Slightly Stoopid - This Joint
+- Slightly Stoopid - Top of the World
+- Slightly Stoopid - Wiseman
+- SOJA - Bad News
+- SOJA - Born in Babylon
+- SOJA - Everything Changes
+- SOJA - I Believe
+- SOJA - I Don't Wanna Wait
+- SOJA - Not Done Yet
+- SOJA - Rest of My Life
+- SOJA - Shadow
+- SOJA - True Love
+- SOJA - You and Me
+- Stick Figure - Angels Above Me
+- Stick Figure - Breathe
+- Stick Figure - Coming Home
+- Stick Figure - Edge of the Ocean
+- Stick Figure - Fire on the Horizon
+- Stick Figure - Paradise
+- Stick Figure - Shelter
+- Stick Figure - Smoke Stack
+- Stick Figure - Sound of the Sea
+- Stick Figure - Weight of Sound
+- Sublime - April 29, 1992 (Miami)
+- Sublime - Badfish
+- Sublime - Doin' Time
+- Sublime - Santeria
+- Sublime - What I Got
+- Sublime - Wrong Way
+- Sublime with Rome - Panic
+- Sublime with Rome - Take It or Leave It
+- The Aggrolites - Dirty Reggae
+- The Aggrolites - Free Time
+- The Aggrolites - Reggae Hit L.A.
+- The Dirty Heads - Dance All Night (feat. Matisyahu)
+- The Dirty Heads - Lay Me Down
+- The Expendables - Bowl for Two
+- The Expendables - Burning Up
+- The Expendables - Down Down
+- The Expendables - Down, Down, Down
+- The Expendables - Get What I Need
+- The Expendables - Night Missions
+- The Expendables - Sacrifice
+- The Expendables - Tight Squeeze
+- The Green - Alive
+- The Green - Love I
+- The Green - My Baby
+- The Green - Wake Up
+- The Holdup - Good Times
+- The Movement - Girl
+- The Movement - Habit
+- The Movement - Mexico
+- The Movement - Throwdown
+- The Police - Message in a Bottle
+- Tribal Seeds - Come Around
+- Tribal Seeds - Moonlight
+- Tribal Seeds - Rock the Night
+- Tribal Seeds - The Garden
+- Tribal Seeds - Vampire
+- Tribal Seeds - Warning
+- UB40 - Can't Help Falling in Love
+- UB40 - Higher Ground
+- UB40 - Kingston Town
+
+## Rock Nacional
+
+- Andrés Calamaro - Crímenes Perfectos
+- Andrés Calamaro - Flaca
+- Andrés Calamaro - Loco
+- Andrés Calamaro - Paloma
+- Andrés Calamaro - Te Quiero Igual
+- Arbol - El Fantasma
+- Arbol - La Vida Es Todo Lo Que Vos Quieras
+- Arbol - Pequeños Sueños
+- Arbol - Prejuicios
+- Arbol - Trenes, Camiones y Tractores
+- Attaque 77 - Arrancacorazones
+- Attaque 77 - Hacelo por Mí
+- Attaque 77 - Ojos de Perro
+- Babasónicos - Carismático
+- Babasónicos - El Loco
+- Babasónicos - Irresponsables
+- Babasónicos - Putita
+- Babasónicos - Y Qué
+- Bersuit Vergarabat - El Tiempo No Para
+- Bersuit Vergarabat - La Argentinidad al Palo
+- Bersuit Vergarabat - La Bolsa
+- Bersuit Vergarabat - Sr. Cobranza
+- Bersuit Vergarabat - Yo Tomo
+- Catupecu Machu - A Veces Vuelvo
+- Catupecu Machu - Magia Veneno
+- Charly García - Demoliendo Hoteles
+- Charly García - Los Dinosaurios
+- Charly García - No Voy en Tren
+- Charly García - Nos Siguen Pegando Abajo
+- Charly García - Promesas sobre el Bidet
+- Charly García - Rezo por Vos
+- Ciro y los Persas - Antes y Después
+- David Lebón - Mundo Agradable
+- Divididos - El 38
+- Divididos - El Arriero
+- Divididos - Par Mil
+- Divididos - Spaghetti del Rock
+- El Mató a un Policía Motorizado - El Tesoro
+- Enanitos Verdes - Lamento Boliviano
+- Estelares - Un Día Perfecto
+- Fito Páez - 11 y 6
+- Fito Páez - Al Lado del Camino
+- Fito Páez - Circo Beat
+- Fito Páez - El Amor Después del Amor
+- Fito Páez - Mariposa Tecknicolor
+- Gustavo Cerati - Adiós
+- Gustavo Cerati - Artefacto
+- Gustavo Cerati - Crimen
+- Intoxicados - Fuego
+- La Beriso - Mi Deseo
+- La Mancha de Rolando - Arde la ciudad
+- La Mancha de Rolando - Carolina
+- La Mancha de Rolando - Chino
+- La Mancha de Rolando - Viaje
+- La Renga - El Final es en Donde Parti
+- La Renga - La Balada del Diablo y La Muerte
+- Los Abuelos de la Nada - Costumbres Argentinas
+- Los Abuelos de la Nada - Himno de mi Corazón
+- Los Abuelos de la Nada - Mil Horas
+- Los Abuelos de la Nada - Tristeza de la Ciudad
+- Los Auténticos Decadentes - Corazón
+- Los Auténticos Decadentes - La Guitarra
+- Los Auténticos Decadentes - Loco (tu forma de ser)
+- Los Auténticos Decadentes - Vení Raquel
+- Los Enanitos Verdes - Amigos
+- Los Enanitos Verdes - Guitarras Blancas
+- Los Enanitos Verdes - La Muralla Verde
+- Los Enanitos Verdes - Lamento Boliviano
+- Los Enanitos Verdes - Por el Resto
+- Los Fabulosos Cadillacs - Mal Bicho
+- Los Fabulosos Cadillacs - Matador
+- Los Pericos - Complicado y Aturdido
+- Los Pericos - Home Sweet Home
+- Los Pericos - Pupilas Lejanas
+- Los Pericos - Runaway
+- Los Pericos - Sin Cadenas
+- Los Piojos - El Farolito
+- Los Piojos - Tan Solo
+- Los Piojos - Todo Pasa
+- Los Piojos - Verano del 92
+- Los Rodríguez - Sin Documentos
+- Los Tipitos - Brujería
+- Los Tipitos - Campanas en la Noche
+- Luis Alberto Spinetta - Seguir Viviendo Sin Tu Amor
+- Mancha de Rolando - Arde la Ciudad
+- Massacre - La Octava Maravilla
+- Miranda! - Don
+- Pappo's Blues - El Hombre Suburbano
+- Patricio Rey y sus Redonditos de Ricota - Ji Ji Ji
+- Patricio Rey y sus Redonditos de Ricota - Jijiji
+- Patricio Rey y sus Redonditos de Ricota - La Bestia Pop
+- Patricio Rey y sus Redonditos de Ricota - Un Angel para tu Soledad
+- Patricio Rey y sus Redonditos de Ricota - Un Poco de Amor Francés
+- Rata Blanca - El Reino Olvidado
+- Rata Blanca - La Leyenda del Hada y el Mago
+- Rata Blanca - Mujer Amante
+- Ratones Paranoicos - Para Siempre
+- Ratones Paranoicos - Rock del Gato
+- Soda Stereo - Cuando Pase el Temblor
+- Soda Stereo - De Música Ligera
+- Soda Stereo - En la Ciudad de la Furia
+- Soda Stereo - Persiana Americana
+- Soda Stereo - Trátame Suavemente
+- Sui Generis - Rasguña las piedras
+- Sumo - La Rubia Tarada
+- Sumo - Los Viejos Vinagres
+- Tan Biónica - Ciudad Mágica
+- Turf - Loco un Poco
+- Turf - Magia
+- Virus - Imágenes Paganas
+- Virus - Pronta Entrega
+- Virus - Una Luna de Miel en la Mano
+- Virus - Wadu Wadu
+- Árbol - La Planta
+- Soda Stereo - Nada Personal
+- Soda Stereo - Sobredosis de TV
+- Soda Stereo - Juego de Seducción
+- Soda Stereo - Prófugos
+- Soda Stereo - Signos
+- Soda Stereo - Un Misil en Mi Placard
+- Soda Stereo - Canción Animal
+- Soda Stereo - Té para Tres
+- Soda Stereo - Ella usó mi cabeza como un revólver
+- Soda Stereo - Primavera 0
+- Soda Stereo - En Remolinos
+- Charly García - Cerca de la Revolución
+- Charly García - Ojos de Video Tape
+- Charly García - Yendo de la Cama al Living
+- Charly García - No Me Dejan Salir
+- Charly García - Inconsciente Colectivo
+- Sui Generis - Canción para Mi Muerte
+- Sui Generis - Confesiones de Invierno
+- Sui Generis - Cuando Ya Me Empiece a Quedar Solo
+- Sui Generis - Aprendizaje
+- Serú Girán - Seminare
+- Serú Girán - Canción de Alicia en el País
+- Serú Girán - Eiti Leda
+- Serú Girán - Peperina
+- Serú Girán - La Grasa de las Capitales
+- Almendra - Muchacha (Ojos de Papel)
+- Almendra - Ana No Duerme
+- Pescado Rabioso - Bajan
+- Pescado Rabioso - Cantata de Puentes Amarillos
+- Invisible - El Anillo del Capitán Beto
+- Invisible - Durazno Sangrando
+- Pappo's Blues - Desconfío
+- Pappo's Blues - El Viejo
+- Pappo's Blues - Tren de las 16
+- Los Gatos - La Balsa
+- Los Gatos - Viento, Dile a la Lluvia
+- Manal - Avellaneda Blues
+- Manal - Jugo de Tomate Frío
+- Vox Dei - Presente
+- Vox Dei - Génesis
+- Los Fabulosos Cadillacs - Siguiendo la Luna
+- Los Fabulosos Cadillacs - Vasos Vacíos
+- Los Fabulosos Cadillacs - El Satánico Dr. Cadillac
+- Los Fabulosos Cadillacs - Manuel Santillán, el León
+- Los Fabulosos Cadillacs - Calaveras y Diablitos
+- Los Abuelos de la Nada - Lunes por la Madrugada
+- Los Abuelos de la Nada - No Se Desesperen
+- Los Auténticos Decadentes - El Murguero
+- Los Auténticos Decadentes - Cómo Me Voy a Olvidar
+- Los Auténticos Decadentes - Un Osito de Peluche de Taiwán
+- Intoxicados - Esta Saliendo el Sol
+- Intoxicados - Se Fue al Cielo
+- Árbol - La Nena Monstruo
+- Árbol - Soy Vos
+- Catupecu Machu - Dale!
+- Catupecu Machu - Eso Vive
+- Catupecu Machu - Y Lo Que Quiero Es Que Pises Sin el Suelo
+- Kapanga - El Mono Relojero
+- Kapanga - El Universal
+- Los Piojos - Maradó
+- Los Piojos - Yira Yira
+- Los Piojos - Bicho de Ciudad
+- Viejas Locas - Homero
+- Viejas Locas - Me Gustas Mucho
+- Los Caballeros de la Quema - Avanti Morocha
+- Los Caballeros de la Quema - Oxidado
+- La Renga - El Viento Que Todo Empuja
+- Bersuit Vergarabat - La Soledad
+- Las Pelotas - Será
+- Los Rancheros - Mujer
+
+## Soft Metal
+
+- Anathema - One Last Goodbye
+- Black Sabbath - Changes
+- Black Sabbath - Planet Caravan
+- Black Sabbath - Solitude
+- Blind Guardian - The Bard's Song (In the Forest)
+- Deep Purple - Soldier of Fortune
+- Def Leppard - Bringin' On the Heartbreak
+- Def Leppard - Hysteria
+- Def Leppard - Love Bites
+- Dio - All the Fools Sailed Away
+- Dio - As Long As It's Not About Love
+- Dokken - Alone Again
+- Dream Theater - Another Day
+- Dream Theater - The Spirit Carries On
+- Europe - Carrie
+- Evanescence - My Immortal
+- Extreme - More Than Words
+- Guns N' Roses - November Rain
+- HammerFall - Glory to the Brave
+- Helloween - A Tale That Wasn't Right
+- Iron Maiden - Children of the Damned
+- Iron Maiden - Journeyman
+- Iron Maiden - Wasting Love
+- Judas Priest - Angel
+- Judas Priest - Before the Dawn
+- Judas Priest - Dreamer Deceiver
+- Katatonia - The One You Are Looking For Is Not Here
+- Megadeth - A Tout Le Monde
+- Metallica - Fade to Black
+- Metallica - Nothing Else Matters
+- Metallica - The Unforgiven
+- Metallica - Until It Sleeps
+- Motley Crue - Home Sweet Home
+- Mr. Big - To Be With You
+- Nightwish - Sleeping Sun
+- Opeth - Harvest
+- Ozzy Osbourne - Goodbye to Romance
+- Ozzy Osbourne - Mama I'm Coming Home
+- Pantera - Cemetery Gates
+- Paradise Lost - One Second
+- Poison - Every Rose Has Its Thorn
+- Queensrÿche - I Will Remember
+- Queensrÿche - Silent Lucidity
+- Queensrÿche - The Lady Wore Black
+- Rainbow - Catch the Rainbow
+- Savatage - Believe
+- Scorpions - Holiday
+- Scorpions - Send Me an Angel
+- Scorpions - Still Loving You
+- Scorpions - Wind of Change
+- Sevendust - Angel's Son
+- Skid Row - I Remember You
+- Sonata Arctica - Tallulah
+- Tesla - Love Song
+- Tool - Disposition
+- Type O Negative - Love You to Death
+- W.A.S.P. - Hold On to My Heart
+- Whitesnake - Is This Love
+- Within Temptation - Angels
+- Metallica - The Unforgiven (Reggae Edition)
+
+## Symphonic Classics
+
+- Ludwig van Beethoven - Symphony No. 9 in D Minor
+- Wolfgang Amadeus Mozart - Symphony No. 40 in G Minor
+- Antonio Vivaldi - The Four Seasons - Summer
+- Johann Sebastian Bach - Cello Suite No. 1 in G Major
+- Pyotr Ilyich Tchaikovsky - Swan Lake Suite
+- Hans Zimmer - Time
+- Hans Zimmer - Cornfield Chase
+- John Williams - Theme From Jurassic Park
+- Howard Shore - The Shire
+- Symphoniacs - Animals
+- Symphoniacs - A Sky Full of Stars
+- David Garrett - Viva La Vida
+- 2CELLOS - Thunderstruck
+- The Piano Guys - A Thousand Years
+- Ludovico Einaudi - Nuvole Bianche
+- Max Richter - On the Nature of Daylight
+- Johannes Brahms - Hungarian Dance No. 5
+- Edvard Grieg - In the Hall of the Mountain King
+- Gustav Holst - Mars the Bringer of War
+- Claude Debussy - Clair de Lune
+- Richard Wagner - Ride of the Valkyries
+- Clint Mansell - Lux Aeterna
+- Yann Tiersen - Comptine d'un autre été l'après-midi
+- Apocalyptica - Nothing Else Matters
+- Bond - Victory
+- ESCALA - Palladio
+- Lindsey Stirling - Crystallize
+- Joep Beving - Ab Ovo
+- Thomas Bergersen - Empire of Angels
+
+## Synthwave
+
+- Com Truise - Brokendate
+- Com Truise - Flightwave
+- Dynatron - Pulse Power
+- Dynatron - Stars of the Night
+- Electric Youth - A Real Hero
+- FM - 84
+- FM Attack - Shadows
+- FM-84 - Running in the Night
+- Futurecop! - Starworshipper
+- Gunship - Dark All Day
+- Gunship - Tech Noir
+- Kavinsky - Nightcall
+- Kavinsky - ProtoVision
+- Lazerhawk - King of the Streets
+- Lazerhawk - So Close
+- Lazerhawk - Space Is the Place
+- Le Matos - No Tomorrow (feat. PAWWS)
+- Miami Nights 1984 - High Beams
+- Miami Nights 1984 - Ocean Drive
+- Mitch Murder - Breaking Waves
+- Mitch Murder - The Touch
+- Perturbator - Future Club
+- Power Glove - Crypt
+- Scandroid - Empty Streets
+- The Midnight - Days of Thunder
+- The Midnight - Sunset
+- Timecop1983 - Girl
+- Timecop1983 - On the Run
+- Trevor Something - Fade Away
+- Trevor Something - Miami Nights
+
+## Tropical House
+
+- Bakermat - One Day (Vandaag)
+- Bakermat - Teach Me
+- Calvin Harris - Promises (with Sam Smith)
+- Calvin Harris - Under Control (feat. Hurts)
+- Calvin Harris & Disciples - How Deep Is Your Love
+- Cheat Codes x Kris Kross Amsterdam - Sex
+- Deepend - Waiting for the Summer
+- Dillon Francis & Kygo - Coming Over
+- Felix Jaehn - Ain't Nobody (Loves Me Better) [feat. Jasmine Thompson]
+- Felix Jaehn - Bonfire (feat. ALMA)
+- Jonas Blue - Mama (feat. William Singe)
+- Jonas Blue - Perfect Strangers (feat. JP Cooper)
+- Klingande - Jubel
+- Klingande - Pumped Up
+- KREAM - Taped Up Heart
+- Kygo - Firestone (feat. Conrad Sewell)
+- Lost Frequencies - Are You With Me
+- Lost Frequencies - Reality (feat. Janieck Devy)
+- Lucas & Steve - Love On My Mind
+- Lucas & Steve - Where Have You Gone (Anywhere)
+- Martin Jensen - Solo Dance
+- Martin Jensen - Wait
+- Matoma - Old Thing Back (feat. Ja Rule and Ralph Tresvant)
+- Mike Perry - Inside the Lines (feat. Casso)
+- Mike Perry - The Ocean (feat. Shy Martin)
+- Møme - Aloha (feat. Merryn Jeann)
+- R3HAB - Icarus
+- Robin Schulz - Speechless (feat. Erika Sirola)
+- Robin Schulz - Sugar (feat. Francesco Yates)
+- Sam Feldt - Post Malone (feat. RANI)
+- Seeb - Breathe (feat. Neev)
+- Seeb - What Do You Love (feat. Jacob Banks)
+- Sigala - Easy Love
+- Starley - Call on Me (Ryan Riback Remix)
+- The Chainsmokers - All We Know (feat. Phoebe Ryan)
+- The Chainsmokers - Roses (feat. ROZES)
+- The Chainsmokers - Side Effects (feat. Emily Warren)
+- Thomas Jack - Rivers
+
