@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import json
 import os
@@ -11,7 +13,10 @@ from pathlib import Path
 
 import musicbrainzngs
 import requests
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - optional for cover normalization
+    Image = None
 try:  # Optional dependency; only needed inside notebook debugging helpers
     from IPython.display import Image as IPyImage, display
 except ImportError:  # pragma: no cover - IPython is optional for CLI users
@@ -507,6 +512,13 @@ def _normalize_cover_art(
     max_bytes: int = 1_000_000,
     log_prefix: str = "",
 ) -> tuple[bytes, str]:
+    if Image is None:
+        _log_line(
+            "Skipping cover art normalization because Pillow is not installed.",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
+        return image_data, mime_type
     try:
         with Image.open(BytesIO(image_data)) as image:
             original_size = len(image_data)
