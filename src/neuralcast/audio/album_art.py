@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import json
 import os
@@ -6,10 +8,15 @@ import tempfile
 import unicodedata
 from collections import defaultdict
 from difflib import SequenceMatcher
+from io import BytesIO
 from pathlib import Path
 
 import musicbrainzngs
 import requests
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - optional for cover normalization
+    Image = None
 try:  # Optional dependency; only needed inside notebook debugging helpers
     from IPython.display import Image as IPyImage, display
 except ImportError:  # pragma: no cover - IPython is optional for CLI users
@@ -473,6 +480,105 @@ def _image_sort_key(image: dict) -> tuple[int, int, int, int]:
     return (approved, is_front, comment_penalty, order)
 
 
+def _flatten_alpha(image: Image.Image) -> Image.Image:
+    if image.mode in {"RGBA", "LA"} or (
+        image.mode == "P" and "transparency" in image.info
+    ):
+        converted = image.convert("RGBA")
+        background = Image.new("RGBA", converted.size, (255, 255, 255, 255))
+        background.alpha_composite(converted)
+        return background.convert("RGB")
+    return image.convert("RGB")
+
+
+def _encode_image_bytes(
+    image: Image.Image, *, format_name: str, quality: int | None = None
+) -> bytes:
+    buffer = BytesIO()
+    save_kwargs: dict[str, object] = {"format": format_name}
+    if format_name == "JPEG":
+        save_kwargs.update({"quality": quality or 85, "optimize": True, "progressive": True})
+    elif format_name == "PNG":
+        save_kwargs.update({"optimize": True})
+    image.save(buffer, **save_kwargs)
+    return buffer.getvalue()
+
+
+def _normalize_cover_art(
+    image_data: bytes,
+    mime_type: str,
+    *,
+    max_px: int = 1200,
+    max_bytes: int = 1_000_000,
+    log_prefix: str = "",
+) -> tuple[bytes, str]:
+    if Image is None:
+        _log_line(
+            "Skipping cover art normalization because Pillow is not installed.",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
+        return image_data, mime_type
+    try:
+        with Image.open(BytesIO(image_data)) as image:
+            original_size = len(image_data)
+            original_dimensions = image.size
+            longest_edge = max(original_dimensions)
+            needs_resize = longest_edge > max_px
+            working_image = image.copy()
+            if needs_resize:
+                working_image.thumbnail((max_px, max_px), Image.LANCZOS)
+
+            has_alpha = working_image.mode in {"RGBA", "LA"} or (
+                working_image.mode == "P" and "transparency" in working_image.info
+            )
+            prefers_png = "png" in (mime_type or "").lower() or image.format == "PNG"
+            if has_alpha:
+                target_format = "PNG"
+                target_mime = "image/png"
+                output_image = working_image
+            else:
+                target_format = "PNG" if prefers_png else "JPEG"
+                target_mime = "image/png" if target_format == "PNG" else "image/jpeg"
+                output_image = (
+                    working_image if target_format == "PNG" else _flatten_alpha(working_image)
+                )
+
+            encoded = _encode_image_bytes(output_image, format_name=target_format)
+            if target_format == "JPEG" and len(encoded) > max_bytes:
+                for quality in (80, 70, 60, 50, 40):
+                    encoded = _encode_image_bytes(
+                        output_image, format_name=target_format, quality=quality
+                    )
+                    if len(encoded) <= max_bytes:
+                        break
+
+            if (
+                len(encoded) != original_size
+                or target_mime != mime_type
+                or output_image.size != original_dimensions
+            ):
+                _log_line(
+                    (
+                        "Normalized cover art "
+                        f"{original_dimensions[0]}x{original_dimensions[1]} "
+                        f"({original_size / 1024:.1f}KB) -> "
+                        f"{output_image.size[0]}x{output_image.size[1]} "
+                        f"({len(encoded) / 1024:.1f}KB)"
+                    ),
+                    icon="🎨",
+                    prefix=log_prefix,
+                )
+            return encoded, target_mime
+    except Exception as exc:
+        _log_line(
+            f"Failed to normalize cover art: {exc}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
+        return image_data, mime_type
+
+
 def _download_cover_art(release_id: str, *, log_prefix: str = ""):
     cached_art = _COVER_ART_CACHE.get(release_id)
     if cached_art is not None:
@@ -517,6 +623,9 @@ def _download_cover_art(release_id: str, *, log_prefix: str = ""):
     response.raise_for_status()
     image_data = response.content
     mime_type = response.headers.get("Content-Type", "image/jpeg")
+    image_data, mime_type = _normalize_cover_art(
+        image_data, mime_type, log_prefix=log_prefix
+    )
     result = (image_data, mime_type, art_url)
     _COVER_ART_CACHE[release_id] = result
     return result

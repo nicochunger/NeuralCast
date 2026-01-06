@@ -10,7 +10,7 @@ Global storytelling assets now live under `src/neuralcast/assets/stories/`, whic
 - `python main.py --station NeuralCast` performs the full sync, including downloads and tag rewrites.
 - `python update_new_releases.py NeuralCast --dry-run` previews Spotify-driven updates to `New Releases.csv`; drop `--dry-run` to write results.
 - `python inject_story_snippet.py --base-url https://192.168.1.226 -s neuralcast --dry-run` exercises the AzuraCast story injector locally (no uploads); remove `--dry-run` only when you intend to push the MP3 and queue it live.
-- `python -m pip install pandas mutagen spotipy musicbrainzngs python-dotenv tqdm requests openai pydantic` installs the Python dependencies used across the pipeline; document any other tools you introduce.
+- `python -m pip install pandas mutagen spotipy musicbrainzngs python-dotenv tqdm requests openai pydantic pillow` installs the Python dependencies used across the pipeline; document any other tools you introduce.
 
 ## Station Metadata & Spotify Cache
 `update_new_releases.py` and `main.py` both rely on `<station>/metadata/New Releases.metadata.json` to store structured playlist metadata plus `<station>/metadata/ArtistIDs.json` for cached Spotify artist IDs. The helpers automatically fall back to legacy copies under `playlists/` but will rewrite them into `metadata/` on the next save—do not delete the directory. When songs leave `New Releases.csv`, `main.py` calls `remove_new_releases_metadata_entries` so the JSON stays in sync; keep these files committed alongside the playlists whenever you touch release data.
