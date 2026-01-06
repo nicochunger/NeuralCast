@@ -1906,6 +1906,29 @@
 - Vampire Weekend - Diane Young
 - Vampire Weekend - Harmony Hall
 
+## International Heritage
+
+- Édith Piaf - La Vie en Rose
+- Domenico Modugno - Volare
+- Astrud Gilberto - The Girl from Ipanema
+- Édith Piaf - Non, Je Ne Regrette Rien
+- Luciano Pavarotti - O Sole Mio
+- Jorge Ben / Mendes - Mas Que Nada
+- Charles Aznavour - La Bohème
+- Toto Cutugno - L’Italiano
+- Jacques Brel - Ne Me Quitte Pas
+- Umberto Tozzi - Ti Amo
+- Claude François - Comme d’Habitude
+- Elis Regina / Tom Jobim - Aguas de Março
+- Ricchi e Poveri - Sarà perché ti amo
+- Andrea Bocelli - Con te partirò
+- Vinícius de Moraes - Garota de Ipanema
+- Various - Bella Ciao
+- Mina - Se Telefonando
+- Mina & Alberto Lupo - Parole Parole
+- Al Bano & Romina Power - Felicità
+- Laura Pausini - La solitudine
+
 ## Irish Folk
 
 - Altan - A Tune for Frankie
