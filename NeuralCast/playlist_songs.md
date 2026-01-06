@@ -1695,6 +1695,29 @@
 - Tower of Power - What Is Hip?
 - War - Low Rider
 
+## Global Mid-Century Foundations
+
+- Glenn Miller - In the Mood
+- Benny Goodman - Sing, Sing, Sing
+- Chuck Berry - Johnny B. Goode
+- Elvis Presley - Jailhouse Rock
+- Duke Ellington - Take the 'A' Train
+- Little Richard - Tutti-Frutti
+- Bill Haley & His Comets - Rock Around the Clock
+- Eddie Cochran - Summertime Blues
+- Ritchie Valens - La Bamba
+- Jerry Lee Lewis - Great Balls of Fire
+- Frank Sinatra - Fly Me to the Moon
+- Glenn Miller - Moonlight Serenade
+- Elvis Presley - Hound Dog
+- Fats Domino - Blueberry Hill
+- Cab Calloway - Minnie the Moocher
+- Little Richard - Long Tall Sally
+- Bill Haley & His Comets - See You Later, Alligator
+- Danny & The Juniors - At the Hop
+- Gene Vincent - Be-Bop-A-Lula
+- Buddy Holly - Peggy Sue
+
 ## Golden HipHop
 
 - 2Pac - Ambitionz Az a Ridah

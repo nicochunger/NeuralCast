@@ -84,6 +84,12 @@ Brass-laden, groove-heavy funk and soul classics—James Brown’s fire, Aretha�
 
 *1965 – 1985*
 
+## Global Mid-Century Foundations
+
+Swing, Big Band, and 1950s Rock. To bridge the gap between classical and modern eras, the NeuralCast map accounts for Big Band swing and 1950s rock & roll—genres that provided the rhythmic blueprints for nearly every pop song that followed.
+
+*1931 – 1964*
+
 ## Golden Hip-Hop
 
 Lyrical storytelling over sample-rich, boom-bap grooves from hip-hop’s golden era—Nas, 2Pac, The Notorious B.I.G., Dr. Dre, Snoop Dogg, OutKast and the pioneering artists who defined a generation.
