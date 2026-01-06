@@ -3351,6 +3351,34 @@
 - Trevor Something - Fade Away
 - Trevor Something - Miami Nights
 
+## Tango
+
+- Gerardo Matos Rodríguez - La Cumparsita
+- Carlos Gardel - Por Una Cabeza
+- Juan d'Arienzo - El Choclo
+- Carlos Gardel - El Día Que Me Quieras
+- Osvaldo Pugliese - La Yumba
+- Astor Piazzolla - Adiós Nonino
+- Francisco Canaro - Milonga Sentimental
+- Carlos di Sarli - Bahía Blanca
+- Aníbal Troilo - Malena
+- Edgardo Donato - A Media Luz
+- GoTan Project - Santa Maria (Del Buen Ayre)
+- Bajofondo - Pa’ Bailar
+- Osvaldo Pugliese - Gallo Ciego
+- Juan d'Arienzo - Nueve De Julio
+- Astor Piazzolla - Libertango
+- Osvaldo Fresedo - Vida Mía
+- Ángel D'Agostino - Tres Esquinas
+- Juan d'Arienzo - El Flete
+- Juan de Dios Filiberto - Caminito
+- Astor Piazzolla - Balada para un Loco
+- Carlos Gardel - Volver
+- Carlos Gardel - Mi Buenos Aires Querido
+- Scarpino / Caldarella - Canaro en París
+- Juan de Dios Filiberto - Quejas de Bandoneón
+- Enrique Santos Discépolo - Gira Gira
+
 ## Tropical House
 
 - Bakermat - One Day (Vandaag)
@@ -3391,4 +3419,3 @@
 - The Chainsmokers - Roses (feat. ROZES)
 - The Chainsmokers - Side Effects (feat. Emily Warren)
 - Thomas Jack - Rivers
-
