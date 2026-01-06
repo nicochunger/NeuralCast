@@ -54,6 +54,12 @@ The raw, energetic sound of Argentina's Cumbia Villera movement. Featuring genre
 
 *1990 – 2010*
 
+## Cuarteto
+
+The Popular Pulse: Cuarteto and the rhythms of Argentina’s interior. Originating in Córdoba, these high-energy anthems define social gatherings through regional pride, class resilience, and sing-along hooks from classic icons to today’s chart leaders.
+
+*1980 – present*
+
 ## Eclectic Discovery
 
 Genre-bending treasure hunt across funk, hip-hop, indie, lo-fi, and electronic—perfect for curious ears seeking unexpected gems.
