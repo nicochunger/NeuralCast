@@ -102,6 +102,12 @@ Though NeuralCast covers classic and soft rock, it lacks the heavier metal anthe
 
 *2000 – present*
 
+## International Heritage
+
+International Heritage: Chanson, Italian pop, and bossa nova. Given Argentina's history of Italian and Spanish immigration, European musical traditions are an atmospheric necessity. These genres carry a "nostalgic authenticity" that transcends language.
+
+*1950 – present*
+
 ## Irish Folk & Trad
 
 Timeless Irish storytelling through traditional and contemporary folk—The Chieftains, The Dubliners, and modern troubadours carrying on the heritage.
