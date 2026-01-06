@@ -1424,6 +1424,34 @@
 - Yerba Brava - La Cumbia de los Trapos
 - Yerba Brava - Pibe Cantina
 
+## Cuarteto
+
+- La Mona Jiménez - Quién se ha tomado todo el vino
+- Rodrigo "El Potro" - La Mano de Dios
+- La Mona Jiménez - Amor Clasificado
+- Rodrigo "El Potro" - La Cerveza
+- Rodrigo "El Potro" - Ocho Cuarenta
+- La K'onga - Universo Paralelo
+- Luck Ra feat. La K'onga - Ya No Vuelvas
+- Luck Ra - Te Mentiría
+- Q'Lokura - Besos Nuevos
+- Tru-la-lá - Aventura
+- Rodrigo "El Potro" - Soy Cordobés
+- La Mona Jiménez - El Renegado
+- La K'onga - Te Perdiste Mi Amor
+- Ulises Bueno - Borracho de Amor
+- Q'Lokura - Olvídame
+- Gary - Te Quiero
+- Chiquicha - El Chiqui Chiqui
+- Rodrigo "El Potro" - Como Olvidarla
+- Ulises Bueno - Dale Vieja Dale
+- La K'onga - Partido en Dos
+- Walter Olmos - Amor Fugitivo
+- La Mona Jiménez - Beso a Beso
+- La Mona Jiménez - Ramito de Violetas
+- Desakta2 - Tu misterioso alguien
+- Rodrigo "El Potro" - Que ironía
+
 ## Eclectic Discovery
 
 - Anderson .Paak - Am I Wrong
