@@ -168,6 +168,12 @@ Neon-soaked retro-futurism. 80s-inspired analog synths and cinematic beats from 
 
 *2010 – present*
 
+## Tango
+
+The Rioplatense Core: Tango and the Architecture of Nostalgia. The foundational sound of Buenos Aires, born in the late 19th century and the most significant historical pillar of musical recognition for Argentinian listeners. Recognition in tango flows through traditional milonga staples and broader cinematic familiarity.
+
+*1890 – present*
+
 ## Tropical House
 
 Sun-drenched beats and saxophone hooks for endless summer vibes. Featuring the relaxed, uplifting sounds of Kygo, Bakermat, Felix Jaehn, and Calvin Harris.
