@@ -3064,6 +3064,29 @@
 - UB40 - Higher Ground
 - UB40 - Kingston Town
 
+## Romanticismo Argentino
+
+- Sandro - Rosa Rosa
+- Sandro - Tengo
+- Leonardo Favio - Fuiste Mía un Verano
+- Palito Ortega - La Felicidad
+- Sandro - Porque Yo Te Amo
+- Palito Ortega - Corazón Contento
+- Leonardo Favio - Ella Ya Me Olvidó
+- Sandro - Una Muchacha y una Guitarra
+- Palito Ortega - Despeinada
+- Sandro - Penumbras
+- Leonardo Favio - Quiero Aprender de Memoria
+- Palito Ortega - Bienvenido Amor
+- Sandro - Dame el Fuego de tu Amor
+- Leonardo Favio - Ding Dong Estas Cosas del Amor
+- Sandro - Así
+- Leo Dan - Te He Prometido
+- Palito Ortega - Media Novia
+- Palito Ortega - Yo Tengo Fe
+- Leo Dan - Mary es mi amor
+- Leo Dan - Camelia
+
 ## Rock Nacional
 
 - Andrés Calamaro - Crímenes Perfectos
