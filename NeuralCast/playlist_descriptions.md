@@ -150,6 +150,12 @@ A lively fusion of reggae’s offbeat rhythms with the grit of rock and the urge
 
 *1990 – present*
 
+## Romanticismo Argentino
+
+The Argentinian Idols: Sandro, Palito Ortega, and the Romantic Revolution. A defining era of local romantic idols in the 1960s and 70s, when artists fused rock-and-roll energy with a distinctly Latin melodic style—featuring the theatrical devotion, youthful longing, and poetic balladry that made these songs cultural touchstones.
+
+*1960 – 1979*
+
 ## Rock Nacional
 
 Rock Nacional Hall-of-Fame (1980–2010): A curated lineup of Argentina’s quintessential rock and alt-rock bands—Soda Stereo, Los Piojos, Turf, Árbol, Los Auténticos Decadentes, Intoxicados, La Mancha de Rolando, Los Tipitos, Andrés Calamaro, Fito Páez, Los Pericos, Attaque 77 and more.
