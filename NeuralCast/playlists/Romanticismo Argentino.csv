@@ -1,21 +1,20 @@
 Artist,Title,Album,Year,Validated
-Sandro,Rosa Rosa,,,False
-Sandro,Tengo,,,False
-Leonardo Favio,Fuiste Mía un Verano,,,False
-Palito Ortega,La Felicidad,,,False
-Sandro,Porque Yo Te Amo,,,False
-Palito Ortega,Corazón Contento,,,False
-Leonardo Favio,Ella Ya Me Olvidó,,,False
-Sandro,Una Muchacha y una Guitarra,,,False
-Palito Ortega,Despeinada,,,False
-Sandro,Penumbras,,,False
-Leonardo Favio,Quiero Aprender de Memoria,,,False
-Palito Ortega,Bienvenido Amor,,,False
-Sandro,Dame el Fuego de tu Amor,,,False
-Leonardo Favio,Ding Dong Estas Cosas del Amor,,,False
-Sandro,Así,,,False
-Leo Dan,Te He Prometido,,,False
-Palito Ortega,Media Novia,,,False
-Palito Ortega,Yo Tengo Fe,,,False
-Leo Dan,Mary es mi amor,,,False
-Leo Dan,Camelia,,,False
+Sandro,Rosa Rosa,Sandro de América,1969,True
+Sandro,Tengo,Lo Mejor De Los Mejores,1996,True
+Leonardo Favio,Fuiste Mía un Verano,Fuiste Mía un Verano,1968,True
+Palito Ortega,La Felicidad,Un Muchacho Como Yo,1967,True
+Sandro,Porque Yo Te Amo,Sandro Lo Mejor,2007,True
+Palito Ortega,Corazón Contento,El Ángel de Palito Ortega,1968,True
+Leonardo Favio,Ella Ya Me Olvidó,Fuiste Mía un Verano,1968,True
+Sandro,Una Muchacha y una Guitarra,Lo Mejor De Los Mejores,1996,True
+Palito Ortega,Despeinada,Palito Siempre Primero,1963,True
+Sandro,Penumbras,Lo Mejor De Los Mejores,1996,True
+Leonardo Favio,Quiero Aprender de Memoria,Fuiste Mía un Verano,1968,True
+Palito Ortega,Bienvenido Amor,Palito Ortega,1963,True
+Sandro,Dame el Fuego de tu Amor,Espectacular,1971,True
+Leonardo Favio,Ding Dong Estas Cosas del Amor,Con Ustedes,1991,True
+Sandro,Así,Lo Mejor De Los Mejores,1996,True
+Leo Dan,Te He Prometido,Canta Trovador,1969,True
+Palito Ortega,Media Novia,Palito Ortega,1963,True
+Palito Ortega,Yo Tengo Fe,Yo Tengo Fe,1973,True
+Leo Dan,Mary es mi amor,Triunfador de América,1971,True
