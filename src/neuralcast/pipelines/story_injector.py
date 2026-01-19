@@ -169,9 +169,8 @@ class AzuraCastClient:
         return self._request("GET", f"/api/station/{station}/files").json()
 
     def delete_media_file(self, station: str, media_id: int) -> Dict:
-        return self._request(
-            "DELETE", f"/api/station/{station}/file/{media_id}"
-        ).json()
+        return self._request("DELETE", f"/api/station/{station}/file/{media_id}").json()
+
     def send_telnet_command(self, station_id: int, command: str) -> Dict:
         payload = {"command": command}
         response = self._request(
@@ -180,6 +179,7 @@ class AzuraCastClient:
             json=payload,
         )
         return response.json()
+
 
 def parse_upcoming_queue(queue_payload: Sequence[Dict]) -> List[UpcomingTrack]:
     parsed: List[UpcomingTrack] = []
@@ -252,10 +252,9 @@ def tracks_equal(a: UpcomingTrack, b: UpcomingTrack) -> bool:
         return True
     if a.song_id and b.song_id and a.song_id == b.song_id:
         return True
-    return (
-        (a.artist or "").strip().lower() == (b.artist or "").strip().lower()
-        and (a.title or "").strip().lower() == (b.title or "").strip().lower()
-    )
+    return (a.artist or "").strip().lower() == (b.artist or "").strip().lower() and (
+        a.title or ""
+    ).strip().lower() == (b.title or "").strip().lower()
 
 
 def find_following_track(
@@ -263,9 +262,8 @@ def find_following_track(
     current_track_candidate: Optional[UpcomingTrack],
     upcoming_tracks: Sequence[UpcomingTrack],
 ) -> Optional[UpcomingTrack]:
-    if (
-        current_track_candidate is not None
-        and tracks_equal(selected, current_track_candidate)
+    if current_track_candidate is not None and tracks_equal(
+        selected, current_track_candidate
     ):
         return upcoming_tracks[0] if upcoming_tracks else None
 
@@ -289,9 +287,7 @@ def cleanup_story_text(raw: str) -> str:
     text = re.sub(r"\b(?:[a-z][a-z0-9-]*\.)+[a-z]{2,}\b", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\(\s*\)", "", text)
     text = text.replace("((", "(").replace("))", ")")
-    cleaned_lines = [
-        re.sub(r"\s{2,}", " ", line).strip() for line in text.splitlines()
-    ]
+    cleaned_lines = [re.sub(r"\s{2,}", " ", line).strip() for line in text.splitlines()]
     cleaned = "\n".join(line for line in cleaned_lines if line)
     return cleaned.strip()
 
@@ -380,9 +376,7 @@ def ensure_story_assets(
         text_path=text_path,
         audio_path=audio_path,
         story_text=story_text,
-        remote_path="/".join(
-            ["AI Stories", date_str, f"{base_name}.mp3"]
-        ),
+        remote_path="/".join(["AI Stories", date_str, f"{base_name}.mp3"]),
     )
 
 
@@ -562,10 +556,7 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
 
     # Remove dated directories once they fall outside the retention window
     for dir_path in base_dir.iterdir():
-        if (
-            dir_path.is_dir()
-            and date_dir_pattern.match(dir_path.name)
-        ):
+        if dir_path.is_dir() and date_dir_pattern.match(dir_path.name):
             try:
                 dir_date = dt.datetime.strptime(dir_path.name, "%Y-%m-%d").date()
             except ValueError:
@@ -802,7 +793,9 @@ def run(args: argparse.Namespace) -> None:
     print(f"Story audio saved to {assets.audio_path}")
 
     if args.dry_run:
-        print("Dry-run mode enabled; skipping upload, queue injection, and style history update.")
+        print(
+            "Dry-run mode enabled; skipping upload, queue injection, and style history update."
+        )
         return
 
     upload_response = client.upload_media(
@@ -815,9 +808,13 @@ def run(args: argparse.Namespace) -> None:
         raise RuntimeError("Failed to determine media ID for uploaded story audio.")
     print(f"Uploaded story MP3. Media ID: {media_id}")
 
-    upload_path = upload_response.get("path") if isinstance(upload_response, dict) else None
+    upload_path = (
+        upload_response.get("path") if isinstance(upload_response, dict) else None
+    )
     if not upload_path:
-        raise RuntimeError("Upload response missing storage path; cannot schedule playback.")
+        raise RuntimeError(
+            "Upload response missing storage path; cannot schedule playback."
+        )
 
     full_media_path = f"/var/azuracast/stations/{args.station}/media/{upload_path}"
     story_duration = None
@@ -924,7 +921,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--current-min-remaining",
         type=int,
-        default=60,
+        default=90,
         help="Use the current song only if it has at least this many seconds remaining (default: %(default)s).",
     )
     parser.add_argument(

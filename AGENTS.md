@@ -10,6 +10,7 @@ Global storytelling assets now live under `src/neuralcast/assets/stories/`, whic
 - `python main.py --station NeuralCast` performs the full sync, including downloads and tag rewrites.
 - `python update_new_releases.py NeuralCast --dry-run` previews Spotify-driven updates to `New Releases.csv`; drop `--dry-run` to write results.
 - `python inject_story_snippet.py --base-url https://192.168.1.226 -s neuralcast --dry-run` exercises the AzuraCast story injector locally (no uploads); remove `--dry-run` only when you intend to push the MP3 and queue it live.
+- `zip -r deployment/deploy_story_injector.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"` rebuilds the VPS story injector bundle after code/prompt changes.
 - `python -m pip install pandas mutagen spotipy musicbrainzngs python-dotenv tqdm requests openai google-genai pydantic pillow` installs the Python dependencies used across the pipeline; document any other tools you introduce.
 
 ## Station Metadata & Spotify Cache
