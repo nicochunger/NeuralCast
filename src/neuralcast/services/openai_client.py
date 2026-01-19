@@ -1,7 +1,11 @@
-"""Utilities for interacting with OpenAI APIs."""
+"""Utilities for interacting with OpenAI APIs and Gemini TTS."""
 from __future__ import annotations
 
 import os
+import pathlib
+import subprocess
+import tempfile
+import wave
 from typing import Optional
 
 import openai
@@ -13,7 +17,10 @@ load_dotenv()
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 _OPENAI_CLIENT: Optional[openai.OpenAI] = None
+_GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+_GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
+_DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
 
 
 def get_openai_client() -> openai.OpenAI:
@@ -26,6 +33,24 @@ def get_openai_client() -> openai.OpenAI:
     if _OPENAI_CLIENT is None:
         _OPENAI_CLIENT = openai.OpenAI(api_key=_OPENAI_KEY)
     return _OPENAI_CLIENT
+
+
+def get_gemini_client():
+    if _GEMINI_KEY is None or not _GEMINI_KEY.strip():
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. Please set it in your environment."
+        )
+
+    global _GEMINI_CLIENT
+    if _GEMINI_CLIENT is None:
+        try:
+            from google import genai
+        except ImportError as exc:
+            raise RuntimeError(
+                "Gemini client is not installed. Install with: pip install google-genai"
+            ) from exc
+        _GEMINI_CLIENT = genai.Client(api_key=_GEMINI_KEY)
+    return _GEMINI_CLIENT
 
 
 def openai_text_completion(
@@ -74,6 +99,154 @@ def openai_speech(
         response.stream_to_file(outfile)
 
 
+def _build_tts_prompt(text: str, instructions: Optional[str]) -> str:
+    cleaned_text = text.strip()
+    if not instructions:
+        return cleaned_text
+    cleaned_instructions = instructions.strip()
+    return (
+        "INSTRUCCIONES (NO LEER EN VOZ ALTA):\n"
+        f"{cleaned_instructions}\n\n"
+        "TEXTO A LEER EN VOZ ALTA:\n"
+        f"{cleaned_text}"
+    )
+
+
+def _write_pcm_wave(
+    outfile: pathlib.Path,
+    pcm: bytes,
+    channels: int = 1,
+    rate: int = 24000,
+    sample_width: int = 2,
+) -> None:
+    with wave.open(str(outfile), "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(rate)
+        wf.writeframes(pcm)
+
+
+def _convert_wav_to_mp3(wav_path: pathlib.Path, mp3_path: pathlib.Path) -> None:
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(wav_path),
+            "-codec:a",
+            "libmp3lame",
+            "-b:a",
+            "192k",
+            str(mp3_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RuntimeError(f"ffmpeg failed while converting TTS audio: {detail}")
+
+
+def _write_pcm_audio_file(
+    outfile: str,
+    pcm: bytes,
+    channels: int = 1,
+    rate: int = 24000,
+    sample_width: int = 2,
+) -> None:
+    target = pathlib.Path(outfile)
+    suffix = target.suffix.lower()
+    if suffix == ".wav":
+        _write_pcm_wave(target, pcm, channels=channels, rate=rate, sample_width=sample_width)
+        return
+    if suffix == ".mp3":
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+            temp_path = pathlib.Path(handle.name)
+        try:
+            _write_pcm_wave(
+                temp_path,
+                pcm,
+                channels=channels,
+                rate=rate,
+                sample_width=sample_width,
+            )
+            _convert_wav_to_mp3(temp_path, target)
+        finally:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+        return
+    _write_pcm_wave(target, pcm, channels=channels, rate=rate, sample_width=sample_width)
+
+
+def gemini_speech(
+    text: str,
+    outfile: str,
+    model: str = "gemini-2.5-flash-preview-tts",
+    voice: str = "Enceladus",
+    instructions: Optional[str] = None,
+):
+    client = get_gemini_client()
+    try:
+        from google.genai import types
+    except ImportError as exc:
+        raise RuntimeError(
+            "Gemini client is not installed. Install with: pip install google-genai"
+        ) from exc
+
+    prompt = _build_tts_prompt(text, instructions)
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                )
+            ),
+        ),
+    )
+    data = response.candidates[0].content.parts[0].inline_data.data
+    _write_pcm_audio_file(outfile, data)
+
+
+def synthesize_speech(
+    text: str,
+    outfile: str,
+    provider: Optional[str] = None,
+    instructions: Optional[str] = None,
+    openai_model: str = "gpt-4o-mini-tts",
+    openai_voice: str = "ash",
+    gemini_model: str = "gemini-2.5-flash-preview-tts",
+    gemini_voice: str = "Enceladus",
+):
+    resolved_provider = (provider or _DEFAULT_TTS_PROVIDER).strip().lower()
+    if resolved_provider == "openai":
+        openai_speech(
+            text=text,
+            outfile=outfile,
+            model=openai_model,
+            voice=openai_voice,
+            instructions=instructions,
+        )
+        return
+    if resolved_provider == "gemini":
+        gemini_speech(
+            text=text,
+            outfile=outfile,
+            model=gemini_model,
+            voice=gemini_voice,
+            instructions=instructions,
+        )
+        return
+    raise ValueError(
+        f"Unsupported TTS provider '{resolved_provider}'. Use 'gemini' or 'openai'."
+    )
+
+
 def make_fun_fact(artist: str, title: str) -> str:
     prompt = (
         f"In one short, upbeat radio-host sentence (≤25 words), share a fun fact about the song '{title}' by {artist}."
@@ -84,11 +257,9 @@ def make_fun_fact(artist: str, title: str) -> str:
 
 def tts(text: str, outfile: str):
     instruction_prompt = _HOST_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
-    openai_speech(
+    synthesize_speech(
         text=text,
         outfile=outfile,
-        model="gpt-4o-mini-tts",
-        voice="ash",
         instructions=instruction_prompt,
     )
 
@@ -97,6 +268,8 @@ __all__ = [
     "get_openai_client",
     "openai_text_completion",
     "openai_speech",
+    "gemini_speech",
     "make_fun_fact",
+    "synthesize_speech",
     "tts",
 ]

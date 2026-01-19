@@ -6,3 +6,4 @@ __pycache__/
 .vscode/
 stories/snippets/
 stories/style_history.json
+src/neuralcast/assets/stories/snippets/**/*.txt

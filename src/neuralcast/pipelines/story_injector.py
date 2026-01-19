@@ -5,12 +5,10 @@ from __future__ import annotations
 import argparse
 import base64
 import datetime as dt
-import json
 import os
 import pathlib
 import re
 import shutil
-import textwrap
 import time
 import warnings
 from dataclasses import dataclass
@@ -23,7 +21,10 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from neuralcast.config import ASSETS_ROOT
 from neuralcast.playlists.utils import sanitize_filename_component
-from neuralcast.services.openai_client import openai_speech, openai_text_completion
+from neuralcast.services.openai_client import (
+    openai_text_completion,
+    synthesize_speech,
+)
 from neuralcast.stories.variation import (
     DELIVERY_VARIANTS,
     NARRATIVE_VARIANTS,
@@ -276,76 +277,6 @@ def find_following_track(
     return None
 
 
-def select_song_with_ai(
-    upcoming: Sequence[UpcomingTrack],
-    model: str = "gpt-5-mini",
-) -> UpcomingTrack:
-    if not upcoming:
-        raise RuntimeError("No upcoming songs available to choose from.")
-
-    synopsis_lines = []
-    for idx, track in enumerate(upcoming, start=1):
-        parts = [f"{idx}. {track.artist} - {track.title}"]
-        if track.duration:
-            parts.append(f"({track.duration}s)")
-        if track.starts_at:
-            parts.append(f"plays at {track.starts_at.isoformat()}")
-        if track.raw.get("source") == "now_playing":
-            remaining = track.raw.get("remaining")
-            remaining_note = f"{remaining}s remaining" if remaining is not None else "currently playing"
-            parts.append(f"[NOW PLAYING: {remaining_note}]")
-        parts.append(f"queue_id={track.queue_id}")
-        synopsis_lines.append(" | ".join(parts))
-
-    user_prompt = textwrap.dedent(
-        f"""
-        Elegí cuál de las siguientes canciones merece una historia corta para la radio.
-        Respondé con JSON (sin texto adicional) con el formato:
-        {{"queue_id": "ID", "reason": "breve frase"}}
-
-        Canciones:
-        {chr(10).join(synopsis_lines)}
-        """
-    ).strip()
-
-    response_text = openai_text_completion(
-        prompt=user_prompt,
-        system_prompt="Sos un productor de radio argentino. Elegí solo una canción y devolvé JSON válido.",
-        model=model,
-    )
-
-    try:
-        payload = json.loads(response_text)
-        chosen_queue_id = payload.get("queue_id")
-    except json.JSONDecodeError:
-        chosen_queue_id = None
-
-    if not chosen_queue_id:
-        # fallback: search for first matching mention
-        lower_text = response_text.lower()
-        for track in upcoming:
-            if track.queue_id.lower() in lower_text:
-                chosen_queue_id = track.queue_id
-                break
-            descriptor = f"{track.artist.lower()} - {track.title.lower()}"
-            if descriptor in lower_text:
-                chosen_queue_id = track.queue_id
-                break
-
-    if not chosen_queue_id:
-        raise RuntimeError(
-            f"OpenAI response did not include a recognizable queue ID. Raw response: {response_text}"
-        )
-
-    for track in upcoming:
-        if track.queue_id == chosen_queue_id:
-            return track
-
-    raise RuntimeError(
-        f"Selected queue ID {chosen_queue_id} not found in upcoming list."
-    )
-
-
 def cleanup_story_text(raw: str) -> str:
     """Strip URLs, Markdown link remnants, and reference markers from generated copy."""
     text = re.sub(r"\[([^\]]+)\]\(\s*https?://[^\)]+\)", r"\1", raw)
@@ -413,11 +344,9 @@ def synthesize_story_audio(
     for key, value in delivery_replacements.items():
         instructions = instructions.replace(f"{{{{{key}}}}}", value)
 
-    openai_speech(
+    synthesize_speech(
         text=story_text,
         outfile=str(outfile),
-        model="gpt-4o-mini-tts",
-        voice="ash",
         instructions=instructions,
     )
 
@@ -784,37 +713,14 @@ def run(args: argparse.Namespace) -> None:
     if not upcoming_tracks and current_track_candidate is None:
         raise RuntimeError("No upcoming tracks found in station queue.")
 
-    selection_pool: List[UpcomingTrack] = []
     if current_track_candidate is not None:
-        selection_pool.append(current_track_candidate)
-
-    remaining_slots = args.selection_count - len(selection_pool)
-    if remaining_slots > 0:
-        selection_pool.extend(upcoming_tracks[:remaining_slots])
-    elif len(selection_pool) > args.selection_count:
-        selection_pool = selection_pool[: args.selection_count]
-
-    if not selection_pool:
+        selected_track = current_track_candidate
+        print("Using the currently playing song for the story selection.")
+    elif upcoming_tracks:
+        selected_track = upcoming_tracks[0]
+        print("Current song is not eligible; using the next queued song.")
+    else:
         raise RuntimeError("No tracks available to choose from.")
-
-    eligible_selection_pool: List[UpcomingTrack] = []
-    for track in selection_pool:
-        next_track_candidate = find_following_track(
-            track, current_track_candidate, upcoming_tracks
-        )
-        if next_track_candidate is not None:
-            eligible_selection_pool.append(track)
-        else:
-            print(
-                f"Skipping '{track.artist} - {track.title}' because there is no known song queued to follow it."
-            )
-
-    if not eligible_selection_pool:
-        raise RuntimeError(
-            "No eligible tracks with a known following song are available for story injection."
-        )
-
-    selected_track = select_song_with_ai(eligible_selection_pool)
     print(
         f"Selected upcoming song: {selected_track.artist} - {selected_track.title} (queue_id={selected_track.queue_id})"
     )
@@ -982,12 +888,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(
-        "--selection-count",
-        type=int,
-        default=3,
-        help="Number of upcoming songs to consider when choosing via OpenAI.",
-    )
-    parser.add_argument(
         "--min-listeners",
         type=int,
         default=1,
@@ -1024,8 +924,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--current-min-remaining",
         type=int,
-        default=75,
-        help="Include the current song in selection only if it has at least this many seconds remaining (default: %(default)s).",
+        default=60,
+        help="Use the current song only if it has at least this many seconds remaining (default: %(default)s).",
     )
     parser.add_argument(
         "--keep-local-days",

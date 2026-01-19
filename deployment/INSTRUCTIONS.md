@@ -93,6 +93,5 @@ Add a line to run the script periodically (e.g., every hour).
 ### Common Flags
 
 -   `--station <shortcode>`: Target station (default: `neuralcast`).
--   `--selection-count <n>`: Number of upcoming songs to consider (default: `3`).
 -   `--min-listeners <n>`: Minimum listeners required to run (default: `1`).
 -   `--dry-run`: Generate files locally but do not upload to AzuraCast.
