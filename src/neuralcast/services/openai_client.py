@@ -21,6 +21,7 @@ _GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 _GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
 _DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
+_DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
 
 
 def get_openai_client() -> openai.OpenAI:
@@ -213,6 +214,27 @@ def gemini_speech(
     _write_pcm_audio_file(outfile, data)
 
 
+def gemini_text_completion(prompt: str, model: Optional[str] = None) -> str:
+    client = get_gemini_client()
+    try:
+        from google.genai import types
+    except ImportError as exc:
+        raise RuntimeError(
+            "Gemini client is not installed. Install with: pip install google-genai"
+        ) from exc
+
+    grounding_tool = types.Tool(google_search=types.GoogleSearch())
+    config = types.GenerateContentConfig(tools=[grounding_tool])
+    response = client.models.generate_content(
+        model=(model or _DEFAULT_GEMINI_TEXT_MODEL),
+        contents=prompt,
+        config=config,
+    )
+    if not response or not response.text:
+        raise RuntimeError("Gemini did not return any text for the story prompt.")
+    return response.text
+
+
 def synthesize_speech(
     text: str,
     outfile: str,
@@ -269,6 +291,7 @@ __all__ = [
     "openai_text_completion",
     "openai_speech",
     "gemini_speech",
+    "gemini_text_completion",
     "make_fun_fact",
     "synthesize_speech",
     "tts",

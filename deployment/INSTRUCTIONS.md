@@ -56,7 +56,7 @@ SSH into your VPS and perform the following steps:
     ```env
     AZURACAST_API_KEY=your_azuracast_key_here
     AZURACAST_BASE_URL=https://your-radio-url.com
-    OPENAI_API_KEY=your_openai_key_here
+    GEMINI_API_KEY=your_gemini_key_here
     ```
 
     *Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).*

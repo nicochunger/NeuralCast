@@ -22,7 +22,7 @@ from urllib3.exceptions import InsecureRequestWarning
 from neuralcast.config import ASSETS_ROOT
 from neuralcast.playlists.utils import sanitize_filename_component
 from neuralcast.services.openai_client import (
-    openai_text_completion,
+    gemini_text_completion,
     synthesize_speech,
 )
 from neuralcast.stories.variation import (
@@ -325,7 +325,7 @@ def generate_story_text(
     for key, value in variant_replacements.items():
         prompt = prompt.replace(f"{{{{{key}}}}}", value)
 
-    story = openai_text_completion(prompt=prompt, model="gpt-5-search-api")
+    story = gemini_text_completion(prompt=prompt)
     return cleanup_story_text(story)
 
 
