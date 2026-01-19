@@ -34,7 +34,6 @@ from neuralcast.playlists.utils import (
 )
 from neuralcast.services.openai_client import (
     make_fun_fact,
-    openai_speech,
     openai_text_completion,
     tts,
 )
