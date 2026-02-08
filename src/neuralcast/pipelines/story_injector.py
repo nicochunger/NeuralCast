@@ -1,63 +1,332 @@
-"""Generate and inject a narrated story after an upcoming AzuraCast track."""
+"""Dynamic AI host orchestrator that injects station voice segments into AzuraCast."""
 
 from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import datetime as dt
+import json
 import os
 import pathlib
+import random
 import re
 import shutil
+import subprocess
 import time
 import warnings
-from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence
+from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
 from requests import Response
 from urllib3.exceptions import InsecureRequestWarning
 
-from neuralcast.config import ASSETS_ROOT
+from neuralcast.config import ASSETS_ROOT, PROJECT_ROOT
 from neuralcast.playlists.utils import sanitize_filename_component
-from neuralcast.services.openai_client import (
-    gemini_text_completion,
-    synthesize_speech,
-)
-from neuralcast.stories.variation import (
-    DELIVERY_VARIANTS,
-    NARRATIVE_VARIANTS,
-    DeliveryVariant,
-    NarrativeVariant,
-    compute_story_seed,
-    iter_recent_ids,
-    load_style_history,
-    PREFERRED_PAIRINGS,
-    save_style_history,
-    select_variants_with_pairing,
-    update_style_history,
-)
+from neuralcast.services.openai_client import get_gemini_client, synthesize_speech
 
 STORY_ROOT = ASSETS_ROOT / "stories"
-STORY_PROMPT_PATH = STORY_ROOT / "story_prompt.md"
 TTS_INSTRUCTIONS_PATH = STORY_ROOT / "tts_story_instructions.md"
 STORY_OUTPUT_DIR = STORY_ROOT / "snippets"
-STYLE_HISTORY_PATH = STORY_ROOT / "style_history.json"
-STYLE_HISTORY_MAX_ENTRIES = 60
-NARRATIVE_AVOID_WINDOW = 3
-DELIVERY_AVOID_WINDOW = 3
+
+STATE_VERSION = 1
+STATE_FILENAME = "ai_host_orchestrator_state.json"
+LOCK_FILENAME = "ai_host_orchestrator.lock"
+LOCK_STALE_SECONDS = 10 * 60
+
+LEAD_TIME_SECONDS = 90
+SPEAK_DEADLINE_MINUTES = 45
+WAIT_RANGE_SONGS = (2, 5)
+NEWS_MAX_AGE_HOURS = 72
+NEWS_PREFERRED_MAX_AGE_HOURS = 48
+NEWS_DUPLICATE_WINDOW_DAYS = 7
+NEWS_DEDUP_MAX_ENTRIES = 50
+
+SYSTEM_TZ = ZoneInfo("Europe/Zurich")
+
+
+class Archetype(str, Enum):
+    BACK_SELL = "back_sell"
+    SYSTEM_CHECK = "system_check"
+    DEEP_DIVE = "deep_dive"
+    NEWS = "news"
+    ULTRA_MINIMAL = "ultra_minimal"
+
+
+ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
+    Archetype.BACK_SELL: (
+        "Minimalist",
+        "Connector",
+        "Fanatic",
+    ),
+    Archetype.SYSTEM_CHECK: (
+        "System Narrator",
+        "Existentialist",
+        "Data-Backed Weather",
+    ),
+}
+
+WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
+    Archetype.BACK_SELL: 0.55,
+    Archetype.SYSTEM_CHECK: 0.25,
+    Archetype.DEEP_DIVE: 0.10,
+    Archetype.NEWS: 0.10,
+}
+
+COOLDOWN_SECONDS: Dict[Archetype, int] = {
+    Archetype.BACK_SELL: 30 * 60,
+    Archetype.SYSTEM_CHECK: 30 * 60,
+    Archetype.DEEP_DIVE: 60 * 60,
+    Archetype.NEWS: 120 * 60,
+}
+
+TEMPERATURE_TOP_P_RANGES: Dict[
+    Archetype, Tuple[Tuple[float, float], Tuple[float, float]]
+] = {
+    Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
+    Archetype.SYSTEM_CHECK: ((0.8, 1.2), (0.85, 0.95)),
+    Archetype.DEEP_DIVE: ((1.0, 1.5), (0.9, 0.98)),
+    Archetype.NEWS: ((0.7, 1.1), (0.85, 0.95)),
+    Archetype.ULTRA_MINIMAL: ((0.3, 0.6), (0.7, 0.9)),
+}
+
+HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
+    Archetype.BACK_SELL: (
+        "Recién quedó flotando",
+        "Cierra perfecto",
+        "Quedó ese pulso en el aire",
+        "Eso acaba de pasar",
+        "Seguimos hilando",
+        "Se siente todavía en el cuerpo",
+        "Quedó una estela clara",
+        "Ese cierre abre otra puerta",
+        "Nos deja en un punto justo",
+        "La energía siguió corriendo",
+    ),
+    Archetype.SYSTEM_CHECK: (
+        "Chequeo rápido de sistema",
+        "La cadena sigue firme",
+        "El flujo viene sin fisuras",
+        "La mezcla respira pareja",
+        "Todo en fase y en movimiento",
+        "Control de pulso en marcha",
+        "La señal está sólida",
+        "El trayecto viene alineado",
+        "La curva sigue estable",
+        "Todo avanza con tracción",
+    ),
+    Archetype.DEEP_DIVE: (
+        "Hay un dato que vale oro",
+        "Si te quedás un minuto",
+        "Detrás de este tema",
+        "Vale abrir una capa más",
+        "Acá hay historia fina",
+        "Hay una punta interesante acá",
+        "Este tema guarda una clave",
+        "Si miramos un poco más de cerca",
+        "Hay contexto que cambia la escucha",
+        "Este detalle suma otra lectura",
+    ),
+    Archetype.NEWS: (
+        "Mini corte de actualidad",
+        "Antes de volver al tema",
+        "Rápido paneo de titulares",
+        "Flash breve y seguimos",
+        "Un vistazo y volvemos",
+        "Pulso informativo y regresamos",
+        "Corte corto de noticias",
+        "Actualidad en formato compacto",
+        "Titulares al vuelo",
+        "Resumen exprés y música",
+    ),
+    Archetype.ULTRA_MINIMAL: (
+        "Vamos directo",
+        "Sin desvíos",
+        "Seguimos ya",
+        "Corte mínimo",
+        "Todo al próximo tema",
+        "Paso corto y seguimos",
+        "Directo al siguiente track",
+        "Transición breve",
+        "Casi sin pausa",
+        "Seguimos en línea recta",
+    ),
+}
+
+NEWS_TOPICS: Tuple[str, ...] = (
+    "Tech/AI",
+    "Absurd/odd",
+    "Argentina (politics/general)",
+    "Switzerland (general)",
+    "Important global news",
+)
+
+BANNED_OPENERS: Tuple[str, ...] = (
+    "Alright folks",
+    "Hope you're having a great day",
+    "Bueno gente",
+    "Hola a todos",
+    "Querida audiencia",
+)
+
+GENERATION_RETRIES = 2
+GENERATION_RETRY_DELAYS = (2, 5)
+
+NEWS_OUTPUT_RE = re.compile(
+    r"\bSCRIPT\s*:\s*(?P<script>.*?)\bMETA\s*\(JSON\)\s*:\s*(?P<meta>\{.*\})\s*$",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+_HOST_CONSTITUTION = """You are the on-air host voice for an online music station. Your job is to add rhythm, taste, and connective tissue between tracks: brief commentary, transitions, occasional short features, and mood shaping.
+
+Core goals:
+1) Sound natural and varied across the broadcast.
+2) Prioritize the music and speak with purpose.
+3) Be interesting without inventing reality.
+
+Reality contract:
+- Do not claim physical body/location/studio presence or handling objects.
+- Do not claim listener interactions unless explicit data is provided.
+- Do not claim personal real-world experiences unless explicitly provided.
+- Do not claim real-time perception of listener environments.
+
+Allowed style:
+- Confident radio-host tone and pacing.
+- Metaphor/humor if non-factual.
+- Use only provided facts or approved search-backed facts.
+- No AI self-disclosure, no disclaimers.
+- Keep copy concise and specific.
+
+Output format:
+- Return only spoken script unless specifically asked for META JSON.
+- Spoken script must be Rioplatense Spanish (es-AR).
+"""
+
+_SCRIPT_STYLE_BASELINE = """Script writing baseline:
+- Write in Rioplatense Spanish (es-AR).
+- Sound natural, spontaneous, and live, not rehearsed.
+- Keep a human conversational rhythm with subtle colloquial touches.
+- Small filler words/hesitations are allowed only when they sound natural.
+- Avoid grandiloquent or overly poetic phrasing.
+- Do not include links, URLs, or citation markers like [1].
+- When the archetype allows it, acknowledge transition from the current song.
+- Always hand off to the next track naturally and clearly.
+- Respect the archetype's target length and structure from the active wrapper.
+"""
+
+WRAPPER_BACK_SELL = """You are generating a Back-sell & Bridge.
+
+Style:
+- Concise, clean, confident.
+- No filler greetings, no listener talk.
+- Mention current track and next track clearly.
+
+Mode by angle:
+- Minimalist: crisp facts only.
+- Connector: real musical/thematic link from provided metadata.
+- Fanatic: controlled hype, still concise.
+
+Deliver:
+- 2-4 sentences.
+- 35-55 words.
+- End with forward motion toward next song.
+
+Output only spoken script in es-AR.
+"""
+
+WRAPPER_SYSTEM_CHECK = """You are generating a System Check.
+
+Rules:
+- No physical surroundings.
+- You may reference mix/stream/queue momentum and music feeling.
+- Use selected angle.
+
+Deliver:
+- 3-6 sentences as one cohesive thought.
+- Mention current track OR next track.
+- 60-90 words.
+
+If angle is Data-Backed Weather, fetch current weather in Estavayer-le-Lac, Switzerland during generation.
+Output only spoken script in es-AR.
+"""
+
+WRAPPER_DEEP_DIVE = """You are generating a Deep Dive.
+
+Hard constraints:
+- Do not invent concrete facts.
+- Use search-backed context about current song/artist around release period.
+- If evidence is thin, keep it interpretive without fabricated specifics.
+- Ignore angle for this archetype.
+
+Deliver:
+- 150-220 words.
+- Structure: hook -> 2-3 compact points -> clean handoff to next track.
+
+Output only spoken script in es-AR.
+"""
+
+WRAPPER_NEWS = """You are generating a News Snippet.
+
+Input requirements:
+- Search online for fresh headlines no older than 72 hours.
+- Prefer <=48 hours when available.
+- Story count is {story_count} (1-2).
+- Topics are: {news_topics}
+- If no suitable headline exists, output exactly NO_SCRIPT.
+
+Rules:
+- Do not add details beyond verified reporting.
+- Reaction is allowed, fabricated facts are not.
+- Ignore angle for this archetype.
+
+Deliver:
+- 80-120 words per story.
+- End by bridging to next track.
+
+Output format:
+SCRIPT:
+<spoken copy in es-AR>
+
+META (JSON):
+{{
+  "story_count": 1,
+  "language": "es-AR",
+  "stories": [
+    {{
+      "topic": "...",
+      "headline": "...",
+      "source_url": "...",
+      "published_at": "ISO-8601 timestamp"
+    }}
+  ]
+}}
+"""
+
+WRAPPER_ULTRA_MINIMAL = """Generate an Ultra-Minimal Bridge.
+
+Rules:
+- One sentence only (8-14 words).
+- Must mention next track artist + title.
+- No metaphor, no jokes, no extra clauses.
+
+Output only spoken script in es-AR.
+"""
 
 
 @dataclass
-class UpcomingTrack:
+class QueueTrack:
     queue_id: str
     song_id: Optional[str]
     artist: str
     title: str
-    starts_at: Optional[dt.datetime]
     duration: Optional[int]
-    raw: Dict
+    raw: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -68,31 +337,184 @@ class StoryAssets:
     remote_path: str
 
 
-def extract_current_listeners(now_playing_payload: Dict) -> Optional[int]:
-    """Extract the current listener count from AzuraCast's now-playing payload."""
-    listener_fields: List[Optional[int]] = []
-    if isinstance(now_playing_payload, dict):
-        direct_listeners = now_playing_payload.get("listeners")
-        if isinstance(direct_listeners, dict):
-            listener_fields.append(direct_listeners.get("current"))
+@dataclass
+class TrackMetadata:
+    year: Optional[str] = None
+    genre: Optional[str] = None
+    album: Optional[str] = None
+    bpm: Optional[str] = None
+    mood_tags: Optional[str] = None
+    notes: Optional[str] = None
 
-        now_playing_block = now_playing_payload.get("now_playing")
-        if isinstance(now_playing_block, dict):
-            block_listeners = now_playing_block.get("listeners")
-            if isinstance(block_listeners, dict):
-                listener_fields.append(block_listeners.get("current"))
 
-    for candidate in listener_fields:
+@dataclass(frozen=True)
+class StationPersonality:
+    script_profile: str
+    tts_profile: str
+
+
+@dataclass
+class NewsStoryMeta:
+    topic: str
+    headline: str
+    source_url: str
+    published_at: Optional[str] = None
+
+
+@dataclass
+class NewsSegment:
+    script: str
+    story_count: int
+    stories: List[NewsStoryMeta]
+
+
+@dataclass
+class OrchestratorState:
+    state_version: int
+    last_seen_track_key: Optional[str]
+    last_seen_ts: Optional[float]
+    songs_since_last_spoken: int
+    songs_until_next_speak: int
+    next_speak_deadline_ts: float
+    last_spoken_track_key: Optional[str]
+    last_spoken_ts: Optional[float]
+    last_spoken_expected_end_ts: Optional[float]
+    cooldown_until: Dict[str, float]
+    recent_archetypes: List[str]
+    recent_hooks: List[str]
+    last_angle_by_archetype: Dict[str, str]
+    recent_news_dedup: List[Dict[str, Any]]
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload = {
+            "state_version": self.state_version,
+            "last_seen_track_key": self.last_seen_track_key,
+            "last_seen_ts": self.last_seen_ts,
+            "songs_since_last_spoken": self.songs_since_last_spoken,
+            "songs_until_next_speak": self.songs_until_next_speak,
+            "next_speak_deadline_ts": self.next_speak_deadline_ts,
+            "last_spoken_track_key": self.last_spoken_track_key,
+            "last_spoken_ts": self.last_spoken_ts,
+            "last_spoken_expected_end_ts": self.last_spoken_expected_end_ts,
+            "cooldown_until": self.cooldown_until,
+            "recent_archetypes": self.recent_archetypes,
+            "recent_hooks": self.recent_hooks,
+            "last_angle_by_archetype": self.last_angle_by_archetype,
+            "recent_news_dedup": self.recent_news_dedup,
+        }
+        return payload
+
+
+STATION_PERSONALITIES: Dict[str, StationPersonality] = {
+    "neuralcast": StationPersonality(
+        script_profile=(
+            "NeuralCast script profile: "
+            "tono natural, calmo y espontaneo, como alguien hablando en vivo desde estudio de radio. "
+            "Voz serena, madura, levemente nostalgica y autentica; no dramatizar ni sobreactuar. "
+            "En transiciones, sugerir que recien paso el tema con frases organicas como "
+            "'recien escuchamos' o 'eso fue', sin repetir formula siempre. "
+            "Cerrar de forma calida y no robotica presentando el proximo track. "
+            "Permitir micro-muletillas sutiles (bueno, viste, mira, no se) solo si salen naturales. "
+            "Sonar como conversacion real, con criterio musical y elegancia relajada."
+        ),
+        tts_profile=(""),
+    ),
+    "neuralforge": StationPersonality(
+        script_profile=(
+            "NeuralForge script profile: "
+            "mantener la naturalidad, espontaneidad y credibilidad conversacional del estilo base, "
+            "pero con energia un poco mas alta, enfoque firme y vibra metalera sutil. "
+            "El tono debe sentirse decidido y vivo, nunca caricaturesco ni gritado. "
+            "Usar frases mas compactas y activas, con empuje controlado y precision radial. "
+            "Permitir imagenes de voltaje, acero, impacto o ascenso solo cuando aporten color real. "
+            "Conservar transiciones humanas y claras hacia el siguiente tema, sin sonar teatral."
+        ),
+        tts_profile=(
+            "mantener voz natural y cercana con acento argentino cotidiano, "
+            "pero subir la energia y el impulso ritmico. "
+            "Cadencia dinamica, con presencia frontal y ataques suaves en palabras clave. "
+            "Color general metalero moderno, "
+            "Seguir sin dramatizar ni sobreactuar; energia contenida, precisa y elegante. "
+            "No gritar, no forzar aspereza artificial, no sonar teatral."
+        ),
+    ),
+}
+
+
+class StationLock:
+    """Station-scoped lockfile guard with stale lock recovery."""
+
+    def __init__(self, path: pathlib.Path, stale_seconds: int = LOCK_STALE_SECONDS):
+        self.path = path
+        self.stale_seconds = stale_seconds
+        self.acquired = False
+
+    def _read_lock_timestamp(self) -> Optional[float]:
+        if not self.path.exists():
+            return None
         try:
-            if candidate is not None:
-                return int(candidate)
-        except (TypeError, ValueError):
-            continue
-    return None
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+            ts_raw = payload.get("created_at")
+            if ts_raw is not None:
+                return float(ts_raw)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            return self.path.stat().st_mtime
+        except OSError:
+            return None
+
+    def acquire(self) -> bool:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        now_ts = time.time()
+        if self.path.exists():
+            lock_ts = self._read_lock_timestamp()
+            if lock_ts is not None and now_ts - lock_ts < self.stale_seconds:
+                age = int(now_ts - lock_ts)
+                print(
+                    f"Lockfile {self.path} is active ({age}s old); skipping this orchestrator cycle."
+                )
+                return False
+            print(f"Removing stale lockfile: {self.path}")
+            try:
+                self.path.unlink()
+            except FileNotFoundError:
+                pass
+
+        payload = {
+            "pid": os.getpid(),
+            "created_at": now_ts,
+            "created_at_iso": dt.datetime.fromtimestamp(
+                now_ts, tz=dt.timezone.utc
+            ).isoformat(),
+        }
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+        try:
+            fd = os.open(self.path, flags)
+        except FileExistsError:
+            print(
+                f"Another process created lockfile {self.path} concurrently; skipping this cycle."
+            )
+            return False
+
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+        self.acquired = True
+        return True
+
+    def release(self) -> None:
+        if not self.acquired:
+            return
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError:
+            print(f"Warning: failed to remove lockfile {self.path}")
+        self.acquired = False
 
 
 class AzuraCastClient:
-    """Thin AzuraCast API helper focused on queue manipulation."""
+    """Minimal AzuraCast API client used by the orchestrator."""
 
     def __init__(self, base_url: str, api_key: str, verify_tls: bool = False):
         self.base_url = base_url.rstrip("/")
@@ -106,7 +528,7 @@ class AzuraCastClient:
     def _build_url(self, path: str) -> str:
         return f"{self.base_url}/{path.lstrip('/')}"
 
-    def _request(self, method: str, path: str, **kwargs) -> Response:
+    def _request(self, method: str, path: str, **kwargs: Any) -> Response:
         kwargs.setdefault("timeout", 15)
         kwargs.setdefault("verify", self.verify_tls)
         response = self.session.request(
@@ -115,13 +537,13 @@ class AzuraCastClient:
         response.raise_for_status()
         return response
 
-    def get_stations(self) -> List[Dict]:
+    def get_stations(self) -> List[Dict[str, Any]]:
         return self._request("GET", "/api/stations").json()
 
-    def get_now_playing(self, station: str) -> Dict:
+    def get_now_playing(self, station: str) -> Dict[str, Any]:
         try:
             return self._request("GET", f"/api/nowplaying/{station}").json()
-        except requests.HTTPError as exc:  # fallback to aggregate endpoint
+        except requests.HTTPError as exc:
             if exc.response is not None and exc.response.status_code == 404:
                 payload = self._request("GET", "/api/nowplaying").json()
                 for station_payload in payload:
@@ -130,403 +552,1350 @@ class AzuraCastClient:
                         return station_payload
             raise
 
-    def get_upcoming_queue(self, station: str) -> List[Dict]:
+    def get_upcoming_queue(self, station: str) -> List[Dict[str, Any]]:
         payload = self._request("GET", f"/api/station/{station}/queue").json()
-        if isinstance(payload, dict) and "data" in payload:
-            data = payload.get("data") or []
-            return data if isinstance(data, list) else []
+        if isinstance(payload, dict) and isinstance(payload.get("data"), list):
+            return payload["data"]
         if isinstance(payload, list):
             return payload
         return []
 
     def upload_media(
         self, station: str, file_path: pathlib.Path, remote_path: Optional[str] = None
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         destination = remote_path or file_path.name
         payload = {
             "path": destination,
             "file": base64.b64encode(file_path.read_bytes()).decode("ascii"),
         }
-        try:
-            response = self._request(
-                "POST",
-                f"/api/station/{station}/files",
-                json=payload,
-            )
-        except requests.HTTPError as exc:
-            detail = ""
-            if exc.response is not None:
-                try:
-                    detail = exc.response.json()
-                except Exception:  # noqa: BLE001
-                    detail = exc.response.text
-            raise RuntimeError(
-                f"Failed to upload media {file_path.name} to station {station}: {detail}"
-            ) from exc
+        response = self._request("POST", f"/api/station/{station}/files", json=payload)
         return response.json()
 
-    def list_media_files(self, station: str) -> List[Dict]:
-        return self._request("GET", f"/api/station/{station}/files").json()
-
-    def delete_media_file(self, station: str, media_id: int) -> Dict:
-        return self._request("DELETE", f"/api/station/{station}/file/{media_id}").json()
-
-    def send_telnet_command(self, station_id: int, command: str) -> Dict:
+    def send_telnet_command(self, station_id: int, command: str) -> Dict[str, Any]:
         payload = {"command": command}
         response = self._request(
-            "PUT",
-            f"/api/admin/debug/station/{station_id}/telnet",
-            json=payload,
+            "PUT", f"/api/admin/debug/station/{station_id}/telnet", json=payload
         )
         return response.json()
 
+    def list_media_files(self, station: str) -> List[Dict[str, Any]]:
+        payload = self._request("GET", f"/api/station/{station}/files").json()
+        if isinstance(payload, list):
+            return payload
+        return []
 
-def parse_upcoming_queue(queue_payload: Sequence[Dict]) -> List[UpcomingTrack]:
-    parsed: List[UpcomingTrack] = []
-    for entry in queue_payload:
-        queue_id = entry.get("id") or entry.get("queue_id") or entry.get("unique_id")
+    def delete_media_file(self, station: str, media_id: int) -> Dict[str, Any]:
+        return self._request("DELETE", f"/api/station/{station}/file/{media_id}").json()
+
+
+def run_with_retries(
+    label: str,
+    func: Callable[[], Any],
+    retries: int = GENERATION_RETRIES,
+    delays: Sequence[int] = GENERATION_RETRY_DELAYS,
+) -> Any:
+    attempts = retries + 1
+    for idx in range(attempts):
+        try:
+            return func()
+        except Exception as exc:  # noqa: BLE001
+            if idx >= attempts - 1:
+                raise
+            delay = delays[idx] if idx < len(delays) else delays[-1]
+            print(
+                f"{label} failed (attempt {idx + 1}/{attempts}) with {type(exc).__name__}: {exc}. "
+                f"Retrying in {delay}s..."
+            )
+            time.sleep(delay)
+
+
+def station_state_paths(
+    station: str,
+) -> Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+    station_dir = resolve_station_dir(station)
+    metadata_dir = station_dir / "metadata"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    return station_dir, metadata_dir / STATE_FILENAME, metadata_dir / LOCK_FILENAME
+
+
+def resolve_station_dir(station: str) -> pathlib.Path:
+    direct = PROJECT_ROOT / station
+    if direct.exists():
+        return direct
+
+    lowered = station.lower()
+    for candidate in PROJECT_ROOT.iterdir():
+        if not candidate.is_dir():
+            continue
+        if candidate.name.lower() == lowered:
+            return candidate
+
+    # Fallback keeps behavior deterministic for new stations.
+    return direct
+
+
+def now_ts() -> float:
+    return time.time()
+
+
+def iso_utc(ts: float) -> str:
+    return dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc).isoformat()
+
+
+def normalize_component(value: str) -> str:
+    cleaned = (value or "").strip().lower()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned
+
+
+def track_key(artist: str, title: str) -> str:
+    return f"{normalize_component(artist)}|{normalize_component(title)}"
+
+
+def default_state(ts: float, rng: random.Random) -> OrchestratorState:
+    cooldown_until = {arch.value: 0.0 for arch in COOLDOWN_SECONDS}
+    return OrchestratorState(
+        state_version=STATE_VERSION,
+        last_seen_track_key=None,
+        last_seen_ts=None,
+        songs_since_last_spoken=0,
+        songs_until_next_speak=rng.randint(*WAIT_RANGE_SONGS),
+        next_speak_deadline_ts=ts + SPEAK_DEADLINE_MINUTES * 60,
+        last_spoken_track_key=None,
+        last_spoken_ts=None,
+        last_spoken_expected_end_ts=None,
+        cooldown_until=cooldown_until,
+        recent_archetypes=[],
+        recent_hooks=[],
+        last_angle_by_archetype={},
+        recent_news_dedup=[],
+    )
+
+
+def migrate_state(
+    raw: Mapping[str, Any], ts: float, rng: random.Random
+) -> OrchestratorState:
+    state = default_state(ts, rng)
+
+    def _as_float(value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _as_int(value: Any, fallback: int) -> int:
+        try:
+            candidate = int(value)
+        except (TypeError, ValueError):
+            return fallback
+        return candidate
+
+    if not isinstance(raw, Mapping):
+        return state
+
+    state.last_seen_track_key = raw.get("last_seen_track_key") or None
+    state.last_seen_ts = _as_float(raw.get("last_seen_ts"))
+    state.songs_since_last_spoken = max(
+        0, _as_int(raw.get("songs_since_last_spoken"), state.songs_since_last_spoken)
+    )
+    state.songs_until_next_speak = min(
+        WAIT_RANGE_SONGS[1],
+        max(
+            WAIT_RANGE_SONGS[0],
+            _as_int(raw.get("songs_until_next_speak"), state.songs_until_next_speak),
+        ),
+    )
+
+    deadline_candidate = _as_float(raw.get("next_speak_deadline_ts"))
+    if deadline_candidate is not None:
+        state.next_speak_deadline_ts = deadline_candidate
+
+    state.last_spoken_track_key = raw.get("last_spoken_track_key") or None
+    state.last_spoken_ts = _as_float(raw.get("last_spoken_ts"))
+    state.last_spoken_expected_end_ts = _as_float(
+        raw.get("last_spoken_expected_end_ts")
+    )
+
+    cooldown_raw = raw.get("cooldown_until")
+    if isinstance(cooldown_raw, Mapping):
+        for arch in COOLDOWN_SECONDS:
+            value = cooldown_raw.get(arch.value)
+            parsed = _as_float(value)
+            if parsed is not None:
+                state.cooldown_until[arch.value] = parsed
+
+    recent_archetypes = raw.get("recent_archetypes")
+    if isinstance(recent_archetypes, list):
+        state.recent_archetypes = [str(item) for item in recent_archetypes if item][:1]
+
+    recent_hooks = raw.get("recent_hooks")
+    if isinstance(recent_hooks, list):
+        state.recent_hooks = [str(item) for item in recent_hooks if item][:1]
+
+    last_angle = raw.get("last_angle_by_archetype")
+    if isinstance(last_angle, Mapping):
+        state.last_angle_by_archetype = {
+            str(k): str(v) for k, v in last_angle.items() if k and v
+        }
+
+    recent_news = raw.get("recent_news_dedup")
+    if isinstance(recent_news, list):
+        normalized_entries: List[Dict[str, Any]] = []
+        for entry in recent_news:
+            if not isinstance(entry, Mapping):
+                continue
+            key = str(entry.get("key") or "").strip()
+            ts_val = _as_float(entry.get("ts"))
+            if not key or ts_val is None:
+                continue
+            normalized_entries.append(
+                {
+                    "key": key,
+                    "ts": ts_val,
+                    "topic": str(entry.get("topic") or "").strip(),
+                    "headline": str(entry.get("headline") or "").strip(),
+                    "source_domain": str(entry.get("source_domain") or "").strip(),
+                }
+            )
+        state.recent_news_dedup = normalized_entries[-NEWS_DEDUP_MAX_ENTRIES:]
+
+    state.state_version = STATE_VERSION
+    return state
+
+
+def load_state(
+    state_path: pathlib.Path, ts: float, rng: random.Random
+) -> OrchestratorState:
+    if not state_path.exists():
+        return default_state(ts, rng)
+
+    try:
+        raw = json.loads(state_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        suffix = dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc).strftime(
+            "%Y%m%dT%H%M%SZ"
+        )
+        corrupt_path = state_path.with_name(
+            f"ai_host_orchestrator_state.corrupt.{suffix}.json"
+        )
+        shutil.move(state_path, corrupt_path)
+        print(
+            f"State file was invalid JSON. Moved to {corrupt_path} and reinitialized."
+        )
+        return default_state(ts, rng)
+
+    return migrate_state(raw if isinstance(raw, Mapping) else {}, ts, rng)
+
+
+def save_state_atomic(state_path: pathlib.Path, state: OrchestratorState) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = state_path.with_suffix(state_path.suffix + ".tmp")
+    tmp_path.write_text(
+        json.dumps(state.to_dict(), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    tmp_path.replace(state_path)
+
+
+def parse_queue_tracks(payload: Sequence[Dict[str, Any]]) -> List[QueueTrack]:
+    tracks: List[QueueTrack] = []
+    for idx, entry in enumerate(payload):
         song = entry.get("song") or {}
         artist = song.get("artist") or entry.get("artist") or ""
         title = song.get("title") or entry.get("title") or ""
-        song_id = song.get("id") or entry.get("song_id")
-
-        starts_at_raw = (
-            entry.get("play_at") or entry.get("played_at") or entry.get("cued_at")
-        )
-        starts_at = None
-        if isinstance(starts_at_raw, (int, float)):
-            starts_at = dt.datetime.fromtimestamp(starts_at_raw, tz=dt.timezone.utc)
-        elif isinstance(starts_at_raw, str):
-            try:
-                starts_at = dt.datetime.fromisoformat(
-                    starts_at_raw.replace("Z", "+00:00")
-                )
-            except ValueError:
-                starts_at = None
-
-        duration = None
-        if "duration" in entry:
-            try:
-                duration = int(entry["duration"])
-            except (TypeError, ValueError):
-                duration = None
-        elif "length" in entry:
-            try:
-                duration = int(entry["length"])
-            except (TypeError, ValueError):
-                duration = None
-
-        if not queue_id:
-            fallback_candidates = [
-                song_id,
-                entry.get("media_id"),
-                entry.get("played_at"),
-                entry.get("cued_at"),
-            ]
-            for candidate in fallback_candidates:
-                if candidate:
-                    queue_id = str(candidate)
-                    break
-        if not queue_id:
-            queue_id = f"entry-{len(parsed)}"
-
-        if not title:
+        if not str(title).strip():
             continue
 
-        parsed.append(
-            UpcomingTrack(
-                queue_id=queue_id,
-                song_id=song_id,
-                artist=artist,
-                title=title,
-                starts_at=starts_at,
+        duration_raw = entry.get("duration", entry.get("length"))
+        duration: Optional[int] = None
+        if duration_raw is not None:
+            try:
+                duration = int(duration_raw)
+            except (TypeError, ValueError):
+                duration = None
+
+        queue_id = (
+            entry.get("id")
+            or entry.get("queue_id")
+            or entry.get("unique_id")
+            or song.get("id")
+            or f"queue-{idx}"
+        )
+
+        tracks.append(
+            QueueTrack(
+                queue_id=str(queue_id),
+                song_id=str(song.get("id")) if song.get("id") is not None else None,
+                artist=str(artist),
+                title=str(title),
                 duration=duration,
-                raw=entry,
+                raw=dict(entry),
             )
         )
-    return parsed
+    return tracks
 
 
-def tracks_equal(a: UpcomingTrack, b: UpcomingTrack) -> bool:
-    if a.queue_id and b.queue_id and a.queue_id == b.queue_id:
-        return True
+def extract_current_track(
+    now_playing_payload: Mapping[str, Any],
+) -> Tuple[QueueTrack, Optional[int]]:
+    now_block = now_playing_payload.get("now_playing") or {}
+    song = now_block.get("song") or {}
+    artist = str(song.get("artist") or "").strip()
+    title = str(song.get("title") or "").strip()
+    if not title:
+        raise RuntimeError("Now-playing payload did not include a current song title.")
+
+    duration: Optional[int] = None
+    for candidate in (now_block.get("duration"), song.get("length")):
+        if candidate is None:
+            continue
+        try:
+            duration = int(candidate)
+            break
+        except (TypeError, ValueError):
+            continue
+
+    remaining: Optional[int] = None
+    remaining_raw = now_block.get("remaining")
+    if remaining_raw is not None:
+        try:
+            remaining = int(remaining_raw)
+        except (TypeError, ValueError):
+            remaining = None
+
+    track = QueueTrack(
+        queue_id=str(song.get("id") or "now-playing"),
+        song_id=str(song.get("id")) if song.get("id") is not None else None,
+        artist=artist,
+        title=title,
+        duration=duration,
+        raw=dict(now_block),
+    )
+    return track, remaining
+
+
+def tracks_match(a: QueueTrack, b: QueueTrack) -> bool:
     if a.song_id and b.song_id and a.song_id == b.song_id:
         return True
-    return (a.artist or "").strip().lower() == (b.artist or "").strip().lower() and (
-        a.title or ""
-    ).strip().lower() == (b.title or "").strip().lower()
+    return track_key(a.artist, a.title) == track_key(b.artist, b.title)
 
 
-def find_following_track(
-    selected: UpcomingTrack,
-    current_track_candidate: Optional[UpcomingTrack],
-    upcoming_tracks: Sequence[UpcomingTrack],
-) -> Optional[UpcomingTrack]:
-    if current_track_candidate is not None and tracks_equal(
-        selected, current_track_candidate
+def extract_current_listeners(now_playing_payload: Mapping[str, Any]) -> Optional[int]:
+    listener_candidates: List[Any] = []
+    if isinstance(now_playing_payload.get("listeners"), Mapping):
+        listener_candidates.append(now_playing_payload["listeners"].get("current"))
+
+    now_block = now_playing_payload.get("now_playing")
+    if isinstance(now_block, Mapping) and isinstance(
+        now_block.get("listeners"), Mapping
     ):
-        return upcoming_tracks[0] if upcoming_tracks else None
+        listener_candidates.append(now_block["listeners"].get("current"))
 
-    for idx, track in enumerate(upcoming_tracks):
-        if tracks_equal(selected, track):
-            if idx + 1 < len(upcoming_tracks):
-                return upcoming_tracks[idx + 1]
-            return None
+    for candidate in listener_candidates:
+        try:
+            if candidate is not None:
+                return int(candidate)
+        except (TypeError, ValueError):
+            continue
     return None
 
 
-def cleanup_story_text(raw: str) -> str:
-    """Strip URLs, Markdown link remnants, and reference markers from generated copy."""
-    text = re.sub(r"\[([^\]]+)\]\(\s*https?://[^\)]+\)", r"\1", raw)
+def choose_next_track(
+    current: QueueTrack, queue_tracks: Sequence[QueueTrack]
+) -> Optional[QueueTrack]:
+    for candidate in queue_tracks:
+        if not tracks_match(candidate, current):
+            return candidate
+    return None
+
+
+def load_station_track_metadata(station_dir: pathlib.Path) -> Dict[str, TrackMetadata]:
+    metadata: Dict[str, TrackMetadata] = {}
+    playlists_dir = station_dir / "playlists"
+
+    if playlists_dir.exists():
+        for csv_path in sorted(playlists_dir.glob("*.csv")):
+            genre = csv_path.stem
+            try:
+                with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+                    reader = csv.DictReader(handle)
+                    for row in reader:
+                        artist = str(row.get("Artist") or "").strip()
+                        title = str(row.get("Title") or "").strip()
+                        if not artist or not title:
+                            continue
+
+                        key = track_key(artist, title)
+                        item = metadata.setdefault(key, TrackMetadata())
+                        year = str(row.get("Year") or "").strip()
+                        album = str(row.get("Album") or "").strip()
+                        if year and not item.year:
+                            item.year = year
+                        if album and not item.album:
+                            item.album = album
+                        if genre and not item.genre:
+                            item.genre = genre
+            except OSError:
+                continue
+
+    # Optional station metadata cache for New Releases.
+    metadata_entries_path = resolve_station_metadata_file(
+        station_dir, "New Releases.metadata.json"
+    )
+    if metadata_entries_path.exists():
+        try:
+            payload = json.loads(metadata_entries_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            payload = {}
+
+        entries = payload.get("entries") if isinstance(payload, Mapping) else None
+        if not isinstance(entries, Mapping):
+            entries = payload if isinstance(payload, Mapping) else {}
+
+        for key, details in entries.items():
+            if not isinstance(key, str):
+                continue
+            parts = key.split("|")
+            if len(parts) < 2:
+                continue
+            normalized_key = (
+                f"{normalize_component(parts[0])}|{normalize_component(parts[1])}"
+            )
+            item = metadata.setdefault(normalized_key, TrackMetadata())
+
+            if len(parts) >= 3 and parts[2] and not item.album:
+                item.album = parts[2]
+            if len(parts) >= 4 and parts[3] and not item.year:
+                item.year = parts[3]
+
+            if isinstance(details, Mapping):
+                notes: List[str] = []
+                album_type = str(details.get("AlbumType") or "").strip()
+                if album_type:
+                    notes.append(f"album_type={album_type}")
+                popularity = details.get("Popularity")
+                if popularity not in (None, ""):
+                    notes.append(f"popularity={popularity}")
+                release_date = str(details.get("ReleaseDate") or "").strip()
+                if release_date:
+                    notes.append(f"release_date={release_date}")
+                if notes and not item.notes:
+                    item.notes = ", ".join(notes)
+
+    return metadata
+
+
+def resolve_station_metadata_file(
+    station_dir: pathlib.Path, filename: str
+) -> pathlib.Path:
+    metadata_path = station_dir / "metadata" / filename
+    if metadata_path.exists():
+        return metadata_path
+    legacy_path = station_dir / "playlists" / filename
+    if legacy_path.exists():
+        return legacy_path
+    return metadata_path
+
+
+def should_speak_now(
+    state: OrchestratorState,
+    current_track_key: str,
+    ts: float,
+) -> Tuple[bool, str]:
+    if (
+        state.last_spoken_track_key
+        and current_track_key == state.last_spoken_track_key
+        and state.last_spoken_expected_end_ts is not None
+        and ts < state.last_spoken_expected_end_ts
+    ):
+        return False, "current track already consumed by previous successful segment"
+
+    by_song_count = state.songs_since_last_spoken >= state.songs_until_next_speak
+    by_deadline = ts >= state.next_speak_deadline_ts
+    if by_song_count or by_deadline:
+        reason = "song cadence reached" if by_song_count else "deadline exceeded"
+        return True, reason
+    return (
+        False,
+        f"wait gate not met (songs_since_last_spoken={state.songs_since_last_spoken}, songs_until_next_speak={state.songs_until_next_speak}, deadline={iso_utc(state.next_speak_deadline_ts)})",
+    )
+
+
+def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
+    legal: List[Archetype] = []
+    for archetype in (
+        Archetype.BACK_SELL,
+        Archetype.SYSTEM_CHECK,
+        Archetype.DEEP_DIVE,
+        Archetype.NEWS,
+    ):
+        cooldown_until = float(state.cooldown_until.get(archetype.value, 0.0))
+        if ts >= cooldown_until:
+            legal.append(archetype)
+    return legal
+
+
+def choose_weighted_archetype(
+    legal: Sequence[Archetype],
+    state: OrchestratorState,
+    rng: random.Random,
+) -> Archetype:
+    if not legal:
+        return Archetype.ULTRA_MINIMAL
+    selectable = list(legal)
+    if len(selectable) > 1 and state.recent_archetypes:
+        last = state.recent_archetypes[0]
+        filtered = [item for item in selectable if item.value != last]
+        if filtered:
+            selectable = filtered
+    if len(selectable) == 1:
+        return selectable[0]
+
+    weighted: List[Tuple[Archetype, float]] = []
+    for archetype in selectable:
+        weight = WEIGHTED_ARCHETYPES.get(archetype, 0.0)
+        if weight > 0:
+            weighted.append((archetype, weight))
+
+    total = sum(weight for _, weight in weighted)
+    if total <= 0:
+        return rng.choice(selectable)
+
+    threshold = rng.uniform(0, total)
+    cumulative = 0.0
+    for archetype, weight in weighted:
+        cumulative += weight
+        if threshold <= cumulative:
+            return archetype
+    return weighted[-1][0]
+
+
+def choose_angle(
+    archetype: Archetype, state: OrchestratorState, rng: random.Random
+) -> Optional[str]:
+    options = list(ANGLE_OPTIONS.get(archetype, ()))
+    if not options:
+        return None
+
+    last = state.last_angle_by_archetype.get(archetype.value)
+    if last and len(options) > 1:
+        options = [candidate for candidate in options if candidate != last] or options
+    return rng.choice(options)
+
+
+def choose_hook(
+    archetype: Archetype, state: OrchestratorState, rng: random.Random
+) -> str:
+    options = list(HOOKS_BY_ARCHETYPE.get(archetype, ("Seguimos",)))
+    if not options:
+        return "Seguimos"
+
+    recent = state.recent_hooks[0] if state.recent_hooks else None
+    if recent and len(options) > 1:
+        filtered = [hook for hook in options if hook != recent]
+        if filtered:
+            options = filtered
+    return rng.choice(options)
+
+
+def sample_generation_settings(
+    archetype: Archetype,
+    rng: random.Random,
+) -> Tuple[float, float]:
+    temp_range, top_p_range = TEMPERATURE_TOP_P_RANGES[archetype]
+    return (
+        rng.uniform(*temp_range),
+        rng.uniform(*top_p_range),
+    )
+
+
+def assemble_banned_list(state: OrchestratorState) -> List[str]:
+    banned = list(BANNED_OPENERS)
+    if state.recent_hooks:
+        banned.append(f"repeat previous hook: {state.recent_hooks[0]}")
+    if state.recent_archetypes:
+        banned.append(f"repeat previous archetype: {state.recent_archetypes[0]}")
+    for archetype, angle in state.last_angle_by_archetype.items():
+        banned.append(f"repeat previous angle for {archetype}: {angle}")
+
+    for entry in reversed(state.recent_news_dedup[-5:]):
+        headline = str(entry.get("headline") or "").strip()
+        if headline:
+            banned.append(f"recent headline already used: {headline}")
+    return banned
+
+
+def format_shared_input(
+    station_name: str,
+    personality: StationPersonality,
+    current: QueueTrack,
+    next_track: QueueTrack,
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    angle: Optional[str],
+    hook: str,
+    banned_list: Sequence[str],
+) -> str:
+    now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    def _compose_track(label: str, track: QueueTrack, meta: TrackMetadata) -> List[str]:
+        line = f"- {label}: {track.artist} — {track.title}"
+        year = (meta.year or "").strip()
+        genre = (meta.genre or "").strip()
+        if year or genre:
+            line += f" ({year or 'year n/d'}, {genre or 'genre n/d'})"
+        parts = [line]
+
+        optional: List[str] = []
+        if meta.bpm:
+            optional.append(f"bpm={meta.bpm}")
+        if meta.mood_tags:
+            optional.append(f"mood_tags={meta.mood_tags}")
+        if meta.album:
+            optional.append(f"album={meta.album}")
+        if meta.notes:
+            optional.append(f"notes={meta.notes}")
+        if optional:
+            parts.append(f"  Optional metadata: {', '.join(optional)}")
+        return parts
+
+    lines = [
+        "INPUT",
+        f"- Station: {station_name}",
+        f"- Station personality: {personality.script_profile}",
+        f"- Local time (Europe/Zurich): {now_local}",
+    ]
+    lines.extend(_compose_track("Current track", current, current_meta))
+    lines.extend(_compose_track("Next track", next_track, next_meta))
+    lines.extend(
+        [
+            "- Weather location for realtime fetch: Estavayer-le-Lac, Switzerland",
+            f"- Angle (sub-perspective): {angle or 'none'}",
+            f"- Hook seed (optional suggestion, not mandatory opener): {hook}",
+            "- Banned topics/phrases list:",
+        ]
+    )
+    if banned_list:
+        lines.extend([f"  - {item}" for item in banned_list])
+    else:
+        lines.append("  - none")
+    lines.append("- Output language for spoken script: es-AR")
+    return "\n".join(lines)
+
+
+def build_prompt(
+    archetype: Archetype,
+    station_name: str,
+    personality: StationPersonality,
+    current: QueueTrack,
+    next_track: QueueTrack,
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    angle: Optional[str],
+    hook: str,
+    banned_list: Sequence[str],
+    story_count: Optional[int] = None,
+    news_topics: Optional[Sequence[str]] = None,
+) -> str:
+    wrapper: str
+    if archetype == Archetype.BACK_SELL:
+        wrapper = WRAPPER_BACK_SELL
+    elif archetype == Archetype.SYSTEM_CHECK:
+        wrapper = WRAPPER_SYSTEM_CHECK
+    elif archetype == Archetype.DEEP_DIVE:
+        wrapper = WRAPPER_DEEP_DIVE
+    elif archetype == Archetype.NEWS:
+        wrapper = WRAPPER_NEWS.format(
+            story_count=story_count or 1,
+            news_topics=", ".join(news_topics or NEWS_TOPICS),
+        )
+    else:
+        wrapper = WRAPPER_ULTRA_MINIMAL
+
+    shared_input = format_shared_input(
+        station_name=station_name,
+        personality=personality,
+        current=current,
+        next_track=next_track,
+        current_meta=current_meta,
+        next_meta=next_meta,
+        angle=angle,
+        hook=hook,
+        banned_list=banned_list,
+    )
+
+    return f"{wrapper}\n\n{shared_input}"
+
+
+def gemini_generate_text(
+    prompt: str,
+    system_prompt: str,
+    temperature: float,
+    top_p: float,
+    with_search: bool,
+    model: str = "gemini-3-flash-preview",
+) -> str:
+    client = get_gemini_client()
+    try:
+        from google.genai import types
+    except ImportError as exc:  # pragma: no cover - environment guard
+        raise RuntimeError(
+            "Gemini client is not installed. Install with: pip install google-genai"
+        ) from exc
+
+    config_kwargs: Dict[str, Any] = {
+        "system_instruction": system_prompt,
+        "temperature": temperature,
+        "top_p": top_p,
+    }
+    if with_search:
+        config_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(**config_kwargs),
+    )
+    text = (response.text or "").strip()
+    if not text:
+        raise RuntimeError("Gemini returned an empty text response.")
+    return text
+
+
+def cleanup_generated_script(raw: str) -> str:
+    text = raw.strip()
+    text = re.sub(r"\[([^\]]+)\]\(\s*https?://[^\)]+\)", r"\1", text)
     text = re.sub(r"https?://\S+", "", text)
     text = re.sub(r"\[\s*\d+\s*\]", "", text)
-    text = re.sub(r"\[[^\]]+\]", "", text)
-    text = re.sub(
-        r"\(\s*(?:[a-z][a-z0-9-]*\.)+[a-z]{2,}\s*\)", "", text, flags=re.IGNORECASE
-    )
-    text = re.sub(r"\b(?:[a-z][a-z0-9-]*\.)+[a-z]{2,}\b", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\(\s*\)", "", text)
-    text = text.replace("((", "(").replace("))", ")")
-    cleaned_lines = [re.sub(r"\s{2,}", " ", line).strip() for line in text.splitlines()]
-    cleaned = "\n".join(line for line in cleaned_lines if line)
-    return cleaned.strip()
+    text = re.sub(r"\s{2,}", " ", text)
+    text = text.replace("```", "")
+    return text.strip()
 
 
-def generate_story_text(
-    artist: str,
-    title: str,
-    station: str,
-    next_artist: str,
-    next_title: str,
-    narrative_variant: NarrativeVariant,
+def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
+    text = raw.strip()
+    if text == "NO_SCRIPT":
+        return None, "NO_SCRIPT"
+
+    match = NEWS_OUTPUT_RE.search(text)
+    if not match:
+        return None, "invalid format"
+
+    script = cleanup_generated_script(match.group("script"))
+    meta_raw = match.group("meta").strip()
+
+    if meta_raw.startswith("```"):
+        meta_raw = re.sub(r"^```(?:json)?", "", meta_raw, flags=re.IGNORECASE).strip()
+        meta_raw = re.sub(r"```$", "", meta_raw).strip()
+
+    try:
+        meta = json.loads(meta_raw)
+    except json.JSONDecodeError:
+        return None, "invalid json"
+
+    if not isinstance(meta, Mapping):
+        return None, "meta must be object"
+
+    story_count = meta.get("story_count")
+    language = str(meta.get("language") or "").strip()
+    stories = meta.get("stories")
+
+    if story_count not in (1, 2):
+        return None, "story_count must be 1 or 2"
+    if language.lower() != "es-ar":
+        return None, "language must be es-AR"
+    if not isinstance(stories, list) or len(stories) != story_count:
+        return None, "stories must match story_count"
+
+    parsed_stories: List[NewsStoryMeta] = []
+    for entry in stories:
+        if not isinstance(entry, Mapping):
+            return None, "story entry must be object"
+        topic = str(entry.get("topic") or "").strip()
+        headline = str(entry.get("headline") or "").strip()
+        source_url = str(entry.get("source_url") or "").strip()
+        published_at = str(entry.get("published_at") or "").strip() or None
+
+        if not topic or not headline or not source_url:
+            return None, "stories require topic/headline/source_url"
+        parsed_stories.append(
+            NewsStoryMeta(
+                topic=topic,
+                headline=headline,
+                source_url=source_url,
+                published_at=published_at,
+            )
+        )
+
+    if not script:
+        return None, "script is empty"
+
+    return NewsSegment(
+        script=script, story_count=int(story_count), stories=parsed_stories
+    ), "ok"
+
+
+def attempt_news_repair(
+    original_output: str,
+    temperature: float,
+    top_p: float,
+    personality: StationPersonality,
 ) -> str:
-    template = STORY_PROMPT_PATH.read_text(encoding="utf-8")
-    prompt = template
-    replacements = {
-        "ARTIST": artist,
-        "TITLE": title,
-        "STATION": station,
-        "NEXT_ARTIST": next_artist,
-        "NEXT_TITLE": next_title,
-    }
-    for key, value in replacements.items():
-        prompt = prompt.replace(f"[{key}]", value)
-
-    variant_replacements = {
-        "INTRO_STYLE": narrative_variant.intro_instruction,
-        "BODY_STYLE": narrative_variant.body_instruction,
-        "OUTRO_STYLE": narrative_variant.outro_instruction,
-        "FILLER_WORDS": narrative_variant.filler_words,
-    }
-    for key, value in variant_replacements.items():
-        prompt = prompt.replace(f"{{{{{key}}}}}", value)
-
-    story = gemini_text_completion(prompt=prompt)
-    return cleanup_story_text(story)
-
-
-def synthesize_story_audio(
-    story_text: str,
-    outfile: pathlib.Path,
-    delivery_variant: DeliveryVariant,
-) -> None:
-    tts_template = TTS_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
-    instructions = tts_template
-    delivery_replacements = {
-        "DELIVERY_VARIATION": delivery_variant.delivery_instruction,
-        "PACE_ADJUSTMENT": delivery_variant.pace_instruction,
-        "DELIVERY_ADDITIONAL": delivery_variant.additional_prompts,
-    }
-    for key, value in delivery_replacements.items():
-        instructions = instructions.replace(f"{{{{{key}}}}}", value)
-
-    synthesize_speech(
-        text=story_text,
-        outfile=str(outfile),
-        instructions=instructions,
+    repair_prompt = (
+        "Reformat the following output so it exactly matches this contract. "
+        "Do not add new facts. If content cannot satisfy the contract, output NO_SCRIPT exactly.\n\n"
+        "Contract:\n"
+        "SCRIPT:\n<spoken copy in es-AR>\n\n"
+        "META (JSON):\n"
+        "{\n"
+        '  "story_count": 1 or 2,\n'
+        '  "language": "es-AR",\n'
+        '  "stories": [\n'
+        '    {"topic":"...","headline":"...","source_url":"...","published_at":"ISO-8601"}\n'
+        "  ]\n"
+        "}\n\n"
+        "Original output:\n"
+        f"{original_output}"
+    )
+    return gemini_generate_text(
+        prompt=repair_prompt,
+        system_prompt=build_system_prompt(personality),
+        temperature=temperature,
+        top_p=top_p,
+        with_search=False,
     )
 
 
-def write_story_text_file(story_text: str, outfile: pathlib.Path) -> None:
-    outfile.write_text(story_text + "\n", encoding="utf-8")
+def parse_timestamp(value: Optional[str]) -> Optional[dt.datetime]:
+    if not value:
+        return None
+
+    text = value.strip()
+    if not text:
+        return None
+
+    try:
+        parsed = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=dt.timezone.utc)
+        return parsed.astimezone(dt.timezone.utc)
+    except ValueError:
+        pass
+
+    try:
+        parsed = parsedate_to_datetime(text)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=dt.timezone.utc)
+        return parsed.astimezone(dt.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def source_domain(url: str) -> str:
+    parsed = urlparse(url)
+    domain = (parsed.netloc or "").lower()
+    domain = re.sub(r"^www\.", "", domain)
+    return domain
+
+
+def normalize_text_for_key(value: str) -> str:
+    normalized = re.sub(r"\s+", " ", (value or "").strip().lower())
+    return normalized
+
+
+def build_news_dedup_key(topic: str, headline: str, source_url: str) -> str:
+    return "|".join(
+        [
+            normalize_text_for_key(topic),
+            normalize_text_for_key(headline),
+            source_domain(source_url),
+        ]
+    )
+
+
+def prune_news_history(
+    entries: List[Dict[str, Any]], ts: float
+) -> List[Dict[str, Any]]:
+    min_ts = ts - NEWS_DUPLICATE_WINDOW_DAYS * 24 * 60 * 60
+    filtered = [entry for entry in entries if float(entry.get("ts", 0.0)) >= min_ts]
+    return filtered[-NEWS_DEDUP_MAX_ENTRIES:]
+
+
+def validate_news_freshness_and_dedup(
+    segment: NewsSegment,
+    state: OrchestratorState,
+    ts: float,
+) -> Tuple[bool, str]:
+    recent = prune_news_history(state.recent_news_dedup, ts)
+    recent_keys = {str(entry.get("key") or "") for entry in recent}
+
+    for story in segment.stories:
+        dedup_key = build_news_dedup_key(story.topic, story.headline, story.source_url)
+        if dedup_key in recent_keys:
+            return False, f"duplicate headline detected: {story.headline}"
+
+        published = parse_timestamp(story.published_at)
+        if published is None:
+            return False, f"missing/invalid published_at for headline: {story.headline}"
+
+        age_hours = (
+            dt.datetime.now(dt.timezone.utc) - published
+        ).total_seconds() / 3600.0
+        if age_hours > NEWS_MAX_AGE_HOURS:
+            return False, (
+                f"headline too old ({age_hours:.1f}h > {NEWS_MAX_AGE_HOURS}h): "
+                f"{story.headline}"
+            )
+
+    return True, "ok"
+
+
+def record_news_history(
+    state: OrchestratorState,
+    segment: NewsSegment,
+    ts: float,
+) -> None:
+    entries = prune_news_history(state.recent_news_dedup, ts)
+    for story in segment.stories:
+        entries.append(
+            {
+                "key": build_news_dedup_key(
+                    story.topic, story.headline, story.source_url
+                ),
+                "ts": ts,
+                "topic": story.topic,
+                "headline": story.headline,
+                "source_domain": source_domain(story.source_url),
+            }
+        )
+    state.recent_news_dedup = entries[-NEWS_DEDUP_MAX_ENTRIES:]
+
+
+def maybe_apply_speed_jitter(audio_path: pathlib.Path, rng: random.Random) -> None:
+    # Keep this subtle: only 50% of segments receive speed variation.
+    if rng.random() >= 0.5:
+        return
+
+    factor = rng.uniform(0.9, 1.1)
+    if abs(factor - 1.0) < 0.005:
+        return
+
+    jitter_path = audio_path.with_suffix(".jitter.mp3")
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(audio_path),
+            "-filter:a",
+            f"atempo={factor:.4f}",
+            str(jitter_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        print(f"Warning: failed to apply speed jitter ({factor:.3f}x): {detail}")
+        jitter_path.unlink(missing_ok=True)
+        return
+
+    jitter_path.replace(audio_path)
 
 
 def ensure_story_assets(
     station_slug: str,
-    artist: str,
-    title: str,
-    story_text: str,
-    delivery_variant: DeliveryVariant,
+    current_track: QueueTrack,
+    archetype: Archetype,
+    personality: StationPersonality,
+    script_text: str,
+    rng: random.Random,
 ) -> StoryAssets:
-    safe_artist = sanitize_filename_component(artist).replace("'", "")
-    safe_title = sanitize_filename_component(title).replace("'", "")
+    safe_artist = sanitize_filename_component(current_track.artist).replace("'", "")
+    safe_title = sanitize_filename_component(current_track.title).replace("'", "")
     timestamp = dt.datetime.now()
     date_str = timestamp.strftime("%Y-%m-%d")
     station_dir = STORY_OUTPUT_DIR / station_slug
     target_dir = station_dir / date_str
-    base_name = f"Story_{safe_artist}_{safe_title}_{timestamp.strftime('%H%M%S')}"
-    audio_path = target_dir / f"{base_name}.mp3"
-    text_path = target_dir / f"{base_name}.txt"
-
     target_dir.mkdir(parents=True, exist_ok=True)
-    write_story_text_file(story_text, text_path)
-    synthesize_story_audio(story_text, audio_path, delivery_variant)
+
+    base_name = f"AIHost_{archetype.value}_{safe_artist}_{safe_title}_{timestamp.strftime('%H%M%S')}"
+    text_path = target_dir / f"{base_name}.txt"
+    audio_path = target_dir / f"{base_name}.mp3"
+
+    text_path.write_text(script_text.strip() + "\n", encoding="utf-8")
+
+    tts_instructions = build_tts_instructions(personality)
+    run_with_retries(
+        label="TTS synthesis",
+        func=lambda: synthesize_speech(
+            text=script_text,
+            outfile=str(audio_path),
+            instructions=tts_instructions,
+            gemini_model="gemini-2.5-flash-preview-tts",
+        ),
+    )
+
+    maybe_apply_speed_jitter(audio_path, rng)
 
     return StoryAssets(
         text_path=text_path,
         audio_path=audio_path,
-        story_text=story_text,
+        story_text=script_text,
         remote_path="/".join(["AI Stories", date_str, f"{base_name}.mp3"]),
     )
 
 
-def derive_media_id(upload_response: Dict, file_name: str) -> Optional[str]:
-    if not upload_response:
-        return None
-    if "data" in upload_response:
-        data = upload_response["data"]
-        if isinstance(data, dict):
-            if "media" in data and isinstance(data["media"], dict):
-                media = data["media"]
-                return str(
-                    media.get("id")
-                    or media.get("media_id")
-                    or media.get("unique_id")
-                    or ""
-                )
-            for key in ("id", "media_id", "unique_id", "song_id"):
-                if key in data and data[key]:
-                    return str(data[key])
-        if isinstance(data, list):
-            for item in data:
-                candidate = derive_media_id(item, file_name)
-                if candidate:
-                    return candidate
-    for key in ("id", "media_id", "song_id", "unique_id"):
-        if key in upload_response and upload_response[key]:
-            return str(upload_response[key])
+def derive_station_display_name(
+    station_payload: Mapping[str, Any], fallback: str
+) -> str:
+    name = str(station_payload.get("name") or "").strip()
+    return name or fallback
 
-    meta = upload_response.get("meta") if isinstance(upload_response, dict) else None
-    if isinstance(meta, dict):
-        for key in ("id", "media_id", "unique_id"):
-            if key in meta and meta[key]:
-                return str(meta[key])
 
-    message = (
-        upload_response.get("message") if isinstance(upload_response, dict) else None
+def station_name_for_generation(station_slug: str, fallback_name: str) -> str:
+    normalized = (station_slug or "").strip().lower()
+    if normalized == "neuralcast":
+        return "NéuralCast"
+    if normalized == "neuralforge":
+        return "NéuralForsh"
+    return fallback_name
+
+
+def resolve_station_personality(station_slug: str) -> StationPersonality:
+    normalized = (station_slug or "").strip().lower()
+    if normalized in STATION_PERSONALITIES:
+        return STATION_PERSONALITIES[normalized]
+    return STATION_PERSONALITIES["neuralcast"]
+
+
+def build_system_prompt(personality: StationPersonality) -> str:
+    return (
+        f"{_HOST_CONSTITUTION.strip()}\n\n"
+        f"{_SCRIPT_STYLE_BASELINE.strip()}\n\n"
+        "Station personality profile:\n"
+        f"- {personality.script_profile}\n"
     )
-    if message:
-        print(f"Upload response message: {message}")
-    print(
-        f"Warning: Could not determine media ID from upload response; manual queueing may be required. "
-        f"Response keys: {list(upload_response.keys())}"
-    )
-    return None
 
 
-def escape_annotation_value(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
+def build_tts_instructions(personality: StationPersonality) -> str:
+    base = TTS_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
+    if not personality.tts_profile.strip():
+        return base
+    return f"{base}\n\nAjuste de personalidad de estacion:\n{personality.tts_profile}\n"
 
 
 def build_request_command(
-    media_full_path: str,
-    story_artist: str,
-    story_title: str,
-    duration: Optional[int],
+    media_full_path: str, title: str, duration: Optional[int]
 ) -> str:
+    artist = "NeuralCast AI"
+
+    def _escape(value: str) -> str:
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+
     annotations = [
-        f'title="{escape_annotation_value(story_title)}"',
-        f'artist="{escape_annotation_value(story_artist)}"',
+        f'title="{_escape(title)}"',
+        f'artist="{_escape(artist)}"',
     ]
     if duration is not None and duration > 0:
         annotations.append(f'duration="{duration}"')
-    annotation_block = ",".join(annotations)
-    return f"requests.push annotate:{annotation_block}:{media_full_path}"
+    return f"requests.push annotate:{','.join(annotations)}:{media_full_path}"
 
 
-def is_song_match(song_payload: Dict, track: UpcomingTrack) -> bool:
-    if not song_payload:
-        return False
-    payload_song_id = song_payload.get("id")
-    if payload_song_id and track.song_id and payload_song_id == track.song_id:
+def choose_station_payload(
+    stations: Sequence[Mapping[str, Any]], station: str
+) -> Mapping[str, Any]:
+    normalized = station.strip().lower()
+    for entry in stations:
+        shortcode = entry.get("shortcode") or entry.get("station_short_name")
+        if str(shortcode).strip().lower() == normalized:
+            return entry
+    available = ", ".join(str(entry.get("shortcode") or "?") for entry in stations)
+    raise RuntimeError(f"Station '{station}' not found. Available: {available}")
+
+
+def pick_news_topics(story_count: int, rng: random.Random) -> List[str]:
+    topics = list(NEWS_TOPICS)
+    if story_count <= 1:
+        return [rng.choice(topics)]
+
+    if len(topics) >= story_count:
+        return rng.sample(topics, k=story_count)
+    return [rng.choice(topics) for _ in range(story_count)]
+
+
+def should_enable_search(archetype: Archetype, angle: Optional[str]) -> bool:
+    if archetype in {Archetype.NEWS, Archetype.DEEP_DIVE}:
         return True
-    payload_artist = (song_payload.get("artist") or "").strip().lower()
-    payload_title = (song_payload.get("title") or "").strip().lower()
-    return (
-        payload_artist == (track.artist or "").strip().lower()
-        and payload_title == (track.title or "").strip().lower()
+    return archetype == Archetype.SYSTEM_CHECK and angle == "Data-Backed Weather"
+
+
+def generate_archetype_script(
+    archetype: Archetype,
+    station_name: str,
+    personality: StationPersonality,
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    angle: Optional[str],
+    hook: str,
+    banned_list: Sequence[str],
+    state: OrchestratorState,
+    rng: random.Random,
+    forced_mode: bool,
+) -> Tuple[str, Optional[NewsSegment], Archetype]:
+    """Generate script and optional news metadata.
+
+    Returns: (script, news_segment, archetype_used)
+    """
+
+    temperature, top_p = sample_generation_settings(archetype, rng)
+
+    if archetype != Archetype.NEWS:
+        prompt = build_prompt(
+            archetype=archetype,
+            station_name=station_name,
+            personality=personality,
+            current=current_track,
+            next_track=next_track,
+            current_meta=current_meta,
+            next_meta=next_meta,
+            angle=angle,
+            hook=hook,
+            banned_list=banned_list,
+        )
+
+        generated = run_with_retries(
+            label=f"Gemini generation ({archetype.value})",
+            func=lambda: gemini_generate_text(
+                prompt=prompt,
+                system_prompt=build_system_prompt(personality),
+                temperature=temperature,
+                top_p=top_p,
+                with_search=should_enable_search(archetype, angle),
+            ),
+        )
+        return cleanup_generated_script(generated), None, archetype
+
+    # News mode with validation, repair, and topic retries.
+    story_count = rng.randint(1, 2)
+    topic_attempts = 3
+    for topic_attempt in range(topic_attempts):
+        topics = pick_news_topics(story_count, rng)
+        prompt = build_prompt(
+            archetype=Archetype.NEWS,
+            station_name=station_name,
+            personality=personality,
+            current=current_track,
+            next_track=next_track,
+            current_meta=current_meta,
+            next_meta=next_meta,
+            angle=angle,
+            hook=hook,
+            banned_list=banned_list,
+            story_count=story_count,
+            news_topics=topics,
+        )
+
+        generated = run_with_retries(
+            label="Gemini generation (news)",
+            func=lambda: gemini_generate_text(
+                prompt=prompt,
+                system_prompt=build_system_prompt(personality),
+                temperature=temperature,
+                top_p=top_p,
+                with_search=True,
+            ),
+        )
+
+        segment, reason = parse_news_output(generated)
+        if reason == "NO_SCRIPT":
+            if forced_mode:
+                raise RuntimeError(
+                    "Forced news archetype returned NO_SCRIPT; failing as requested for test visibility."
+                )
+            print("News returned NO_SCRIPT; falling back to ultra_minimal.")
+            fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
+            fallback_script, _, fallback_arch = generate_archetype_script(
+                archetype=Archetype.ULTRA_MINIMAL,
+                station_name=station_name,
+                personality=personality,
+                current_track=current_track,
+                next_track=next_track,
+                current_meta=current_meta,
+                next_meta=next_meta,
+                angle=None,
+                hook=fallback_hook,
+                banned_list=banned_list,
+                state=state,
+                rng=rng,
+                forced_mode=False,
+            )
+            return fallback_script, None, fallback_arch
+
+        if segment is None:
+            print(f"News response parse failed ({reason}); attempting one repair pass.")
+            repaired = run_with_retries(
+                label="News format repair",
+                func=lambda: attempt_news_repair(
+                    generated,
+                    temperature=temperature,
+                    top_p=top_p,
+                    personality=personality,
+                ),
+            )
+            segment, reason = parse_news_output(repaired)
+            if segment is None:
+                if forced_mode:
+                    raise RuntimeError(
+                        f"Forced news archetype failed output contract after repair: {reason}"
+                    )
+                print(
+                    "News output remained invalid after repair; falling back to ultra_minimal."
+                )
+                fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
+                fallback_script, _, fallback_arch = generate_archetype_script(
+                    archetype=Archetype.ULTRA_MINIMAL,
+                    station_name=station_name,
+                    personality=personality,
+                    current_track=current_track,
+                    next_track=next_track,
+                    current_meta=current_meta,
+                    next_meta=next_meta,
+                    angle=None,
+                    hook=fallback_hook,
+                    banned_list=banned_list,
+                    state=state,
+                    rng=rng,
+                    forced_mode=False,
+                )
+                return fallback_script, None, fallback_arch
+
+        ok, freshness_reason = validate_news_freshness_and_dedup(
+            segment, state, now_ts()
+        )
+        if ok:
+            return cleanup_generated_script(segment.script), segment, Archetype.NEWS
+
+        print(
+            f"News freshness/dedup validation failed on attempt {topic_attempt + 1}/{topic_attempts}: {freshness_reason}"
+        )
+        if topic_attempt < topic_attempts - 1:
+            continue
+
+        if forced_mode:
+            raise RuntimeError(
+                "Forced news archetype failed freshness/dedup requirements after topic retries."
+            )
+
+    print("News exhausted topic retries; falling back to ultra_minimal.")
+    fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
+    fallback_script, _, fallback_arch = generate_archetype_script(
+        archetype=Archetype.ULTRA_MINIMAL,
+        station_name=station_name,
+        personality=personality,
+        current_track=current_track,
+        next_track=next_track,
+        current_meta=current_meta,
+        next_meta=next_meta,
+        angle=None,
+        hook=fallback_hook,
+        banned_list=banned_list,
+        state=state,
+        rng=rng,
+        forced_mode=False,
     )
+    return fallback_script, None, fallback_arch
 
 
-def extract_telnet_response(log_payload: Dict) -> Optional[str]:
-    logs = log_payload.get("logs")
+def apply_success_state_update(
+    state: OrchestratorState,
+    ts: float,
+    current_track_key: str,
+    current_remaining: Optional[int],
+    archetype_used: Archetype,
+    hook: str,
+    angle: Optional[str],
+    news_segment: Optional[NewsSegment],
+    rng: random.Random,
+) -> None:
+    state.last_spoken_track_key = current_track_key
+    state.last_spoken_ts = ts
+    state.last_spoken_expected_end_ts = ts + max(0, current_remaining or 0)
+
+    state.songs_since_last_spoken = 0
+    state.songs_until_next_speak = rng.randint(*WAIT_RANGE_SONGS)
+    state.next_speak_deadline_ts = ts + SPEAK_DEADLINE_MINUTES * 60
+
+    if archetype_used in COOLDOWN_SECONDS:
+        cooldown = COOLDOWN_SECONDS[archetype_used]
+        state.cooldown_until[archetype_used.value] = ts + cooldown
+
+    state.recent_archetypes = [archetype_used.value]
+    state.recent_hooks = [hook]
+
+    if angle and archetype_used in ANGLE_OPTIONS:
+        state.last_angle_by_archetype[archetype_used.value] = angle
+
+    state.recent_news_dedup = prune_news_history(state.recent_news_dedup, ts)
+    if news_segment is not None:
+        record_news_history(state, news_segment, ts)
+
+
+def update_track_seen_state(
+    state: OrchestratorState, current_track_key: str, ts: float
+) -> None:
+    if state.last_seen_track_key != current_track_key:
+        if state.last_seen_track_key is not None:
+            state.songs_since_last_spoken += 1
+        state.last_seen_track_key = current_track_key
+        state.last_seen_ts = ts
+
+
+def extract_upload_storage_path(upload_response: Mapping[str, Any]) -> Optional[str]:
+    path = upload_response.get("path")
+    if isinstance(path, str) and path.strip():
+        return path.strip()
+
+    data = upload_response.get("data")
+    if isinstance(data, Mapping):
+        for key in ("path", "storage_location"):
+            candidate = data.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+    return None
+
+
+def extract_upload_duration(upload_response: Mapping[str, Any]) -> Optional[int]:
+    candidates = [upload_response.get("length")]
+    if isinstance(upload_response.get("data"), Mapping):
+        candidates.append(upload_response["data"].get("length"))
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        try:
+            return int(float(candidate))
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def extract_telnet_request_id(response_payload: Mapping[str, Any]) -> Optional[str]:
+    logs = response_payload.get("logs")
     if not isinstance(logs, list):
         return None
     for entry in reversed(logs):
         context = entry.get("context")
-        if not isinstance(context, dict):
+        if not isinstance(context, Mapping):
             continue
-        response_lines = context.get("response")
-        if isinstance(response_lines, list) and response_lines:
-            return response_lines[-1]
+        lines = context.get("response")
+        if isinstance(lines, list) and lines:
+            return str(lines[-1])
     return None
-
-
-def wait_for_track_and_inject(
-    client: AzuraCastClient,
-    station_slug: str,
-    station_id: Optional[int],
-    target_track: UpcomingTrack,
-    telnet_command: str,
-    lead_seconds: int,
-    timeout_seconds: int,
-    poll_interval: int,
-) -> Optional[str]:
-    if station_id is None:
-        raise RuntimeError("Station ID is required to send telnet commands.")
-
-    deadline = dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=timeout_seconds)
-    track_detected = False
-    pushed_request_id: Optional[str] = None
-
-    if lead_seconds > 0:
-        print(
-            "Note: inject_lead_seconds is ignored; story will be queued as soon as the song starts."
-        )
-
-    print(
-        f"Waiting for target song '{target_track.artist} - {target_track.title}' to start playing..."
-    )
-    while dt.datetime.now(dt.timezone.utc) < deadline:
-        status = client.get_now_playing(station_slug)
-        now_payload = status.get("now_playing") or {}
-        song_payload = now_payload.get("song") or {}
-        remaining = now_payload.get("remaining")
-
-        if is_song_match(song_payload, target_track):
-            track_detected = True
-            if remaining is not None:
-                print(f"Target song playing; remaining time: {remaining}s")
-            print("Queuing story via requests.push...")
-            response = client.send_telnet_command(station_id, telnet_command)
-            pushed_request_id = extract_telnet_response(response)
-            break
-        elif track_detected:
-            print(
-                "Target song finished earlier than expected; queuing story immediately..."
-            )
-            response = client.send_telnet_command(station_id, telnet_command)
-            pushed_request_id = extract_telnet_response(response)
-            break
-
-        time.sleep(max(1, poll_interval))
-
-    if pushed_request_id is None and not track_detected:
-        raise RuntimeError(
-            f"Timed out waiting for track '{target_track.artist} - {target_track.title}' to play."
-        )
-
-    return pushed_request_id
 
 
 def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
@@ -538,48 +1907,17 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
         return
 
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=keep_days)
-    cutoff_date = cutoff.date()
-    date_dir_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
     for file_path in base_dir.rglob("*"):
-        if file_path.is_file() and file_path.suffix.lower() in {".mp3", ".txt"}:
-            try:
-                file_mtime = dt.datetime.fromtimestamp(
-                    file_path.stat().st_mtime, tz=dt.timezone.utc
-                )
-            except (OSError, ValueError):
-                continue
-            if file_mtime < cutoff:
-                try:
-                    file_path.unlink(missing_ok=True)
-                except OSError:
-                    print(f"Warning: failed to remove local story file {file_path}")
-
-    # Remove dated directories once they fall outside the retention window
-    for dir_path in base_dir.iterdir():
-        if dir_path.is_dir() and date_dir_pattern.match(dir_path.name):
-            try:
-                dir_date = dt.datetime.strptime(dir_path.name, "%Y-%m-%d").date()
-            except ValueError:
-                continue
-            if dir_date < cutoff_date:
-                try:
-                    shutil.rmtree(dir_path)
-                except OSError:
-                    print(f"Warning: failed to remove dated directory {dir_path}")
-
-    # Remove empty directories (but keep the station root)
-    for dir_path in sorted(
-        base_dir.rglob("*"), key=lambda p: len(str(p)), reverse=True
-    ):
-        if dir_path == base_dir or not dir_path.is_dir():
+        if not file_path.is_file() or file_path.suffix.lower() not in {".mp3", ".txt"}:
             continue
         try:
-            next(dir_path.iterdir())
-        except StopIteration:
-            try:
-                dir_path.rmdir()
-            except OSError:
-                pass
+            mtime = dt.datetime.fromtimestamp(
+                file_path.stat().st_mtime, tz=dt.timezone.utc
+            )
+        except OSError:
+            continue
+        if mtime < cutoff:
+            file_path.unlink(missing_ok=True)
 
 
 def cleanup_remote_stories(
@@ -590,8 +1928,6 @@ def cleanup_remote_stories(
 
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=keep_days)
     cutoff_ts = cutoff.timestamp()
-    prefix = "AI Stories/"
-
     try:
         media_files = client.list_media_files(station_slug)
     except Exception as exc:  # noqa: BLE001
@@ -599,21 +1935,17 @@ def cleanup_remote_stories(
         return
 
     for entry in media_files:
-        path = entry.get("path") or ""
-        if not path.startswith(prefix):
+        path = str(entry.get("path") or "")
+        if not path.startswith("AI Stories/"):
             continue
         mtime = entry.get("mtime")
         media_id = entry.get("id") or entry.get("media_id")
-        if media_id is None or mtime is None:
+        if mtime is None or media_id is None:
             continue
         try:
             if float(mtime) >= cutoff_ts:
                 continue
-        except (TypeError, ValueError):
-            continue
-        try:
             client.delete_media_file(station_slug, int(media_id))
-            print(f"Deleted remote story file '{path}' (media_id={media_id})")
         except Exception as exc:  # noqa: BLE001
             print(
                 f"Warning: failed to delete remote story file '{path}' (media_id={media_id}): {exc}"
@@ -626,257 +1958,242 @@ def run(args: argparse.Namespace) -> None:
     if not api_key:
         raise RuntimeError("AZURACAST_API_KEY is not set in the environment.")
 
-    base_url = args.base_url.rstrip("/")
-    client = AzuraCastClient(
-        base_url=base_url, api_key=api_key, verify_tls=args.verify_tls
-    )
-
-    stations = client.get_stations()
-    station = None
-    for station_entry in stations:
-        shortcode = station_entry.get("shortcode") or station_entry.get(
-            "station_short_name"
-        )
-        if shortcode == args.station:
-            station = station_entry
-            break
-    if station is None:
-        available = ", ".join(
-            station_entry.get("shortcode", "?") for station_entry in stations
-        )
-        raise RuntimeError(
-            f"Station '{args.station}' not found. Available: {available}"
-        )
-
-    print(f"Using station '{args.station}' ({station.get('name', 'unknown name')}).")
-
-    now_playing_payload = client.get_now_playing(args.station)
-    current_np_entry = now_playing_payload.get("now_playing") or {}
-    current_song = current_np_entry.get("song") or {}
-    current_remaining = current_np_entry.get("remaining")
-    current_duration = current_np_entry.get("duration")
-
-    print(
-        f"Now playing: {current_song.get('artist', 'Unknown Artist')} - {current_song.get('title', 'Unknown Title')}"
-    )
-
-    listener_count = extract_current_listeners(now_playing_payload)
-    if listener_count is None:
-        print("Current listeners: unavailable in now-playing payload.")
-    else:
-        print(f"Current listeners: {listener_count}")
-
-    if args.min_listeners > 0:
-        if listener_count is None:
-            print(
-                f"Unable to determine listener count and --min-listeners is set to {args.min_listeners}; skipping story injection."
-            )
-            return
-        if listener_count < args.min_listeners:
-            print(
-                f"Only {listener_count} listener(s) connected (< {args.min_listeners} required); skipping story injection."
-            )
-            return
-
-    current_track_candidate: Optional[UpcomingTrack] = None
-    if (
-        current_song
-        and current_song.get("artist")
-        and current_song.get("title")
-        and current_remaining is not None
-        and current_remaining >= args.current_min_remaining
-    ):
-        current_track_candidate = UpcomingTrack(
-            queue_id=current_song.get("id") or "now-playing",
-            song_id=current_song.get("id"),
-            artist=current_song.get("artist", ""),
-            title=current_song.get("title", ""),
-            starts_at=None,
-            duration=int(current_duration) if current_duration is not None else None,
-            raw={"source": "now_playing", "remaining": current_remaining},
-        )
-        print(
-            f"Including current track for selection (remaining {current_remaining}s)."
-        )
-
-    raw_queue = client.get_upcoming_queue(args.station)
-    upcoming_tracks = parse_upcoming_queue(raw_queue)
-    if not upcoming_tracks and current_track_candidate is None:
-        raise RuntimeError("No upcoming tracks found in station queue.")
-
-    if current_track_candidate is not None:
-        selected_track = current_track_candidate
-        print("Using the currently playing song for the story selection.")
-    elif upcoming_tracks:
-        selected_track = upcoming_tracks[0]
-        print("Current song is not eligible; using the next queued song.")
-    else:
-        raise RuntimeError("No tracks available to choose from.")
-    print(
-        f"Selected upcoming song: {selected_track.artist} - {selected_track.title} (queue_id={selected_track.queue_id})"
-    )
-    if selected_track.raw.get("source") == "now_playing":
-        print("Story will play immediately after the current song.")
-    else:
-        print("Story will play after the selected track.")
-
-    following_track = find_following_track(
-        selected_track, current_track_candidate, upcoming_tracks
-    )
-    if following_track is None:
-        raise RuntimeError(
-            "Failed to determine which song follows the selected track; cannot craft segue."
-        )
-    print(
-        f"Story will introduce the next song: {following_track.artist} - {following_track.title}."
-    )
-
-    station_display_name = (station.get("name") or args.station).strip()
-    if args.station.lower() == "neuralforge":
-        station_display_name = "NéuralForsh"
-
-    story_seed = compute_story_seed(
-        station=args.station,
-        artist=selected_track.artist,
-        title=selected_track.title,
-        next_artist=following_track.artist,
-        next_title=following_track.title,
-    )
-    history = load_style_history(STYLE_HISTORY_PATH)
-    narrative_recent = list(iter_recent_ids(history, args.station, "narrative_id"))
-    delivery_recent = list(iter_recent_ids(history, args.station, "delivery_id"))
-    (
-        narrative_variant,
-        delivery_variant,
-        chosen_pair,
-    ) = select_variants_with_pairing(
-        seed=story_seed,
-        narrative_variants=NARRATIVE_VARIANTS,
-        delivery_variants=DELIVERY_VARIANTS,
-        pairings=PREFERRED_PAIRINGS,
-        narrative_recent=narrative_recent,
-        delivery_recent=delivery_recent,
-        narrative_avoid_window=NARRATIVE_AVOID_WINDOW,
-        delivery_avoid_window=DELIVERY_AVOID_WINDOW,
-    )
-    if chosen_pair:
-        print(
-            "Paired styles selected: "
-            f"{narrative_variant.style_id} (narrative) + {delivery_variant.style_id} (delivery)"
-        )
-        print(f"Narrative description: {narrative_variant.description}")
-        print(f"Delivery description: {delivery_variant.description}")
-    else:
-        print(
-            f"Narrative style selected: {narrative_variant.style_id} — {narrative_variant.description}"
-        )
-        print(
-            f"Delivery style selected: {delivery_variant.style_id} — {delivery_variant.description}"
-        )
-
-    story_text = generate_story_text(
-        selected_track.artist,
-        selected_track.title,
-        station_display_name,
-        following_track.artist,
-        following_track.title,
-        narrative_variant,
-    )
-    assets = ensure_story_assets(
-        args.station,
-        selected_track.artist,
-        selected_track.title,
-        story_text,
-        delivery_variant,
-    )
-    print(f"Story text saved to {assets.text_path}")
-    print(f"Story audio saved to {assets.audio_path}")
-
-    if args.dry_run:
-        print(
-            "Dry-run mode enabled; skipping upload, queue injection, and style history update."
-        )
+    rng = random.Random()
+    cycle_ts = now_ts()
+    station_dir, state_path, lock_path = station_state_paths(args.station)
+    lock = StationLock(lock_path)
+    if not lock.acquire():
         return
 
-    upload_response = client.upload_media(
-        args.station,
-        assets.audio_path,
-        remote_path=assets.remote_path,
-    )
-    media_id = derive_media_id(upload_response, assets.audio_path.name)
-    if not media_id:
-        raise RuntimeError("Failed to determine media ID for uploaded story audio.")
-    print(f"Uploaded story MP3. Media ID: {media_id}")
+    state = load_state(state_path, cycle_ts, rng)
+    print(f"Loaded orchestrator state from {state_path}")
 
-    upload_path = (
-        upload_response.get("path") if isinstance(upload_response, dict) else None
-    )
-    if not upload_path:
-        raise RuntimeError(
-            "Upload response missing storage path; cannot schedule playback."
-        )
-
-    full_media_path = f"/var/azuracast/stations/{args.station}/media/{upload_path}"
-    story_duration = None
-    if isinstance(upload_response, dict):
-        length_val = upload_response.get("length")
-        if length_val is not None:
-            try:
-                story_duration = int(float(length_val))
-            except (TypeError, ValueError):
-                story_duration = None
-
-    telnet_command = build_request_command(
-        media_full_path=full_media_path,
-        story_artist="NeuralCast AI",
-        story_title=f"Historia: {selected_track.title}",
-        duration=story_duration,
-    )
     try:
-        request_id = wait_for_track_and_inject(
-            client=client,
-            station_slug=args.station,
-            station_id=station.get("id"),
-            target_track=selected_track,
-            telnet_command=telnet_command,
-            lead_seconds=args.inject_lead_seconds,
-            timeout_seconds=args.inject_timeout,
-            poll_interval=args.poll_interval,
+        client = AzuraCastClient(
+            base_url=args.base_url.rstrip("/"),
+            api_key=api_key,
+            verify_tls=args.verify_tls,
         )
-    except RuntimeError as exc:
-        print(f"Error while waiting to queue story: {exc}")
+
+        stations = run_with_retries("Fetch stations", client.get_stations)
+        station_payload = choose_station_payload(stations, args.station)
+        station_id_raw = station_payload.get("id")
+        station_id = int(station_id_raw) if station_id_raw is not None else None
+        if station_id is None:
+            raise RuntimeError(
+                "Station payload missing station ID; cannot queue media."
+            )
+
+        station_name = derive_station_display_name(
+            station_payload, fallback=args.station
+        )
+        generation_station_name = station_name_for_generation(
+            args.station, station_name
+        )
+        station_personality = resolve_station_personality(args.station)
         print(
-            "The story MP3 is uploaded; you can queue it manually via Liquidsoap telnet with:\n"
-            f"  {telnet_command}"
+            f"Station personality profile active for '{args.station}': {station_personality.script_profile}"
         )
-        raise
-    if request_id:
-        print(f"Story queued via requests.push with request ID {request_id}.")
-    else:
-        print("Story queued via requests.push.")
 
-    update_style_history(
-        history=history,
-        station=args.station,
-        seed=story_seed,
-        narrative_id=narrative_variant.style_id,
-        delivery_id=delivery_variant.style_id,
-        max_entries=STYLE_HISTORY_MAX_ENTRIES,
-    )
-    save_style_history(STYLE_HISTORY_PATH, history)
+        try:
+            now_playing_payload = run_with_retries(
+                "Fetch now-playing",
+                lambda: client.get_now_playing(args.station),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"Now-playing fetch failed after retries: {exc}. Skipping this cycle."
+            )
+            return
 
-    cleanup_local_stories(args.station, args.keep_local_days)
-    cleanup_remote_stories(client, args.station, args.keep_remote_days)
+        current_track, current_remaining = extract_current_track(now_playing_payload)
+        current_key = track_key(current_track.artist, current_track.title)
+        update_track_seen_state(state, current_key, now_ts())
+
+        print(f"Now playing: {current_track.artist} - {current_track.title}")
+
+        listener_count = extract_current_listeners(now_playing_payload)
+        if listener_count is None:
+            print("Current listeners: unavailable")
+        else:
+            print(f"Current listeners: {listener_count}")
+
+        if args.min_listeners > 0:
+            if listener_count is None:
+                print(
+                    f"Listener count unavailable and --min-listeners is {args.min_listeners}; skipping cycle."
+                )
+                return
+            if listener_count < args.min_listeners:
+                print(
+                    f"Only {listener_count} listener(s) connected (< {args.min_listeners}); skipping cycle."
+                )
+                return
+
+        if current_remaining is None:
+            print(
+                "Current track remaining time unavailable; skipping cycle for lead-time safety."
+            )
+            return
+        if current_remaining < LEAD_TIME_SECONDS:
+            print(
+                f"Current track has only {current_remaining}s remaining (< {LEAD_TIME_SECONDS}s); skipping cycle."
+            )
+            return
+
+        queue_payload = run_with_retries(
+            "Fetch queue",
+            lambda: client.get_upcoming_queue(args.station),
+        )
+        queue_tracks = parse_queue_tracks(queue_payload)
+        next_track = choose_next_track(current_track, queue_tracks)
+        if next_track is None:
+            print("No suitable next track found in queue; skipping cycle.")
+            return
+
+        print(f"Next track: {next_track.artist} - {next_track.title}")
+
+        forced_archetype = (
+            Archetype(args.force_archetype) if args.force_archetype else None
+        )
+
+        if forced_archetype is None:
+            eligible, wait_reason = should_speak_now(state, current_key, now_ts())
+            if not eligible:
+                print(f"Wait gate closed: {wait_reason}")
+                return
+            print(f"Wait gate open: {wait_reason}")
+        else:
+            print(
+                f"Force-archetype active: {forced_archetype.value}; bypassing wait gate."
+            )
+
+        if forced_archetype is not None:
+            selected_archetype = forced_archetype
+        else:
+            legal = legal_archetypes(state, now_ts())
+            if legal:
+                selected_archetype = choose_weighted_archetype(legal, state, rng)
+                print(f"Legal archetypes: {[item.value for item in legal]}")
+            else:
+                selected_archetype = Archetype.ULTRA_MINIMAL
+                print(
+                    "No legal archetypes available after cooldowns; using ultra_minimal."
+                )
+
+        angle = choose_angle(selected_archetype, state, rng)
+        hook = choose_hook(selected_archetype, state, rng)
+        banned_list = assemble_banned_list(state)
+
+        metadata_cache = load_station_track_metadata(station_dir)
+        current_meta = metadata_cache.get(current_key, TrackMetadata())
+        next_meta = metadata_cache.get(
+            track_key(next_track.artist, next_track.title), TrackMetadata()
+        )
+
+        print(
+            f"Generating archetype={selected_archetype.value}, angle={angle or 'none'}, hook='{hook}'."
+        )
+
+        script_text, news_segment, archetype_used = generate_archetype_script(
+            archetype=selected_archetype,
+            station_name=generation_station_name,
+            personality=station_personality,
+            current_track=current_track,
+            next_track=next_track,
+            current_meta=current_meta,
+            next_meta=next_meta,
+            angle=angle,
+            hook=hook,
+            banned_list=banned_list,
+            state=state,
+            rng=rng,
+            forced_mode=forced_archetype == Archetype.NEWS,
+        )
+
+        if not script_text.strip():
+            raise RuntimeError("Generated script was empty after cleanup.")
+
+        assets = ensure_story_assets(
+            station_slug=args.station,
+            current_track=current_track,
+            archetype=archetype_used,
+            personality=station_personality,
+            script_text=script_text,
+            rng=rng,
+        )
+        print(f"Script saved to {assets.text_path}")
+        print(f"Audio saved to {assets.audio_path}")
+
+        if args.dry_run:
+            print(
+                "Dry-run mode: skipping upload/injection; cadence and cooldowns are not consumed."
+            )
+            return
+
+        upload_response = run_with_retries(
+            "Upload media",
+            lambda: client.upload_media(
+                args.station,
+                assets.audio_path,
+                remote_path=assets.remote_path,
+            ),
+        )
+
+        upload_path = extract_upload_storage_path(upload_response)
+        if not upload_path:
+            raise RuntimeError("Upload response missing storage path.")
+
+        story_duration = extract_upload_duration(upload_response)
+        full_media_path = f"/var/azuracast/stations/{args.station}/media/{upload_path}"
+        telnet_command = build_request_command(
+            media_full_path=full_media_path,
+            title=f"AI Host: {current_track.title}",
+            duration=story_duration,
+        )
+
+        telnet_response = run_with_retries(
+            "Queue media via telnet",
+            lambda: client.send_telnet_command(station_id, telnet_command),
+        )
+        request_id = extract_telnet_request_id(telnet_response)
+        if request_id:
+            print(f"Queued via requests.push with request ID {request_id}.")
+        else:
+            print("Queued via requests.push.")
+
+        success_ts = now_ts()
+        apply_success_state_update(
+            state=state,
+            ts=success_ts,
+            current_track_key=current_key,
+            current_remaining=current_remaining,
+            archetype_used=archetype_used,
+            hook=hook,
+            angle=angle,
+            news_segment=news_segment,
+            rng=rng,
+        )
+
+        cleanup_local_stories(args.station, args.keep_local_days)
+        cleanup_remote_stories(client, args.station, args.keep_remote_days)
+
+    finally:
+        save_state_atomic(state_path, state)
+        lock.release()
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Generate a short story about an upcoming AzuraCast song and inject it immediately after that song."
+        description=(
+            "Dynamic AI host orchestrator for AzuraCast: stateful cadence, archetype "
+            "selection, and spoken segment injection."
+        )
     )
     parser.add_argument(
         "--base-url",
         default=os.getenv("AZURACAST_BASE_URL", "https://192.168.1.226"),
-        help="Base URL for the AzuraCast instance (default: %(default)s).",
+        help="Base URL for AzuraCast instance (default: %(default)s).",
     )
     parser.add_argument(
         "-s",
@@ -885,60 +2202,46 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Generate text/audio locally without upload or queue injection.",
+    )
+    parser.add_argument(
         "--min-listeners",
         type=int,
         default=1,
-        help="Require at least this many current listeners before generating or injecting a story (default: %(default)s; set to 0 to disable).",
+        help=(
+            "Require at least this many listeners before generation/injection "
+            "(default: %(default)s; set 0 to disable)."
+        ),
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Generate story files locally without uploading or queuing them.",
+        "--force-archetype",
+        choices=[archetype.value for archetype in Archetype],
+        help=(
+            "Testing override: bypass wait gate/cooldowns and force this archetype. "
+            "Still enforces listener and lead-time gates."
+        ),
     )
     parser.add_argument(
         "--verify-tls",
         action="store_true",
-        help="Verify TLS certificates when calling AzuraCast (disabled by default for local/self-signed certs).",
-    )
-    parser.add_argument(
-        "--inject-lead-seconds",
-        type=int,
-        default=15,
-        help="(Deprecated) Previously delayed queueing; currently ignored because the story queues as soon as the song starts.",
-    )
-    parser.add_argument(
-        "--inject-timeout",
-        type=int,
-        default=900,
-        help="Maximum seconds to wait for the selected song to start playing (default: %(default)s).",
-    )
-    parser.add_argument(
-        "--poll-interval",
-        type=int,
-        default=5,
-        help="Seconds between successive now-playing polls (default: %(default)s).",
-    )
-    parser.add_argument(
-        "--current-min-remaining",
-        type=int,
-        default=90,
-        help="Use the current song only if it has at least this many seconds remaining (default: %(default)s).",
+        help="Verify TLS certificates for AzuraCast requests.",
     )
     parser.add_argument(
         "--keep-local-days",
         type=int,
         default=3,
-        help="Retain locally generated story assets for this many days (default: %(default)s).",
+        help="Retain local AI story assets for this many days (default: %(default)s).",
     )
     parser.add_argument(
         "--keep-remote-days",
         type=int,
         default=7,
-        help="Retain uploaded story assets on AzuraCast for this many days (default: %(default)s).",
+        help="Retain remote AI story assets for this many days (default: %(default)s).",
     )
     return parser
 
 
 if __name__ == "__main__":
-    args = build_arg_parser().parse_args()
-    run(args)
+    run(build_arg_parser().parse_args())
