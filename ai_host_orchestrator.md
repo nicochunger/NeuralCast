@@ -178,7 +178,6 @@ Angles are chosen uniformly for angle-enabled archetypes (Back-sell and System C
 
 * **System Narrator**: “signal/mix/queue” presence; cool, grounded.
 * **Existentialist**: philosophical reflections tied to the music mood.
-* **Data-Backed Weather**: fetch current weather in Estavayer-le-Lac, Switzerland at generation time and make a short comment about it.
 
 ## 4.4 Back-sell & Bridge (Low value / High frequency)
 
@@ -256,7 +255,6 @@ This adds human feel even if text is similar.
 
    * **News:** roll 1–2 stories and topics; Gemini searches for fresh headlines (≤3 days). Capture headline + source URL for de-dup logging.
    * **Deep Dive:** Gemini searches for a story about the current song/artist.
-   * **Weather:** Gemini fetches current weather for Estavayer-le-Lac when the Data-Backed Weather angle is selected.
 9. **Prompt assembly**:
 
    * Constitution (system-level, stable)
@@ -342,7 +340,6 @@ These are the per-archetype “user prompt” blocks you send under the constitu
   Optional extra metadata: `{cur_bpm}`, `{cur_mood_tags}`, `{cur_album}`, `{cur_notes}`
 * Next track: `{next_artist} — {next_title}` ({next_year}, {next_genre})
   Optional: `{next_bpm}`, `{next_mood_tags}`
-* Weather location for realtime fetch: `Estavayer-le-Lac, Switzerland`
 * Angle (sub-perspective, when applicable): `{angle}`
 * Hook seed (pick one and start with it): `{hook}`
 * Banned topics/phrases list: `{banned_list}`
@@ -399,7 +396,6 @@ Based on `{angle}`, pick one:
 
 * System Narrator: “signal/mix/queue” presence, subtle and cool.
 * Existentialist: philosophical but grounded in the music (not the room, not the listener).
-* Data-Backed Weather: fetch current weather in Estavayer-le-Lac at generation time, then comment briefly.
 
 Deliver:
 
@@ -541,7 +537,6 @@ These are “good defaults” that prevent common failures.
 ## 9.2 Data legality rules
 
 * News generation must use headlines within the last 3 days (same day or previous day preferred); if none are found, return `NO_SCRIPT` and fallback to Ultra-Minimal.
-* Weather for the Data-Backed Weather angle is fetched in real time for Estavayer-le-Lac.
 * Deep Dive uses Gemini search for song/artist context; if nothing credible is found, stay interpretive.
 
 ## 9.3 Anti-repeat rules

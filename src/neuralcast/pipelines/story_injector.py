@@ -68,7 +68,6 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
     Archetype.SYSTEM_CHECK: (
         "System Narrator",
         "Existentialist",
-        "Data-Backed Weather",
     ),
 }
 
@@ -183,12 +182,13 @@ NEWS_OUTPUT_RE = re.compile(
     flags=re.IGNORECASE | re.DOTALL,
 )
 
-_HOST_CONSTITUTION = """You are the on-air host voice for an online music station. Your job is to add rhythm, taste, and connective tissue between tracks: brief commentary, transitions, occasional short features, and mood shaping.
+_HOST_CONSTITUTION_TEMPLATE = """You are the live on-air host of {station_name}. You guide listeners through the music, the pulse of the day, and the emotional flow of each set with warmth, taste, and personality.
 
 Core goals:
-1) Sound natural and varied across the broadcast.
-2) Prioritize the music and speak with purpose.
-3) Be interesting without inventing reality.
+1) Sound naturally human and varied across the broadcast.
+2) Prioritize the music and speak with clear intention.
+3) Add context and atmosphere without inventing reality.
+4) Make the listener feel accompanied in the moment.
 
 Reality contract:
 - Do not claim physical body/location/studio presence or handling objects.
@@ -197,7 +197,8 @@ Reality contract:
 - Do not claim real-time perception of listener environments.
 
 Allowed style:
-- Confident radio-host tone and pacing.
+- Confident radio-host tone with relaxed spontaneity.
+- Small reflections about the day/mood are welcome when generic and non-factual.
 - Metaphor/humor if non-factual.
 - Use only provided facts or approved search-backed facts.
 - No AI self-disclosure, no disclaimers.
@@ -209,23 +210,25 @@ Output format:
 """
 
 _SCRIPT_STYLE_BASELINE = """Script writing baseline:
-- Write in Rioplatense Spanish (es-AR).
-- Sound natural, spontaneous, and live, not rehearsed.
-- Keep a human conversational rhythm with subtle colloquial touches.
-- Small filler words/hesitations are allowed only when they sound natural.
-- Avoid grandiloquent or overly poetic phrasing.
-- Do not include links, URLs, or citation markers like [1].
-- When the archetype allows it, acknowledge transition from the current song.
-- Always hand off to the next track naturally and clearly.
-- Respect the archetype's target length and structure from the active wrapper.
+* The script **must be written in Spanish (Rioplatense)**.
+* Tone: natural, calm, spontaneous — like someone speaking live from a radio studio (think Aspen-style warmth), not reading a rehearsed script.
+* Voice: serene, mature, slightly nostalgic, authentic. Don’t dramatize or overact.
+* Because this goes out immediately after the song ends, acknowledge it — e.g. “recién escuchamos…”, “eso fue…”, “acabamos de escuchar…”. etc
+* Conclude naturally by previewing what's coming up next: "[NEXT_TITLE]" by [NEXT_ARTIST] (say it like a warm radio segue, not robotic).
+* Use natural filler words and small hesitations to sound human, but keep them subtle; they are optional, and if they do not fit, omit them. Example mix: “bueno…”, “viste…”, “no sé…”, “che…”, “mirá…”, “en realidad…”, “la verdad…”, “bah…”, “qué sé yo…”, “ponele…”, “como que…”, “te juro…”, “nada…”, short pauses, etc.
+* Avoid grandiloquent or poetic lines — it should sound like a simple, conversational recollection or anecdote about the song.
+* Length: brief — aim for roughly **150–250 words** so it fits into ~45–90 seconds on air.
+* Keep it spontaneous, with natural rhythm and small colloquial touches, nothing that sounds obviously scripted.
+* Do not include links, web addresses, or numeric reference markers like “[1]”.
+* Respect the archetype's target length and structure from the active wrapper.
 """
 
 WRAPPER_BACK_SELL = """You are generating a Back-sell & Bridge.
 
 Style:
 - Concise, clean, confident.
-- No filler greetings, no listener talk.
-- Mention current track and next track clearly.
+- Avoid canned greetings and slogan-like crowd calls.
+- Mention current track and next track in a natural spoken flow.
 
 Mode by angle:
 - Minimalist: crisp facts only.
@@ -234,7 +237,7 @@ Mode by angle:
 
 Deliver:
 - 2-4 sentences.
-- 35-55 words.
+- 35-65 words.
 - End with forward motion toward next song.
 
 Output only spoken script in es-AR.
@@ -245,18 +248,18 @@ WRAPPER_SYSTEM_CHECK = """You are generating a System Check.
 Rules:
 - No physical surroundings.
 - You may reference mix/stream/queue momentum and music feeling.
+- Keep it conversational, never like a technical status report.
 - Use selected angle.
 
 Deliver:
-- 3-6 sentences as one cohesive thought.
+- 2-5 sentences as one cohesive spoken thought.
 - Mention current track OR next track.
-- 60-90 words.
-
-If angle is Data-Backed Weather, fetch current weather in Estavayer-le-Lac, Switzerland during generation.
+- 55-95 words.
 Output only spoken script in es-AR.
 """
 
-WRAPPER_DEEP_DIVE = """You are generating a Deep Dive.
+WRAPPER_DEEP_DIVE = """You are generating a Deep Dive. A short story about the song, 
+or if the spceific song doesnt have an interesting story it can be about the artist at the time the song was released.
 
 Hard constraints:
 - Do not invent concrete facts.
@@ -267,6 +270,7 @@ Hard constraints:
 Deliver:
 - 150-220 words.
 - Structure: hook -> 2-3 compact points -> clean handoff to next track.
+- Make it sound narrated live, not like a written mini-essay.
 
 Output only spoken script in es-AR.
 """
@@ -429,14 +433,7 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
             "Permitir imagenes de voltaje, acero, impacto o ascenso solo cuando aporten color real. "
             "Conservar transiciones humanas y claras hacia el siguiente tema, sin sonar teatral."
         ),
-        tts_profile=(
-            "mantener voz natural y cercana con acento argentino cotidiano, "
-            "pero subir la energia y el impulso ritmico. "
-            "Cadencia dinamica, con presencia frontal y ataques suaves en palabras clave. "
-            "Color general metalero moderno, "
-            "Seguir sin dramatizar ni sobreactuar; energia contenida, precisa y elegante. "
-            "No gritar, no forzar aspereza artificial, no sonar teatral."
-        ),
+        tts_profile=(""),
     ),
 }
 
@@ -736,9 +733,20 @@ def migrate_state(
 
     last_angle = raw.get("last_angle_by_archetype")
     if isinstance(last_angle, Mapping):
-        state.last_angle_by_archetype = {
-            str(k): str(v) for k, v in last_angle.items() if k and v
-        }
+        normalized_angles: Dict[str, str] = {}
+        for key, value in last_angle.items():
+            if not key or not value:
+                continue
+            archetype_key = str(key)
+            angle_value = str(value)
+            try:
+                arch = Archetype(archetype_key)
+            except ValueError:
+                continue
+            valid_options = ANGLE_OPTIONS.get(arch, ())
+            if angle_value in valid_options:
+                normalized_angles[archetype_key] = angle_value
+        state.last_angle_by_archetype = normalized_angles
 
     recent_news = raw.get("recent_news_dedup")
     if isinstance(recent_news, list):
@@ -1171,7 +1179,6 @@ def format_shared_input(
     lines.extend(_compose_track("Next track", next_track, next_meta))
     lines.extend(
         [
-            "- Weather location for realtime fetch: Estavayer-le-Lac, Switzerland",
             f"- Angle (sub-perspective): {angle or 'none'}",
             f"- Hook seed (optional suggestion, not mandatory opener): {hook}",
             "- Banned topics/phrases list:",
@@ -1341,6 +1348,7 @@ def attempt_news_repair(
     original_output: str,
     temperature: float,
     top_p: float,
+    station_name: str,
     personality: StationPersonality,
 ) -> str:
     repair_prompt = (
@@ -1361,7 +1369,7 @@ def attempt_news_repair(
     )
     return gemini_generate_text(
         prompt=repair_prompt,
-        system_prompt=build_system_prompt(personality),
+        system_prompt=build_system_prompt(station_name, personality),
         temperature=temperature,
         top_p=top_p,
         with_search=False,
@@ -1572,9 +1580,9 @@ def resolve_station_personality(station_slug: str) -> StationPersonality:
     return STATION_PERSONALITIES["neuralcast"]
 
 
-def build_system_prompt(personality: StationPersonality) -> str:
+def build_system_prompt(station_name: str, personality: StationPersonality) -> str:
     return (
-        f"{_HOST_CONSTITUTION.strip()}\n\n"
+        f"{_HOST_CONSTITUTION_TEMPLATE.format(station_name=station_name).strip()}\n\n"
         f"{_SCRIPT_STYLE_BASELINE.strip()}\n\n"
         "Station personality profile:\n"
         f"- {personality.script_profile}\n"
@@ -1627,10 +1635,8 @@ def pick_news_topics(story_count: int, rng: random.Random) -> List[str]:
     return [rng.choice(topics) for _ in range(story_count)]
 
 
-def should_enable_search(archetype: Archetype, angle: Optional[str]) -> bool:
-    if archetype in {Archetype.NEWS, Archetype.DEEP_DIVE}:
-        return True
-    return archetype == Archetype.SYSTEM_CHECK and angle == "Data-Backed Weather"
+def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
+    return archetype in {Archetype.NEWS, Archetype.DEEP_DIVE}
 
 
 def generate_archetype_script(
@@ -1673,7 +1679,7 @@ def generate_archetype_script(
             label=f"Gemini generation ({archetype.value})",
             func=lambda: gemini_generate_text(
                 prompt=prompt,
-                system_prompt=build_system_prompt(personality),
+                system_prompt=build_system_prompt(station_name, personality),
                 temperature=temperature,
                 top_p=top_p,
                 with_search=should_enable_search(archetype, angle),
@@ -1705,7 +1711,7 @@ def generate_archetype_script(
             label="Gemini generation (news)",
             func=lambda: gemini_generate_text(
                 prompt=prompt,
-                system_prompt=build_system_prompt(personality),
+                system_prompt=build_system_prompt(station_name, personality),
                 temperature=temperature,
                 top_p=top_p,
                 with_search=True,
@@ -1745,6 +1751,7 @@ def generate_archetype_script(
                     generated,
                     temperature=temperature,
                     top_p=top_p,
+                    station_name=station_name,
                     personality=personality,
                 ),
             )
