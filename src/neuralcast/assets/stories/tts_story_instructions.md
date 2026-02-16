@@ -13,6 +13,7 @@ Nada suena ensayado.
 
 Ajustes específicos para esta historia:
 
-{{DELIVERY_VARIATION}}
-{{PACE_ADJUSTMENT}}
-{{DELIVERY_ADDITIONAL}}
+Toque matinal con energía contenida y ritmo dinámico.
+Que deje entrar un poquito más de brillo al mencionar el artista, como café de la mañana.
+Un ritmo apenas más ágil, con pausas cortas y marcadas para sostener claridad.
+Recordá que no se convierta en euforia: solo un entusiasmo suave y confiable.

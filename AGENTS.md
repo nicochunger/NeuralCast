@@ -13,6 +13,18 @@ Global storytelling assets now live under `src/neuralcast/assets/stories/`, whic
 - `zip -r deployment/deploy_story_injector.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"` rebuilds the VPS story injector bundle after code/prompt changes.
 - `python -m pip install pandas mutagen spotipy musicbrainzngs python-dotenv tqdm requests openai google-genai pydantic pillow` installs the Python dependencies used across the pipeline; document any other tools you introduce.
 
+## VPS Redeploy Procedure
+When asked to redeploy the story injector package to the VPS, always perform all three steps in order:
+
+1. Repackage locally:
+   - `zip -r deployment/deploy_story_injector.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"`
+2. Copy the package to the VPS:
+   - `scp deployment/deploy_story_injector.zip neuralvps:~/deploy_story_injector.zip`
+3. Extract it on the VPS (overwrite existing files in-place):
+   - `ssh neuralvps 'cd /root && unzip -o deploy_story_injector.zip -d radio_stories'`
+
+After extraction, verify the deployed `story_injector.py` timestamp or checksum in `/root/radio_stories/src/neuralcast/pipelines/story_injector.py` when needed.
+
 ## Station Metadata & Spotify Cache
 `update_new_releases.py` and `main.py` both rely on `<station>/metadata/New Releases.metadata.json` to store structured playlist metadata plus `<station>/metadata/ArtistIDs.json` for cached Spotify artist IDs. The helpers automatically fall back to legacy copies under `playlists/` but will rewrite them into `metadata/` on the next save—do not delete the directory. When songs leave `New Releases.csv`, `main.py` calls `remove_new_releases_metadata_entries` so the JSON stays in sync; keep these files committed alongside the playlists whenever you touch release data.
 
