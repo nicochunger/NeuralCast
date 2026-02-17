@@ -7,6 +7,7 @@ import base64
 import csv
 import datetime as dt
 import json
+import logging
 import os
 import pathlib
 import random
@@ -49,6 +50,24 @@ NEWS_DUPLICATE_WINDOW_DAYS = 7
 NEWS_DEDUP_MAX_ENTRIES = 50
 
 SYSTEM_TZ = ZoneInfo("Europe/Zurich")
+
+LOGGER = logging.getLogger(pathlib.Path(__file__).stem)
+
+
+def configure_logging(level: int = logging.INFO) -> None:
+    if LOGGER.handlers:
+        return
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            fmt="%(asctime)s | %(name)s | %(levelname)-7s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    LOGGER.addHandler(handler)
+    LOGGER.setLevel(level)
+    LOGGER.propagate = False
 
 
 class Archetype(str, Enum):
@@ -532,11 +551,13 @@ class StationLock:
             lock_ts = self._read_lock_timestamp()
             if lock_ts is not None and now_ts - lock_ts < self.stale_seconds:
                 age = int(now_ts - lock_ts)
-                print(
-                    f"Lockfile {self.path} is active ({age}s old); skipping this orchestrator cycle."
+                LOGGER.info(
+                    "[lock] Active lockfile at %s (%ss old); skipping cycle.",
+                    self.path,
+                    age,
                 )
                 return False
-            print(f"Removing stale lockfile: {self.path}")
+            LOGGER.warning("[lock] Removing stale lockfile: %s", self.path)
             try:
                 self.path.unlink()
             except FileNotFoundError:
@@ -553,8 +574,9 @@ class StationLock:
         try:
             fd = os.open(self.path, flags)
         except FileExistsError:
-            print(
-                f"Another process created lockfile {self.path} concurrently; skipping this cycle."
+            LOGGER.info(
+                "[lock] Lockfile %s was created concurrently; skipping cycle.",
+                self.path,
             )
             return False
 
@@ -570,7 +592,7 @@ class StationLock:
         try:
             self.path.unlink(missing_ok=True)
         except OSError:
-            print(f"Warning: failed to remove lockfile {self.path}")
+            LOGGER.warning("[lock] Failed to remove lockfile: %s", self.path)
         self.acquired = False
 
 
@@ -663,9 +685,14 @@ def run_with_retries(
             if idx >= attempts - 1:
                 raise
             delay = delays[idx] if idx < len(delays) else delays[-1]
-            print(
-                f"{label} failed (attempt {idx + 1}/{attempts}) with {type(exc).__name__}: {exc}. "
-                f"Retrying in {delay}s..."
+            LOGGER.warning(
+                "[retry] %s failed (%s/%s): %s: %s. Retrying in %ss.",
+                label,
+                idx + 1,
+                attempts,
+                type(exc).__name__,
+                exc,
+                delay,
             )
             time.sleep(delay)
 
@@ -853,8 +880,9 @@ def load_state(
             f"ai_host_orchestrator_state.corrupt.{suffix}.json"
         )
         shutil.move(state_path, corrupt_path)
-        print(
-            f"State file was invalid JSON. Moved to {corrupt_path} and reinitialized."
+        LOGGER.warning(
+            "[state] Invalid JSON in state file; moved to %s and reinitialized.",
+            corrupt_path,
         )
         return default_state(ts, rng)
 
@@ -1571,7 +1599,11 @@ def maybe_apply_speed_jitter(audio_path: pathlib.Path, rng: random.Random) -> No
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
-        print(f"Warning: failed to apply speed jitter ({factor:.3f}x): {detail}")
+        LOGGER.warning(
+            "[audio] Failed to apply speed jitter (%.3fx): %s",
+            factor,
+            detail,
+        )
         jitter_path.unlink(missing_ok=True)
         return
 
@@ -1579,7 +1611,7 @@ def maybe_apply_speed_jitter(audio_path: pathlib.Path, rng: random.Random) -> No
 
 
 def apply_replaygain(audio_path: pathlib.Path) -> None:
-    print(f"🔊 Applying ReplayGain to {audio_path.name}")
+    LOGGER.info("[audio] Applying ReplayGain: %s", audio_path.name)
     try:
         subprocess.run(
             ["mp3gain", "-q", "-r", "-k", str(audio_path)],
@@ -1588,14 +1620,15 @@ def apply_replaygain(audio_path: pathlib.Path) -> None:
             text=True,
         )
     except FileNotFoundError as exc:
-        print(
-            f"⚠️ mp3gain not available ({exc}); continuing without ReplayGain normalization"
+        LOGGER.warning(
+            "[audio] mp3gain not available (%s); continuing without ReplayGain.",
+            exc,
         )
     except subprocess.CalledProcessError as exc:
         detail = exc.stderr.strip() or exc.stdout.strip() or str(exc)
-        print(f"⚠️ Error applying ReplayGain: {detail}")
+        LOGGER.warning("[audio] ReplayGain failed: %s", detail)
     except OSError as exc:  # pragma: no cover - unexpected OS-level failure
-        print(f"⚠️ ReplayGain skipped due to OS error: {exc}")
+        LOGGER.warning("[audio] ReplayGain skipped due to OS error: %s", exc)
 
 
 def ensure_story_assets(
@@ -1809,7 +1842,9 @@ def generate_archetype_script(
                 raise RuntimeError(
                     "Forced news archetype returned NO_SCRIPT; failing as requested for test visibility."
                 )
-            print("News returned NO_SCRIPT; falling back to ultra_minimal.")
+            LOGGER.warning(
+                "[news] Gemini returned NO_SCRIPT; falling back to ultra_minimal."
+            )
             fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
             fallback_script, _, fallback_arch = generate_archetype_script(
                 archetype=Archetype.ULTRA_MINIMAL,
@@ -1829,7 +1864,10 @@ def generate_archetype_script(
             return fallback_script, None, fallback_arch
 
         if segment is None:
-            print(f"News response parse failed ({reason}); attempting one repair pass.")
+            LOGGER.warning(
+                "[news] Parse failed (%s); attempting one repair pass.",
+                reason,
+            )
             repaired = run_with_retries(
                 label="News format repair",
                 func=lambda: attempt_news_repair(
@@ -1846,8 +1884,8 @@ def generate_archetype_script(
                     raise RuntimeError(
                         f"Forced news archetype failed output contract after repair: {reason}"
                     )
-                print(
-                    "News output remained invalid after repair; falling back to ultra_minimal."
+                LOGGER.warning(
+                    "[news] Output remained invalid after repair; falling back to ultra_minimal."
                 )
                 fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
                 fallback_script, _, fallback_arch = generate_archetype_script(
@@ -1873,8 +1911,11 @@ def generate_archetype_script(
         if ok:
             return cleanup_generated_script(segment.script), segment, Archetype.NEWS
 
-        print(
-            f"News freshness/dedup validation failed on attempt {topic_attempt + 1}/{topic_attempts}: {freshness_reason}"
+        LOGGER.warning(
+            "[news] Freshness/dedup failed (%s/%s): %s",
+            topic_attempt + 1,
+            topic_attempts,
+            freshness_reason,
         )
         if topic_attempt < topic_attempts - 1:
             continue
@@ -1884,7 +1925,9 @@ def generate_archetype_script(
                 "Forced news archetype failed freshness/dedup requirements after topic retries."
             )
 
-    print("News exhausted topic retries; falling back to ultra_minimal.")
+    LOGGER.warning(
+        "[news] Exhausted topic retries; falling back to ultra_minimal."
+    )
     fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
     fallback_script, _, fallback_arch = generate_archetype_script(
         archetype=Archetype.ULTRA_MINIMAL,
@@ -2023,7 +2066,7 @@ def cleanup_remote_stories(
     try:
         media_files = client.list_media_files(station_slug)
     except Exception as exc:  # noqa: BLE001
-        print(f"Warning: unable to list remote media files for cleanup: {exc}")
+        LOGGER.warning("[cleanup] Unable to list remote media files: %s", exc)
         return
 
     for entry in media_files:
@@ -2039,12 +2082,17 @@ def cleanup_remote_stories(
                 continue
             client.delete_media_file(station_slug, int(media_id))
         except Exception as exc:  # noqa: BLE001
-            print(
-                f"Warning: failed to delete remote story file '{path}' (media_id={media_id}): {exc}"
+            LOGGER.warning(
+                "[cleanup] Failed deleting remote story file '%s' (media_id=%s): %s",
+                path,
+                media_id,
+                exc,
             )
 
 
 def run(args: argparse.Namespace) -> None:
+    configure_logging()
+
     load_dotenv()
     api_key = os.getenv("AZURACAST_API_KEY")
     if not api_key:
@@ -2057,8 +2105,14 @@ def run(args: argparse.Namespace) -> None:
     if not lock.acquire():
         return
 
+    LOGGER.info(
+        "[cycle] Starting orchestrator cycle | station=%s | dry_run=%s",
+        args.station,
+        args.dry_run,
+    )
+
     state = load_state(state_path, cycle_ts, rng)
-    print(f"Loaded orchestrator state from {state_path}")
+    LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
 
     try:
         client = AzuraCastClient(
@@ -2083,9 +2137,7 @@ def run(args: argparse.Namespace) -> None:
             args.station, station_name
         )
         station_personality = resolve_station_personality(args.station)
-        print(
-            f"Station personality profile active for '{args.station}': {station_personality.script_profile}"
-        )
+        LOGGER.info("[station] Personality profile active: %s", args.station)
 
         try:
             now_playing_payload = run_with_retries(
@@ -2093,8 +2145,9 @@ def run(args: argparse.Namespace) -> None:
                 lambda: client.get_now_playing(args.station),
             )
         except Exception as exc:  # noqa: BLE001
-            print(
-                f"Now-playing fetch failed after retries: {exc}. Skipping this cycle."
+            LOGGER.warning(
+                "[now-playing] Fetch failed after retries: %s. Skipping cycle.",
+                exc,
             )
             return
 
@@ -2102,34 +2155,43 @@ def run(args: argparse.Namespace) -> None:
         current_key = track_key(current_track.artist, current_track.title)
         update_track_seen_state(state, current_key, now_ts())
 
-        print(f"Now playing: {current_track.artist} - {current_track.title}")
+        LOGGER.info(
+            "[now-playing] Current track: %s - %s",
+            current_track.artist,
+            current_track.title,
+        )
 
         listener_count = extract_current_listeners(now_playing_payload)
         if listener_count is None:
-            print("Current listeners: unavailable")
+            LOGGER.info("[listeners] Current listeners: unavailable")
         else:
-            print(f"Current listeners: {listener_count}")
+            LOGGER.info("[listeners] Current listeners: %s", listener_count)
 
         if args.min_listeners > 0:
             if listener_count is None:
-                print(
-                    f"Listener count unavailable and --min-listeners is {args.min_listeners}; skipping cycle."
+                LOGGER.info(
+                    "[gate] Listener count unavailable with --min-listeners=%s; skipping cycle.",
+                    args.min_listeners,
                 )
                 return
             if listener_count < args.min_listeners:
-                print(
-                    f"Only {listener_count} listener(s) connected (< {args.min_listeners}); skipping cycle."
+                LOGGER.info(
+                    "[gate] Only %s listener(s) connected (< %s); skipping cycle.",
+                    listener_count,
+                    args.min_listeners,
                 )
                 return
 
         if current_remaining is None:
-            print(
-                "Current track remaining time unavailable; skipping cycle for lead-time safety."
+            LOGGER.info(
+                "[gate] Current remaining time unavailable; skipping for lead-time safety."
             )
             return
         if current_remaining < LEAD_TIME_SECONDS:
-            print(
-                f"Current track has only {current_remaining}s remaining (< {LEAD_TIME_SECONDS}s); skipping cycle."
+            LOGGER.info(
+                "[gate] Current track has only %ss remaining (< %ss); skipping cycle.",
+                current_remaining,
+                LEAD_TIME_SECONDS,
             )
             return
 
@@ -2140,10 +2202,10 @@ def run(args: argparse.Namespace) -> None:
         queue_tracks = parse_queue_tracks(queue_payload)
         next_track = choose_next_track(current_track, queue_tracks)
         if next_track is None:
-            print("No suitable next track found in queue; skipping cycle.")
+            LOGGER.info("[queue] No suitable next track found; skipping cycle.")
             return
 
-        print(f"Next track: {next_track.artist} - {next_track.title}")
+        LOGGER.info("[queue] Next track: %s - %s", next_track.artist, next_track.title)
 
         forced_archetype = (
             Archetype(args.force_archetype) if args.force_archetype else None
@@ -2152,12 +2214,13 @@ def run(args: argparse.Namespace) -> None:
         if forced_archetype is None:
             eligible, wait_reason = should_speak_now(state, current_key, now_ts())
             if not eligible:
-                print(f"Wait gate closed: {wait_reason}")
+                LOGGER.info("[gate] Wait gate closed: %s", wait_reason)
                 return
-            print(f"Wait gate open: {wait_reason}")
+            LOGGER.info("[gate] Wait gate open: %s", wait_reason)
         else:
-            print(
-                f"Force-archetype active: {forced_archetype.value}; bypassing wait gate."
+            LOGGER.info(
+                "[gate] Force archetype active: %s; bypassing wait gate.",
+                forced_archetype.value,
             )
 
         if forced_archetype is not None:
@@ -2166,11 +2229,14 @@ def run(args: argparse.Namespace) -> None:
             legal = legal_archetypes(state, now_ts())
             if legal:
                 selected_archetype = choose_weighted_archetype(legal, state, rng)
-                print(f"Legal archetypes: {[item.value for item in legal]}")
+                LOGGER.info(
+                    "[archetype] Legal archetypes: %s",
+                    [item.value for item in legal],
+                )
             else:
                 selected_archetype = Archetype.ULTRA_MINIMAL
-                print(
-                    "No legal archetypes available after cooldowns; using ultra_minimal."
+                LOGGER.warning(
+                    "[archetype] No legal archetypes available after cooldowns; using ultra_minimal."
                 )
 
         angle = choose_angle(selected_archetype, state, rng)
@@ -2183,8 +2249,11 @@ def run(args: argparse.Namespace) -> None:
             track_key(next_track.artist, next_track.title), TrackMetadata()
         )
 
-        print(
-            f"Generating archetype={selected_archetype.value}, angle={angle or 'none'}, hook='{hook}'."
+        LOGGER.info(
+            "[generation] archetype=%s | angle=%s | hook=%s",
+            selected_archetype.value,
+            angle or "none",
+            hook,
         )
 
         script_text, news_segment, archetype_used = generate_archetype_script(
@@ -2214,12 +2283,12 @@ def run(args: argparse.Namespace) -> None:
             script_text=script_text,
             rng=rng,
         )
-        print(f"Script saved to {assets.text_path}")
-        print(f"Audio saved to {assets.audio_path}")
+        LOGGER.info("[assets] Script saved: %s", assets.text_path)
+        LOGGER.info("[assets] Audio saved: %s", assets.audio_path)
 
         if args.dry_run:
-            print(
-                "Dry-run mode: skipping upload/injection; cadence and cooldowns are not consumed."
+            LOGGER.info(
+                "[dry-run] Skipping upload/injection; cadence and cooldowns are not consumed."
             )
             return
 
@@ -2250,9 +2319,9 @@ def run(args: argparse.Namespace) -> None:
         )
         request_id = extract_telnet_request_id(telnet_response)
         if request_id:
-            print(f"Queued via requests.push with request ID {request_id}.")
+            LOGGER.info("[queue] Queued via requests.push | request_id=%s", request_id)
         else:
-            print("Queued via requests.push.")
+            LOGGER.info("[queue] Queued via requests.push.")
 
         success_ts = now_ts()
         apply_success_state_update(
@@ -2272,6 +2341,7 @@ def run(args: argparse.Namespace) -> None:
 
     finally:
         save_state_atomic(state_path, state)
+        LOGGER.info("[state] Saved orchestrator state: %s", state_path)
         lock.release()
 
 
