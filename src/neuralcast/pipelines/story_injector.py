@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import time
+import unicodedata
 import warnings
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
@@ -75,6 +76,7 @@ class Archetype(str, Enum):
     SYSTEM_CHECK = "system_check"
     DEEP_DIVE = "deep_dive"
     NEWS = "news"
+    CONCERT_CHECK = "concert_check"
     ULTRA_MINIMAL = "ultra_minimal"
 
 
@@ -91,10 +93,11 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.55,
-    Archetype.SYSTEM_CHECK: 0.25,
+    Archetype.BACK_SELL: 0.50,
+    Archetype.SYSTEM_CHECK: 0.23,
     Archetype.DEEP_DIVE: 0.10,
     Archetype.NEWS: 0.10,
+    Archetype.CONCERT_CHECK: 0.07,
 }
 
 COOLDOWN_SECONDS: Dict[Archetype, int] = {
@@ -102,6 +105,7 @@ COOLDOWN_SECONDS: Dict[Archetype, int] = {
     Archetype.SYSTEM_CHECK: 30 * 60,
     Archetype.DEEP_DIVE: 60 * 60,
     Archetype.NEWS: 120 * 60,
+    Archetype.CONCERT_CHECK: 180 * 60,
 }
 
 TEMPERATURE_TOP_P_RANGES: Dict[
@@ -111,6 +115,7 @@ TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype.SYSTEM_CHECK: ((0.8, 1.2), (0.85, 0.95)),
     Archetype.DEEP_DIVE: ((1.0, 1.5), (0.9, 0.98)),
     Archetype.NEWS: ((0.7, 1.1), (0.85, 0.95)),
+    Archetype.CONCERT_CHECK: ((0.6, 1.0), (0.85, 0.95)),
     Archetype.ULTRA_MINIMAL: ((0.3, 0.6), (0.7, 0.9)),
 }
 
@@ -163,6 +168,18 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "Titulares al vuelo",
         "Resumen exprés y música",
     ),
+    Archetype.CONCERT_CHECK: (
+        "Chequeo de fechas en vivo",
+        "Miro si hay shows cerca",
+        "Radar de conciertos y seguimos",
+        "Tour check rápido",
+        "¿Se vienen fechas por acá?",
+        "Agenda express de recitales",
+        "Mini update de conciertos",
+        "Cruce rápido con el calendario",
+        "Te chequeo el tour al vuelo",
+        "Agenda de shows en un toque",
+    ),
     Archetype.ULTRA_MINIMAL: (
         "Vamos directo",
         "Sin desvíos",
@@ -185,6 +202,19 @@ NEWS_TOPICS: Tuple[str, ...] = (
     "Important global news",
 )
 
+CONCERT_TARGET_COUNTRIES: Tuple[str, ...] = ("Argentina", "Switzerland")
+CONCERT_COUNTRY_ALIASES: Dict[str, str] = {
+    "argentina": "argentina",
+    "ar": "argentina",
+    "arg": "argentina",
+    "switzerland": "switzerland",
+    "swiss": "switzerland",
+    "suiza": "switzerland",
+    "ch": "switzerland",
+    "schweiz": "switzerland",
+}
+CONCERT_TARGET_COUNTRY_KEYS = frozenset({"argentina", "switzerland"})
+
 BANNED_OPENERS: Tuple[str, ...] = (
     "Alright folks",
     "Hope you're having a great day",
@@ -197,6 +227,11 @@ GENERATION_RETRIES = 2
 GENERATION_RETRY_DELAYS = (2, 5)
 
 NEWS_OUTPUT_RE = re.compile(
+    r"\bSCRIPT\s*:\s*(?P<script>.*?)\bMETA\s*\(JSON\)\s*:\s*(?P<meta>\{.*\})\s*$",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+CONCERT_OUTPUT_RE = re.compile(
     r"\bSCRIPT\s*:\s*(?P<script>.*?)\bMETA\s*\(JSON\)\s*:\s*(?P<meta>\{.*\})\s*$",
     flags=re.IGNORECASE | re.DOTALL,
 )
@@ -389,6 +424,57 @@ META (JSON):
 }}
 """
 
+WRAPPER_CONCERT_CHECK = """You are generating a Concert Check Snippet.
+
+Archetype goal:
+- Verify whether the artist that just played or the artist coming next has scheduled concerts in Argentina or Switzerland.
+- If at least one valid concert exists, give a compact host-style update and return to the music.
+
+Input requirements:
+- Research online before drafting by using Google Search grounded results.
+- You must check both artists independently (current track artist and next track artist).
+- Only accept concerts in: {concert_countries}.
+- Only accept upcoming concerts (event date is today or later).
+- Use reliable sources with concrete event details (date + city/country + artist), such as official artist tour pages, venue pages, or ticketing pages.
+- If neither artist has a qualifying concert, output exactly NO_SCRIPT.
+
+Rules:
+- Do not invent events or missing details.
+- Do not include concerts outside the target countries.
+- Do not include concerts for artists other than the current/next track artists.
+- Ignore angle for this archetype.
+
+Conversational style cues:
+- Start with a smooth transition from the song that just ended.
+- Keep it practical and close to radio language, not like a listings database.
+- Mention only 1-2 strongest events.
+- Bridge back to the next track naturally.
+
+Deliver:
+- 70-120 words total.
+- Include date and city naturally in the spoken script.
+- End by handoff to next track.
+
+Output format when at least one valid event exists:
+SCRIPT:
+<spoken copy in es-AR>
+
+META (JSON):
+{{
+  "language": "es-AR",
+  "events": [
+    {{
+      "artist": "...",
+      "country": "Argentina|Switzerland",
+      "city": "...",
+      "venue": "...",
+      "event_date": "YYYY-MM-DD",
+      "source_url": "https://..."
+    }}
+  ]
+}}
+"""
+
 WRAPPER_ULTRA_MINIMAL = """Generate an Ultra-Minimal Bridge.
 
 Archetype goal:
@@ -456,6 +542,22 @@ class NewsSegment:
     script: str
     story_count: int
     stories: List[NewsStoryMeta]
+
+
+@dataclass
+class ConcertEventMeta:
+    artist: str
+    country: str
+    city: str
+    venue: str
+    event_date: str
+    source_url: str
+
+
+@dataclass
+class ConcertSegment:
+    script: str
+    events: List[ConcertEventMeta]
 
 
 @dataclass
@@ -1133,6 +1235,7 @@ def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
         Archetype.SYSTEM_CHECK,
         Archetype.DEEP_DIVE,
         Archetype.NEWS,
+        Archetype.CONCERT_CHECK,
     ):
         cooldown_until = float(state.cooldown_until.get(archetype.value, 0.0))
         if ts >= cooldown_until:
@@ -1315,6 +1418,10 @@ def build_prompt(
             news_max_age_hours=NEWS_MAX_AGE_HOURS,
             news_preferred_max_age_hours=NEWS_PREFERRED_MAX_AGE_HOURS,
         )
+    elif archetype == Archetype.CONCERT_CHECK:
+        wrapper = WRAPPER_CONCERT_CHECK.format(
+            concert_countries=", ".join(CONCERT_TARGET_COUNTRIES),
+        )
     else:
         wrapper = WRAPPER_ULTRA_MINIMAL
 
@@ -1380,14 +1487,16 @@ def cleanup_generated_script(raw: str) -> str:
     return text.strip()
 
 
-def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
+def parse_structured_script_and_meta(
+    raw: str, pattern: re.Pattern[str]
+) -> Tuple[Optional[str], Optional[Mapping[str, Any]], str]:
     text = raw.strip()
     if text == "NO_SCRIPT":
-        return None, "NO_SCRIPT"
+        return None, None, "NO_SCRIPT"
 
-    match = NEWS_OUTPUT_RE.search(text)
+    match = pattern.search(text)
     if not match:
-        return None, "invalid format"
+        return None, None, "invalid format"
 
     script = cleanup_generated_script(match.group("script"))
     meta_raw = match.group("meta").strip()
@@ -1399,10 +1508,23 @@ def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
     try:
         meta = json.loads(meta_raw)
     except json.JSONDecodeError:
-        return None, "invalid json"
+        return None, None, "invalid json"
 
     if not isinstance(meta, Mapping):
-        return None, "meta must be object"
+        return None, None, "meta must be object"
+
+    if not script:
+        return None, None, "script is empty"
+
+    return script, meta, "ok"
+
+
+def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
+    script, meta, reason = parse_structured_script_and_meta(raw, NEWS_OUTPUT_RE)
+    if reason != "ok":
+        return None, reason
+    assert script is not None
+    assert meta is not None
 
     story_count = meta.get("story_count")
     language = str(meta.get("language") or "").strip()
@@ -1435,9 +1557,6 @@ def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
             )
         )
 
-    if not script:
-        return None, "script is empty"
-
     return NewsSegment(
         script=script, story_count=int(story_count), stories=parsed_stories
     ), "ok"
@@ -1461,6 +1580,83 @@ def attempt_news_repair(
         '  "language": "es-AR",\n'
         '  "stories": [\n'
         '    {"topic":"...","headline":"...","source_url":"...","published_at":"ISO-8601"}\n'
+        "  ]\n"
+        "}\n\n"
+        "Original output:\n"
+        f"{original_output}"
+    )
+    return gemini_generate_text(
+        prompt=repair_prompt,
+        system_prompt=build_system_prompt(station_name, personality),
+        temperature=temperature,
+        top_p=top_p,
+        with_search=False,
+    )
+
+
+def parse_concert_output(raw: str) -> Tuple[Optional[ConcertSegment], str]:
+    script, meta, reason = parse_structured_script_and_meta(raw, CONCERT_OUTPUT_RE)
+    if reason != "ok":
+        return None, reason
+    assert script is not None
+    assert meta is not None
+
+    language = str(meta.get("language") or "").strip()
+    events = meta.get("events")
+    if language.lower() != "es-ar":
+        return None, "language must be es-AR"
+    if not isinstance(events, list) or not events:
+        return None, "events must be a non-empty list"
+    if len(events) > 3:
+        return None, "events must include at most 3 entries"
+
+    parsed_events: List[ConcertEventMeta] = []
+    for entry in events:
+        if not isinstance(entry, Mapping):
+            return None, "event entry must be object"
+        artist = str(entry.get("artist") or "").strip()
+        country = str(entry.get("country") or "").strip()
+        city = str(entry.get("city") or "").strip()
+        venue = str(entry.get("venue") or "").strip()
+        event_date = str(entry.get("event_date") or "").strip()
+        source_url = str(entry.get("source_url") or "").strip()
+        if not artist or not country or not city or not venue or not event_date or not source_url:
+            return (
+                None,
+                "event entries require artist/country/city/venue/event_date/source_url",
+            )
+        parsed_events.append(
+            ConcertEventMeta(
+                artist=artist,
+                country=country,
+                city=city,
+                venue=venue,
+                event_date=event_date,
+                source_url=source_url,
+            )
+        )
+
+    return ConcertSegment(script=script, events=parsed_events), "ok"
+
+
+def attempt_concert_repair(
+    original_output: str,
+    temperature: float,
+    top_p: float,
+    station_name: str,
+    personality: StationPersonality,
+) -> str:
+    repair_prompt = (
+        "Reformat the following output so it exactly matches this contract. "
+        "Do not add new facts. If no valid concert exists, output NO_SCRIPT exactly.\n\n"
+        "Valid concert means: current track artist OR next track artist, location in Argentina/Switzerland, and event_date today or later.\n\n"
+        "Contract when events exist:\n"
+        "SCRIPT:\n<spoken copy in es-AR>\n\n"
+        "META (JSON):\n"
+        "{\n"
+        '  "language": "es-AR",\n'
+        '  "events": [\n'
+        '    {"artist":"...","country":"Argentina|Switzerland","city":"...","venue":"...","event_date":"YYYY-MM-DD","source_url":"https://..."}\n'
         "  ]\n"
         "}\n\n"
         "Original output:\n"
@@ -1512,6 +1708,48 @@ def normalize_text_for_key(value: str) -> str:
     return normalized
 
 
+def normalize_ascii_for_match(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized.lower())
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def normalize_concert_country(value: str) -> Optional[str]:
+    normalized = normalize_ascii_for_match(value)
+    return CONCERT_COUNTRY_ALIASES.get(normalized)
+
+
+def is_valid_http_url(url: str) -> bool:
+    parsed = urlparse(url.strip())
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def artist_matches_targets(candidate: str, targets: Sequence[str]) -> bool:
+    normalized_candidate = normalize_ascii_for_match(candidate)
+    if not normalized_candidate:
+        return False
+    for target in targets:
+        normalized_target = normalize_ascii_for_match(target)
+        if not normalized_target:
+            continue
+        if normalized_candidate == normalized_target:
+            return True
+        if (
+            normalized_candidate in normalized_target
+            or normalized_target in normalized_candidate
+        ):
+            return True
+    return False
+
+
+def parse_concert_event_date(value: str) -> Optional[dt.date]:
+    parsed_ts = parse_timestamp(value)
+    if parsed_ts is not None:
+        return parsed_ts.date()
+    return None
+
+
 def build_news_dedup_key(topic: str, headline: str, source_url: str) -> str:
     return "|".join(
         [
@@ -1555,6 +1793,37 @@ def validate_news_freshness_and_dedup(
                 f"headline too old ({age_hours:.1f}h > {NEWS_MAX_AGE_HOURS}h): "
                 f"{story.headline}"
             )
+
+    return True, "ok"
+
+
+def validate_concert_segment(
+    segment: ConcertSegment,
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+) -> Tuple[bool, str]:
+    target_artists = (current_track.artist, next_track.artist)
+    today_local = dt.datetime.now(SYSTEM_TZ).date()
+
+    for event in segment.events:
+        if not artist_matches_targets(event.artist, target_artists):
+            return (
+                False,
+                f"event artist is not current/next track artist: {event.artist}",
+            )
+
+        normalized_country = normalize_concert_country(event.country)
+        if normalized_country not in CONCERT_TARGET_COUNTRY_KEYS:
+            return False, f"event country not allowed: {event.country}"
+
+        event_date = parse_concert_event_date(event.event_date)
+        if event_date is None:
+            return False, f"invalid event_date: {event.event_date}"
+        if event_date < today_local:
+            return False, f"event date is in the past: {event.event_date}"
+
+        if not is_valid_http_url(event.source_url):
+            return False, f"invalid source_url: {event.source_url}"
 
     return True, "ok"
 
@@ -1761,7 +2030,37 @@ def pick_news_topics(story_count: int, rng: random.Random) -> List[str]:
 
 
 def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
-    return archetype in {Archetype.NEWS, Archetype.DEEP_DIVE}
+    return archetype in {Archetype.NEWS, Archetype.DEEP_DIVE, Archetype.CONCERT_CHECK}
+
+
+def fallback_to_ultra_minimal(
+    station_name: str,
+    personality: StationPersonality,
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    banned_list: Sequence[str],
+    state: OrchestratorState,
+    rng: random.Random,
+) -> Tuple[str, None, Archetype]:
+    fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
+    fallback_script, _, fallback_arch = generate_archetype_script(
+        archetype=Archetype.ULTRA_MINIMAL,
+        station_name=station_name,
+        personality=personality,
+        current_track=current_track,
+        next_track=next_track,
+        current_meta=current_meta,
+        next_meta=next_meta,
+        angle=None,
+        hook=fallback_hook,
+        banned_list=banned_list,
+        state=state,
+        rng=rng,
+        forced_mode=False,
+    )
+    return fallback_script, None, fallback_arch
 
 
 def generate_archetype_script(
@@ -1779,14 +2078,14 @@ def generate_archetype_script(
     rng: random.Random,
     forced_mode: bool,
 ) -> Tuple[str, Optional[NewsSegment], Archetype]:
-    """Generate script and optional news metadata.
+    """Generate script and optional structured metadata.
 
     Returns: (script, news_segment, archetype_used)
     """
 
     temperature, top_p = sample_generation_settings(archetype, rng)
 
-    if archetype != Archetype.NEWS:
+    if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
         prompt = build_prompt(
             archetype=archetype,
             station_name=station_name,
@@ -1811,6 +2110,125 @@ def generate_archetype_script(
             ),
         )
         return cleanup_generated_script(generated), None, archetype
+
+    if archetype == Archetype.CONCERT_CHECK:
+        generation_attempts = 2
+        for generation_attempt in range(generation_attempts):
+            prompt = build_prompt(
+                archetype=Archetype.CONCERT_CHECK,
+                station_name=station_name,
+                personality=personality,
+                current=current_track,
+                next_track=next_track,
+                current_meta=current_meta,
+                next_meta=next_meta,
+                angle=angle,
+                hook=hook,
+                banned_list=banned_list,
+            )
+
+            generated = run_with_retries(
+                label="Gemini generation (concert_check)",
+                func=lambda: gemini_generate_text(
+                    prompt=prompt,
+                    system_prompt=build_system_prompt(station_name, personality),
+                    temperature=temperature,
+                    top_p=top_p,
+                    with_search=True,
+                ),
+            )
+
+            segment, reason = parse_concert_output(generated)
+            if reason == "NO_SCRIPT":
+                LOGGER.info(
+                    "[concert_check] No qualifying concerts found; falling back to ultra_minimal."
+                )
+                return fallback_to_ultra_minimal(
+                    station_name=station_name,
+                    personality=personality,
+                    current_track=current_track,
+                    next_track=next_track,
+                    current_meta=current_meta,
+                    next_meta=next_meta,
+                    banned_list=banned_list,
+                    state=state,
+                    rng=rng,
+                )
+
+            if segment is None:
+                LOGGER.warning(
+                    "[concert_check] Parse failed (%s); attempting one repair pass.",
+                    reason,
+                )
+                repaired = run_with_retries(
+                    label="Concert format repair",
+                    func=lambda: attempt_concert_repair(
+                        generated,
+                        temperature=temperature,
+                        top_p=top_p,
+                        station_name=station_name,
+                        personality=personality,
+                    ),
+                )
+                segment, reason = parse_concert_output(repaired)
+                if segment is None:
+                    LOGGER.warning(
+                        "[concert_check] Output remained invalid after repair (%s).",
+                        reason,
+                    )
+                    if generation_attempt < generation_attempts - 1:
+                        continue
+                    LOGGER.warning(
+                        "[concert_check] Exhausted retries; falling back to ultra_minimal."
+                    )
+                    return fallback_to_ultra_minimal(
+                        station_name=station_name,
+                        personality=personality,
+                        current_track=current_track,
+                        next_track=next_track,
+                        current_meta=current_meta,
+                        next_meta=next_meta,
+                        banned_list=banned_list,
+                        state=state,
+                        rng=rng,
+                    )
+
+            assert segment is not None
+            ok, validation_reason = validate_concert_segment(
+                segment=segment,
+                current_track=current_track,
+                next_track=next_track,
+            )
+            if ok:
+                return (
+                    cleanup_generated_script(segment.script),
+                    None,
+                    Archetype.CONCERT_CHECK,
+                )
+
+            LOGGER.warning(
+                "[concert_check] Validation failed (%s/%s): %s",
+                generation_attempt + 1,
+                generation_attempts,
+                validation_reason,
+            )
+            if generation_attempt < generation_attempts - 1:
+                continue
+
+        LOGGER.warning(
+            "[concert_check] Exhausted retries; falling back to ultra_minimal."
+        )
+        return fallback_to_ultra_minimal(
+            station_name=station_name,
+            personality=personality,
+            current_track=current_track,
+            next_track=next_track,
+            current_meta=current_meta,
+            next_meta=next_meta,
+            banned_list=banned_list,
+            state=state,
+            rng=rng,
+        )
 
     # News mode with validation, repair, and topic retries.
     story_count = rng.randint(1, 2)
@@ -1852,23 +2270,17 @@ def generate_archetype_script(
             LOGGER.warning(
                 "[news] Gemini returned NO_SCRIPT; falling back to ultra_minimal."
             )
-            fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
-            fallback_script, _, fallback_arch = generate_archetype_script(
-                archetype=Archetype.ULTRA_MINIMAL,
+            return fallback_to_ultra_minimal(
                 station_name=station_name,
                 personality=personality,
                 current_track=current_track,
                 next_track=next_track,
                 current_meta=current_meta,
                 next_meta=next_meta,
-                angle=None,
-                hook=fallback_hook,
                 banned_list=banned_list,
                 state=state,
                 rng=rng,
-                forced_mode=False,
             )
-            return fallback_script, None, fallback_arch
 
         if segment is None:
             LOGGER.warning(
@@ -1894,23 +2306,17 @@ def generate_archetype_script(
                 LOGGER.warning(
                     "[news] Output remained invalid after repair; falling back to ultra_minimal."
                 )
-                fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
-                fallback_script, _, fallback_arch = generate_archetype_script(
-                    archetype=Archetype.ULTRA_MINIMAL,
+                return fallback_to_ultra_minimal(
                     station_name=station_name,
                     personality=personality,
                     current_track=current_track,
                     next_track=next_track,
                     current_meta=current_meta,
                     next_meta=next_meta,
-                    angle=None,
-                    hook=fallback_hook,
                     banned_list=banned_list,
                     state=state,
                     rng=rng,
-                    forced_mode=False,
                 )
-                return fallback_script, None, fallback_arch
 
         ok, freshness_reason = validate_news_freshness_and_dedup(
             segment, state, now_ts()
@@ -1935,23 +2341,17 @@ def generate_archetype_script(
     LOGGER.warning(
         "[news] Exhausted topic retries; falling back to ultra_minimal."
     )
-    fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
-    fallback_script, _, fallback_arch = generate_archetype_script(
-        archetype=Archetype.ULTRA_MINIMAL,
+    return fallback_to_ultra_minimal(
         station_name=station_name,
         personality=personality,
         current_track=current_track,
         next_track=next_track,
         current_meta=current_meta,
         next_meta=next_meta,
-        angle=None,
-        hook=fallback_hook,
         banned_list=banned_list,
         state=state,
         rng=rng,
-        forced_mode=False,
     )
-    return fallback_script, None, fallback_arch
 
 
 def apply_success_state_update(
