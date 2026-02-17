@@ -44,8 +44,8 @@ LOCK_STALE_SECONDS = 10 * 60
 LEAD_TIME_SECONDS = 90
 SPEAK_DEADLINE_MINUTES = 45
 WAIT_RANGE_SONGS = (2, 5)
-NEWS_MAX_AGE_HOURS = 72
-NEWS_PREFERRED_MAX_AGE_HOURS = 48
+NEWS_MAX_AGE_HOURS = 7 * 24
+NEWS_PREFERRED_MAX_AGE_HOURS = 72
 NEWS_DUPLICATE_WINDOW_DAYS = 7
 NEWS_DEDUP_MAX_ENTRIES = 50
 
@@ -336,10 +336,13 @@ Archetype goal:
 - Sound like a host curating useful headlines for a friend, not a detached newsroom read.
 
 Input requirements:
-- Search online for fresh headlines no older than 72 hours.
-- Prefer <=48 hours when available.
+- Research online before drafting by using Google Search grounded results.
+- Only use headlines that match the selected topics.
+- Freshness window: headlines can be up to {news_max_age_hours} hours old (7 days).
+- Prefer headlines <= {news_preferred_max_age_hours} hours old when available.
 - Story count is {story_count} (1-2).
 - Topics are: {news_topics}
+- Each story must include a direct source URL and an ISO-8601 published_at timestamp from that source.
 - If no suitable headline exists, output exactly NO_SCRIPT.
 
 Rules:
@@ -1309,6 +1312,8 @@ def build_prompt(
         wrapper = WRAPPER_NEWS.format(
             story_count=story_count or 1,
             news_topics=", ".join(news_topics or NEWS_TOPICS),
+            news_max_age_hours=NEWS_MAX_AGE_HOURS,
+            news_preferred_max_age_hours=NEWS_PREFERRED_MAX_AGE_HOURS,
         )
     else:
         wrapper = WRAPPER_ULTRA_MINIMAL
@@ -1350,7 +1355,9 @@ def gemini_generate_text(
         "top_p": top_p,
     }
     if with_search:
-        config_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+        # Explicit Google Search grounding for research-backed generations.
+        grounding_tool = types.Tool(google_search=types.GoogleSearch())
+        config_kwargs["tools"] = [grounding_tool]
 
     response = client.models.generate_content(
         model=model,
