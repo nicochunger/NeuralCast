@@ -225,15 +225,24 @@ _SCRIPT_STYLE_BASELINE = """Script writing baseline:
 
 WRAPPER_BACK_SELL = """You are generating a Back-sell & Bridge.
 
-Style:
-- Concise, clean, confident.
-- Avoid canned greetings and slogan-like crowd calls.
-- Mention current track and next track in a natural spoken flow.
+Archetype goal:
+- Land the emotional tail of the track that just ended, then guide the listener smoothly into the next one.
+- Sound like one live thought to one person, not an announcement to a crowd.
+
+What success sounds like:
+- Conversational, warm, confident.
+- Specific to the current track and the next track.
+- Never slogan-like, never canned greeting energy.
 
 Mode by angle:
-- Minimalist: crisp facts only.
-- Connector: real musical/thematic link from provided metadata.
-- Fanatic: controlled hype, still concise.
+- Minimalist: one clear observation plus a clean handoff.
+- Connector: a real musical/thematic bridge using provided metadata.
+- Fanatic: contained excitement with control and brevity.
+
+Example directions (style reference, do not copy verbatim):
+- "Recién escuchamos un cierre bien arriba, y ahora seguimos por esa misma línea con..."
+- "Si te gustó ese pulso, lo que viene engancha perfecto:..."
+- "Qué tema ese, che... y el próximo entra justo en ese clima:..."
 
 Deliver:
 - 2-4 sentences.
@@ -245,11 +254,24 @@ Output only spoken script in es-AR.
 
 WRAPPER_SYSTEM_CHECK = """You are generating a System Check.
 
+Archetype goal:
+- Give a quick pulse-check of the station flow: momentum, texture, and mood.
+- Reassure the listener that the musical journey is intentional, without sounding like technical monitoring.
+
 Rules:
 - No physical surroundings.
 - You may reference mix/stream/queue momentum and music feeling.
 - Keep it conversational, never like a technical status report.
 - Use selected angle.
+
+Angle handling:
+- System Narrator: describe what is happening in the flow with plain, human language.
+- Existentialist: a brief reflective note about rhythm/time/night, still anchored in music.
+
+Example directions (style reference, do not copy verbatim):
+- "Venimos con una cadena bien pareja, y eso hace que el próximo tema entre solo."
+- "Hay algo en este tramo que se siente redondo, como si cada tema encontrara al otro."
+- "No es apuro ni pausa: es ese punto justo que te mantiene adentro de la escucha."
 
 Deliver:
 - 2-5 sentences as one cohesive spoken thought.
@@ -258,14 +280,27 @@ Deliver:
 Output only spoken script in es-AR.
 """
 
-WRAPPER_DEEP_DIVE = """You are generating a Deep Dive. A short story about the song, 
-or if the spceific song doesnt have an interesting story it can be about the artist at the time the song was released.
+WRAPPER_DEEP_DIVE = """You are generating a Deep Dive.
+
+Archetype goal:
+- Offer one memorable mini-story that deepens how the listener hears the current song.
+- Prioritize context about the song itself; if that is thin, use artist context from the same release era.
 
 Hard constraints:
 - Do not invent concrete facts.
 - Use search-backed context about current song/artist around release period.
-- If evidence is thin, keep it interpretive without fabricated specifics.
+- If evidence is thin, keep it interpretive and avoid fabricated specifics.
 - Ignore angle for this archetype.
+
+Conversational execution:
+- Tell it like you are sharing a story with a friend between tracks, not writing a mini-essay.
+- Use a clear spoken arc: hook, 2-3 compact insights, and a smooth handoff.
+- Keep sentences varied and oral, with natural transitions.
+
+Example directions (style reference, do not copy verbatim):
+- "Hay una historia corta detrás de este tema que cambia cómo se escucha hoy..."
+- "En esos años la banda venía de..., y eso se nota en..."
+- "Con ese contexto en la cabeza, el próximo tema entra con otra lectura..."
 
 Deliver:
 - 150-220 words.
@@ -276,6 +311,10 @@ Output only spoken script in es-AR.
 """
 
 WRAPPER_NEWS = """You are generating a News Snippet.
+
+Archetype goal:
+- Deliver a short, trustworthy update about the outside world, then return listeners to the music naturally.
+- Sound like a host curating useful headlines for a friend, not a detached newsroom read.
 
 Input requirements:
 - Search online for fresh headlines no older than 72 hours.
@@ -289,7 +328,23 @@ Rules:
 - Reaction is allowed, fabricated facts are not.
 - Ignore angle for this archetype.
 
+Conversational style cues:
+- Start with a smooth transition from the song that just ended into the news segment.
+- In that opening transition, naturally reference the current track (artist/title) before moving into headlines.
+- Open each story with why it matters in one short line.
+- Attribute reporting naturally ("según...", "reporta...").
+- Keep reactions brief and grounded; no alarmist or dramatic tone.
+- Bridge back to music in a warm, fluid way.
+
+Example directions (style reference, do not copy verbatim):
+- "Ahí se fue [CURRENT_TITLE] de [CURRENT_ARTIST], y ahora te tiro un mini paneo de noticias."
+- "Acabamos de escuchar [CURRENT_TITLE] de [CURRENT_ARTIST], y para cortar un poquito te cuento qué estuvo pasando en el mundo."
+- "Te tiro un titular rápido que vale la pena seguir..."
+- "Según <medio>, hoy se confirmó que..."
+- "Después de este paneo, volvemos al aire musical con..."
+
 Deliver:
+- Include an opening song-to-news transition before the first headline.
 - 80-120 words per story.
 - End by bridging to next track.
 
@@ -314,10 +369,19 @@ META (JSON):
 
 WRAPPER_ULTRA_MINIMAL = """Generate an Ultra-Minimal Bridge.
 
+Archetype goal:
+- Keep host presence almost invisible while still guiding the listener to the next song.
+- This is a pure handoff: quick, human, and out.
+
 Rules:
 - One sentence only (8-14 words).
 - Must mention next track artist + title.
 - No metaphor, no jokes, no extra clauses.
+- Sound spoken, not robotic.
+
+Example directions (style reference, do not copy verbatim):
+- "Seguimos con [NEXT_TITLE] de [NEXT_ARTIST], quedate por acá."
+- "Ahora va [NEXT_ARTIST] con [NEXT_TITLE], seguimos."
 
 Output only spoken script in es-AR.
 """
@@ -1514,6 +1578,26 @@ def maybe_apply_speed_jitter(audio_path: pathlib.Path, rng: random.Random) -> No
     jitter_path.replace(audio_path)
 
 
+def apply_replaygain(audio_path: pathlib.Path) -> None:
+    print(f"🔊 Applying ReplayGain to {audio_path.name}")
+    try:
+        subprocess.run(
+            ["mp3gain", "-q", "-r", "-k", str(audio_path)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        print(
+            f"⚠️ mp3gain not available ({exc}); continuing without ReplayGain normalization"
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.strip() or exc.stdout.strip() or str(exc)
+        print(f"⚠️ Error applying ReplayGain: {detail}")
+    except OSError as exc:  # pragma: no cover - unexpected OS-level failure
+        print(f"⚠️ ReplayGain skipped due to OS error: {exc}")
+
+
 def ensure_story_assets(
     station_slug: str,
     current_track: QueueTrack,
@@ -1548,6 +1632,7 @@ def ensure_story_assets(
     )
 
     maybe_apply_speed_jitter(audio_path, rng)
+    apply_replaygain(audio_path)
 
     return StoryAssets(
         text_path=text_path,

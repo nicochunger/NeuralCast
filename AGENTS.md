@@ -25,6 +25,9 @@ When asked to redeploy the story injector package to the VPS, always perform all
 
 After extraction, verify the deployed `story_injector.py` timestamp or checksum in `/root/radio_stories/src/neuralcast/pipelines/story_injector.py` when needed.
 
+Additional rule for story injector edits:
+- Whenever a requested change modifies `src/neuralcast/pipelines/story_injector.py`, automatically run the full 3-step VPS redeploy procedure after finishing the code change, unless explicitly told not to deploy.
+
 ## Station Metadata & Spotify Cache
 `update_new_releases.py` and `main.py` both rely on `<station>/metadata/New Releases.metadata.json` to store structured playlist metadata plus `<station>/metadata/ArtistIDs.json` for cached Spotify artist IDs. The helpers automatically fall back to legacy copies under `playlists/` but will rewrite them into `metadata/` on the next save—do not delete the directory. When songs leave `New Releases.csv`, `main.py` calls `remove_new_releases_metadata_entries` so the JSON stays in sync; keep these files committed alongside the playlists whenever you touch release data.
 
