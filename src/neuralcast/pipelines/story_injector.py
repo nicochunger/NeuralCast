@@ -226,15 +226,13 @@ BANNED_OPENERS: Tuple[str, ...] = (
 GENERATION_RETRIES = 2
 GENERATION_RETRY_DELAYS = (2, 5)
 
-NEWS_OUTPUT_RE = re.compile(
+STRUCTURED_OUTPUT_RE = re.compile(
     r"\bSCRIPT\s*:\s*(?P<script>.*?)\bMETA\s*\(JSON\)\s*:\s*(?P<meta>\{.*\})\s*$",
     flags=re.IGNORECASE | re.DOTALL,
 )
 
-CONCERT_OUTPUT_RE = re.compile(
-    r"\bSCRIPT\s*:\s*(?P<script>.*?)\bMETA\s*\(JSON\)\s*:\s*(?P<meta>\{.*\})\s*$",
-    flags=re.IGNORECASE | re.DOTALL,
-)
+NEWS_OUTPUT_RE = STRUCTURED_OUTPUT_RE
+CONCERT_OUTPUT_RE = STRUCTURED_OUTPUT_RE
 
 _HOST_CONSTITUTION_TEMPLATE = """You are the live on-air host of {station_name}. You guide listeners through the music, the pulse of the day, and the emotional flow of each set with warmth, taste, and personality.
 
@@ -578,7 +576,7 @@ class OrchestratorState:
     recent_news_dedup: List[Dict[str, Any]]
 
     def to_dict(self) -> Dict[str, Any]:
-        payload = {
+        return {
             "state_version": self.state_version,
             "last_seen_track_key": self.last_seen_track_key,
             "last_seen_ts": self.last_seen_ts,
@@ -594,7 +592,6 @@ class OrchestratorState:
             "last_angle_by_archetype": self.last_angle_by_archetype,
             "recent_news_dedup": self.recent_news_dedup,
         }
-        return payload
 
 
 STATION_PERSONALITIES: Dict[str, StationPersonality] = {
@@ -623,6 +620,11 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
         ),
         tts_profile=(""),
     ),
+}
+
+STATION_GENERATION_NAMES: Dict[str, str] = {
+    "neuralcast": "NéuralCast",
+    "neuralforge": "NéuralForsh",
 }
 
 
@@ -1404,14 +1406,7 @@ def build_prompt(
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
-    wrapper: str
-    if archetype == Archetype.BACK_SELL:
-        wrapper = WRAPPER_BACK_SELL
-    elif archetype == Archetype.SYSTEM_CHECK:
-        wrapper = WRAPPER_SYSTEM_CHECK
-    elif archetype == Archetype.DEEP_DIVE:
-        wrapper = WRAPPER_DEEP_DIVE
-    elif archetype == Archetype.NEWS:
+    if archetype == Archetype.NEWS:
         wrapper = WRAPPER_NEWS.format(
             story_count=story_count or 1,
             news_topics=", ".join(news_topics or NEWS_TOPICS),
@@ -1423,7 +1418,12 @@ def build_prompt(
             concert_countries=", ".join(CONCERT_TARGET_COUNTRIES),
         )
     else:
-        wrapper = WRAPPER_ULTRA_MINIMAL
+        wrapper = {
+            Archetype.BACK_SELL: WRAPPER_BACK_SELL,
+            Archetype.SYSTEM_CHECK: WRAPPER_SYSTEM_CHECK,
+            Archetype.DEEP_DIVE: WRAPPER_DEEP_DIVE,
+            Archetype.ULTRA_MINIMAL: WRAPPER_ULTRA_MINIMAL,
+        }.get(archetype, WRAPPER_ULTRA_MINIMAL)
 
     shared_input = format_shared_input(
         station_name=station_name,
@@ -1745,9 +1745,7 @@ def artist_matches_targets(candidate: str, targets: Sequence[str]) -> bool:
 
 def parse_concert_event_date(value: str) -> Optional[dt.date]:
     parsed_ts = parse_timestamp(value)
-    if parsed_ts is not None:
-        return parsed_ts.date()
-    return None
+    return parsed_ts.date() if parsed_ts is not None else None
 
 
 def build_news_dedup_key(topic: str, headline: str, source_url: str) -> str:
@@ -1960,18 +1958,12 @@ def derive_station_display_name(
 
 def station_name_for_generation(station_slug: str, fallback_name: str) -> str:
     normalized = (station_slug or "").strip().lower()
-    if normalized == "neuralcast":
-        return "NéuralCast"
-    if normalized == "neuralforge":
-        return "NéuralForsh"
-    return fallback_name
+    return STATION_GENERATION_NAMES.get(normalized, fallback_name)
 
 
 def resolve_station_personality(station_slug: str) -> StationPersonality:
     normalized = (station_slug or "").strip().lower()
-    if normalized in STATION_PERSONALITIES:
-        return STATION_PERSONALITIES[normalized]
-    return STATION_PERSONALITIES["neuralcast"]
+    return STATION_PERSONALITIES.get(normalized, STATION_PERSONALITIES["neuralcast"])
 
 
 def build_system_prompt(station_name: str, personality: StationPersonality) -> str:
@@ -2011,10 +2003,19 @@ def choose_station_payload(
     stations: Sequence[Mapping[str, Any]], station: str
 ) -> Mapping[str, Any]:
     normalized = station.strip().lower()
-    for entry in stations:
-        shortcode = entry.get("shortcode") or entry.get("station_short_name")
-        if str(shortcode).strip().lower() == normalized:
-            return entry
+    station_entry = next(
+        (
+            entry
+            for entry in stations
+            if str(entry.get("shortcode") or entry.get("station_short_name"))
+            .strip()
+            .lower()
+            == normalized
+        ),
+        None,
+    )
+    if station_entry is not None:
+        return station_entry
     available = ", ".join(str(entry.get("shortcode") or "?") for entry in stations)
     raise RuntimeError(f"Station '{station}' not found. Available: {available}")
 
@@ -2023,10 +2024,9 @@ def pick_news_topics(story_count: int, rng: random.Random) -> List[str]:
     topics = list(NEWS_TOPICS)
     if story_count <= 1:
         return [rng.choice(topics)]
-
-    if len(topics) >= story_count:
-        return rng.sample(topics, k=story_count)
-    return [rng.choice(topics) for _ in range(story_count)]
+    if len(topics) < story_count:
+        return [rng.choice(topics) for _ in range(story_count)]
+    return rng.sample(topics, k=story_count)
 
 
 def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
@@ -2084,58 +2084,61 @@ def generate_archetype_script(
     """
 
     temperature, top_p = sample_generation_settings(archetype, rng)
+    system_prompt = build_system_prompt(station_name, personality)
+    prompt_kwargs = {
+        "station_name": station_name,
+        "personality": personality,
+        "current": current_track,
+        "next_track": next_track,
+        "current_meta": current_meta,
+        "next_meta": next_meta,
+        "angle": angle,
+        "hook": hook,
+        "banned_list": banned_list,
+    }
 
-    if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
-        prompt = build_prompt(
-            archetype=archetype,
+    def generate_with_retries(prompt: str, label: str, with_search: bool) -> str:
+        return run_with_retries(
+            label=label,
+            func=lambda: gemini_generate_text(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                top_p=top_p,
+                with_search=with_search,
+            ),
+        )
+
+    def fallback() -> Tuple[str, None, Archetype]:
+        return fallback_to_ultra_minimal(
             station_name=station_name,
             personality=personality,
-            current=current_track,
+            current_track=current_track,
             next_track=next_track,
             current_meta=current_meta,
             next_meta=next_meta,
-            angle=angle,
-            hook=hook,
             banned_list=banned_list,
+            state=state,
+            rng=rng,
         )
 
-        generated = run_with_retries(
+    if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
+        prompt = build_prompt(archetype=archetype, **prompt_kwargs)
+        generated = generate_with_retries(
+            prompt=prompt,
             label=f"Gemini generation ({archetype.value})",
-            func=lambda: gemini_generate_text(
-                prompt=prompt,
-                system_prompt=build_system_prompt(station_name, personality),
-                temperature=temperature,
-                top_p=top_p,
-                with_search=should_enable_search(archetype, angle),
-            ),
+            with_search=should_enable_search(archetype, angle),
         )
         return cleanup_generated_script(generated), None, archetype
 
     if archetype == Archetype.CONCERT_CHECK:
         generation_attempts = 2
         for generation_attempt in range(generation_attempts):
-            prompt = build_prompt(
-                archetype=Archetype.CONCERT_CHECK,
-                station_name=station_name,
-                personality=personality,
-                current=current_track,
-                next_track=next_track,
-                current_meta=current_meta,
-                next_meta=next_meta,
-                angle=angle,
-                hook=hook,
-                banned_list=banned_list,
-            )
-
-            generated = run_with_retries(
+            prompt = build_prompt(archetype=Archetype.CONCERT_CHECK, **prompt_kwargs)
+            generated = generate_with_retries(
+                prompt=prompt,
                 label="Gemini generation (concert_check)",
-                func=lambda: gemini_generate_text(
-                    prompt=prompt,
-                    system_prompt=build_system_prompt(station_name, personality),
-                    temperature=temperature,
-                    top_p=top_p,
-                    with_search=True,
-                ),
+                with_search=True,
             )
 
             segment, reason = parse_concert_output(generated)
@@ -2143,17 +2146,7 @@ def generate_archetype_script(
                 LOGGER.info(
                     "[concert_check] No qualifying concerts found; falling back to ultra_minimal."
                 )
-                return fallback_to_ultra_minimal(
-                    station_name=station_name,
-                    personality=personality,
-                    current_track=current_track,
-                    next_track=next_track,
-                    current_meta=current_meta,
-                    next_meta=next_meta,
-                    banned_list=banned_list,
-                    state=state,
-                    rng=rng,
-                )
+                return fallback()
 
             if segment is None:
                 LOGGER.warning(
@@ -2181,17 +2174,7 @@ def generate_archetype_script(
                     LOGGER.warning(
                         "[concert_check] Exhausted retries; falling back to ultra_minimal."
                     )
-                    return fallback_to_ultra_minimal(
-                        station_name=station_name,
-                        personality=personality,
-                        current_track=current_track,
-                        next_track=next_track,
-                        current_meta=current_meta,
-                        next_meta=next_meta,
-                        banned_list=banned_list,
-                        state=state,
-                        rng=rng,
-                    )
+                    return fallback()
 
             assert segment is not None
             ok, validation_reason = validate_concert_segment(
@@ -2218,17 +2201,7 @@ def generate_archetype_script(
         LOGGER.warning(
             "[concert_check] Exhausted retries; falling back to ultra_minimal."
         )
-        return fallback_to_ultra_minimal(
-            station_name=station_name,
-            personality=personality,
-            current_track=current_track,
-            next_track=next_track,
-            current_meta=current_meta,
-            next_meta=next_meta,
-            banned_list=banned_list,
-            state=state,
-            rng=rng,
-        )
+        return fallback()
 
     # News mode with validation, repair, and topic retries.
     story_count = rng.randint(1, 2)
@@ -2237,28 +2210,14 @@ def generate_archetype_script(
         topics = pick_news_topics(story_count, rng)
         prompt = build_prompt(
             archetype=Archetype.NEWS,
-            station_name=station_name,
-            personality=personality,
-            current=current_track,
-            next_track=next_track,
-            current_meta=current_meta,
-            next_meta=next_meta,
-            angle=angle,
-            hook=hook,
-            banned_list=banned_list,
             story_count=story_count,
             news_topics=topics,
+            **prompt_kwargs,
         )
-
-        generated = run_with_retries(
+        generated = generate_with_retries(
+            prompt=prompt,
             label="Gemini generation (news)",
-            func=lambda: gemini_generate_text(
-                prompt=prompt,
-                system_prompt=build_system_prompt(station_name, personality),
-                temperature=temperature,
-                top_p=top_p,
-                with_search=True,
-            ),
+            with_search=True,
         )
 
         segment, reason = parse_news_output(generated)
@@ -2270,17 +2229,7 @@ def generate_archetype_script(
             LOGGER.warning(
                 "[news] Gemini returned NO_SCRIPT; falling back to ultra_minimal."
             )
-            return fallback_to_ultra_minimal(
-                station_name=station_name,
-                personality=personality,
-                current_track=current_track,
-                next_track=next_track,
-                current_meta=current_meta,
-                next_meta=next_meta,
-                banned_list=banned_list,
-                state=state,
-                rng=rng,
-            )
+            return fallback()
 
         if segment is None:
             LOGGER.warning(
@@ -2306,17 +2255,7 @@ def generate_archetype_script(
                 LOGGER.warning(
                     "[news] Output remained invalid after repair; falling back to ultra_minimal."
                 )
-                return fallback_to_ultra_minimal(
-                    station_name=station_name,
-                    personality=personality,
-                    current_track=current_track,
-                    next_track=next_track,
-                    current_meta=current_meta,
-                    next_meta=next_meta,
-                    banned_list=banned_list,
-                    state=state,
-                    rng=rng,
-                )
+                return fallback()
 
         ok, freshness_reason = validate_news_freshness_and_dedup(
             segment, state, now_ts()
@@ -2332,7 +2271,6 @@ def generate_archetype_script(
         )
         if topic_attempt < topic_attempts - 1:
             continue
-
         if forced_mode:
             raise RuntimeError(
                 "Forced news archetype failed freshness/dedup requirements after topic retries."
@@ -2341,17 +2279,7 @@ def generate_archetype_script(
     LOGGER.warning(
         "[news] Exhausted topic retries; falling back to ultra_minimal."
     )
-    return fallback_to_ultra_minimal(
-        station_name=station_name,
-        personality=personality,
-        current_track=current_track,
-        next_track=next_track,
-        current_meta=current_meta,
-        next_meta=next_meta,
-        banned_list=banned_list,
-        state=state,
-        rng=rng,
-    )
+    return fallback()
 
 
 def apply_success_state_update(
