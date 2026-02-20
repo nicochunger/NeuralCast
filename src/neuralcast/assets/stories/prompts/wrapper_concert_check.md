@@ -23,6 +23,7 @@ Conversational style cues:
 - Keep it practical and close to radio language, not like a listings database.
 - Mention only 1-2 strongest events.
 - Bridge back to the next track naturally.
+- If INPUT includes recent scripts, avoid reusing their opening phrases or repeated 3-5 word chunks.
 
 Deliver:
 - 70-120 words total.

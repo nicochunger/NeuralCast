@@ -52,6 +52,7 @@ NEWS_MAX_AGE_HOURS = 7 * 24
 NEWS_PREFERRED_MAX_AGE_HOURS = 72
 NEWS_DUPLICATE_WINDOW_DAYS = 7
 NEWS_DEDUP_MAX_ENTRIES = 50
+RECENT_SCRIPT_MEMORY_SIZE = 3
 
 SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 
@@ -225,6 +226,15 @@ BANNED_OPENERS: Tuple[str, ...] = (
     "Hola a todos",
     "Querida audiencia",
 )
+OVERUSED_STYLE_CLICHES: Tuple[str, ...] = (
+    "acero",
+    "voltaje",
+    "fuego",
+    "rugir",
+    "tormenta",
+    "explosion",
+    "incendio",
+)
 
 GENERATION_RETRIES = 2
 GENERATION_RETRY_DELAYS = (2, 5)
@@ -385,6 +395,7 @@ class OrchestratorState:
     recent_hooks: List[str]
     last_angle_by_archetype: Dict[str, str]
     recent_news_dedup: List[Dict[str, Any]]
+    recent_scripts: List[str]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -402,6 +413,7 @@ class OrchestratorState:
             "recent_hooks": self.recent_hooks,
             "last_angle_by_archetype": self.last_angle_by_archetype,
             "recent_news_dedup": self.recent_news_dedup,
+            "recent_scripts": self.recent_scripts,
         }
 
 
@@ -411,8 +423,8 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
             "NeuralCast script profile: "
             "tono natural, calmo y espontaneo, como alguien hablando en vivo desde estudio de radio. "
             "Voz serena, madura, levemente nostalgica y autentica; no dramatizar ni sobreactuar. "
-            "En transiciones, sugerir que recien paso el tema con frases organicas como "
-            "'recien escuchamos' o 'eso fue', sin repetir formula siempre. "
+            "En transiciones, reconocer de forma organica que el tema ya termino, "
+            "sin depender siempre de la misma formula de apertura. "
             "Cerrar de forma calida y no robotica presentando el proximo track. "
             "Permitir micro-muletillas sutiles (bueno, viste, mira, no se) solo si salen naturales. "
             "Sonar como conversacion real, con criterio musical y elegancia relajada."
@@ -423,10 +435,11 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
         script_profile=(
             "NeuralForge script profile: "
             "mantener la naturalidad, espontaneidad y credibilidad conversacional del estilo base, "
-            "pero con energia un poco mas alta, enfoque firme y vibra metalera sutil. "
+            "con energia firme, enfoque directo y presencia segura, sin sobreactuacion. "
             "El tono debe sentirse decidido y vivo, nunca caricaturesco ni gritado. "
             "Usar frases mas compactas y activas, con empuje controlado y precision radial. "
-            "Permitir imagenes de voltaje, acero, impacto o ascenso solo cuando aporten color real. "
+            "Evitar cliches de metal y metaforas gastadas (por ejemplo, acero, voltaje, fuego, rugir), "
+            "salvo que haya un dato concreto del track que las justifique. "
             "Conservar transiciones humanas y claras hacia el siguiente tema, sin sonar teatral."
         ),
         tts_profile=(""),
@@ -675,6 +688,7 @@ def default_state(ts: float, rng: random.Random) -> OrchestratorState:
         recent_hooks=[],
         last_angle_by_archetype={},
         recent_news_dedup=[],
+        recent_scripts=[],
     )
 
 
@@ -777,6 +791,15 @@ def migrate_state(
                 }
             )
         state.recent_news_dedup = normalized_entries[-NEWS_DEDUP_MAX_ENTRIES:]
+
+    recent_scripts = raw.get("recent_scripts")
+    if isinstance(recent_scripts, list):
+        normalized_scripts: List[str] = []
+        for item in recent_scripts:
+            text = " ".join(str(item).split()).strip()
+            if text:
+                normalized_scripts.append(text)
+        state.recent_scripts = normalized_scripts[:RECENT_SCRIPT_MEMORY_SIZE]
 
     state.state_version = STATE_VERSION
     return state
@@ -1132,6 +1155,8 @@ def sample_generation_settings(
 
 def assemble_banned_list(state: OrchestratorState) -> List[str]:
     banned = list(BANNED_OPENERS)
+    for cliche in OVERUSED_STYLE_CLICHES:
+        banned.append(f"overused style cliche: {cliche}")
     if state.recent_hooks:
         banned.append(f"repeat previous hook: {state.recent_hooks[0]}")
     if state.recent_archetypes:
@@ -1156,6 +1181,7 @@ def format_shared_input(
     angle: Optional[str],
     hook: str,
     banned_list: Sequence[str],
+    recent_scripts: Sequence[str],
 ) -> str:
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -1199,6 +1225,21 @@ def format_shared_input(
         lines.extend([f"  - {item}" for item in banned_list])
     else:
         lines.append("  - none")
+    if recent_scripts:
+        lines.extend(
+            [
+                "- Recent generated host scripts (most recent first):",
+                "  Use this as hard anti-repetition context: avoid reusing opening phrases and repeated 3-5 word chunks.",
+            ]
+        )
+        lines.extend(
+            [
+                f"  - Script {index}: {previous_script}"
+                for index, previous_script in enumerate(recent_scripts, start=1)
+            ]
+        )
+    else:
+        lines.append("- Recent generated host scripts (most recent first): none")
     lines.append("- Output language for spoken script: es-AR")
     return "\n".join(lines)
 
@@ -1214,6 +1255,7 @@ def build_prompt(
     angle: Optional[str],
     hook: str,
     banned_list: Sequence[str],
+    recent_scripts: Sequence[str],
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
@@ -1246,6 +1288,7 @@ def build_prompt(
         angle=angle,
         hook=hook,
         banned_list=banned_list,
+        recent_scripts=recent_scripts,
     )
 
     return f"{wrapper}\n\n{shared_input}"
@@ -1878,6 +1921,7 @@ def generate_archetype_script(
         "angle": angle,
         "hook": hook,
         "banned_list": banned_list,
+        "recent_scripts": state.recent_scripts,
     }
 
     def generate_with_retries(prompt: str, label: str, with_search: bool) -> str:
@@ -2074,6 +2118,7 @@ def apply_success_state_update(
     hook: str,
     angle: Optional[str],
     news_segment: Optional[NewsSegment],
+    script_text: str,
     rng: random.Random,
 ) -> None:
     state.last_spoken_track_key = current_track_key
@@ -2097,6 +2142,12 @@ def apply_success_state_update(
     state.recent_news_dedup = prune_news_history(state.recent_news_dedup, ts)
     if news_segment is not None:
         record_news_history(state, news_segment, ts)
+
+    normalized_script = " ".join(script_text.split()).strip()
+    if normalized_script:
+        state.recent_scripts = [normalized_script, *state.recent_scripts][
+            :RECENT_SCRIPT_MEMORY_SIZE
+        ]
 
 
 def update_track_seen_state(
@@ -2451,6 +2502,7 @@ def run(args: argparse.Namespace) -> None:
             hook=hook,
             angle=angle,
             news_segment=news_segment,
+            script_text=script_text,
             rng=rng,
         )
 

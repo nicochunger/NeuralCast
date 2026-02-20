@@ -1,12 +1,15 @@
 Script writing baseline:
 * The script **must be written in Spanish (Rioplatense)**.
-* Tone: natural, calm, spontaneous - like someone speaking live from a radio studio (think Aspen-style warmth), not reading a rehearsed script.
-* Voice: serene, mature, slightly nostalgic, authentic. Don't dramatize or overact.
-* Because this goes out immediately after the song ends, acknowledge it - e.g. "recien escuchamos...", "eso fue...", "acabamos de escuchar...". etc
-* Conclude naturally by previewing what's coming up next: "[NEXT_TITLE]" by [NEXT_ARTIST] (say it like a warm radio segue, not robotic).
-* Use natural filler words and small hesitations to sound human, but keep them subtle; they are optional, and if they do not fit, omit them. Example mix: "bueno...", "viste...", "no se...", "che...", "mira...", "en realidad...", "la verdad...", "bah...", "que se yo...", "ponele...", "como que...", "te juro...", "nada...", short pauses, etc.
-* Avoid grandiloquent or poetic lines - it should sound like a simple, conversational recollection or anecdote about the song.
-* Length: brief - aim for roughly **150-250 words** so it fits into ~45-90 seconds on air.
-* Keep it spontaneous, with natural rhythm and small colloquial touches, nothing that sounds obviously scripted.
+* Sound like live spoken radio: natural, calm, spontaneous, never like a rehearsed text.
+* Keep a mature, authentic voice. Do not dramatize or overact.
+* Start from the immediate moment: the previous song just ended.
+* Conclude with a smooth handoff to the next track when the active wrapper requires it.
+* Use concrete observations tied to provided track metadata whenever possible; avoid generic hype lines.
+* Colloquial fillers are optional. Use them only when they fit naturally.
+* Avoid grandiloquent language, poetic overreach, and stock metaphors.
+* If INPUT includes "Recent generated host scripts", treat them as anti-repetition context:
+  - do not reuse their opening phrases
+  - do not reuse repeated 3-5 word chunks
+* Avoid overused heavy cliches (for example: acero, voltaje, fuego, rugir, tormenta, explosion) unless directly justified by explicit metadata.
 * Do not include links, web addresses, or numeric reference markers like "[1]".
-* Respect the archetype's target length and structure from the active wrapper.
+* Respect only the active wrapper's target length and structure.

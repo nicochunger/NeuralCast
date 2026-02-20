@@ -9,6 +9,7 @@ Rules:
 - Must mention next track artist + title.
 - No metaphor, no jokes, no extra clauses.
 - Sound spoken, not robotic.
+- If INPUT includes recent scripts, avoid reusing their opener phrasing.
 
 Example directions (style reference, do not copy verbatim):
 - "Seguimos con [NEXT_TITLE] de [NEXT_ARTIST], quedate por aca."

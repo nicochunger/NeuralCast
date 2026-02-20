@@ -14,6 +14,10 @@ Conversational execution:
 - Tell it like you are sharing a story with a friend between tracks, not writing a mini-essay.
 - Use a clear spoken arc: hook, 2-3 compact insights, and a smooth handoff.
 - Keep sentences varied and oral, with natural transitions.
+- Keep vocabulary concrete and grounded; avoid stock dramatic metaphors.
+
+Anti-repetition rule:
+- If INPUT includes recent scripts, avoid reusing their opening phrases and repeated 3-5 word chunks.
 
 Example directions (style reference, do not copy verbatim):
 - "Hay una historia corta detras de este tema que cambia como se escucha hoy..."

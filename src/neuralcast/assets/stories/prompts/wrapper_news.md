@@ -26,6 +26,7 @@ Conversational style cues:
 - Attribute reporting naturally ("segun...", "reporta...").
 - Keep reactions brief and grounded; no alarmist or dramatic tone.
 - Bridge back to music in a warm, fluid way.
+- If INPUT includes recent scripts, avoid reusing their opening phrases or repeated 3-5 word chunks.
 
 Example directions (style reference, do not copy verbatim):
 - "Ahi se fue [CURRENT_TITLE] de [CURRENT_ARTIST], y ahora te tiro un mini paneo de noticias."
