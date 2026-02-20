@@ -25,14 +25,44 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-import requests
-from dotenv import load_dotenv
-from requests import Response
-from urllib3.exceptions import InsecureRequestWarning
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - dependency guard
+    requests = None  # type: ignore[assignment]
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - dependency guard
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+
+if requests is not None:
+    from requests import Response
+    RequestsHTTPError = requests.HTTPError
+else:  # pragma: no cover - dependency guard
+    Response = Any  # type: ignore[misc,assignment]
+
+    class RequestsHTTPError(Exception):
+        pass
+
+try:
+    from urllib3.exceptions import InsecureRequestWarning
+except ModuleNotFoundError:  # pragma: no cover - dependency guard
+    class InsecureRequestWarning(Warning):
+        pass
 
 from neuralcast.config import ASSETS_ROOT, PROJECT_ROOT
-from neuralcast.playlists.utils import sanitize_filename_component
 from neuralcast.services.openai_client import get_gemini_client, synthesize_speech
+
+try:
+    from neuralcast.playlists.utils import sanitize_filename_component
+except Exception:  # pragma: no cover - lightweight fallback for environments without pandas
+    def sanitize_filename_component(value: str) -> str:
+        text = str(value or "").strip()
+        text = re.sub(r"[<>:\"/\\\\|?*]", "", text)
+        text = re.sub(r"\s+", " ", text)
+        text = text.strip(". ").strip()
+        return text or "unknown"
 
 STORY_ROOT = ASSETS_ROOT / "stories"
 STORY_OUTPUT_DIR = STORY_ROOT / "snippets"
@@ -42,6 +72,7 @@ PERSONALITY_GUIDE_PATH = PROMPTS_DIR / "personality.md"
 
 STATE_VERSION = 1
 STATE_FILENAME = "ai_host_orchestrator_state.json"
+SCHEDULE_STATE_FILENAME = "ai_schedule_state.json"
 LOCK_FILENAME = "ai_host_orchestrator.lock"
 LOCK_STALE_SECONDS = 10 * 60
 
@@ -53,6 +84,10 @@ NEWS_PREFERRED_MAX_AGE_HOURS = 72
 NEWS_DUPLICATE_WINDOW_DAYS = 7
 NEWS_DEDUP_MAX_ENTRIES = 50
 RECENT_SCRIPT_MEMORY_SIZE = 3
+SCHEDULE_START_WINDOW_MINUTES = 10
+SCHEDULE_MID_PROGRESS_RANGE = (0.40, 0.70)
+SCHEDULE_MENTION_RETENTION_DAYS = 14
+SCHEDULE_MENTION_MAX_ENTRIES = 512
 
 SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 
@@ -81,6 +116,7 @@ class Archetype(str, Enum):
     DEEP_DIVE = "deep_dive"
     NEWS = "news"
     CONCERT_CHECK = "concert_check"
+    BLOCK_INTRO = "block_intro"
     ULTRA_MINIMAL = "ultra_minimal"
 
 
@@ -120,6 +156,7 @@ TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype.DEEP_DIVE: ((1.0, 1.5), (0.9, 0.98)),
     Archetype.NEWS: ((0.7, 1.1), (0.85, 0.95)),
     Archetype.CONCERT_CHECK: ((0.6, 1.0), (0.85, 0.95)),
+    Archetype.BLOCK_INTRO: ((0.4, 0.7), (0.75, 0.9)),
     Archetype.ULTRA_MINIMAL: ((0.3, 0.6), (0.7, 0.9)),
 }
 
@@ -183,6 +220,13 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "Cruce rápido con el calendario",
         "Te chequeo el tour al vuelo",
         "Agenda de shows en un toque",
+    ),
+    Archetype.BLOCK_INTRO: (
+        "Arranca un nuevo bloque",
+        "Cambiamos de seccion",
+        "Se abre esta franja",
+        "Entramos a este tramo",
+        "Ahora empieza esta parte",
     ),
     Archetype.ULTRA_MINIMAL: (
         "Vamos directo",
@@ -255,6 +299,7 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "wrapper_deep_dive": "wrapper_deep_dive.md",
     "wrapper_news": "wrapper_news.md",
     "wrapper_concert_check": "wrapper_concert_check.md",
+    "wrapper_block_intro": "wrapper_block_intro.md",
     "wrapper_ultra_minimal": "wrapper_ultra_minimal.md",
     "repair_news_contract": "repair_news_contract.md",
     "repair_concert_contract": "repair_concert_contract.md",
@@ -309,6 +354,7 @@ WRAPPER_SYSTEM_CHECK = get_prompt_template("wrapper_system_check")
 WRAPPER_DEEP_DIVE = get_prompt_template("wrapper_deep_dive")
 WRAPPER_NEWS = get_prompt_template("wrapper_news")
 WRAPPER_CONCERT_CHECK = get_prompt_template("wrapper_concert_check")
+WRAPPER_BLOCK_INTRO = get_prompt_template("wrapper_block_intro")
 WRAPPER_ULTRA_MINIMAL = get_prompt_template("wrapper_ultra_minimal")
 REPAIR_NEWS_CONTRACT = get_prompt_template("repair_news_contract")
 REPAIR_CONCERT_CONTRACT = get_prompt_template("repair_concert_contract")
@@ -340,6 +386,21 @@ class TrackMetadata:
     bpm: Optional[str] = None
     mood_tags: Optional[str] = None
     notes: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ScheduleContext:
+    block_key: str
+    section_label: str
+    genre_labels: List[str]
+    mode: str
+    playlist_name: Optional[str]
+    progress_ratio: float
+    phase: str
+    mention_intent: Optional[str]
+    next_section_label: Optional[str]
+    start_local_iso: str
+    end_local_iso: str
 
 
 @dataclass(frozen=True)
@@ -396,6 +457,7 @@ class OrchestratorState:
     last_angle_by_archetype: Dict[str, str]
     recent_news_dedup: List[Dict[str, Any]]
     recent_scripts: List[str]
+    schedule_block_mentions: Dict[str, Dict[str, Any]]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -414,6 +476,7 @@ class OrchestratorState:
             "last_angle_by_archetype": self.last_angle_by_archetype,
             "recent_news_dedup": self.recent_news_dedup,
             "recent_scripts": self.recent_scripts,
+            "schedule_block_mentions": self.schedule_block_mentions,
         }
 
 
@@ -531,6 +594,10 @@ class AzuraCastClient:
     """Minimal AzuraCast API client used by the orchestrator."""
 
     def __init__(self, base_url: str, api_key: str, verify_tls: bool = False):
+        if requests is None:
+            raise RuntimeError(
+                "requests package is required for AzuraCast API calls. Install with: pip install requests"
+            )
         self.base_url = base_url.rstrip("/")
         self.verify_tls = verify_tls
         self.session = requests.Session()
@@ -557,7 +624,7 @@ class AzuraCastClient:
     def get_now_playing(self, station: str) -> Dict[str, Any]:
         try:
             return self._request("GET", f"/api/nowplaying/{station}").json()
-        except requests.HTTPError as exc:
+        except RequestsHTTPError as exc:
             if exc.response is not None and exc.response.status_code == 404:
                 payload = self._request("GET", "/api/nowplaying").json()
                 for station_payload in payload:
@@ -689,6 +756,7 @@ def default_state(ts: float, rng: random.Random) -> OrchestratorState:
         last_angle_by_archetype={},
         recent_news_dedup=[],
         recent_scripts=[],
+        schedule_block_mentions={},
     )
 
 
@@ -800,6 +868,34 @@ def migrate_state(
             if text:
                 normalized_scripts.append(text)
         state.recent_scripts = normalized_scripts[:RECENT_SCRIPT_MEMORY_SIZE]
+
+    schedule_mentions = raw.get("schedule_block_mentions")
+    if isinstance(schedule_mentions, Mapping):
+        normalized_mentions: Dict[str, Dict[str, Any]] = {}
+        for block_key, details in schedule_mentions.items():
+            if not isinstance(block_key, str) or not block_key.strip():
+                continue
+            if not isinstance(details, Mapping):
+                continue
+            start = bool(details.get("start"))
+            mid = bool(details.get("mid"))
+            updated_at = _as_float(details.get("updated_at")) or ts
+            if not (start or mid):
+                continue
+            normalized_mentions[block_key] = {
+                "start": start,
+                "mid": mid,
+                "updated_at": updated_at,
+            }
+
+        if len(normalized_mentions) > SCHEDULE_MENTION_MAX_ENTRIES:
+            ordered = sorted(
+                normalized_mentions.items(),
+                key=lambda item: float(item[1].get("updated_at", 0.0)),
+            )
+            normalized_mentions = dict(ordered[-SCHEDULE_MENTION_MAX_ENTRIES:])
+
+        state.schedule_block_mentions = normalized_mentions
 
     state.state_version = STATE_VERSION
     return state
@@ -1040,6 +1136,269 @@ def resolve_station_metadata_file(
     return metadata_path
 
 
+def parse_schedule_hhmm(value: str, allow_24: bool = False) -> Optional[int]:
+    text = str(value or "").strip()
+    match = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", text)
+    if match:
+        return int(match.group(1)) * 60 + int(match.group(2))
+    if allow_24 and text == "24:00":
+        return 24 * 60
+    return None
+
+
+def schedule_local_datetime(
+    date_local: str,
+    time_local: str,
+    tz: ZoneInfo,
+) -> Optional[dt.datetime]:
+    try:
+        date_value = dt.date.fromisoformat(date_local)
+    except ValueError:
+        return None
+
+    minutes = parse_schedule_hhmm(time_local, allow_24=True)
+    if minutes is None:
+        return None
+
+    if minutes == 24 * 60:
+        return dt.datetime.combine(
+            date_value + dt.timedelta(days=1),
+            dt.time(hour=0, minute=0),
+            tzinfo=tz,
+        )
+
+    hour = minutes // 60
+    minute = minutes % 60
+    return dt.datetime.combine(
+        date_value,
+        dt.time(hour=hour, minute=minute),
+        tzinfo=tz,
+    )
+
+
+def prune_schedule_block_mentions(
+    mentions: Mapping[str, Mapping[str, Any]],
+    ts: float,
+) -> Dict[str, Dict[str, Any]]:
+    if not mentions:
+        return {}
+
+    cutoff_date = (
+        dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc).date()
+        - dt.timedelta(days=SCHEDULE_MENTION_RETENTION_DAYS)
+    )
+
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for block_key, details in mentions.items():
+        if not isinstance(block_key, str) or not block_key.strip():
+            continue
+        if not isinstance(details, Mapping):
+            continue
+
+        start = bool(details.get("start"))
+        mid = bool(details.get("mid"))
+        if not (start or mid):
+            continue
+
+        updated_raw = details.get("updated_at")
+        try:
+            updated_at = float(updated_raw) if updated_raw is not None else ts
+        except (TypeError, ValueError):
+            updated_at = ts
+
+        block_date_text = block_key.split("|", 1)[0]
+        try:
+            block_date = dt.date.fromisoformat(block_date_text)
+        except ValueError:
+            block_date = None
+        if block_date is not None and block_date < cutoff_date:
+            continue
+
+        normalized[block_key] = {
+            "start": start,
+            "mid": mid,
+            "updated_at": updated_at,
+        }
+
+    if len(normalized) <= SCHEDULE_MENTION_MAX_ENTRIES:
+        return normalized
+
+    ordered = sorted(
+        normalized.items(),
+        key=lambda item: float(item[1].get("updated_at", 0.0)),
+    )
+    return dict(ordered[-SCHEDULE_MENTION_MAX_ENTRIES:])
+
+
+def load_schedule_state_payload(
+    station_dir: pathlib.Path,
+) -> Optional[Mapping[str, Any]]:
+    schedule_path = resolve_station_metadata_file(station_dir, SCHEDULE_STATE_FILENAME)
+    if not schedule_path.exists():
+        return None
+    try:
+        payload = json.loads(schedule_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        LOGGER.warning(
+            "[schedule] Invalid schedule state file at %s; ignoring.", schedule_path
+        )
+        return None
+    if isinstance(payload, Mapping):
+        return payload
+    LOGGER.warning("[schedule] Schedule state is not a JSON object: %s", schedule_path)
+    return None
+
+
+def resolve_schedule_context(
+    schedule_state: Optional[Mapping[str, Any]],
+    ts: float,
+    mention_state: Mapping[str, Mapping[str, Any]],
+) -> Optional[ScheduleContext]:
+    if not isinstance(schedule_state, Mapping):
+        return None
+
+    timezone_name = str(schedule_state.get("timezone") or "").strip()
+    try:
+        schedule_tz = ZoneInfo(timezone_name) if timezone_name else SYSTEM_TZ
+    except Exception:  # noqa: BLE001
+        schedule_tz = SYSTEM_TZ
+
+    now_local = dt.datetime.fromtimestamp(ts, tz=schedule_tz)
+
+    parsed_blocks: List[Tuple[dt.datetime, dt.datetime, str, Mapping[str, Any], int]] = []
+
+    expanded = schedule_state.get("expanded_blocks")
+    if isinstance(expanded, list):
+        for idx, entry in enumerate(expanded):
+            if not isinstance(entry, Mapping):
+                continue
+            date_local = str(entry.get("date_local") or "").strip()
+            start_time = str(entry.get("start_time_local") or "").strip()
+            end_time = str(entry.get("end_time_local") or "").strip()
+            if not date_local or not start_time or not end_time:
+                continue
+
+            start_dt = schedule_local_datetime(date_local, start_time, schedule_tz)
+            end_dt = schedule_local_datetime(date_local, end_time, schedule_tz)
+            if start_dt is None or end_dt is None:
+                continue
+            if end_dt <= start_dt:
+                continue
+
+            block_key = str(entry.get("block_key") or "").strip()
+            if not block_key:
+                block_key = (
+                    f"{date_local}|{idx}|{start_time}|{end_time}|"
+                    f"{str(entry.get('mode') or 'open')}"
+                )
+            parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
+
+    if not parsed_blocks:
+        daily_template = schedule_state.get("daily_template")
+        if isinstance(daily_template, list):
+            current_date = now_local.date().isoformat()
+            for idx, entry in enumerate(daily_template):
+                if not isinstance(entry, Mapping):
+                    continue
+                start_time = str(entry.get("start_time_local") or "").strip()
+                end_time = str(entry.get("end_time_local") or "").strip()
+                if not start_time or not end_time:
+                    continue
+
+                start_dt = schedule_local_datetime(current_date, start_time, schedule_tz)
+                end_dt = schedule_local_datetime(current_date, end_time, schedule_tz)
+                if start_dt is None or end_dt is None:
+                    continue
+                if end_dt <= start_dt:
+                    end_dt = end_dt + dt.timedelta(days=1)
+
+                mode = str(entry.get("mode") or "open").strip().lower()
+                playlist_id = str(entry.get("playlist_id") or "open").strip()
+                block_key = (
+                    f"{current_date}|template|{idx}|{start_time}|{end_time}|{mode}|{playlist_id}"
+                )
+                parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
+
+    if not parsed_blocks:
+        return None
+
+    parsed_blocks.sort(key=lambda item: item[0])
+
+    current_index = -1
+    for idx, (start_dt, end_dt, _, _, _) in enumerate(parsed_blocks):
+        if start_dt <= now_local < end_dt:
+            current_index = idx
+            break
+
+    if current_index < 0:
+        return None
+
+    start_dt, end_dt, block_key, current_entry, _ = parsed_blocks[current_index]
+    duration_seconds = max((end_dt - start_dt).total_seconds(), 1.0)
+    progress_ratio = min(
+        1.0,
+        max(0.0, (now_local - start_dt).total_seconds() / duration_seconds),
+    )
+    if progress_ratio < 0.35:
+        phase = "start"
+    elif progress_ratio <= 0.75:
+        phase = "middle"
+    else:
+        phase = "end"
+
+    mention_entry = mention_state.get(block_key, {})
+    mention_intent: Optional[str] = None
+    elapsed_minutes = max(0.0, (now_local - start_dt).total_seconds() / 60.0)
+    if elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES and not bool(
+        mention_entry.get("start")
+    ):
+        mention_intent = "start"
+    elif (
+        SCHEDULE_MID_PROGRESS_RANGE[0]
+        <= progress_ratio
+        <= SCHEDULE_MID_PROGRESS_RANGE[1]
+        and not bool(mention_entry.get("mid"))
+    ):
+        mention_intent = "mid"
+
+    next_section_label: Optional[str] = None
+    for start_candidate, _, _, entry_candidate, _ in parsed_blocks:
+        if start_candidate > now_local:
+            candidate_label = str(entry_candidate.get("section_label") or "").strip()
+            next_section_label = candidate_label or None
+            break
+    if next_section_label is None and parsed_blocks:
+        candidate_label = str(parsed_blocks[0][3].get("section_label") or "").strip()
+        next_section_label = candidate_label or None
+
+    section_label = str(current_entry.get("section_label") or "").strip()
+    if not section_label:
+        section_label = str(current_entry.get("playlist_name") or "Bloque activo").strip()
+
+    genres_raw = current_entry.get("genre_labels")
+    genre_labels: List[str] = []
+    if isinstance(genres_raw, list):
+        genre_labels = [str(item).strip() for item in genres_raw if str(item).strip()]
+    elif genres_raw is not None:
+        genre_labels = [chunk.strip() for chunk in str(genres_raw).split(",") if chunk.strip()]
+    if not genre_labels:
+        genre_labels = ["mix variado"]
+
+    return ScheduleContext(
+        block_key=block_key,
+        section_label=section_label,
+        genre_labels=genre_labels,
+        mode=str(current_entry.get("mode") or "open").strip().lower(),
+        playlist_name=str(current_entry.get("playlist_name") or "").strip() or None,
+        progress_ratio=progress_ratio,
+        phase=phase,
+        mention_intent=mention_intent,
+        next_section_label=next_section_label,
+        start_local_iso=start_dt.isoformat(),
+        end_local_iso=end_dt.isoformat(),
+    )
+
+
 def should_speak_now(
     state: OrchestratorState,
     current_track_key: str,
@@ -1182,6 +1541,7 @@ def format_shared_input(
     hook: str,
     banned_list: Sequence[str],
     recent_scripts: Sequence[str],
+    schedule_context: Optional[ScheduleContext],
 ) -> str:
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -1240,6 +1600,37 @@ def format_shared_input(
         )
     else:
         lines.append("- Recent generated host scripts (most recent first): none")
+
+    if schedule_context is not None:
+        lines.extend(
+            [
+                "- Active programming block:",
+                f"  - Section: {schedule_context.section_label}",
+                f"  - Genres: {', '.join(schedule_context.genre_labels)}",
+                f"  - Phase: {schedule_context.phase} ({int(schedule_context.progress_ratio * 100)}%)",
+                f"  - Next section: {schedule_context.next_section_label or 'n/d'}",
+            ]
+        )
+        if schedule_context.mode == "open":
+            lines.append(
+                "  - Block mode: open weighted rotation (AzuraCast chooses by playlist weights)."
+            )
+        elif schedule_context.playlist_name:
+            lines.append(f"  - Block mode: fixed playlist ({schedule_context.playlist_name}).")
+
+        if schedule_context.mention_intent == "start":
+            lines.append(
+                "- Schedule mention guidance: present this section as starting now."
+            )
+        elif schedule_context.mention_intent == "mid":
+            lines.append(
+                "- Schedule mention guidance: mention naturally that we are currently in this section."
+            )
+        else:
+            lines.append(
+                "- Schedule mention guidance: optional; avoid repeating section callouts."
+            )
+
     lines.append("- Output language for spoken script: es-AR")
     return "\n".join(lines)
 
@@ -1256,6 +1647,7 @@ def build_prompt(
     hook: str,
     banned_list: Sequence[str],
     recent_scripts: Sequence[str],
+    schedule_context: Optional[ScheduleContext],
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
@@ -1275,6 +1667,7 @@ def build_prompt(
             Archetype.BACK_SELL: WRAPPER_BACK_SELL,
             Archetype.SYSTEM_CHECK: WRAPPER_SYSTEM_CHECK,
             Archetype.DEEP_DIVE: WRAPPER_DEEP_DIVE,
+            Archetype.BLOCK_INTRO: WRAPPER_BLOCK_INTRO,
             Archetype.ULTRA_MINIMAL: WRAPPER_ULTRA_MINIMAL,
         }.get(archetype, WRAPPER_ULTRA_MINIMAL)
 
@@ -1289,6 +1682,7 @@ def build_prompt(
         hook=hook,
         banned_list=banned_list,
         recent_scripts=recent_scripts,
+        schedule_context=schedule_context,
     )
 
     return f"{wrapper}\n\n{shared_input}"
@@ -1859,6 +2253,17 @@ def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
     return archetype in {Archetype.NEWS, Archetype.DEEP_DIVE, Archetype.CONCERT_CHECK}
 
 
+def should_force_block_intro(
+    schedule_context: Optional[ScheduleContext],
+    forced_archetype: Optional[Archetype],
+) -> bool:
+    return (
+        forced_archetype is None
+        and schedule_context is not None
+        and schedule_context.mention_intent == "start"
+    )
+
+
 def fallback_to_ultra_minimal(
     station_name: str,
     personality: StationPersonality,
@@ -1867,6 +2272,7 @@ def fallback_to_ultra_minimal(
     current_meta: TrackMetadata,
     next_meta: TrackMetadata,
     banned_list: Sequence[str],
+    schedule_context: Optional[ScheduleContext],
     state: OrchestratorState,
     rng: random.Random,
 ) -> Tuple[str, None, Archetype]:
@@ -1882,6 +2288,7 @@ def fallback_to_ultra_minimal(
         angle=None,
         hook=fallback_hook,
         banned_list=banned_list,
+        schedule_context=schedule_context,
         state=state,
         rng=rng,
         forced_mode=False,
@@ -1900,6 +2307,7 @@ def generate_archetype_script(
     angle: Optional[str],
     hook: str,
     banned_list: Sequence[str],
+    schedule_context: Optional[ScheduleContext],
     state: OrchestratorState,
     rng: random.Random,
     forced_mode: bool,
@@ -1922,6 +2330,7 @@ def generate_archetype_script(
         "hook": hook,
         "banned_list": banned_list,
         "recent_scripts": state.recent_scripts,
+        "schedule_context": schedule_context,
     }
 
     def generate_with_retries(prompt: str, label: str, with_search: bool) -> str:
@@ -1945,6 +2354,7 @@ def generate_archetype_script(
             current_meta=current_meta,
             next_meta=next_meta,
             banned_list=banned_list,
+            schedule_context=schedule_context,
             state=state,
             rng=rng,
         )
@@ -2119,6 +2529,7 @@ def apply_success_state_update(
     angle: Optional[str],
     news_segment: Optional[NewsSegment],
     script_text: str,
+    schedule_context: Optional[ScheduleContext],
     rng: random.Random,
 ) -> None:
     state.last_spoken_track_key = current_track_key
@@ -2148,6 +2559,27 @@ def apply_success_state_update(
         state.recent_scripts = [normalized_script, *state.recent_scripts][
             :RECENT_SCRIPT_MEMORY_SIZE
         ]
+
+    state.schedule_block_mentions = prune_schedule_block_mentions(
+        state.schedule_block_mentions, ts
+    )
+    should_record_schedule_mention = (
+        schedule_context is not None
+        and (
+            (
+                schedule_context.mention_intent == "start"
+                and archetype_used == Archetype.BLOCK_INTRO
+            )
+            or schedule_context.mention_intent == "mid"
+        )
+    )
+    if should_record_schedule_mention and schedule_context is not None:
+        mention_entry = dict(
+            state.schedule_block_mentions.get(schedule_context.block_key, {})
+        )
+        mention_entry[schedule_context.mention_intent] = True
+        mention_entry["updated_at"] = ts
+        state.schedule_block_mentions[schedule_context.block_key] = mention_entry
 
 
 def update_track_seen_state(
@@ -2307,6 +2739,16 @@ def run(args: argparse.Namespace) -> None:
         )
         station_personality = resolve_station_personality(args.station)
         LOGGER.info("[station] Personality profile active: %s", args.station)
+        state.schedule_block_mentions = prune_schedule_block_mentions(
+            state.schedule_block_mentions, now_ts()
+        )
+
+        schedule_state = load_schedule_state_payload(station_dir)
+        if schedule_state is not None:
+            LOGGER.info(
+                "[schedule] Loaded weekly schedule state for context (week_start=%s).",
+                schedule_state.get("week_start_local_date") or "unknown",
+            )
 
         try:
             now_playing_payload = run_with_retries(
@@ -2375,10 +2817,30 @@ def run(args: argparse.Namespace) -> None:
             return
 
         LOGGER.info("[queue] Next track: %s - %s", next_track.artist, next_track.title)
+        schedule_context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_ts(),
+            mention_state=state.schedule_block_mentions,
+        )
+        if schedule_context is not None:
+            LOGGER.info(
+                "[schedule] Active block='%s' phase=%s mention_intent=%s",
+                schedule_context.section_label,
+                schedule_context.phase,
+                schedule_context.mention_intent or "none",
+            )
 
         forced_archetype = (
             Archetype(args.force_archetype) if args.force_archetype else None
         )
+        auto_forced_block_intro = False
+        if should_force_block_intro(schedule_context, forced_archetype):
+            forced_archetype = Archetype.BLOCK_INTRO
+            auto_forced_block_intro = True
+            LOGGER.info(
+                "[schedule] Block start window active for '%s'; forcing block_intro archetype.",
+                schedule_context.section_label if schedule_context else "n/d",
+            )
 
         if forced_archetype is None:
             eligible, wait_reason = should_speak_now(state, current_key, now_ts())
@@ -2387,10 +2849,16 @@ def run(args: argparse.Namespace) -> None:
                 return
             LOGGER.info("[gate] Wait gate open: %s", wait_reason)
         else:
-            LOGGER.info(
-                "[gate] Force archetype active: %s; bypassing wait gate.",
-                forced_archetype.value,
-            )
+            if auto_forced_block_intro:
+                LOGGER.info(
+                    "[gate] Auto-forced archetype active: %s; bypassing wait gate.",
+                    forced_archetype.value,
+                )
+            else:
+                LOGGER.info(
+                    "[gate] Force archetype active: %s; bypassing wait gate.",
+                    forced_archetype.value,
+                )
 
         if forced_archetype is not None:
             selected_archetype = forced_archetype
@@ -2436,6 +2904,7 @@ def run(args: argparse.Namespace) -> None:
             angle=angle,
             hook=hook,
             banned_list=banned_list,
+            schedule_context=schedule_context,
             state=state,
             rng=rng,
             forced_mode=forced_archetype == Archetype.NEWS,
@@ -2503,6 +2972,7 @@ def run(args: argparse.Namespace) -> None:
             angle=angle,
             news_segment=news_segment,
             script_text=script_text,
+            schedule_context=schedule_context,
             rng=rng,
         )
 

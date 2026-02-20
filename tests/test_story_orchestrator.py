@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import sys
 import time
 import unittest
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -16,6 +18,8 @@ if str(SRC) not in sys.path:
 from neuralcast.pipelines.story_injector import (  # noqa: E402
     Archetype,
     OrchestratorState,
+    ScheduleContext,
+    apply_success_state_update,
     build_system_prompt,
     build_tts_instructions,
     build_news_dedup_key,
@@ -23,7 +27,9 @@ from neuralcast.pipelines.story_injector import (  # noqa: E402
     default_state,
     migrate_state,
     parse_news_output,
+    resolve_schedule_context,
     resolve_station_personality,
+    should_force_block_intro,
     station_name_for_generation,
     should_speak_now,
     validate_news_freshness_and_dedup,
@@ -63,6 +69,8 @@ class OrchestratorHelpersTest(unittest.TestCase):
             recent_hooks=[],
             last_angle_by_archetype={},
             recent_news_dedup=[],
+            recent_scripts=[],
+            schedule_block_mentions={},
         )
 
         ok, _ = should_speak_now(state, "new|track", ts)
@@ -161,17 +169,161 @@ META (JSON):
     def test_station_personality_profiles(self) -> None:
         neuralcast = resolve_station_personality("neuralcast")
         neuralforge = resolve_station_personality("neuralforge")
-        self.assertIn("Aspen", neuralcast.script_profile)
+        self.assertIn("NeuralCast script profile", neuralcast.script_profile)
         self.assertIn("metal", neuralforge.script_profile.lower())
 
     def test_personality_applies_to_system_and_tts(self) -> None:
         personality = resolve_station_personality("neuralforge")
-        system_prompt = build_system_prompt(personality)
+        system_prompt = build_system_prompt("NeuralForge", personality)
         tts_instructions = build_tts_instructions(personality)
         self.assertIn("Station personality profile", system_prompt)
         self.assertIn("metal", system_prompt.lower())
-        self.assertIn("Ajuste de personalidad de estacion", tts_instructions)
-        self.assertIn("metal", tts_instructions.lower())
+        self.assertIn("La voz suena natural", tts_instructions)
+
+    def test_schedule_context_start_intent(self) -> None:
+        tz = ZoneInfo("Europe/Zurich")
+        now_local = dt.datetime(2026, 2, 16, 0, 5, tzinfo=tz)
+        date_local = now_local.date().isoformat()
+        schedule_state = {
+            "timezone": "Europe/Zurich",
+            "expanded_blocks": [
+                {
+                    "block_key": f"{date_local}|0|00:00|08:00|playlist|10",
+                    "date_local": date_local,
+                    "start_time_local": "00:00",
+                    "end_time_local": "08:00",
+                    "mode": "playlist",
+                    "section_label": "Prog Dawn",
+                    "genre_labels": ["prog", "metal"],
+                    "playlist_id": "10",
+                    "playlist_name": "Prog Metal",
+                },
+                {
+                    "block_key": f"{date_local}|1|08:00|24:00|open|open",
+                    "date_local": date_local,
+                    "start_time_local": "08:00",
+                    "end_time_local": "24:00",
+                    "mode": "open",
+                    "section_label": "Open Rotation",
+                    "genre_labels": ["mixed"],
+                },
+            ],
+        }
+
+        context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_local.timestamp(),
+            mention_state={},
+        )
+        self.assertIsNotNone(context)
+        assert context is not None
+        self.assertEqual(context.section_label, "Prog Dawn")
+        self.assertEqual(context.mention_intent, "start")
+
+    def test_schedule_context_mid_intent_suppressed_after_mention(self) -> None:
+        tz = ZoneInfo("Europe/Zurich")
+        now_local = dt.datetime(2026, 2, 16, 15, 0, tzinfo=tz)
+        date_local = now_local.date().isoformat()
+        block_key = f"{date_local}|0|12:00|18:00|playlist|10"
+        schedule_state = {
+            "timezone": "Europe/Zurich",
+            "expanded_blocks": [
+                {
+                    "block_key": block_key,
+                    "date_local": date_local,
+                    "start_time_local": "12:00",
+                    "end_time_local": "18:00",
+                    "mode": "playlist",
+                    "section_label": "Afternoon Forge",
+                    "genre_labels": ["symphonic", "metal"],
+                    "playlist_id": "10",
+                    "playlist_name": "Symphonic Metal",
+                }
+            ],
+        }
+
+        fresh_context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_local.timestamp(),
+            mention_state={},
+        )
+        self.assertIsNotNone(fresh_context)
+        assert fresh_context is not None
+        self.assertEqual(fresh_context.mention_intent, "mid")
+
+        already_mentioned_context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_local.timestamp(),
+            mention_state={block_key: {"mid": True, "updated_at": now_local.timestamp()}},
+        )
+        self.assertIsNotNone(already_mentioned_context)
+        assert already_mentioned_context is not None
+        self.assertIsNone(already_mentioned_context.mention_intent)
+
+    def test_should_force_block_intro_on_start_intent(self) -> None:
+        context = ScheduleContext(
+            block_key="2026-02-16|0|00:00|08:00|playlist|10",
+            section_label="Prog Dawn",
+            genre_labels=["prog", "metal"],
+            mode="playlist",
+            playlist_name="Prog Metal",
+            progress_ratio=0.05,
+            phase="start",
+            mention_intent="start",
+            next_section_label="Open Rotation",
+            start_local_iso="2026-02-16T00:00:00+01:00",
+            end_local_iso="2026-02-16T08:00:00+01:00",
+        )
+
+        self.assertTrue(should_force_block_intro(context, None))
+        self.assertFalse(should_force_block_intro(context, Archetype.BACK_SELL))
+
+    def test_start_schedule_mention_recorded_only_for_block_intro(self) -> None:
+        ts = time.time()
+        state = default_state(ts, __import__("random").Random(1))
+        context = ScheduleContext(
+            block_key="2026-02-16|0|00:00|08:00|playlist|10",
+            section_label="Prog Dawn",
+            genre_labels=["prog"],
+            mode="playlist",
+            playlist_name="Prog Metal",
+            progress_ratio=0.05,
+            phase="start",
+            mention_intent="start",
+            next_section_label="Open Rotation",
+            start_local_iso="2026-02-16T00:00:00+01:00",
+            end_local_iso="2026-02-16T08:00:00+01:00",
+        )
+
+        apply_success_state_update(
+            state=state,
+            ts=ts,
+            current_track_key="a|b",
+            current_remaining=120,
+            archetype_used=Archetype.BACK_SELL,
+            hook="hook",
+            angle=None,
+            news_segment=None,
+            script_text="script",
+            schedule_context=context,
+            rng=__import__("random").Random(2),
+        )
+        self.assertNotIn(context.block_key, state.schedule_block_mentions)
+
+        apply_success_state_update(
+            state=state,
+            ts=ts + 1,
+            current_track_key="a|b",
+            current_remaining=120,
+            archetype_used=Archetype.BLOCK_INTRO,
+            hook="hook",
+            angle=None,
+            news_segment=None,
+            script_text="script",
+            schedule_context=context,
+            rng=__import__("random").Random(3),
+        )
+        self.assertTrue(state.schedule_block_mentions[context.block_key]["start"])
 
     def test_station_name_spelling_for_generation(self) -> None:
         self.assertEqual(

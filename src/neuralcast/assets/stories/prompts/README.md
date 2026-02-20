@@ -1,6 +1,8 @@
 # Story Injector Prompt Composition
 
-This folder contains the Gemini prompt templates used by `src/neuralcast/pipelines/story_injector.py`.
+This folder contains the Gemini prompt templates used by:
+- `src/neuralcast/pipelines/story_injector.py`
+- `src/neuralcast/pipelines/schedule_generator.py`
 
 ## Main prompt files
 
@@ -13,7 +15,10 @@ This folder contains the Gemini prompt templates used by `src/neuralcast/pipelin
 - `wrapper_deep_dive.md`: archetype wrapper for `deep_dive`.
 - `wrapper_news.md`: archetype wrapper for `news` (has `{story_count}`, `{news_topics}`, age-window placeholders).
 - `wrapper_concert_check.md`: archetype wrapper for `concert_check` (has `{concert_countries}` placeholder).
+- `wrapper_block_intro.md`: archetype wrapper for `block_intro` (schedule block start introduction).
 - `wrapper_ultra_minimal.md`: archetype wrapper for fallback/minimal handoff.
+- `schedule_system.md`: system contract for weekly schedule generation.
+- `schedule_user.md`: user prompt template for fixed daily-template weekly planning.
 
 ## Repair prompt files
 

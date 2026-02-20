@@ -6,17 +6,25 @@ import pathlib
 import subprocess
 import tempfile
 import wave
-from typing import Optional
+from typing import Any, Optional
 
-import openai
-from dotenv import load_dotenv
+try:
+    import openai
+except ModuleNotFoundError:  # pragma: no cover - dependency guard
+    openai = None  # type: ignore[assignment]
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - dependency guard
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
 
 from neuralcast.config import ASSETS_ROOT
 
 load_dotenv()
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-_OPENAI_CLIENT: Optional[openai.OpenAI] = None
+_OPENAI_CLIENT: Optional[Any] = None
 _GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 _GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
@@ -25,6 +33,10 @@ _DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-prev
 
 
 def get_openai_client() -> openai.OpenAI:
+    if openai is None:
+        raise RuntimeError(
+            "openai package is not installed. Install with: pip install openai"
+        )
     if _OPENAI_KEY is None or not _OPENAI_KEY.strip():
         raise RuntimeError(
             "OPENAI_API_KEY is not configured. Please set it in your environment."
