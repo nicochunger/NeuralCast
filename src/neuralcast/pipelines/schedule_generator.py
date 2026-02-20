@@ -62,6 +62,11 @@ DEFAULT_OPEN_RATIO_MAX = 0.40
 DEFAULT_MIN_BLOCK_MINUTES = 30
 DEFAULT_MAX_BLOCK_MINUTES = 240
 DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES = 180
+UNSCHEDULED_WINDOW_START_MINUTE = 22 * 60
+UNSCHEDULED_WINDOW_END_MINUTE = 6 * 60
+UNSCHEDULED_WINDOW_TOTAL_MINUTES = (
+    (24 * 60 - UNSCHEDULED_WINDOW_START_MINUTE) + UNSCHEDULED_WINDOW_END_MINUTE
+)
 
 GENERATION_MAX_ATTEMPTS = 2
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
@@ -352,6 +357,17 @@ def format_hhmm(minutes: int) -> str:
     return f"{hours:02d}:{mins:02d}"
 
 
+def overlaps_unscheduled_window(start_minute: int, end_minute: int) -> bool:
+    if start_minute < 0 or end_minute > 24 * 60 or end_minute <= start_minute:
+        return False
+
+    if start_minute < UNSCHEDULED_WINDOW_END_MINUTE:
+        return True
+    if end_minute > UNSCHEDULED_WINDOW_START_MINUTE:
+        return True
+    return False
+
+
 def normalize_mode(value: Any) -> str:
     normalized = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
     if normalized in {"playlist", "assigned"}:
@@ -412,10 +428,16 @@ def validate_daily_template(
         mode = normalize_mode(entry.get("mode"))
         section_label = str(entry.get("section_label") or "").strip()
         genres = normalize_genre_labels(entry.get("genre_labels"))
+        overlaps_quiet_hours = overlaps_unscheduled_window(start_minute, end_minute)
 
         playlist_id: Optional[str] = None
         playlist_name: Optional[str] = None
         if mode == "playlist":
+            if overlaps_quiet_hours:
+                raise ScheduleValidationError(
+                    f"Playlist blocks are not allowed between 22:00 and 06:00 "
+                    f"({start_time}-{end_time}). Use mode='open'."
+                )
             raw_playlist_id = entry.get("playlist_id")
             if raw_playlist_id not in (None, ""):
                 playlist_id = str(raw_playlist_id).strip()
@@ -648,10 +670,13 @@ def build_duration_partition(
     min_block_minutes: int,
     max_block_minutes: int,
     *,
+    total_minutes: int = 24 * 60,
     target_block_minutes: int = DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
 ) -> List[int]:
     if min_block_minutes <= 0 or max_block_minutes <= 0:
         raise ScheduleValidationError("Block duration bounds must be positive.")
+    if total_minutes <= 0:
+        raise ScheduleValidationError("total_minutes must be positive.")
     if min_block_minutes > max_block_minutes:
         raise ScheduleValidationError(
             "min_block_minutes cannot exceed max_block_minutes."
@@ -689,10 +714,10 @@ def build_duration_partition(
                 return (duration, *tail)
         return None
 
-    result = solve(24 * 60)
+    result = solve(total_minutes)
     if result is None:
         raise ScheduleValidationError(
-            "Unable to build deterministic template that covers 24:00 with current bounds."
+            f"Unable to build deterministic template for {total_minutes} minutes with current bounds."
         )
     return list(result)
 
@@ -860,17 +885,84 @@ def build_deterministic_daily_template(
     if not enabled_playlists:
         raise ScheduleValidationError("No enabled playlists available for deterministic template.")
 
-    block_durations = build_duration_partition(
-        min_block_minutes=min_block_minutes,
-        max_block_minutes=max_block_minutes,
-    )
-    open_indices = set(
-        choose_open_block_indices(
-            block_minutes=block_durations,
-            open_ratio_min=open_ratio_min,
-            open_ratio_max=open_ratio_max,
+    day_total_minutes = 24 * 60
+    min_open_minutes = math.ceil(open_ratio_min * day_total_minutes)
+    max_open_minutes = math.floor(open_ratio_max * day_total_minutes)
+    forced_open_minutes = UNSCHEDULED_WINDOW_TOTAL_MINUTES
+
+    if max_open_minutes < forced_open_minutes:
+        raise ScheduleValidationError(
+            "open_ratio_max is too low for fixed unscheduled window 22:00-06:00 "
+            f"(requires at least {forced_open_minutes / day_total_minutes:.3f})."
+        )
+
+    block_durations: List[int] = []
+    block_durations.extend(
+        build_duration_partition(
+            min_block_minutes=min_block_minutes,
+            max_block_minutes=max_block_minutes,
+            total_minutes=UNSCHEDULED_WINDOW_END_MINUTE,
         )
     )
+    daytime_minutes = UNSCHEDULED_WINDOW_START_MINUTE - UNSCHEDULED_WINDOW_END_MINUTE
+    block_durations.extend(
+        build_duration_partition(
+            min_block_minutes=min_block_minutes,
+            max_block_minutes=max_block_minutes,
+            total_minutes=daytime_minutes,
+        )
+    )
+    block_durations.extend(
+        build_duration_partition(
+            min_block_minutes=min_block_minutes,
+            max_block_minutes=max_block_minutes,
+            total_minutes=24 * 60 - UNSCHEDULED_WINDOW_START_MINUTE,
+        )
+    )
+
+    forced_open_indices: set[int] = set()
+    daytime_indices: List[int] = []
+    probe_start = 0
+    for index, duration in enumerate(block_durations):
+        probe_end = probe_start + duration
+        if overlaps_unscheduled_window(probe_start, probe_end):
+            forced_open_indices.add(index)
+        else:
+            daytime_indices.append(index)
+        probe_start = probe_end
+
+    additional_open_min = max(0, min_open_minutes - forced_open_minutes)
+    additional_open_max = max_open_minutes - forced_open_minutes
+    if additional_open_max < 0:
+        raise ScheduleValidationError(
+            "open_ratio_max is too low for fixed unscheduled window 22:00-06:00."
+        )
+
+    daytime_block_minutes = [block_durations[index] for index in daytime_indices]
+    total_daytime_minutes = sum(daytime_block_minutes)
+    if additional_open_min > total_daytime_minutes:
+        raise ScheduleValidationError(
+            "open_ratio_min is too high after applying fixed unscheduled window 22:00-06:00."
+        )
+
+    optional_open_indices: set[int] = set()
+    if total_daytime_minutes > 0 and additional_open_max > 0:
+        day_ratio_min = additional_open_min / total_daytime_minutes
+        day_ratio_max = min(1.0, additional_open_max / total_daytime_minutes)
+        if day_ratio_min > day_ratio_max:
+            raise ScheduleValidationError(
+                "No feasible daytime open-slot ratio after applying 22:00-06:00 unscheduled window."
+            )
+        chosen_daytime = choose_open_block_indices(
+            block_minutes=daytime_block_minutes,
+            open_ratio_min=day_ratio_min,
+            open_ratio_max=day_ratio_max,
+        )
+        optional_open_indices = {
+            daytime_indices[relative_index] for relative_index in chosen_daytime
+        }
+
+    open_indices = forced_open_indices | optional_open_indices
 
     cycle = build_weighted_playlist_cycle(enabled_playlists)
     if not cycle:

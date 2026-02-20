@@ -51,28 +51,35 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         raw_blocks = [
             {
                 "start_time_local": "00:00",
-                "end_time_local": "08:00",
-                "mode": "playlist",
-                "playlist_id": "10",
-                "playlist_name": "Prog Metal",
-                "section_label": "Prog Night",
-                "genre_labels": ["prog", "metal"],
-            },
-            {
-                "start_time_local": "08:00",
-                "end_time_local": "14:00",
+                "end_time_local": "06:00",
                 "mode": "open",
-                "section_label": "Open Rotation",
+                "section_label": "Night Rotation",
                 "genre_labels": ["mixed"],
             },
             {
+                "start_time_local": "06:00",
+                "end_time_local": "14:00",
+                "mode": "playlist",
+                "playlist_id": "10",
+                "playlist_name": "Prog Metal",
+                "section_label": "Prog Morning",
+                "genre_labels": ["prog", "metal"],
+            },
+            {
                 "start_time_local": "14:00",
-                "end_time_local": "24:00",
+                "end_time_local": "22:00",
                 "mode": "playlist",
                 "playlist_id": "11",
                 "playlist_name": "Symphonic Metal",
                 "section_label": "Symphonic Day",
                 "genre_labels": ["symphonic"],
+            },
+            {
+                "start_time_local": "22:00",
+                "end_time_local": "24:00",
+                "mode": "open",
+                "section_label": "Late Night Rotation",
+                "genre_labels": ["mixed"],
             },
         ]
 
@@ -84,26 +91,33 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             min_block_minutes=30,
             max_block_minutes=720,
         )
-        self.assertEqual(len(blocks), 3)
-        self.assertEqual(blocks[1].mode, "open")
+        self.assertEqual(len(blocks), 4)
+        self.assertEqual(blocks[0].mode, "open")
+        self.assertEqual(blocks[-1].mode, "open")
 
     def test_validate_daily_template_rejects_gap(self) -> None:
         raw_blocks = [
             {
                 "start_time_local": "00:00",
-                "end_time_local": "08:00",
-                "mode": "playlist",
-                "playlist_id": "10",
-                "section_label": "Prog Night",
-                "genre_labels": ["prog"],
+                "end_time_local": "06:00",
+                "mode": "open",
+                "section_label": "Night Rotation",
+                "genre_labels": ["mixed"],
             },
             {
-                "start_time_local": "09:00",
-                "end_time_local": "24:00",
+                "start_time_local": "07:00",
+                "end_time_local": "22:00",
                 "mode": "playlist",
                 "playlist_id": "11",
                 "section_label": "Symphonic Day",
                 "genre_labels": ["symphonic"],
+            },
+            {
+                "start_time_local": "22:00",
+                "end_time_local": "24:00",
+                "mode": "open",
+                "section_label": "Late Night Rotation",
+                "genre_labels": ["mixed"],
             },
         ]
 
@@ -121,18 +135,25 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         raw_blocks = [
             {
                 "start_time_local": "00:00",
-                "end_time_local": "12:00",
+                "end_time_local": "06:00",
                 "mode": "open",
-                "section_label": "Open Rotation",
+                "section_label": "Night Rotation",
                 "genre_labels": ["mixed"],
             },
             {
-                "start_time_local": "12:00",
-                "end_time_local": "24:00",
+                "start_time_local": "06:00",
+                "end_time_local": "22:00",
                 "mode": "playlist",
                 "playlist_id": "11",
                 "section_label": "Symphonic Day",
                 "genre_labels": ["symphonic"],
+            },
+            {
+                "start_time_local": "22:00",
+                "end_time_local": "24:00",
+                "mode": "open",
+                "section_label": "Late Night Rotation",
+                "genre_labels": ["mixed"],
             },
         ]
 
@@ -140,8 +161,8 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             validate_daily_template(
                 raw_blocks=raw_blocks,
                 playlist_by_id=self.playlist_map,
-                open_ratio_min=0.20,
-                open_ratio_max=0.40,
+                open_ratio_min=0.00,
+                open_ratio_max=0.20,
                 min_block_minutes=30,
                 max_block_minutes=720,
             )
@@ -150,32 +171,46 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         raw_blocks = [
             {
                 "start_time_local": "00:00",
-                "end_time_local": "12:00",
+                "end_time_local": "06:00",
+                "mode": "open",
+                "section_label": "Night Rotation",
+                "genre_labels": ["mixed"],
+            },
+            {
+                "start_time_local": "06:00",
+                "end_time_local": "14:00",
                 "mode": "playlist",
                 "playlist_id": "10",
-                "section_label": "Morning",
+                "section_label": "Daytime Part 1",
                 "genre_labels": ["prog"],
             },
             {
-                "start_time_local": "12:00",
-                "end_time_local": "24:00",
+                "start_time_local": "14:00",
+                "end_time_local": "22:00",
                 "mode": "playlist",
                 "playlist_id": "11",
-                "section_label": "Afternoon",
+                "section_label": "Daytime Part 2",
                 "genre_labels": ["symphonic"],
+            },
+            {
+                "start_time_local": "22:00",
+                "end_time_local": "24:00",
+                "mode": "open",
+                "section_label": "Late Night Rotation",
+                "genre_labels": ["mixed"],
             },
         ]
 
         daily = validate_daily_template(
             raw_blocks=raw_blocks,
             playlist_by_id=self.playlist_map,
-            open_ratio_min=0.0,
-            open_ratio_max=0.0,
+            open_ratio_min=0.30,
+            open_ratio_max=0.40,
             min_block_minutes=30,
             max_block_minutes=720,
         )
         expanded = expand_daily_template_to_week(daily, week_start=dt.date(2026, 2, 16))
-        self.assertEqual(len(expanded), 14)
+        self.assertEqual(len(expanded), 28)
         self.assertEqual(expanded[0].date_local, "2026-02-16")
         self.assertEqual(expanded[-1].date_local, "2026-02-22")
 
@@ -183,26 +218,33 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         raw_blocks = [
             {
                 "start_time_local": "00:00",
-                "end_time_local": "08:00",
-                "mode": "playlist",
-                "playlist_id": "10",
-                "section_label": "Night",
-                "genre_labels": ["prog"],
-            },
-            {
-                "start_time_local": "08:00",
-                "end_time_local": "12:00",
+                "end_time_local": "06:00",
                 "mode": "open",
-                "section_label": "Open",
+                "section_label": "Night Rotation",
                 "genre_labels": ["mixed"],
             },
             {
-                "start_time_local": "12:00",
-                "end_time_local": "24:00",
+                "start_time_local": "06:00",
+                "end_time_local": "14:00",
+                "mode": "playlist",
+                "playlist_id": "10",
+                "section_label": "Day Part 1",
+                "genre_labels": ["prog"],
+            },
+            {
+                "start_time_local": "14:00",
+                "end_time_local": "22:00",
                 "mode": "playlist",
                 "playlist_id": "11",
-                "section_label": "Day",
+                "section_label": "Day Part 2",
                 "genre_labels": ["symphonic"],
+            },
+            {
+                "start_time_local": "22:00",
+                "end_time_local": "24:00",
+                "mode": "open",
+                "section_label": "Late Night Rotation",
+                "genre_labels": ["mixed"],
             },
         ]
         daily = validate_daily_template(
@@ -221,10 +263,10 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         )
         self.assertEqual(len(items["10"]), 1)
         self.assertEqual(len(items["11"]), 1)
-        self.assertEqual(items["10"][0]["start_time"], 0)
-        self.assertEqual(items["10"][0]["end_time"], 800)
-        self.assertEqual(items["11"][0]["start_time"], 1200)
-        self.assertEqual(items["11"][0]["end_time"], 2359)
+        self.assertEqual(items["10"][0]["start_time"], 600)
+        self.assertEqual(items["10"][0]["end_time"], 1400)
+        self.assertEqual(items["11"][0]["start_time"], 1400)
+        self.assertEqual(items["11"][0]["end_time"], 2200)
 
     def test_infer_azuracast_days_prefers_existing_shape(self) -> None:
         playlist = StationPlaylist(
@@ -255,6 +297,49 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertEqual(azuracast_time_for_api("07:30"), 730)
         self.assertEqual(azuracast_time_for_api("24:00"), 2359)
 
+    def test_validate_daily_template_rejects_playlist_in_unscheduled_window(self) -> None:
+        raw_blocks = [
+            {
+                "start_time_local": "00:00",
+                "end_time_local": "05:00",
+                "mode": "open",
+                "section_label": "Night Rotation",
+                "genre_labels": ["mixed"],
+            },
+            {
+                "start_time_local": "05:00",
+                "end_time_local": "08:00",
+                "mode": "playlist",
+                "playlist_id": "10",
+                "section_label": "Too Early",
+                "genre_labels": ["prog"],
+            },
+            {
+                "start_time_local": "08:00",
+                "end_time_local": "22:00",
+                "mode": "playlist",
+                "playlist_id": "11",
+                "section_label": "Day",
+                "genre_labels": ["symphonic"],
+            },
+            {
+                "start_time_local": "22:00",
+                "end_time_local": "24:00",
+                "mode": "open",
+                "section_label": "Late Night Rotation",
+                "genre_labels": ["mixed"],
+            },
+        ]
+        with self.assertRaises(ValueError):
+            validate_daily_template(
+                raw_blocks=raw_blocks,
+                playlist_by_id=self.playlist_map,
+                open_ratio_min=0.20,
+                open_ratio_max=0.60,
+                min_block_minutes=30,
+                max_block_minutes=720,
+            )
+
     def test_build_deterministic_daily_template_meets_constraints(self) -> None:
         template = build_deterministic_daily_template(
             playlist_by_id=self.playlist_map,
@@ -266,6 +351,9 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertGreater(len(template), 0)
         self.assertEqual(template[0].start_time_local, "00:00")
         self.assertEqual(template[-1].end_time_local, "24:00")
+        for block in template:
+            if block.start_minute < 360 or block.end_minute > 1320:
+                self.assertEqual(block.mode, "open")
 
 
 if __name__ == "__main__":

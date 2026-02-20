@@ -22,4 +22,5 @@ Programming quality rules:
 - Balance energy across the day.
 - Keep the station identity coherent.
 - Use open slots intentionally so AzuraCast weighted random playback can breathe.
+- Any time between 22:00 and 06:00 must remain unscheduled (`mode: open` only).
 - Avoid hyper-fragmented schedules.

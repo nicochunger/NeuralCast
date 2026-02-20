@@ -13,6 +13,7 @@ Hard constraints:
 - Use block lengths between {min_block_minutes} and {max_block_minutes} minutes.
 - Open-slot ratio must be between {open_ratio_min} and {open_ratio_max} of the day.
 - For playlist blocks, playlist_id must exist in this catalog.
+- Between 22:00 and 06:00 there must be no playlist scheduling; any block touching that window must use `mode: "open"`.
 - Keep the same block boundaries as the deterministic seed template below.
 
 Deterministic seed daily template (you can improve labels/playlist choices, but keep times):
