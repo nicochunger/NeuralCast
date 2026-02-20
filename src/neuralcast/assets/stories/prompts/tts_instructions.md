@@ -11,7 +11,7 @@ Debe sentirse como una conversación relajada, como si el locutor estuviera en e
 La dicción es clara pero no perfecta: se permiten pequeñas inflexiones naturales, como las que aparecen cuando uno habla sin apuro.
 Nada suena ensayado.
 
-Ajustes específicos para esta historia:
+Ajustes generales de entrega:
 
 Toque matinal con energía contenida y ritmo dinámico.
 Que deje entrar un poquito más de brillo al mencionar el artista, como café de la mañana.

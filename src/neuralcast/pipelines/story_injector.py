@@ -35,9 +35,10 @@ from neuralcast.playlists.utils import sanitize_filename_component
 from neuralcast.services.openai_client import get_gemini_client, synthesize_speech
 
 STORY_ROOT = ASSETS_ROOT / "stories"
-TTS_INSTRUCTIONS_PATH = STORY_ROOT / "tts_story_instructions.md"
 STORY_OUTPUT_DIR = STORY_ROOT / "snippets"
 PROMPTS_DIR = STORY_ROOT / "prompts"
+TTS_INSTRUCTIONS_PATH = PROMPTS_DIR / "tts_instructions.md"
+PERSONALITY_GUIDE_PATH = PROMPTS_DIR / "personality.md"
 
 STATE_VERSION = 1
 STATE_FILENAME = "ai_host_orchestrator_state.json"
@@ -259,6 +260,15 @@ def load_prompt_templates() -> Dict[str, str]:
             raise FileNotFoundError(f"Missing prompt template file: {path}")
         templates[template_name] = path.read_text(encoding="utf-8").strip()
     return templates
+
+
+@lru_cache(maxsize=1)
+def load_personality_guide() -> str:
+    if not PERSONALITY_GUIDE_PATH.is_file():
+        raise FileNotFoundError(
+            f"Missing personality guide file: {PERSONALITY_GUIDE_PATH}"
+        )
+    return PERSONALITY_GUIDE_PATH.read_text(encoding="utf-8").strip()
 
 
 def get_prompt_template(template_name: str, **template_vars: Any) -> str:
@@ -1738,8 +1748,10 @@ def resolve_station_personality(station_slug: str) -> StationPersonality:
 
 
 def build_system_prompt(station_name: str, personality: StationPersonality) -> str:
+    personality_guide = load_personality_guide()
     return (
         f"{_HOST_CONSTITUTION_TEMPLATE.format(station_name=station_name).strip()}\n\n"
+        f"{personality_guide}\n\n"
         f"{_SCRIPT_STYLE_BASELINE.strip()}\n\n"
         "Station personality profile:\n"
         f"- {personality.script_profile}\n"

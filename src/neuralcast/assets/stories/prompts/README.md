@@ -5,7 +5,9 @@ This folder contains the Gemini prompt templates used by `src/neuralcast/pipelin
 ## Main prompt files
 
 - `host_constitution.md`: base system constitution (station-level behavior and safety contract).
+- `personality.md`: high-level host personality charter shared across archetypes.
 - `script_style_baseline.md`: global writing style baseline for spoken script.
+- `tts_instructions.md`: shared TTS delivery instructions used by all archetypes.
 - `wrapper_back_sell.md`: archetype wrapper for `back_sell`.
 - `wrapper_system_check.md`: archetype wrapper for `system_check`.
 - `wrapper_deep_dive.md`: archetype wrapper for `deep_dive`.
@@ -22,10 +24,15 @@ This folder contains the Gemini prompt templates used by `src/neuralcast/pipelin
 
 1. `build_system_prompt(...)` builds Gemini `system_instruction`:
    - `host_constitution.md` (formatted with `{station_name}`)
+   - `personality.md`
    - `script_style_baseline.md`
    - inline station personality line (`personality.script_profile`)
 
-2. `build_prompt(...)` builds Gemini `contents` (user prompt):
+2. `build_tts_instructions(...)` builds TTS behavior instructions:
+   - `tts_instructions.md`
+   - optional inline station TTS profile (`personality.tts_profile`)
+
+3. `build_prompt(...)` builds Gemini `contents` (user prompt):
    - archetype wrapper file (`wrapper_*.md`)
    - plus `format_shared_input(...)` block with runtime context:
      - current/next track metadata
@@ -34,9 +41,9 @@ This folder contains the Gemini prompt templates used by `src/neuralcast/pipelin
      - banned opener/topic list
      - station/personality/time context
 
-3. For `news` and `concert_check`, wrappers are rendered with runtime placeholders before concatenation.
+4. For `news` and `concert_check`, wrappers are rendered with runtime placeholders before concatenation.
 
-4. `gemini_generate_text(...)` sends both pieces:
+5. `gemini_generate_text(...)` sends both pieces:
    - `system_instruction = build_system_prompt(...)`
    - `contents = build_prompt(...)`
 
