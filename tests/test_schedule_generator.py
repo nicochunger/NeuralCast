@@ -15,7 +15,9 @@ if str(SRC) not in sys.path:
 
 from neuralcast.pipelines.schedule_generator import (  # noqa: E402
     StationPlaylist,
+    azuracast_time_for_api,
     build_schedule_items_by_playlist,
+    build_deterministic_daily_template,
     expand_daily_template_to_week,
     infer_azuracast_days,
     validate_daily_template,
@@ -219,7 +221,10 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         )
         self.assertEqual(len(items["10"]), 1)
         self.assertEqual(len(items["11"]), 1)
-        self.assertEqual(items["11"][0]["end_time"], "23:59")
+        self.assertEqual(items["10"][0]["start_time"], 0)
+        self.assertEqual(items["10"][0]["end_time"], 800)
+        self.assertEqual(items["11"][0]["start_time"], 1200)
+        self.assertEqual(items["11"][0]["end_time"], 2359)
 
     def test_infer_azuracast_days_prefers_existing_shape(self) -> None:
         playlist = StationPlaylist(
@@ -232,6 +237,35 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         )
         days = infer_azuracast_days([playlist])
         self.assertEqual(days, [1, 2, 3, 4, 5, 6, 7])
+
+    def test_infer_azuracast_days_preserves_empty_days_shape(self) -> None:
+        playlist = StationPlaylist(
+            id="2",
+            name="All Days",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[{"start_time": 730, "end_time": 900, "days": []}],
+            raw={},
+        )
+        days = infer_azuracast_days([playlist])
+        self.assertEqual(days, [])
+
+    def test_azuracast_time_for_api_uses_hhmm_integer(self) -> None:
+        self.assertEqual(azuracast_time_for_api("04:00"), 400)
+        self.assertEqual(azuracast_time_for_api("07:30"), 730)
+        self.assertEqual(azuracast_time_for_api("24:00"), 2359)
+
+    def test_build_deterministic_daily_template_meets_constraints(self) -> None:
+        template = build_deterministic_daily_template(
+            playlist_by_id=self.playlist_map,
+            open_ratio_min=0.20,
+            open_ratio_max=0.40,
+            min_block_minutes=30,
+            max_block_minutes=240,
+        )
+        self.assertGreater(len(template), 0)
+        self.assertEqual(template[0].start_time_local, "00:00")
+        self.assertEqual(template[-1].end_time_local, "24:00")
 
 
 if __name__ == "__main__":

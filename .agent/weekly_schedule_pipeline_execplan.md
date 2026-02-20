@@ -21,6 +21,11 @@ After this change, the project can generate a fixed weekly schedule (same daily 
 - [x] (2026-02-20 13:14Z) Ran mandatory 3-step VPS redeploy (twice, final sync after last source edit) and verified deployed `story_injector.py` and `schedule_generator.py` checksums match local files.
 - [x] (2026-02-20 14:26Z) Added dedicated `block_intro` archetype with automatic force-on-block-start-window behavior and updated tests for this control path.
 - [x] (2026-02-20 14:28Z) Re-ran mandatory 3-step VPS redeploy for `story_injector.py` edits and verified deployed `story_injector.py` + `wrapper_block_intro.md` checksums match local files.
+- [x] (2026-02-20 15:18Z) Refactored scheduler generation into hybrid mode: deterministic time scaffold + LLM content decoration with strict boundary locking.
+- [x] (2026-02-20 15:20Z) Added deterministic fallback when LLM output is invalid/unavailable, so weekly generation still succeeds without remote mutation.
+- [x] (2026-02-20 15:21Z) Fixed AzuraCast schedule payload time serialization to HHMM integers (e.g., `04:00 -> 400`) to prevent `00:04` drift.
+- [x] (2026-02-20 15:22Z) Expanded scheduler tests (9 total) for HHMM payload conversion, empty-day shape preservation, and deterministic template constraints.
+- [x] (2026-02-20 15:25Z) Validated end-to-end with `python schedule_generator.py --station neuralforge --dry-run`; generated weekly plan with correct block boundaries.
 
 ## Surprises & Discoveries
 
@@ -46,12 +51,23 @@ After this change, the project can generate a fixed weekly schedule (same daily 
 - Decision: Introduce a dedicated `block_intro` archetype and auto-force it during a block start grace window instead of relying only on prompt hints.
   Rationale: This yields deterministic, idempotent block intros despite cron timing jitter and cadence gates.
   Date/Author: 2026-02-20 / Codex
+- Decision: Serialize AzuraCast `schedule_items.start_time/end_time` as HHMM integers instead of `HH:MM` strings.
+  Rationale: API-side coercion of `HH:MM` strings caused leading-hour collapse (`04:00` becoming `00:04`) in live schedules.
+  Date/Author: 2026-02-20 / Codex
+- Decision: Seed LLM schedule generation from a deterministic scaffold and enforce boundary equivalence at validation time.
+  Rationale: Keeps timing stable and valid while still allowing AI-driven section naming and playlist curation.
+  Date/Author: 2026-02-20 / Codex
+- Decision: Return a deterministic weekly template fallback when all LLM attempts fail validation.
+  Rationale: Prevents pipeline hard-failures and keeps weekly automation reliable.
+  Date/Author: 2026-02-20 / Codex
 
 ## Outcomes & Retrospective
 
 Completed implementation of the new weekly schedule pipeline and host schedule-awareness integration. The code now supports fixed weekly (non-rolling) generation with one daily template repeated for all seven days, bounded open slots, AzuraCast apply hooks, and station metadata persistence under `ai_schedule_state.json`.
 
 The host runtime now also supports a forced `block_intro` path for schedule transitions: when a new block is detected in its start window and intro has not yet aired, the run bypasses cadence/cooldown gating and forces a `block_intro` generation attempt.
+
+The scheduler has now been hardened with deterministic timing semantics: it builds a deterministic daily scaffold first, uses LLM output only for compliant refinement, and falls back to deterministic output when LLM responses are invalid. AzuraCast payloads are serialized as HHMM integers to match live API expectations.
 
 Remaining operational gap is environmental: live NeuralForge dry-run/apply requires valid AzuraCast credentials and runtime packages (`requests` plus network reachability). The local sandbox did not have these available, so validation is complete at compile/unit-test level but not full live API execution.
 

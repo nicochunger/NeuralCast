@@ -7,6 +7,7 @@ import datetime as dt
 import hashlib
 import json
 import logging
+import math
 import os
 import pathlib
 import random
@@ -14,6 +15,7 @@ import re
 import time
 import warnings
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
@@ -59,6 +61,7 @@ DEFAULT_OPEN_RATIO_MIN = 0.20
 DEFAULT_OPEN_RATIO_MAX = 0.40
 DEFAULT_MIN_BLOCK_MINUTES = 30
 DEFAULT_MAX_BLOCK_MINUTES = 240
+DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES = 180
 
 GENERATION_MAX_ATTEMPTS = 2
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
@@ -374,6 +377,7 @@ def validate_daily_template(
     open_ratio_max: float,
     min_block_minutes: int,
     max_block_minutes: int,
+    required_time_ranges: Optional[Sequence[Tuple[int, int]]] = None,
 ) -> List[DailyTemplateBlock]:
     if not isinstance(raw_blocks, Sequence) or not raw_blocks:
         raise ScheduleValidationError("daily_template must be a non-empty array.")
@@ -478,6 +482,16 @@ def validate_daily_template(
             f"Template must end at 24:00, got {format_hhmm(cursor)}."
         )
 
+    if required_time_ranges is not None:
+        actual_ranges = [
+            (block.start_minute, block.end_minute) for block in parsed_blocks
+        ]
+        expected_ranges = list(required_time_ranges)
+        if actual_ranges != expected_ranges:
+            raise ScheduleValidationError(
+                "Template block boundaries must match deterministic scaffold."
+            )
+
     open_minutes = sum(
         block.end_minute - block.start_minute
         for block in parsed_blocks
@@ -554,11 +568,14 @@ def expand_daily_template_to_week(
 
 def infer_azuracast_days(playlists: Sequence[StationPlaylist]) -> List[int]:
     inferred: List[int] = []
+    saw_empty_days_list = False
     for playlist in playlists:
         for item in playlist.schedule_items:
             days = item.get("days")
             if not isinstance(days, list):
                 continue
+            if not days:
+                saw_empty_days_list = True
             for day in days:
                 try:
                     inferred.append(int(day))
@@ -566,17 +583,24 @@ def infer_azuracast_days(playlists: Sequence[StationPlaylist]) -> List[int]:
                     continue
 
     if inferred:
-        unique = sorted(set(inferred))
-        if len(unique) == 7:
-            return unique
+        return sorted(set(inferred))
+
+    # Some stations store "all days" as an explicit empty list; preserve that shape.
+    if saw_empty_days_list:
+        return []
 
     # Default to seven-day coverage when there is no prior schedule shape to infer.
     return [0, 1, 2, 3, 4, 5, 6]
 
 
-def azuracast_time_for_api(value: str) -> str:
-    # AzuraCast accepts HH:MM; 24:00 can be interpreted inconsistently, so map to 23:59.
-    return "23:59" if value == "24:00" else value
+def azuracast_time_for_api(value: str) -> int:
+    minutes = parse_hhmm(value, allow_24=True)
+    if minutes == 24 * 60:
+        # AzuraCast accepts HHMM integer values; use 23:59 for day-end boundaries.
+        return 2359
+    hour = minutes // 60
+    minute = minutes % 60
+    return (hour * 100) + minute
 
 
 def build_schedule_items_by_playlist(
@@ -596,7 +620,7 @@ def build_schedule_items_by_playlist(
             continue
 
         item = {
-            "start_time": block.start_time_local,
+            "start_time": azuracast_time_for_api(block.start_time_local),
             "end_time": azuracast_time_for_api(block.end_time_local),
             "days": list(day_values),
         }
@@ -618,6 +642,301 @@ def build_playlist_catalog(playlists: Sequence[StationPlaylist]) -> str:
             f"- id={playlist.id}; name={playlist.name}; weight={playlist.weight:.2f}; enabled={playlist.is_enabled}"
         )
     return "\n".join(lines)
+
+
+def build_duration_partition(
+    min_block_minutes: int,
+    max_block_minutes: int,
+    *,
+    target_block_minutes: int = DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
+) -> List[int]:
+    if min_block_minutes <= 0 or max_block_minutes <= 0:
+        raise ScheduleValidationError("Block duration bounds must be positive.")
+    if min_block_minutes > max_block_minutes:
+        raise ScheduleValidationError(
+            "min_block_minutes cannot exceed max_block_minutes."
+        )
+
+    preferred = max(min_block_minutes, min(max_block_minutes, target_block_minutes))
+    candidate_set = {
+        value
+        for value in range(min_block_minutes, max_block_minutes + 1)
+        if value % 30 == 0
+    }
+    candidate_set.update({min_block_minutes, max_block_minutes, preferred})
+    candidates = sorted(
+        [value for value in candidate_set if min_block_minutes <= value <= max_block_minutes],
+        key=lambda value: (abs(value - preferred), -value),
+    )
+    if not candidates:
+        raise ScheduleValidationError(
+            "Unable to build deterministic block candidates from duration bounds."
+        )
+
+    @lru_cache(maxsize=None)
+    def solve(remaining_minutes: int) -> Optional[Tuple[int, ...]]:
+        if remaining_minutes == 0:
+            return ()
+
+        for duration in candidates:
+            if duration > remaining_minutes:
+                continue
+            remainder = remaining_minutes - duration
+            if remainder != 0 and remainder < min_block_minutes:
+                continue
+            tail = solve(remainder)
+            if tail is not None:
+                return (duration, *tail)
+        return None
+
+    result = solve(24 * 60)
+    if result is None:
+        raise ScheduleValidationError(
+            "Unable to build deterministic template that covers 24:00 with current bounds."
+        )
+    return list(result)
+
+
+def block_open_preference(index: int, total_blocks: int) -> int:
+    if total_blocks <= 0:
+        return 0
+    ratio = (index + 0.5) / total_blocks
+    score = 0
+    if ratio < 0.20:
+        score += 4
+    if 0.45 <= ratio <= 0.60:
+        score += 5
+    if 0.80 <= ratio <= 0.95:
+        score += 4
+    return score
+
+
+def choose_open_block_indices(
+    block_minutes: Sequence[int],
+    open_ratio_min: float,
+    open_ratio_max: float,
+) -> List[int]:
+    if not block_minutes:
+        return []
+
+    total_minutes = sum(block_minutes)
+    min_open = math.ceil(open_ratio_min * total_minutes)
+    max_open = math.floor(open_ratio_max * total_minutes)
+    target_open = ((open_ratio_min + open_ratio_max) / 2.0) * total_minutes
+    count = len(block_minutes)
+
+    if max_open <= 0:
+        return []
+
+    if count <= 16:
+        best: Optional[Tuple[Tuple[float, int, int, int], int]] = None
+        for mask in range(1 << count):
+            open_minutes = 0
+            open_count = 0
+            preference = 0
+            transitions = 0
+            prev_open = False
+            for idx, duration in enumerate(block_minutes):
+                current_open = bool(mask & (1 << idx))
+                if current_open:
+                    open_minutes += duration
+                    open_count += 1
+                    preference += block_open_preference(idx, count)
+                if idx > 0 and current_open != prev_open:
+                    transitions += 1
+                prev_open = current_open
+
+            if open_count == count:
+                continue
+            if open_minutes < min_open or open_minutes > max_open:
+                continue
+
+            score = (
+                abs(open_minutes - target_open),
+                -preference,
+                -transitions,
+                open_count,
+            )
+            if best is None or score < best[0]:
+                best = (score, mask)
+
+        if best is None:
+            raise ScheduleValidationError(
+                "Unable to choose deterministic open blocks within requested open-slot ratio."
+            )
+        mask = best[1]
+        return [index for index in range(count) if mask & (1 << index)]
+
+    ranked_indices = sorted(
+        range(count),
+        key=lambda idx: (block_open_preference(idx, count), -block_minutes[idx]),
+        reverse=True,
+    )
+    selected: List[int] = []
+    open_minutes = 0
+
+    for index in ranked_indices:
+        if open_minutes >= min_open:
+            break
+        candidate_open = open_minutes + block_minutes[index]
+        if candidate_open > max_open:
+            continue
+        selected.append(index)
+        open_minutes = candidate_open
+
+    if open_minutes < min_open:
+        remaining = sorted(
+            [idx for idx in range(count) if idx not in selected],
+            key=lambda idx: block_minutes[idx],
+        )
+        for index in remaining:
+            candidate_open = open_minutes + block_minutes[index]
+            if candidate_open > max_open:
+                continue
+            selected.append(index)
+            open_minutes = candidate_open
+            if open_minutes >= min_open:
+                break
+
+    if open_minutes < min_open:
+        raise ScheduleValidationError(
+            "Unable to choose deterministic open blocks within requested open-slot ratio."
+        )
+
+    if len(selected) >= count:
+        selected = selected[:-1]
+
+    return sorted(set(selected))
+
+
+def build_weighted_playlist_cycle(
+    playlists: Sequence[StationPlaylist],
+) -> List[StationPlaylist]:
+    ordered = sorted(playlists, key=lambda item: (-item.weight, item.name.lower(), item.id))
+    if not ordered:
+        return []
+
+    positive = [item for item in ordered if item.weight > 0]
+    source = positive or ordered
+    min_weight = min((item.weight for item in positive), default=1.0)
+
+    cycle: List[StationPlaylist] = []
+    for item in source:
+        if positive:
+            repeats = max(1, min(6, int(round(item.weight / min_weight))))
+        else:
+            repeats = 1
+        cycle.extend([item] * repeats)
+    return cycle
+
+
+def format_seed_template_for_prompt(
+    daily_template: Sequence[DailyTemplateBlock],
+) -> str:
+    rows: List[Dict[str, Any]] = []
+    for block in daily_template:
+        row: Dict[str, Any] = {
+            "start_time_local": block.start_time_local,
+            "end_time_local": block.end_time_local,
+            "mode": block.mode,
+            "section_label": block.section_label,
+            "genre_labels": list(block.genre_labels),
+        }
+        if block.mode == "playlist":
+            row["playlist_id"] = block.playlist_id
+            row["playlist_name"] = block.playlist_name
+        rows.append(row)
+    return json.dumps(rows, indent=2, ensure_ascii=False)
+
+
+def build_deterministic_daily_template(
+    playlist_by_id: Mapping[str, StationPlaylist],
+    open_ratio_min: float,
+    open_ratio_max: float,
+    min_block_minutes: int,
+    max_block_minutes: int,
+) -> List[DailyTemplateBlock]:
+    enabled_playlists = [item for item in playlist_by_id.values() if item.is_enabled]
+    if not enabled_playlists:
+        raise ScheduleValidationError("No enabled playlists available for deterministic template.")
+
+    block_durations = build_duration_partition(
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+    )
+    open_indices = set(
+        choose_open_block_indices(
+            block_minutes=block_durations,
+            open_ratio_min=open_ratio_min,
+            open_ratio_max=open_ratio_max,
+        )
+    )
+
+    cycle = build_weighted_playlist_cycle(enabled_playlists)
+    if not cycle:
+        raise ScheduleValidationError("Unable to build deterministic playlist cycle.")
+
+    unique_playlist_ids = {item.id for item in cycle}
+    cycle_index = 0
+    last_playlist_id: Optional[str] = None
+    start_minute = 0
+    raw_blocks: List[Dict[str, Any]] = []
+
+    for block_index, duration in enumerate(block_durations):
+        end_minute = start_minute + duration
+        start_time = format_hhmm(start_minute)
+        end_time = format_hhmm(end_minute)
+
+        if block_index in open_indices:
+            raw_blocks.append(
+                {
+                    "start_time_local": start_time,
+                    "end_time_local": end_time,
+                    "mode": "open",
+                    "section_label": "Open Rotation",
+                    "genre_labels": ["mixed"],
+                }
+            )
+            last_playlist_id = None
+            start_minute = end_minute
+            continue
+
+        choice = cycle[cycle_index % len(cycle)]
+        cycle_index += 1
+        if (
+            last_playlist_id is not None
+            and choice.id == last_playlist_id
+            and len(unique_playlist_ids) > 1
+        ):
+            for _ in range(len(cycle)):
+                alternative = cycle[cycle_index % len(cycle)]
+                cycle_index += 1
+                if alternative.id != last_playlist_id:
+                    choice = alternative
+                    break
+
+        raw_blocks.append(
+            {
+                "start_time_local": start_time,
+                "end_time_local": end_time,
+                "mode": "playlist",
+                "playlist_id": choice.id,
+                "playlist_name": choice.name,
+                "section_label": choice.name,
+                "genre_labels": [choice.name],
+            }
+        )
+        last_playlist_id = choice.id
+        start_minute = end_minute
+
+    return validate_daily_template(
+        raw_blocks=raw_blocks,
+        playlist_by_id=playlist_by_id,
+        open_ratio_min=open_ratio_min,
+        open_ratio_max=open_ratio_max,
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+    )
 
 
 def gemini_generate_schedule_text(
@@ -671,6 +990,17 @@ def build_weekly_plan_with_llm(
     if not playlist_by_id:
         raise RuntimeError("No enabled playlists available for schedule generation.")
 
+    deterministic_template = build_deterministic_daily_template(
+        playlist_by_id=playlist_by_id,
+        open_ratio_min=open_ratio_min,
+        open_ratio_max=open_ratio_max,
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+    )
+    required_time_ranges = [
+        (block.start_minute, block.end_minute) for block in deterministic_template
+    ]
+
     prompt = user_template.format(
         station_slug=station_slug,
         station_name=station_name,
@@ -682,6 +1012,9 @@ def build_weekly_plan_with_llm(
         min_block_minutes=min_block_minutes,
         max_block_minutes=max_block_minutes,
         playlist_catalog=build_playlist_catalog(enabled_playlists),
+        deterministic_seed_template=format_seed_template_for_prompt(
+            deterministic_template
+        ),
     )
 
     # Use slight randomization in retries to avoid repeating invalid shape.
@@ -735,6 +1068,7 @@ def build_weekly_plan_with_llm(
                 open_ratio_max=open_ratio_max,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
+                required_time_ranges=required_time_ranges,
             )
             expanded = expand_daily_template_to_week(daily_template, week_start)
             plan_hash = build_plan_hash(
@@ -770,7 +1104,36 @@ def build_weekly_plan_with_llm(
                 exc,
             )
 
-    raise RuntimeError(f"Unable to produce a valid weekly schedule: {last_error}")
+    LOGGER.warning(
+        "[llm] Falling back to deterministic weekly template after %s failed attempt(s): %s",
+        GENERATION_MAX_ATTEMPTS,
+        last_error,
+    )
+    expanded = expand_daily_template_to_week(deterministic_template, week_start)
+    plan_hash = build_plan_hash(
+        station=station_slug,
+        timezone_name=timezone_name,
+        week_start=week_start,
+        daily_template=deterministic_template,
+    )
+    rationale = "Deterministic weekly template fallback."
+    if last_error is not None:
+        rationale = f"{rationale} LLM error: {last_error}"
+
+    return WeeklySchedulePlan(
+        station=station_slug,
+        station_name=station_name,
+        timezone=timezone_name,
+        week_start_local_date=week_start.isoformat(),
+        week_end_local_date=week_end.isoformat(),
+        generated_at_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+        open_ratio_min=open_ratio_min,
+        open_ratio_max=open_ratio_max,
+        daily_template=deterministic_template,
+        expanded_blocks=expanded,
+        rationale=rationale,
+        plan_hash=plan_hash,
+    )
 
 
 def extract_station_playlists(payload: Sequence[Mapping[str, Any]]) -> List[StationPlaylist]:
