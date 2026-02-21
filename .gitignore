@@ -7,5 +7,5 @@ __pycache__/
 stories/snippets/
 stories/style_history.json
 src/neuralcast/assets/stories/snippets/**/*.txt
-deployment/deploy_story_injector.zip
+deployment/deploy_host_orchestrator.zip
 */metadata/ai_schedule_state.json

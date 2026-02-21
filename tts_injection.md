@@ -15,7 +15,7 @@ Create and follow an ExecPlan for this feature.
 
 ### **Objective**
 
-Create a **new Python script** (e.g., `inject_story_snippet.py`) that can automatically:
+Create a **new Python script** (e.g., `inject_host_segment.py`) that can automatically:
 
 1. Detect what song is about to play,
 2. Generate a short story about that song,

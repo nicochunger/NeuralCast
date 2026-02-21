@@ -1,9 +1,9 @@
-# Composicion de Prompts del Story Injector
+# Composicion de Prompts del Host Orchestrator
 
 Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
-- `src/neuralcast/pipelines/story_injector.py`
 - `src/neuralcast/pipelines/host_orchestrator.py`
 - `src/neuralcast/pipelines/schedule_generator.py`
+- `src/neuralcast/pipelines/story_injector.py` (shim legacy de compatibilidad)
 
 ## Archivos principales de prompts
 

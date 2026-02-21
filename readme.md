@@ -5,7 +5,7 @@ NeuralCast's `main.py` script manages station-specific music libraries by readin
 ## Repository layout
 
 - `src/neuralcast/` — packaged modules (pipelines, playlists, audio, metadata, stories, services) now house the Python logic.
-- Root shims (`main.py`, `update_new_releases.py`, `inject_story_snippet.py`, `inject_host_segment.py`) delegate into `neuralcast.cli.*`.
+- Root shims (`main.py`, `update_new_releases.py`, `inject_host_segment.py`, plus legacy alias `inject_story_snippet.py`) delegate into `neuralcast.cli.*`.
 - Station data stays at repo root (`NeuralCast/`, `NeuralForge/`), alongside generated logs/reports.
 - Assets live under `src/neuralcast/assets/` (fallback art, prompts, story snippets/history), notebooks under `notebooks/`, and utility scripts under `tools/`.
 
