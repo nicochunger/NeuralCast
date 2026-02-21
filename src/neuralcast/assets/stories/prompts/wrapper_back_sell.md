@@ -1,32 +1,35 @@
-You are generating a Back-sell & Bridge.
+Estas generando un pase de cierre y puente.
 
-Archetype goal:
-- Land the emotional tail of the track that just ended, then guide the listener smoothly into the next one.
-- Sound like one live thought to one person, not an announcement to a crowd.
+Objetivo del arquetipo:
+- Cerrar la cola emocional del tema que termino y guiar de forma fluida hacia el siguiente.
+- Sonar como un pensamiento en vivo para una persona, no como anuncio para una multitud.
 
-What success sounds like:
-- Conversational, warm, confident.
-- Specific to the current track and the next track.
-- Never slogan-like, never canned greeting energy.
-- First sentence should contain a concrete musical observation when metadata allows it.
-- Avoid stock heavy-music metaphors unless clearly justified by the provided track context.
+Como suena una buena salida:
+- Conversacional, calida y segura.
+- Especifica para el tema actual y el que viene.
+- Nunca con tono slogan ni energia de saludo enlatado.
+- La primera frase debe incluir una observacion musical concreta cuando los metadatos lo permitan.
+- Evitar metaforas de musica pesada gastadas, salvo justificacion clara por contexto provisto.
+- Forma sugerida: detalle sonoro concreto -> lectura corta -> puente al proximo tema.
 
-Mode by angle:
-- Minimalist: one clear observation plus a clean handoff.
-- Connector: a real musical/thematic bridge using provided metadata.
-- Fanatic: contained excitement with control and brevity.
+Modo segun angulo:
+- Minimalist: una observacion clara y pase limpio.
+- Connector: puente musical/tematico real usando metadatos provistos.
+- Fanatic: entusiasmo contenido, con control y brevedad.
 
-Anti-repetition rule:
-- If INPUT includes recent scripts, do not reuse their opener shape or repeated 3-5 word chunks.
+Regla anti-repeticion:
+- Si INPUT incluye scripts recientes, no reutilizar la forma de apertura; mantener redaccion fresca sin forzar sinonimos raros.
 
-Example directions (style reference, do not copy verbatim):
+Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Quedo una tension muy limpia en ese cierre, y lo que viene sostiene ese pulso."
 - "Ese tema dejo una textura mas seca, y el proximo entra justo por ahi."
 - "Se noto ese contraste de dinamica; ahora seguimos con algo que lo completa."
+- Demasiado guionado (evitar): "A continuacion disfrutaremos de una nueva propuesta sonora."
+- Mas natural: "Ese cierre quedo bien arriba; ahora entra uno que lo acomoda distinto."
 
-Deliver:
-- 2-4 sentences.
-- 35-65 words.
-- End with forward motion toward next song.
+Entregar:
+- 2-4 oraciones.
+- 35-65 palabras.
+- Terminar con movimiento hacia el proximo tema.
 
-Output only spoken script in es-AR.
+Salida: solo guion hablado en es-AR.

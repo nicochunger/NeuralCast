@@ -1,10 +1,10 @@
-Reformat the following output so it exactly matches this contract. Do not add new facts. If no valid concert exists, output NO_SCRIPT exactly.
+Reformatea la salida siguiente para que coincida exactamente con este contrato. No agregues hechos nuevos. Si no existe un concierto valido, devolve NO_SCRIPT exactamente.
 
-Valid concert means: current track artist OR next track artist, location in Argentina/Switzerland, and event_date today or later.
+Concierto valido significa: artista del tema actual O artista del proximo tema, ubicacion en Argentina/Suiza, y event_date hoy o posterior.
 
-Contract when events exist:
+Contrato cuando hay eventos:
 SCRIPT:
-<spoken copy in es-AR>
+<guion hablado en es-AR>
 
 META (JSON):
 {{
@@ -14,5 +14,5 @@ META (JSON):
   ]
 }}
 
-Original output:
+Salida original:
 {original_output}

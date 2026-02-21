@@ -1,28 +1,28 @@
-Build a fixed weekly schedule plan for this station.
+Armá un plan de programacion semanal fija para esta estacion.
 
-Station context:
+Contexto de estacion:
 - slug: {station_slug}
 - display_name: {station_name}
 - timezone: {timezone}
 - week_start: {week_start}
 - week_end: {week_end}
 
-Hard constraints:
-- Produce a daily template that will be reused identically for all 7 days.
-- Cover 24h exactly with no gaps or overlaps.
-- Use block lengths between {min_block_minutes} and {max_block_minutes} minutes.
-- Open-slot ratio must be between {open_ratio_min} and {open_ratio_max} of the day.
-- For playlist blocks, playlist_id must exist in this catalog.
-- Between 22:00 and 06:00 there must be no playlist scheduling; any block touching that window must use `mode: "open"`.
-- Keep the same block boundaries as the deterministic seed template below.
+Restricciones duras:
+- Generar una plantilla diaria que se reutilice identica los 7 dias.
+- Cubrir 24h exactas sin huecos ni solapamientos.
+- Usar bloques de entre {min_block_minutes} y {max_block_minutes} minutos.
+- El ratio de bloques open debe quedar entre {open_ratio_min} y {open_ratio_max} del dia.
+- Para bloques playlist, `playlist_id` debe existir en este catalogo.
+- Entre 22:00 y 06:00 no puede haber programacion de playlists; cualquier bloque que toque esa ventana debe usar `mode: "open"`.
+- Mantener exactamente los mismos limites de bloque de la plantilla semilla deterministica de abajo.
 
-Deterministic seed daily template (you can improve labels/playlist choices, but keep times):
+Plantilla diaria semilla deterministica (podes mejorar labels/eleccion de playlists, pero conservando horarios):
 {deterministic_seed_template}
 
-Playlist catalog:
+Catalogo de playlists:
 {playlist_catalog}
 
-Return JSON only using this shape:
+Devolve solo JSON con esta forma:
 {{
   "daily_template": [
     {{
@@ -42,5 +42,5 @@ Return JSON only using this shape:
       "genre_labels": ["..."]
     }}
   ],
-  "rationale": "One short paragraph in plain language."
+  "rationale": "Un parrafo corto en lenguaje llano."
 }}

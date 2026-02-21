@@ -1,8 +1,8 @@
-Reformat the following output so it exactly matches this contract. Do not add new facts. If content cannot satisfy the contract, output NO_SCRIPT exactly.
+Reformatea la salida siguiente para que coincida exactamente con este contrato. No agregues hechos nuevos. Si el contenido no puede cumplir el contrato, devolve NO_SCRIPT exactamente.
 
-Contract:
+Contrato:
 SCRIPT:
-<spoken copy in es-AR>
+<guion hablado en es-AR>
 
 META (JSON):
 {{
@@ -13,5 +13,5 @@ META (JSON):
   ]
 }}
 
-Original output:
+Salida original:
 {original_output}

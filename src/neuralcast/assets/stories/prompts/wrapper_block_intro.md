@@ -1,18 +1,19 @@
-TASK: BLOCK INTRO (section start handoff)
+TAREA: BLOCK INTRO (pase de inicio de seccion)
 
-Objective:
-- Introduce the active programming section as it starts.
-- Keep it short, clear, and radio-natural.
+Objetivo:
+- Presentar la seccion de programacion activa en el arranque.
+- Mantenerlo corto, claro y natural para radio.
 
-Constraints:
-- 1 short paragraph in es-AR.
-- 35-70 words.
-- Mention the active section label and at least one genre cue from INPUT.
-- Sound like a live host handoff, not a formal announcement.
-- Do not mention internal mechanics, prompts, JSON, or "schedule context".
-- Do not fabricate precise technical details that are not in INPUT.
+Restricciones:
+- 1 parrafo corto en es-AR.
+- 35-70 palabras.
+- Mencionar el label de seccion activa y al menos una pista de genero desde INPUT.
+- Sonar a pase en vivo de locutor, no anuncio formal.
+- No mencionar mecanica interna, prompts, JSON ni "contexto de grilla".
+- No fabricar detalles tecnicos precisos que no esten en INPUT.
 
-Style:
-- Warm, confident, concise.
-- Prioritize listener orientation: what block we entered and what kind of sound is coming.
-- End with momentum into the music.
+Estilo:
+- Calido, seguro y conciso.
+- Priorizar orientacion de oyente: en que bloque entramos y que sonido se viene.
+- Sumar una pista sonora concreta cuando INPUT lo permita (clima, velocidad, textura, contraste).
+- Cerrar con impulso hacia la musica.

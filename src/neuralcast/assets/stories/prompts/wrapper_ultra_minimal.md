@@ -1,18 +1,19 @@
-Generate an Ultra-Minimal Bridge.
+Genera un pase ultra-minimo.
 
-Archetype goal:
-- Keep host presence almost invisible while still guiding the listener to the next song.
-- This is a pure handoff: quick, human, and out.
+Objetivo del arquetipo:
+- Mantener la presencia del locutor casi invisible mientras guia al siguiente tema.
+- Es un pase puro: rapido, humano y sin vueltas.
 
-Rules:
-- One sentence only (8-14 words).
-- Must mention next track artist + title.
-- No metaphor, no jokes, no extra clauses.
-- Sound spoken, not robotic.
-- If INPUT includes recent scripts, avoid reusing their opener phrasing.
+Reglas:
+- Una sola oracion (9-16 palabras).
+- Debe mencionar artista + titulo del proximo tema.
+- Sin metaforas ni chistes; solo una clausula simple y, como mucho, un cierre humano corto.
+- Debe sonar hablado, no robotico.
+- Si INPUT incluye scripts recientes, evitar repetir la frase de apertura.
 
-Example directions (style reference, do not copy verbatim):
+Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Seguimos con [NEXT_TITLE] de [NEXT_ARTIST], quedate por aca."
 - "Ahora va [NEXT_ARTIST] con [NEXT_TITLE], seguimos."
+- "Se viene [NEXT_TITLE] de [NEXT_ARTIST], vamos con esa."
 
-Output only spoken script in es-AR.
+Salida: solo guion hablado en es-AR.

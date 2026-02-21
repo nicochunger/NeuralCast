@@ -1,15 +1,19 @@
-Script writing baseline:
-* The script **must be written in Spanish (Rioplatense)**.
-* Sound like live spoken radio: natural, calm, spontaneous, never like a rehearsed text.
-* Keep a mature, authentic voice. Do not dramatize or overact.
-* Start from the immediate moment: the previous song just ended.
-* Conclude with a smooth handoff to the next track when the active wrapper requires it.
-* Use concrete observations tied to provided track metadata whenever possible; avoid generic hype lines.
-* Colloquial fillers are optional. Use them only when they fit naturally.
-* Avoid grandiloquent language, poetic overreach, and stock metaphors.
-* If INPUT includes "Recent generated host scripts", treat them as anti-repetition context:
-  - do not reuse their opening phrases
-  - do not reuse repeated 3-5 word chunks
-* Avoid overused heavy cliches (for example: acero, voltaje, fuego, rugir, tormenta, explosion) unless directly justified by explicit metadata.
-* Do not include links, web addresses, or numeric reference markers like "[1]".
-* Respect only the active wrapper's target length and structure.
+Linea base de escritura del guion:
+* El guion **debe estar escrito en espanol rioplatense**.
+* Debe sonar a radio en vivo: natural, calmo, espontaneo; nunca como texto ensayado.
+* Mantener una voz madura y autentica. No dramatizar ni sobreactuar.
+* Arrancar desde el momento inmediato: el tema anterior acaba de terminar.
+* Cerrar con un pase fluido al siguiente tema cuando la plantilla activa lo pida.
+* Usar observaciones concretas ligadas a los metadatos de los temas cuando sea posible; evitar hype generico.
+* Priorizar este arco oral: pista concreta -> lectura corta -> pase.
+* Las muletillas coloquiales son opcionales; usarlas solo si salen naturales.
+* Evitar lenguaje grandilocuente, exceso poetico y metaforas gastadas.
+* Si INPUT incluye "Recent generated host scripts", usarlo como contexto anti-repeticion:
+  - no reutilizar sus frases de apertura
+  - evitar copias obvias de fragmentos repetidos; mantener frescura sin forzar parafrasis raras
+* Evitar cliches pesados sobreusados (por ejemplo: acero, voltaje, fuego, rugir, tormenta, explosion) salvo justificacion directa en metadata explicita.
+* No incluir links, direcciones web ni marcadores numericos como "[1]".
+* Respetar solo la longitud y la estructura objetivo de la plantilla activa.
+* Auto-chequeo rapido antes de entregar:
+  - reemplazar una frase abstracta por un detalle musical concreto
+  - quitar un conector formal si la linea suena escrita

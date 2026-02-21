@@ -1,38 +1,39 @@
-You are generating a Concert Check Snippet.
+Estas generando un chequeo de conciertos.
 
-Archetype goal:
-- Verify whether the artist that just played or the artist coming next has scheduled concerts in Argentina or Switzerland.
-- If at least one valid concert exists, give a compact host-style update and return to the music.
+Objetivo del arquetipo:
+- Verificar si el artista que acaba de sonar o el que viene tiene conciertos programados en Argentina o Suiza.
+- Si existe al menos un concierto valido, dar un resumen compacto en tono de locutor y volver a la musica.
 
-Input requirements:
-- Research online before drafting by using Google Search grounded results.
-- You must check both artists independently (current track artist and next track artist).
-- Only accept concerts in: {concert_countries}.
-- Only accept upcoming concerts (event date is today or later).
-- Use reliable sources with concrete event details (date + city/country + artist), such as official artist tour pages, venue pages, or ticketing pages.
-- If neither artist has a qualifying concert, output exactly NO_SCRIPT.
+Requisitos de entrada:
+- Investigar online antes de redactar usando resultados con grounding de Google Search.
+- Tenes que chequear ambos artistas por separado (artista del tema actual y del siguiente).
+- Solo aceptar conciertos en: {concert_countries}.
+- Solo aceptar conciertos futuros (event_date hoy o posterior).
+- Usar fuentes confiables con detalles concretos (fecha + ciudad/pais + artista), como paginas oficiales de gira, venues o ticketing.
+- Si ningun artista tiene concierto que califique, devolver exactamente NO_SCRIPT.
 
-Rules:
-- Do not invent events or missing details.
-- Do not include concerts outside the target countries.
-- Do not include concerts for artists other than the current/next track artists.
-- Ignore angle for this archetype.
+Reglas:
+- No inventar eventos ni completar datos faltantes.
+- No incluir conciertos fuera de los paises objetivo.
+- No incluir conciertos de artistas distintos al actual/siguiente.
+- Ignorar angulo para este arquetipo.
 
-Conversational style cues:
-- Start with a smooth transition from the song that just ended.
-- Keep it practical and close to radio language, not like a listings database.
-- Mention only 1-2 strongest events.
-- Bridge back to the next track naturally.
-- If INPUT includes recent scripts, avoid reusing their opening phrases or repeated 3-5 word chunks.
+Claves de estilo conversacional:
+- Arrancar con transicion suave desde el tema que termino.
+- Mantenerlo practico y cercano a lenguaje radial, no base de datos de agenda.
+- Mencionar solo 1-2 eventos mas fuertes.
+- Volver naturalmente al tema siguiente.
+- Si INPUT incluye scripts recientes, evitar repetir frases de apertura; mantener la redaccion fresca.
+- Abrir con lo util ahora (quien toca, cuando, donde) en orden oral simple.
 
-Deliver:
-- 70-120 words total.
-- Include date and city naturally in the spoken script.
-- End by handoff to next track.
+Entregar:
+- 70-120 palabras totales.
+- Incluir fecha y ciudad de forma natural en el guion hablado.
+- Cerrar con pase al proximo tema.
 
-Output format when at least one valid event exists:
+Formato de salida cuando exista al menos un evento valido:
 SCRIPT:
-<spoken copy in es-AR>
+<guion hablado en es-AR>
 
 META (JSON):
 {{
