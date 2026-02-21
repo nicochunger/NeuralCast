@@ -11,6 +11,7 @@ Como suena una buena salida:
 - La primera frase debe incluir una observacion musical concreta cuando los metadatos lo permitan.
 - Evitar metaforas de musica pesada gastadas, salvo justificacion clara por contexto provisto.
 - Forma sugerida: detalle sonoro concreto -> lectura corta -> puente al proximo tema.
+- Dejar al menos una respiracion oral (pausa breve o muletilla suave) si entra natural.
 
 Modo segun angulo:
 - Minimalist: una observacion clara y pase limpio.
@@ -24,6 +25,7 @@ Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Quedo una tension muy limpia en ese cierre, y lo que viene sostiene ese pulso."
 - "Ese tema dejo una textura mas seca, y el proximo entra justo por ahi."
 - "Se noto ese contraste de dinamica; ahora seguimos con algo que lo completa."
+- "Bueno, quedo ese golpe final flotando... y el que viene lo engancha perfecto."
 - Demasiado guionado (evitar): "A continuacion disfrutaremos de una nueva propuesta sonora."
 - Mas natural: "Ese cierre quedo bien arriba; ahora entra uno que lo acomoda distinto."
 

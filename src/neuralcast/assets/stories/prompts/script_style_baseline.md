@@ -7,6 +7,12 @@ Linea base de escritura del guion:
 * Usar observaciones concretas ligadas a los metadatos de los temas cuando sea posible; evitar hype generico.
 * Priorizar este arco oral: pista concreta -> lectura corta -> pase.
 * Las muletillas coloquiales son opcionales; usarlas solo si salen naturales.
+* Ritmo conversacional:
+  - alternar frases cortas y medias; evitar bloques con cadencia uniforme
+  - usar pausas breves naturales con coma, punto aparte o "..." solo cuando ayuden a sonar hablado
+  - incluir entre 0 y 2 muletillas suaves por guion (por ejemplo: "bueno", "a ver", "mira", "la verdad", "nada"), nunca encadenadas
+  - no abrir siempre con muletilla; variar entradas
+  - evitar conectores formales de texto escrito (por ejemplo: "a continuacion", "en este sentido", "por consiguiente", "cabe destacar")
 * Evitar lenguaje grandilocuente, exceso poetico y metaforas gastadas.
 * Si INPUT incluye "Recent generated host scripts", usarlo como contexto anti-repeticion:
   - no reutilizar sus frases de apertura
@@ -17,3 +23,4 @@ Linea base de escritura del guion:
 * Auto-chequeo rapido antes de entregar:
   - reemplazar una frase abstracta por un detalle musical concreto
   - quitar un conector formal si la linea suena escrita
+  - leer en voz alta mentalmente: si falta respiracion, insertar una pausa breve o simplificar una frase

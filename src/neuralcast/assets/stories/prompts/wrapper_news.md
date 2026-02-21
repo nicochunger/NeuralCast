@@ -28,11 +28,13 @@ Claves de estilo conversacional:
 - Volver a la musica con puente calido y fluido.
 - Si INPUT incluye scripts recientes, evitar repetir frases de apertura; variar la forma de la frase naturalmente.
 - Sonar como curaduria de relevancia, no lectura de boletin.
+- Mantener respiracion oral: incluir pausas breves y, si encaja, una muletilla suave sin sobrecargar.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Ahi se fue [CURRENT_TITLE] de [CURRENT_ARTIST], y ahora te tiro un mini paneo de noticias."
 - "Acabamos de escuchar [CURRENT_TITLE] de [CURRENT_ARTIST], y para cortar un poquito te cuento que estuvo pasando en el mundo."
 - "Te tiro un titular rapido que vale la pena seguir..."
+- "Bueno, te marco una rapida... segun <medio>, hoy se confirmo que..."
 - "Segun <medio>, hoy se confirmo que..."
 - "Despues de este paneo, volvemos al aire musical con..."
 - Demasiado guionado (evitar): "En otras noticias de interes general, se informa que..."

@@ -11,6 +11,7 @@ Reglas:
 - Usar el angulo seleccionado.
 - Evitar formulas de hype genericas y cliches pesados repetidos.
 - Priorizar una pista concreta del tema actual o del siguiente por encima de charla abstracta de estacion.
+- Permitir una pausa oral breve o muletilla suave si mejora naturalidad.
 
 Manejo de angulo:
 - System Narrator: describir que pasa en el flujo con lenguaje llano y humano.
@@ -23,6 +24,7 @@ Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "La curva de energia viene pareja y eso deja espacio para que el proximo tema respire."
 - "Este tramo tiene continuidad sin apuro, como una secuencia pensada de verdad."
 - "Hay contraste, pero no corte: el siguiente tema cae en el punto justo."
+- "Mira, venimos parejos... y el proximo cae justo donde tiene que caer."
 - Demasiado guionado (evitar): "El sistema permanece estable y en correcto funcionamiento."
 - Mas natural: "Venimos en una linea pareja, y el que sigue cae justo en ese punto."
 
