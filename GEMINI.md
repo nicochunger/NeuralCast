@@ -1,13 +1,14 @@
 # NeuralCast
 
-NeuralCast is an automation system for maintaining music libraries and generating AI-driven audio content for radio stations. It manages playlist synchronization (CSV <-> MP3), metadata validation, and AI story injection into AzuraCast streams.
+NeuralCast is an automation system for maintaining music libraries and generating AI-driven audio content for radio stations. It manages playlist synchronization (CSV <-> MP3), metadata validation, and AI host segment injection into AzuraCast streams.
 
 ## Project Structure
 
 - **Core Logic:** `src/neuralcast/` contains the implementation (pipelines, services, models).
 - **Entry Points:**
   - `main.py`: Syncs playlists, downloads missing songs, and normalizes tags.
-  - `inject_story_snippet.py`: Generates and pushes AI stories to AzuraCast.
+  - `inject_host_segment.py`: Primary entrypoint for generating and pushing AI host segments to AzuraCast.
+  - `inject_story_snippet.py`: Backward-compatible alias to `inject_host_segment.py`.
   - `update_new_releases.py`: Updates "New Releases" playlists via Spotify.
 - **Station Data:** Directories like `NeuralCast/` and `NeuralForge/` store:
   - `playlists/`: CSV files defining the music rotation.
@@ -27,10 +28,10 @@ python main.py --station NeuralCast --dry-run
 python main.py --station NeuralCast
 ```
 
-### Story Injection
-To generate and inject a story snippet:
+### Host Segment Injection
+To generate and inject an AI host segment:
 ```bash
-python inject_story_snippet.py --station neuralcast --dry-run
+python inject_host_segment.py --station neuralcast --dry-run
 ```
 
 ### Dependency Setup

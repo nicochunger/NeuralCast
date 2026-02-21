@@ -15,7 +15,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from neuralcast.pipelines.story_injector import (  # noqa: E402
+from neuralcast.pipelines.host_orchestrator import (  # noqa: E402
     Archetype,
     OrchestratorState,
     ScheduleContext,

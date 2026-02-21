@@ -2,6 +2,7 @@
 
 Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
 - `src/neuralcast/pipelines/story_injector.py`
+- `src/neuralcast/pipelines/host_orchestrator.py`
 - `src/neuralcast/pipelines/schedule_generator.py`
 
 ## Archivos principales de prompts

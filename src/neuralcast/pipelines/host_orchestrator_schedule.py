@@ -1,0 +1,307 @@
+"""Schedule-context helpers for host orchestrator."""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import pathlib
+import re
+from typing import Any, Dict, List, Mapping, Optional, Tuple
+from zoneinfo import ZoneInfo
+
+from neuralcast.pipelines.host_orchestrator_config import (
+    LOGGER,
+    SCHEDULE_MENTION_MAX_ENTRIES,
+    SCHEDULE_MENTION_RETENTION_DAYS,
+    SCHEDULE_MID_PROGRESS_RANGE,
+    SCHEDULE_START_WINDOW_MINUTES,
+    SCHEDULE_STATE_FILENAME,
+    SYSTEM_TZ,
+)
+from neuralcast.pipelines.host_orchestrator_models import Archetype, ScheduleContext
+
+
+def resolve_station_metadata_file(
+    station_dir: pathlib.Path, filename: str
+) -> pathlib.Path:
+    metadata_path = station_dir / "metadata" / filename
+    if metadata_path.exists():
+        return metadata_path
+    legacy_path = station_dir / "playlists" / filename
+    if legacy_path.exists():
+        return legacy_path
+    return metadata_path
+
+
+def parse_schedule_hhmm(value: str, allow_24: bool = False) -> Optional[int]:
+    text = str(value or "").strip()
+    match = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", text)
+    if match:
+        return int(match.group(1)) * 60 + int(match.group(2))
+    if allow_24 and text == "24:00":
+        return 24 * 60
+    return None
+
+
+def schedule_local_datetime(
+    date_local: str,
+    time_local: str,
+    tz: ZoneInfo,
+) -> Optional[dt.datetime]:
+    try:
+        date_value = dt.date.fromisoformat(date_local)
+    except ValueError:
+        return None
+
+    minutes = parse_schedule_hhmm(time_local, allow_24=True)
+    if minutes is None:
+        return None
+
+    if minutes == 24 * 60:
+        return dt.datetime.combine(
+            date_value + dt.timedelta(days=1),
+            dt.time(hour=0, minute=0),
+            tzinfo=tz,
+        )
+
+    hour = minutes // 60
+    minute = minutes % 60
+    return dt.datetime.combine(
+        date_value,
+        dt.time(hour=hour, minute=minute),
+        tzinfo=tz,
+    )
+
+
+def prune_schedule_block_mentions(
+    mentions: Mapping[str, Mapping[str, Any]],
+    ts: float,
+) -> Dict[str, Dict[str, Any]]:
+    if not mentions:
+        return {}
+
+    cutoff_date = (
+        dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc).date()
+        - dt.timedelta(days=SCHEDULE_MENTION_RETENTION_DAYS)
+    )
+
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for block_key, details in mentions.items():
+        if not isinstance(block_key, str) or not block_key.strip():
+            continue
+        if not isinstance(details, Mapping):
+            continue
+
+        start = bool(details.get("start"))
+        mid = bool(details.get("mid"))
+        if not (start or mid):
+            continue
+
+        updated_raw = details.get("updated_at")
+        try:
+            updated_at = float(updated_raw) if updated_raw is not None else ts
+        except (TypeError, ValueError):
+            updated_at = ts
+
+        block_date_text = block_key.split("|", 1)[0]
+        try:
+            block_date = dt.date.fromisoformat(block_date_text)
+        except ValueError:
+            block_date = None
+        if block_date is not None and block_date < cutoff_date:
+            continue
+
+        normalized[block_key] = {
+            "start": start,
+            "mid": mid,
+            "updated_at": updated_at,
+        }
+
+    if len(normalized) <= SCHEDULE_MENTION_MAX_ENTRIES:
+        return normalized
+
+    ordered = sorted(
+        normalized.items(),
+        key=lambda item: float(item[1].get("updated_at", 0.0)),
+    )
+    return dict(ordered[-SCHEDULE_MENTION_MAX_ENTRIES:])
+
+
+def load_schedule_state_payload(
+    station_dir: pathlib.Path,
+) -> Optional[Mapping[str, Any]]:
+    schedule_path = resolve_station_metadata_file(station_dir, SCHEDULE_STATE_FILENAME)
+    if not schedule_path.exists():
+        return None
+    try:
+        payload = json.loads(schedule_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        LOGGER.warning(
+            "[schedule] Invalid schedule state file at %s; ignoring.", schedule_path
+        )
+        return None
+    if isinstance(payload, Mapping):
+        return payload
+    LOGGER.warning("[schedule] Schedule state is not a JSON object: %s", schedule_path)
+    return None
+
+
+def resolve_schedule_context(
+    schedule_state: Optional[Mapping[str, Any]],
+    ts: float,
+    mention_state: Mapping[str, Mapping[str, Any]],
+) -> Optional[ScheduleContext]:
+    if not isinstance(schedule_state, Mapping):
+        return None
+
+    timezone_name = str(schedule_state.get("timezone") or "").strip()
+    try:
+        schedule_tz = ZoneInfo(timezone_name) if timezone_name else SYSTEM_TZ
+    except Exception:  # noqa: BLE001
+        schedule_tz = SYSTEM_TZ
+
+    now_local = dt.datetime.fromtimestamp(ts, tz=schedule_tz)
+
+    parsed_blocks: List[Tuple[dt.datetime, dt.datetime, str, Mapping[str, Any], int]] = []
+
+    expanded = schedule_state.get("expanded_blocks")
+    if isinstance(expanded, list):
+        for idx, entry in enumerate(expanded):
+            if not isinstance(entry, Mapping):
+                continue
+            date_local = str(entry.get("date_local") or "").strip()
+            start_time = str(entry.get("start_time_local") or "").strip()
+            end_time = str(entry.get("end_time_local") or "").strip()
+            if not date_local or not start_time or not end_time:
+                continue
+
+            start_dt = schedule_local_datetime(date_local, start_time, schedule_tz)
+            end_dt = schedule_local_datetime(date_local, end_time, schedule_tz)
+            if start_dt is None or end_dt is None:
+                continue
+            if end_dt <= start_dt:
+                continue
+
+            block_key = str(entry.get("block_key") or "").strip()
+            if not block_key:
+                block_key = (
+                    f"{date_local}|{idx}|{start_time}|{end_time}|"
+                    f"{str(entry.get('mode') or 'open')}"
+                )
+            parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
+
+    if not parsed_blocks:
+        daily_template = schedule_state.get("daily_template")
+        if isinstance(daily_template, list):
+            current_date = now_local.date().isoformat()
+            for idx, entry in enumerate(daily_template):
+                if not isinstance(entry, Mapping):
+                    continue
+                start_time = str(entry.get("start_time_local") or "").strip()
+                end_time = str(entry.get("end_time_local") or "").strip()
+                if not start_time or not end_time:
+                    continue
+
+                start_dt = schedule_local_datetime(current_date, start_time, schedule_tz)
+                end_dt = schedule_local_datetime(current_date, end_time, schedule_tz)
+                if start_dt is None or end_dt is None:
+                    continue
+                if end_dt <= start_dt:
+                    end_dt = end_dt + dt.timedelta(days=1)
+
+                mode = str(entry.get("mode") or "open").strip().lower()
+                playlist_id = str(entry.get("playlist_id") or "open").strip()
+                block_key = (
+                    f"{current_date}|template|{idx}|{start_time}|{end_time}|{mode}|{playlist_id}"
+                )
+                parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
+
+    if not parsed_blocks:
+        return None
+
+    parsed_blocks.sort(key=lambda item: item[0])
+
+    current_index = -1
+    for idx, (start_dt, end_dt, _, _, _) in enumerate(parsed_blocks):
+        if start_dt <= now_local < end_dt:
+            current_index = idx
+            break
+
+    if current_index < 0:
+        return None
+
+    start_dt, end_dt, block_key, current_entry, _ = parsed_blocks[current_index]
+    duration_seconds = max((end_dt - start_dt).total_seconds(), 1.0)
+    progress_ratio = min(
+        1.0,
+        max(0.0, (now_local - start_dt).total_seconds() / duration_seconds),
+    )
+    if progress_ratio < 0.35:
+        phase = "start"
+    elif progress_ratio <= 0.75:
+        phase = "middle"
+    else:
+        phase = "end"
+
+    mention_entry = mention_state.get(block_key, {})
+    mention_intent: Optional[str] = None
+    elapsed_minutes = max(0.0, (now_local - start_dt).total_seconds() / 60.0)
+    if elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES and not bool(
+        mention_entry.get("start")
+    ):
+        mention_intent = "start"
+    elif (
+        SCHEDULE_MID_PROGRESS_RANGE[0]
+        <= progress_ratio
+        <= SCHEDULE_MID_PROGRESS_RANGE[1]
+        and not bool(mention_entry.get("mid"))
+    ):
+        mention_intent = "mid"
+
+    next_section_label: Optional[str] = None
+    for start_candidate, _, _, entry_candidate, _ in parsed_blocks:
+        if start_candidate > now_local:
+            candidate_label = str(entry_candidate.get("section_label") or "").strip()
+            next_section_label = candidate_label or None
+            break
+    if next_section_label is None and parsed_blocks:
+        candidate_label = str(parsed_blocks[0][3].get("section_label") or "").strip()
+        next_section_label = candidate_label or None
+
+    section_label = str(current_entry.get("section_label") or "").strip()
+    if not section_label:
+        section_label = str(current_entry.get("playlist_name") or "Bloque activo").strip()
+
+    genres_raw = current_entry.get("genre_labels")
+    genre_labels: List[str] = []
+    if isinstance(genres_raw, list):
+        genre_labels = [str(item).strip() for item in genres_raw if str(item).strip()]
+    elif genres_raw is not None:
+        genre_labels = [chunk.strip() for chunk in str(genres_raw).split(",") if chunk.strip()]
+    if not genre_labels:
+        genre_labels = ["mix variado"]
+
+    return ScheduleContext(
+        block_key=block_key,
+        section_label=section_label,
+        genre_labels=genre_labels,
+        mode=str(current_entry.get("mode") or "open").strip().lower(),
+        playlist_name=str(current_entry.get("playlist_name") or "").strip() or None,
+        progress_ratio=progress_ratio,
+        phase=phase,
+        mention_intent=mention_intent,
+        next_section_label=next_section_label,
+        start_local_iso=start_dt.isoformat(),
+        end_local_iso=end_dt.isoformat(),
+    )
+
+
+def should_force_block_intro(
+    schedule_context: Optional[ScheduleContext],
+    forced_archetype: Optional[Archetype],
+) -> bool:
+    return (
+        forced_archetype is None
+        and schedule_context is not None
+        and schedule_context.mention_intent == "start"
+    )

@@ -1,6 +1,6 @@
-# Deployment Instructions for Story Injector
+# Deployment Instructions for Host Orchestrator
 
-This package contains the necessary source code and dependencies to run the `story_injector.py` script on your VPS.
+This package contains the necessary source code and dependencies to run the `host_orchestrator.py` runtime on your VPS.
 
 ## Prerequisites
 
@@ -8,10 +8,10 @@ This package contains the necessary source code and dependencies to run the `sto
 
 ## Step 1: Transfer the package
 
-Transfer the `deploy_story_injector.zip` file to your VPS. Replace `user@your-vps-ip` with your actual username and IP address.
+Transfer the `deployment/deploy_host_orchestrator.zip` file to your VPS. Replace `user@your-vps-ip` with your actual username and IP address.
 
 ```bash
-scp deploy_story_injector.zip user@your-vps-ip:~/deploy_story_injector.zip
+scp deployment/deploy_host_orchestrator.zip user@your-vps-ip:~/deploy_host_orchestrator.zip
 ```
 
 ## Step 2: Set up on the VPS
@@ -31,8 +31,8 @@ SSH into your VPS and perform the following steps:
 2.  **Unzip the package:**
 
     ```bash
-    unzip deploy_story_injector.zip -d radio_stories
-    cd radio_stories
+    unzip deploy_host_orchestrator.zip -d radio_host_orchestrator
+    cd radio_host_orchestrator
     ```
 
 3.  **Set up a virtual environment and install dependencies:**
@@ -45,7 +45,7 @@ SSH into your VPS and perform the following steps:
 
 4.  **Configure Environment Variables:**
 
-    Create a `.env` file in the `radio_stories` directory:
+    Create a `.env` file in the `radio_host_orchestrator` directory:
 
     ```bash
     nano .env
@@ -66,9 +66,9 @@ SSH into your VPS and perform the following steps:
 Before setting up the cronjob, verify that the script runs correctly. The `src` directory needs to be in the python path.
 
 ```bash
-# Ensure you are inside the radio_stories folder and venv is active
+# Ensure you are inside the radio_host_orchestrator folder and venv is active
 export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-python3 src/neuralcast/pipelines/story_injector.py --station neuralcast --dry-run
+python3 src/neuralcast/pipelines/host_orchestrator.py --station neuralcast --dry-run
 ```
 
 -   Remove `--dry-run` to actually upload and inject a story.
@@ -87,7 +87,7 @@ Add a line to run the script periodically (e.g., every hour).
 
 ```cron
 # Run every hour at the 5th minute
-5 * * * * cd /home/user/radio_stories && export PYTHONPATH=$PYTHONPATH:$(pwd)/src && ./venv/bin/python3 src/neuralcast/pipelines/story_injector.py --station neuralcast >> /home/user/radio_stories/story.log 2>&1
+5 * * * * cd /home/user/radio_host_orchestrator && export PYTHONPATH=$PYTHONPATH:$(pwd)/src && ./venv/bin/python3 src/neuralcast/pipelines/host_orchestrator.py --station neuralcast >> /home/user/radio_host_orchestrator/host_orchestrator.log 2>&1
 ```
 
 ### Common Flags

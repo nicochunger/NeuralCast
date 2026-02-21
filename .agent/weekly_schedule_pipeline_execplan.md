@@ -105,9 +105,9 @@ Run from repository root (`/home/nicou/Documents/NeuralCast`):
 6. Manual dry-run check on NeuralForge:
    python -m neuralcast.cli.schedule_generator --station neuralforge --dry-run
 7. VPS redeploy (mandatory for `story_injector.py` edits):
-   zip -r deployment/deploy_story_injector.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"
-   scp deployment/deploy_story_injector.zip neuralvps:~/deploy_story_injector.zip
-   ssh neuralvps 'cd /root && unzip -o deploy_story_injector.zip -d radio_stories'
+   zip -r deployment/deploy_host_orchestrator.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"
+   scp deployment/deploy_host_orchestrator.zip neuralvps:~/deploy_host_orchestrator.zip
+   ssh neuralvps 'cd /root && unzip -o deploy_host_orchestrator.zip -d radio_host_orchestrator'
 
 ## Validation and Acceptance
 
@@ -141,14 +141,14 @@ Validation snippets:
     AZURACAST_API_KEY=dummy python schedule_generator.py --station neuralforge --dry-run
     # RuntimeError: requests package is required for AzuraCast API calls...
 
-    zip -r deployment/deploy_story_injector.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"
-    scp deployment/deploy_story_injector.zip neuralvps:~/deploy_story_injector.zip
-    ssh neuralvps 'cd /root && unzip -o deploy_story_injector.zip -d radio_stories'
-    ssh neuralvps 'sha256sum /root/radio_stories/src/neuralcast/pipelines/story_injector.py /root/radio_stories/src/neuralcast/pipelines/schedule_generator.py'
+    zip -r deployment/deploy_host_orchestrator.zip src vps_requirements.txt -x "*/__pycache__/*" "*.pyc" "src/neuralcast/assets/stories/snippets/*"
+    scp deployment/deploy_host_orchestrator.zip neuralvps:~/deploy_host_orchestrator.zip
+    ssh neuralvps 'cd /root && unzip -o deploy_host_orchestrator.zip -d radio_host_orchestrator'
+    ssh neuralvps 'sha256sum /root/radio_host_orchestrator/src/neuralcast/pipelines/story_injector.py /root/radio_host_orchestrator/src/neuralcast/pipelines/schedule_generator.py'
     sha256sum src/neuralcast/pipelines/story_injector.py src/neuralcast/pipelines/schedule_generator.py
     # deployed checksums == local checksums for both pipeline files
 
-    ssh neuralvps 'sha256sum /root/radio_stories/src/neuralcast/pipelines/story_injector.py /root/radio_stories/src/neuralcast/assets/stories/prompts/wrapper_block_intro.md'
+    ssh neuralvps 'sha256sum /root/radio_host_orchestrator/src/neuralcast/pipelines/story_injector.py /root/radio_host_orchestrator/src/neuralcast/assets/stories/prompts/wrapper_block_intro.md'
     sha256sum src/neuralcast/pipelines/story_injector.py src/neuralcast/assets/stories/prompts/wrapper_block_intro.md
     # deployed checksums == local checksums for block-intro deployment artifacts
 

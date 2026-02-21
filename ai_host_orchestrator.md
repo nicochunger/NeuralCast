@@ -15,7 +15,7 @@ The core trick is **hierarchical control**:
 * **Randomness is layered** so variation looks intentional rather than chaotic.
 * A **Reality Contract** (constitution) constrains what the host is allowed to claim, preventing “fake realism,” while still allowing expressive hosting.
 
-**Scope note (replacement):** this orchestrator replaces the current `src/neuralcast/pipelines/story_injector.py` runtime path rather than running beside it.
+**Scope note (replacement):** this orchestrator replaces the runtime path now located at `src/neuralcast/pipelines/host_orchestrator.py` rather than running beside it.
 
 ---
 
@@ -642,7 +642,7 @@ Semantics:
 
 # 11) CLI Contract (replacement pipeline)
 
-Implement this as the new runtime behavior replacing `src/neuralcast/pipelines/story_injector.py`.
+Implement this as the new runtime behavior replacing `src/neuralcast/pipelines/host_orchestrator.py`.
 
 Minimum required args/flags:
 
