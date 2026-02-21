@@ -1,3 +1,5 @@
+LEGACY / DEPRECADO: este wrapper ya no se usa en el runtime actual del host orchestrator.
+
 Estas generando un chequeo de pulso.
 
 Objetivo del arquetipo:
@@ -11,7 +13,8 @@ Reglas:
 - Usar el angulo seleccionado.
 - Evitar formulas de hype genericas y cliches pesados repetidos.
 - Priorizar una pista concreta del tema actual o del siguiente por encima de charla abstracta de estacion.
-- Permitir una pausa oral breve o muletilla suave si mejora naturalidad.
+- Permitir una pausa oral breve o muletilla suave si mejora naturalidad (por ejemplo: "bueno", "mira", "a ver", "la verdad"), sin sobrecargar.
+- Si INPUT trae hook seed, usarlo como orientacion de tono, no como frase fija de apertura.
 
 Manejo de angulo:
 - System Narrator: describir que pasa en el flujo con lenguaje llano y humano.

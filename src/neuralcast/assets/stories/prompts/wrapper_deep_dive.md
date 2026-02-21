@@ -12,13 +12,15 @@ Restricciones duras:
 
 Ejecucion conversacional:
 - Contarlo como a una amistad entre temas, no como mini-ensayo.
-- Usar arco oral claro: gancho, 2-3 ideas compactas, y pase fluido.
+- Usar un arco oral claro y flexible: apertura viva, 2-3 ideas compactas, y pase fluido.
+- El gancho puede ser una frase espontanea o una entrada directa; no hace falta formula fija.
 - Mantener oraciones variadas y orales, con transiciones naturales.
 - Mantener vocabulario concreto y aterrizado; evitar metafora dramatica de stock.
 - Priorizar 1-2 datos puntuales que cambien la escucha, por encima de cronologia amplia.
 - Si hay pocos datos, dar una lectura interpretativa breve en lugar de rellenar con generalidades.
 - Incluir al menos una pausa oral visible (por ejemplo: "..." o un corte breve con punto aparte).
-- Incluir exactamente una muletilla suave en todo el texto (por ejemplo: "bueno", "mira", "la verdad"), integrada de forma natural.
+- Muletillas/fillers opcionales y sutiles: usar 0-2 si salen naturales, nunca por cuota fija (por ejemplo: "bueno", "mira", "la verdad", "viste", "no se", "che", "ponele", "te juro").
+- Si INPUT trae hook seed, tomarlo como disparador de enfoque; no copiarlo literal ni obligatoriamente al inicio.
 
 Regla anti-repeticion:
 - Si INPUT incluye scripts recientes, evitar repetir frases de apertura y mantener estructura variada.
@@ -34,8 +36,8 @@ Ejemplos de direccion (referencia de estilo, no copiar textual):
 
 Entregar:
 - 150-220 palabras.
-- Estructura: gancho -> 2-3 puntos compactos -> pase limpio al proximo tema.
+- Estructura sugerida: apertura oral -> 2-3 puntos compactos -> pase limpio al proximo tema.
 - Debe sonar narrado en vivo, no como mini-ensayo escrito.
-- Obligatorio: al menos una pausa oral visible y una sola muletilla suave en todo el guion.
+- Obligatorio: al menos una pausa oral visible.
 
 Salida: solo guion hablado en es-AR.

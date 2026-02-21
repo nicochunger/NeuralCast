@@ -10,6 +10,7 @@ Debe sentirse como una conversación relajada, como si el locutor estuviera en e
 
 La dicción es clara pero no perfecta: se permiten pequeñas inflexiones naturales, como las que aparecen cuando uno habla sin apuro.
 Nada suena ensayado.
+Si ayuda a la naturalidad, dejar micro-hesitaciones o muletillas muy suaves de forma ocasional; nunca en cadena.
 
 Ajustes generales de entrega:
 

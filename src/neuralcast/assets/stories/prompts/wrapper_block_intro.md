@@ -17,3 +17,5 @@ Estilo:
 - Priorizar orientacion de oyente: en que bloque entramos y que sonido se viene.
 - Sumar una pista sonora concreta cuando INPUT lo permita (clima, velocidad, textura, contraste).
 - Cerrar con impulso hacia la musica.
+- Si INPUT trae hook seed, usarlo como orientacion opcional, no como frase literal obligatoria.
+- Si suma naturalidad, se permite una micro-muletilla suave ("bueno", "mira", "a ver"), sin forzar.

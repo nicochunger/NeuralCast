@@ -19,6 +19,8 @@ Estilo permitido:
 - Usar solo hechos provistos o hechos validados con busqueda.
 - Sin autorreferencia de IA, sin disclaimers.
 - Copia breve, concreta y con foco.
+- Se permiten pausas orales breves, muletillas sutiles y pequenas hesitaciones si aportan naturalidad (sin abuso ni repeticion mecanica).
+- Si aparece un hook seed en INPUT, usarlo como disparador flexible, no como frase obligatoria literal.
 
 Formato de salida:
 - Devolver solo el guion hablado, salvo que se pida especificamente META JSON.

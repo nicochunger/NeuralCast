@@ -34,7 +34,6 @@ from neuralcast.pipelines.host_orchestrator_config import (
     WRAPPER_CONCERT_CHECK,
     WRAPPER_DEEP_DIVE,
     WRAPPER_NEWS,
-    WRAPPER_SYSTEM_CHECK,
     WRAPPER_ULTRA_MINIMAL,
     load_personality_guide,
 )
@@ -74,6 +73,13 @@ def format_shared_input(
     schedule_context: Optional[ScheduleContext],
 ) -> str:
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
+    hook_text = (hook or "").strip()
+    if hook_text:
+        hook_line = (
+            f"- Hook cue (idea de entrada, no texto literal; opcional): {hook_text}"
+        )
+    else:
+        hook_line = "- Hook cue (idea de entrada, no texto literal; opcional): none (free opener allowed)"
 
     def _compose_track(label: str, track: QueueTrack, meta: TrackMetadata) -> List[str]:
         line = f"- {label}: {track.artist} — {track.title}"
@@ -107,7 +113,7 @@ def format_shared_input(
     lines.extend(
         [
             f"- Angle (sub-perspective): {angle or 'none'}",
-            f"- Hook seed (optional suggestion, not mandatory opener): {hook}",
+            hook_line,
             "- Banned topics/phrases list:",
         ]
     )
@@ -119,7 +125,7 @@ def format_shared_input(
         lines.extend(
             [
                 "- Recent generated host scripts (most recent first):",
-                "  Use this as hard anti-repetition context: avoid reusing opening phrases and repeated 3-5 word chunks.",
+                "  Use this as anti-repetition context: avoid obvious reuse of opening phrases or repeated chunks, but keep the phrasing natural.",
             ]
         )
         lines.extend(
@@ -195,7 +201,6 @@ def build_prompt(
     else:
         wrapper = {
             Archetype.BACK_SELL: WRAPPER_BACK_SELL,
-            Archetype.SYSTEM_CHECK: WRAPPER_SYSTEM_CHECK,
             Archetype.DEEP_DIVE: WRAPPER_DEEP_DIVE,
             Archetype.BLOCK_INTRO: WRAPPER_BLOCK_INTRO,
             Archetype.ULTRA_MINIMAL: WRAPPER_ULTRA_MINIMAL,

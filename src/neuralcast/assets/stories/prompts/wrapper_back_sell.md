@@ -11,7 +11,9 @@ Como suena una buena salida:
 - La primera frase debe incluir una observacion musical concreta cuando los metadatos lo permitan.
 - Evitar metaforas de musica pesada gastadas, salvo justificacion clara por contexto provisto.
 - Forma sugerida: detalle sonoro concreto -> lectura corta -> puente al proximo tema.
-- Dejar al menos una respiracion oral (pausa breve o muletilla suave) si entra natural.
+- Dejar respiracion oral natural (pausa breve o muletilla suave) solo si suma y no fuerza el texto.
+- Si INPUT trae hook seed, tomarlo como direccion flexible; no copiarlo literal ni como arranque obligatorio.
+- Muletillas sugeridas, opcionales y sutiles: "bueno", "mira", "la verdad", "viste", "nada".
 
 Modo segun angulo:
 - Minimalist: una observacion clara y pase limpio.

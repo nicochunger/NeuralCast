@@ -10,6 +10,8 @@ Reglas:
 - Sin metaforas ni chistes; solo una clausula simple y, como mucho, un cierre humano corto.
 - Debe sonar hablado, no robotico.
 - Si INPUT incluye scripts recientes, evitar repetir la frase de apertura.
+- Si INPUT trae hook seed, usarlo solo como direccion, sin copiarlo literal.
+- Opcional: una sola marca coloquial breve ("bueno", "dale", "nada") si no rompe la brevedad.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Seguimos con [NEXT_TITLE] de [NEXT_ARTIST], quedate por aca."

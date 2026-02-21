@@ -18,6 +18,7 @@ from neuralcast.pipelines.host_orchestrator_config import (
     BANNED_OPENERS,
     COOLDOWN_SECONDS,
     HOOKS_BY_ARCHETYPE,
+    HOOK_FREE_OPEN_PROB_BY_ARCHETYPE,
     LOCK_STALE_SECONDS,
     LOGGER,
     NEWS_DEDUP_MAX_ENTRIES,
@@ -359,7 +360,6 @@ def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
     legal: List[Archetype] = []
     for archetype in (
         Archetype.BACK_SELL,
-        Archetype.SYSTEM_CHECK,
         Archetype.DEEP_DIVE,
         Archetype.NEWS,
         Archetype.CONCERT_CHECK,
@@ -421,15 +421,20 @@ def choose_angle(
 def choose_hook(
     archetype: Archetype, state: OrchestratorState, rng: random.Random
 ) -> str:
-    options = list(HOOKS_BY_ARCHETYPE.get(archetype, ("Seguimos",)))
+    options = list(HOOKS_BY_ARCHETYPE.get(archetype, ()))
     if not options:
-        return "Seguimos"
+        return ""
 
     recent = state.recent_hooks[0] if state.recent_hooks else None
     if recent and len(options) > 1:
         filtered = [hook for hook in options if hook != recent]
         if filtered:
             options = filtered
+
+    free_open_prob = HOOK_FREE_OPEN_PROB_BY_ARCHETYPE.get(archetype, 0.0)
+    if free_open_prob > 0 and rng.random() < free_open_prob:
+        return ""
+
     return rng.choice(options)
 
 
@@ -517,7 +522,8 @@ def apply_success_state_update(
         state.cooldown_until[archetype_used.value] = ts + cooldown
 
     state.recent_archetypes = [archetype_used.value]
-    state.recent_hooks = [hook]
+    normalized_hook = (hook or "").strip()
+    state.recent_hooks = [normalized_hook] if normalized_hook else []
 
     if angle and archetype_used in ANGLE_OPTIONS:
         state.last_angle_by_archetype[archetype_used.value] = angle

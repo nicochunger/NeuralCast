@@ -64,23 +64,17 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
         "Connector",
         "Fanatic",
     ),
-    Archetype.SYSTEM_CHECK: (
-        "System Narrator",
-        "Existentialist",
-    ),
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.50,
-    Archetype.SYSTEM_CHECK: 0.23,
-    Archetype.DEEP_DIVE: 0.10,
-    Archetype.NEWS: 0.10,
-    Archetype.CONCERT_CHECK: 0.07,
+    Archetype.BACK_SELL: 0.55,
+    Archetype.DEEP_DIVE: 0.20,
+    Archetype.NEWS: 0.15,
+    Archetype.CONCERT_CHECK: 0.10,
 }
 
 COOLDOWN_SECONDS: Dict[Archetype, int] = {
     Archetype.BACK_SELL: 30 * 60,
-    Archetype.SYSTEM_CHECK: 30 * 60,
     Archetype.DEEP_DIVE: 60 * 60,
     Archetype.NEWS: 120 * 60,
     Archetype.CONCERT_CHECK: 180 * 60,
@@ -90,7 +84,6 @@ TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype, Tuple[Tuple[float, float], Tuple[float, float]]
 ] = {
     Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
-    Archetype.SYSTEM_CHECK: ((0.8, 1.2), (0.85, 0.95)),
     Archetype.DEEP_DIVE: ((1.0, 1.5), (0.9, 0.98)),
     Archetype.NEWS: ((0.7, 1.1), (0.85, 0.95)),
     Archetype.CONCERT_CHECK: ((0.6, 1.0), (0.85, 0.95)),
@@ -110,18 +103,6 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "Ese cierre abre otra puerta",
         "Nos deja en un punto justo",
         "La energía siguió corriendo",
-    ),
-    Archetype.SYSTEM_CHECK: (
-        "Chequeo rápido de sistema",
-        "La cadena sigue firme",
-        "El flujo viene sin fisuras",
-        "La mezcla respira pareja",
-        "Todo en fase y en movimiento",
-        "Control de pulso en marcha",
-        "La señal está sólida",
-        "El trayecto viene alineado",
-        "La curva sigue estable",
-        "Todo avanza con tracción",
     ),
     Archetype.DEEP_DIVE: (
         "Hay un dato que vale oro",
@@ -180,6 +161,16 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
     ),
 }
 
+# Probability that a segment receives no hook cue at all, allowing a free opener.
+HOOK_FREE_OPEN_PROB_BY_ARCHETYPE: Dict[Archetype, float] = {
+    Archetype.BACK_SELL: 0.40,
+    Archetype.DEEP_DIVE: 0.35,
+    Archetype.NEWS: 0.25,
+    Archetype.CONCERT_CHECK: 0.25,
+    Archetype.BLOCK_INTRO: 0.30,
+    Archetype.ULTRA_MINIMAL: 0.20,
+}
+
 NEWS_TOPICS: Tuple[str, ...] = (
     "Tech/AI",
     "Absurd/odd",
@@ -233,7 +224,6 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "host_constitution": "host_constitution.md",
     "script_style_baseline": "script_style_baseline.md",
     "wrapper_back_sell": "wrapper_back_sell.md",
-    "wrapper_system_check": "wrapper_system_check.md",
     "wrapper_deep_dive": "wrapper_deep_dive.md",
     "wrapper_news": "wrapper_news.md",
     "wrapper_concert_check": "wrapper_concert_check.md",
@@ -288,7 +278,6 @@ def get_prompt_template(template_name: str, **template_vars: Any) -> str:
 HOST_CONSTITUTION_TEMPLATE = get_prompt_template("host_constitution")
 SCRIPT_STYLE_BASELINE = get_prompt_template("script_style_baseline")
 WRAPPER_BACK_SELL = get_prompt_template("wrapper_back_sell")
-WRAPPER_SYSTEM_CHECK = get_prompt_template("wrapper_system_check")
 WRAPPER_DEEP_DIVE = get_prompt_template("wrapper_deep_dive")
 WRAPPER_NEWS = get_prompt_template("wrapper_news")
 WRAPPER_CONCERT_CHECK = get_prompt_template("wrapper_concert_check")
