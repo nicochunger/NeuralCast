@@ -67,10 +67,10 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.55,
-    Archetype.DEEP_DIVE: 0.20,
-    Archetype.NEWS: 0.15,
-    Archetype.CONCERT_CHECK: 0.10,
+    Archetype.BACK_SELL: 0.40,
+    Archetype.DEEP_DIVE: 0.24,
+    Archetype.NEWS: 0.20,
+    Archetype.CONCERT_CHECK: 0.16,
 }
 
 COOLDOWN_SECONDS: Dict[Archetype, int] = {
