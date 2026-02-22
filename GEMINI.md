@@ -45,10 +45,12 @@ python -m pip install pandas mutagen spotipy musicbrainzngs python-dotenv tqdm r
 - **Code Style:** Black-compatible formatting, 4-space indentation.
 - **Typing:** Use type hints (`Optional`, `List`, etc.) and dataclasses.
 - **Naming:** `snake_case` for functions/variables, `PascalCase` for classes.
-- **Testing:** Currently relies on manual verification and "dry-runs". Use `notebooks/` for experimental logic. **The agent must not run `main.py` to test changes; the user will handle execution of the main pipeline manually.**
+- **Testing:** Mix of targeted automated tests in `tests/` plus manual verification and "dry-runs". Use `notebooks/` and `tools/manual/` for exploratory logic. **The agent must not run `main.py` to test changes; the user will handle execution of the main pipeline manually.**
 - **Configuration:** Secrets (API keys for OpenAI, Spotify, AzuraCast) must be in a `.env` file. **Never commit secrets.**
 
 ## Key Documentation
 - `AGENTS.md`: Detailed developer guidelines, testing procedures, and architectural notes.
 - `readme.md`: General project overview and workflow.
 - `deployment/INSTRUCTIONS.md`: VPS deployment guide.
+- `docs/`: Active supplemental docs and cleanup inventory.
+- `docs/archive/`: Historical notes and prompt archives kept for reference.

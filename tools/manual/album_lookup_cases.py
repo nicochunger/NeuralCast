@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Test script to validate album lookup improvements."""
+"""Manual album-lookup validation script (not part of automated pytest runs)."""
 
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))

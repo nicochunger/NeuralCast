@@ -1,3 +1,23 @@
+Metadata-Version: 2.4
+Name: neuralcast
+Version: 0.1.0
+Summary: Playlist maintenance and AI host orchestration tools for NeuralCast stations
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pandas
+Requires-Dist: mutagen
+Requires-Dist: spotipy
+Requires-Dist: musicbrainzngs
+Requires-Dist: python-dotenv
+Requires-Dist: tqdm
+Requires-Dist: requests
+Requires-Dist: openai
+Requires-Dist: google-genai
+Requires-Dist: pydantic
+Requires-Dist: pillow
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+
 # NeuralCast Playlist Maintenance Pipeline
 
 NeuralCast's `main.py` script manages station-specific music libraries by reading CSV playlists from `<station>/playlists`, ensuring the matching MP3 catalog under `<station>/songs`, and keeping metadata synchronized. Use `--station` to pick which station directory to process and `--dry-run` when you only want to audit existing files without downloading new audio.

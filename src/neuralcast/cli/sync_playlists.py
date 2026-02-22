@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import argparse
 
-from neuralcast.pipelines.playlist_sync import list_playlists, main
-
 
 def run() -> None:
     parser = argparse.ArgumentParser(
@@ -25,6 +23,8 @@ def run() -> None:
     )
     args = parser.parse_args()
     station = args.station or "NeuralCast"
+    from neuralcast.pipelines.playlist_sync import list_playlists, main
+
     list_playlists(station)
     main(station, args.dry_run)
 

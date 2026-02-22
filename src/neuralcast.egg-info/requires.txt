@@ -1,0 +1,14 @@
+pandas
+mutagen
+spotipy
+musicbrainzngs
+python-dotenv
+tqdm
+requests
+openai
+google-genai
+pydantic
+pillow
+
+[dev]
+pytest

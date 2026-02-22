@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neuralcast"
+version = "0.1.0"
+description = "Playlist maintenance and AI host orchestration tools for NeuralCast stations"
+readme = "readme.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "mutagen",
+    "spotipy",
+    "musicbrainzngs",
+    "python-dotenv",
+    "tqdm",
+    "requests",
+    "openai",
+    "google-genai",
+    "pydantic",
+    "pillow",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+neuralcast-sync = "neuralcast.cli.sync_playlists:run"
+neuralcast-new-releases = "neuralcast.cli.update_new_releases:run"
+neuralcast-host = "neuralcast.cli.host_orchestrator:main"
+neuralcast-schedule = "neuralcast.cli.schedule_generator:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

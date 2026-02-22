@@ -12,7 +12,6 @@ Anubis Gate,The Final Overture,2009,Andromeda Unchained,True
 Ark,Burn the Sun,2001,Burn the Sun,True
 Ark,Heal the Waters,2001,Burn the Sun,True
 Ark,Just a Little,1999,Burn the Sun,True
-[DEL] Ark,Kaise Tere Bin,2025,Kaise Tere Bin,True
 Ayreon,Age of Shadows,2008,01011001,True
 Ayreon,The Day That the World Breaks Down,2017,The Source,True
 Balance of Power,Prisoner of Pride,1997,Ten More Tales of Grand Illusion,True
@@ -34,7 +33,6 @@ Dream Theater,Learning to Live,1992,Images and Words,True
 Dream Theater,Metropolis—Part I: The Miracle and the Sleeper,1992,Images and Words,True
 Dream Theater,Octavarium,2005,Octavarium,True
 Dream Theater,The Count of Tuscany,2009,Black Clouds & Silver Linings,True
-[https://www.youtube.com/watch?v=7NuiVUxZQfs] Dream Theater,The Spirit Carries On,1999,Metropolis Pt. 2: Scenes from a Memory,True
 Evergrey,A Silent Arc,2019,The Atlantic,True
 Evergrey,A Touch of Blessing,2004,The Inner Circle,True
 Evergrey,King of Errors,2014,Hymns for the Broken,True
@@ -60,7 +58,6 @@ Ne Obliviscaris,Painters of the Tempest (Part II): Triptych Lux,2014,Citadel,Tru
 Opeth,Deliverance,2002,Deliverance,True
 Opeth,Ghost of Perdition,2005,Ghost Reveries,True
 Pagan's Mind,Enigmatic Mission,2005,Enigmatic: Calling,True
-[https://www.youtube.com/watch?v=bQyg9J31xDg] Pagan's Mind,God's Equation,2007,God's Equation,True
 Pagan's Mind,Through Osiris' Eyes,2002,Celestial Entrance,True
 Pain of Salvation,Beyond the Pale,2002,Remedy Lane,True
 Pain of Salvation,Idioglossia,2000,"The Perfect Element, Part I",True
@@ -152,7 +149,7 @@ Karnivool,Goliath,2009,Sound Awake,True
 Karnivool,New Day,2009,Sound Awake,True
 Wheel,Dissipating,2021,Resident Human,True
 Wheel,Wheel,2019,Moving Backwards,True
-Voyager,Dreamer,2023,Orion,False
+Voyager,Dreamer,2023,Orion,True
 Voyager,Ascension,2017,Ghost Mile,True
 Agent Fresco,Dark Water,2015,Destrier,True
 Agent Fresco,Howls,2015,Destrier,True
@@ -162,3 +159,5 @@ The Ocean,Jurassic | Cretaceous,2020,Phanerozoic II: Mesozoic | Cenozoic,True
 The Ocean,Devonian: Nascent,2018,Phanerozoic I: Palaeozoic,True
 VOLA,Stray the Skies,2016,Inmazes,True
 VOLA,24 Light-Years,2021,Witness,True
+Dream Theater,The Spirit Carries On,1999,Metropolis Pt. 2: Scenes from a Memory,True
+Pagan's Mind,God's Equation,2007,God's Equation,True

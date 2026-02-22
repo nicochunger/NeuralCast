@@ -1,11 +1,14 @@
 songs/
 .env
 __pycache__/
+.pytest_cache/
+.venv/
 .cache
 *.mp3
 .vscode/
-stories/snippets/
-stories/style_history.json
-src/neuralcast/assets/stories/snippets/**/*.txt
+src/neuralcast/assets/stories/snippets/
 deployment/deploy_host_orchestrator.zip
+logs/*.log
+*/metadata/ai_host_orchestrator_state.json
+*/metadata/ai_host_orchestrator_state.corrupt.*.json
 */metadata/ai_schedule_state.json
