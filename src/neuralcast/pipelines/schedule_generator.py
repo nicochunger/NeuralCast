@@ -463,8 +463,9 @@ def validate_daily_template(
                 raise ScheduleValidationError(
                     f"Playlist '{playlist.name}' is disabled and cannot be scheduled explicitly."
                 )
-            if not section_label:
-                section_label = playlist.name
+            # Enforce canonical block naming for scheduled playlist blocks.
+            # We still allow custom labels for open blocks.
+            section_label = playlist.name
             if not genres:
                 genres = [playlist.name]
         else:
