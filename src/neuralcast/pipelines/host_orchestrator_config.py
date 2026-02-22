@@ -85,7 +85,8 @@ TEMPERATURE_TOP_P_RANGES: Dict[
 ] = {
     Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
     Archetype.DEEP_DIVE: ((1.0, 1.5), (0.9, 0.98)),
-    Archetype.NEWS: ((0.7, 1.1), (0.85, 0.95)),
+    # NEWS uses a strict grounded + structured contract; lower variance is more reliable.
+    Archetype.NEWS: ((0.45, 0.85), (0.88, 0.95)),
     Archetype.CONCERT_CHECK: ((0.6, 1.0), (0.85, 0.95)),
     Archetype.BLOCK_INTRO: ((0.4, 0.7), (0.75, 0.9)),
     Archetype.ULTRA_MINIMAL: ((0.3, 0.6), (0.7, 0.9)),

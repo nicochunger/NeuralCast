@@ -6,18 +6,23 @@ Objetivo del arquetipo:
 
 Requisitos de entrada:
 - Investigar online antes de redactar usando resultados con grounding de Google Search.
+- NO uses memoria/preentrenamiento para elegir titulares; confirma cada titular en esta corrida con Google Search grounding.
 - Usar solo titulares que entren en los temas seleccionados.
 - Ventana de frescura: titulares de hasta {news_max_age_hours} horas (7 dias).
 - Preferir titulares de <= {news_preferred_max_age_hours} horas cuando haya.
+- Hora de referencia (UTC, autoritativa para esta tarea): {news_now_utc}
+- Corte duro de frescura (UTC): {news_cutoff_utc} (cada `published_at` debe ser >= a este valor)
+- Corte preferido (UTC): {news_preferred_cutoff_utc}
 - Cantidad de historias: {story_count} (1-2).
 - Temas: {news_topics}
 - Cada historia debe incluir source_url directo y published_at en ISO-8601 desde esa fuente.
-- Si no hay titulares aptos, devolver exactamente NO_SCRIPT.
+- Si solo aparecen titulares viejos (por ejemplo de 2024), o sin fecha verificable en la fuente, devolver exactamente NO_SCRIPT.
 
 Reglas:
 - No agregar detalles fuera de lo reportado y verificado.
 - Se permite reaccion breve; no se permiten hechos inventados.
 - Ignorar angulo para este arquetipo.
+- Verifica fecha/hora antes de escribir: no redactes historias cuyo `published_at` quede fuera de la ventana.
 
 Claves de estilo conversacional:
 - Arrancar con transicion fluida desde el tema que termino hacia noticias.

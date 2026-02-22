@@ -188,11 +188,19 @@ def build_prompt(
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
     if archetype == Archetype.NEWS:
+        now_utc = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
         wrapper = WRAPPER_NEWS.format(
             story_count=story_count or 1,
             news_topics=", ".join(news_topics or NEWS_TOPICS),
             news_max_age_hours=NEWS_MAX_AGE_HOURS,
             news_preferred_max_age_hours=NEWS_PREFERRED_MAX_AGE_HOURS,
+            news_now_utc=now_utc.isoformat().replace("+00:00", "Z"),
+            news_cutoff_utc=(
+                now_utc - dt.timedelta(hours=NEWS_MAX_AGE_HOURS)
+            ).isoformat().replace("+00:00", "Z"),
+            news_preferred_cutoff_utc=(
+                now_utc - dt.timedelta(hours=NEWS_PREFERRED_MAX_AGE_HOURS)
+            ).isoformat().replace("+00:00", "Z"),
         )
     elif archetype == Archetype.CONCERT_CHECK:
         wrapper = WRAPPER_CONCERT_CHECK.format(
@@ -283,6 +291,36 @@ def gemini_generate_text(
         config=types.GenerateContentConfig(**config_kwargs),
     )
     text = (response.text or "").strip()
+    if with_search and text == "NO_SCRIPT":
+        try:
+            candidates = getattr(response, "candidates", None) or []
+            finish_reason = None
+            grounding_titles: List[str] = []
+            grounding_chunk_count = 0
+            if candidates:
+                candidate0 = candidates[0]
+                finish = getattr(candidate0, "finish_reason", None)
+                finish_reason = str(finish) if finish is not None else None
+                grounding = getattr(candidate0, "grounding_metadata", None)
+                chunks = getattr(grounding, "grounding_chunks", None) or []
+                grounding_chunk_count = len(chunks)
+                for chunk in chunks[:5]:
+                    web = getattr(chunk, "web", None)
+                    title = (getattr(web, "title", None) or "").strip() if web else ""
+                    if title:
+                        grounding_titles.append(title)
+            usage = getattr(response, "usage_metadata", None)
+            total_tokens = getattr(usage, "total_token_count", None)
+            LOGGER.warning(
+                "[gemini/search] NO_SCRIPT response_id=%s finish=%s grounding_chunks=%s grounding_titles=%s total_tokens=%s",
+                getattr(response, "response_id", None),
+                finish_reason,
+                grounding_chunk_count,
+                grounding_titles,
+                total_tokens,
+            )
+        except Exception:  # noqa: BLE001
+            LOGGER.debug("[gemini/search] Failed to summarize grounding metadata for NO_SCRIPT.")
     if not text:
         raise RuntimeError("Gemini returned an empty text response.")
     return text
@@ -524,6 +562,7 @@ def validate_news_freshness_and_dedup(
 ) -> Tuple[bool, str]:
     recent = prune_news_history(state.recent_news_dedup, ts)
     recent_keys = {str(entry.get("key") or "") for entry in recent}
+    now_utc = dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc)
 
     for story in segment.stories:
         dedup_key = build_news_dedup_key(story.topic, story.headline, story.source_url)
@@ -534,9 +573,7 @@ def validate_news_freshness_and_dedup(
         if published is None:
             return False, f"missing/invalid published_at for headline: {story.headline}"
 
-        age_hours = (
-            dt.datetime.now(dt.timezone.utc) - published
-        ).total_seconds() / 3600.0
+        age_hours = (now_utc - published).total_seconds() / 3600.0
         if age_hours > NEWS_MAX_AGE_HOURS:
             return False, (
                 f"headline too old ({age_hours:.1f}h > {NEWS_MAX_AGE_HOURS}h): "
@@ -659,14 +696,24 @@ def generate_archetype_script(
         "schedule_context": schedule_context,
     }
 
-    def generate_with_retries(prompt: str, label: str, with_search: bool) -> str:
+    def generate_with_retries(
+        prompt: str,
+        label: str,
+        with_search: bool,
+        temperature_override: Optional[float] = None,
+        top_p_override: Optional[float] = None,
+    ) -> str:
+        call_temperature = (
+            temperature if temperature_override is None else temperature_override
+        )
+        call_top_p = top_p if top_p_override is None else top_p_override
         return run_with_retries(
             label=label,
             func=lambda: gemini_generate_text(
                 prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=temperature,
-                top_p=top_p,
+                temperature=call_temperature,
+                top_p=call_top_p,
                 with_search=with_search,
             ),
         )
@@ -769,6 +816,8 @@ def generate_archetype_script(
     # News mode with validation, repair, and topic retries.
     story_count = rng.randint(1, 2)
     topic_attempts = 3
+    conservative_news_temperature = min(0.65, temperature)
+    conservative_news_top_p = max(0.90, top_p)
     for topic_attempt in range(topic_attempts):
         topics = pick_news_topics(story_count, rng)
         prompt = build_prompt(
@@ -785,12 +834,46 @@ def generate_archetype_script(
 
         segment, reason = parse_news_output(generated)
         if reason == "NO_SCRIPT":
+            LOGGER.warning(
+                "[news] Gemini returned NO_SCRIPT (%s/%s) at sampled settings temp=%.3f top_p=%.3f topics=%s. Raw=%r",
+                topic_attempt + 1,
+                topic_attempts,
+                temperature,
+                top_p,
+                topics,
+                generated[:500],
+            )
+            # NEWS is a strict grounded + structured task; high-variance sampling can cause
+            # spurious NO_SCRIPT decisions even when fresh headlines exist.
+            if temperature > conservative_news_temperature or top_p < conservative_news_top_p:
+                LOGGER.info(
+                    "[news] Retrying same topic with conservative settings temp=%.2f top_p=%.2f.",
+                    conservative_news_temperature,
+                    conservative_news_top_p,
+                )
+                generated = generate_with_retries(
+                    prompt=prompt,
+                    label="Gemini generation (news, conservative retry)",
+                    with_search=True,
+                    temperature_override=conservative_news_temperature,
+                    top_p_override=conservative_news_top_p,
+                )
+                segment, reason = parse_news_output(generated)
+
+        if reason == "NO_SCRIPT":
+            if topic_attempt < topic_attempts - 1:
+                LOGGER.warning(
+                    "[news] NO_SCRIPT after retries (%s/%s); trying a different topic.",
+                    topic_attempt + 1,
+                    topic_attempts,
+                )
+                continue
             if forced_mode:
                 raise RuntimeError(
-                    "Forced news archetype returned NO_SCRIPT; failing as requested for test visibility."
+                    "Forced news archetype returned NO_SCRIPT after topic retries; failing as requested for test visibility."
                 )
             LOGGER.warning(
-                "[news] Gemini returned NO_SCRIPT; falling back to ultra_minimal."
+                "[news] Gemini returned NO_SCRIPT after topic retries; falling back to ultra_minimal."
             )
             return fallback()
 
