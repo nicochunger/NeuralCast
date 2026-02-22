@@ -61,7 +61,7 @@ DEFAULT_OPEN_RATIO_MIN = 0.20
 DEFAULT_OPEN_RATIO_MAX = 0.40
 DEFAULT_MIN_BLOCK_MINUTES = 30
 DEFAULT_MAX_BLOCK_MINUTES = 240
-DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES = 180
+DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES = 120
 UNSCHEDULED_WINDOW_START_MINUTE = 22 * 60
 UNSCHEDULED_WINDOW_END_MINUTE = 6 * 60
 UNSCHEDULED_WINDOW_TOTAL_MINUTES = (
@@ -97,6 +97,8 @@ class DailyTemplateBlock:
     mode: str
     section_label: str
     genre_labels: List[str]
+    playlist_ids: List[str]
+    playlist_names: List[str]
     playlist_id: Optional[str] = None
     playlist_name: Optional[str] = None
 
@@ -109,6 +111,8 @@ class DailyTemplateBlock:
             "mode": self.mode,
             "section_label": self.section_label,
             "genre_labels": list(self.genre_labels),
+            "playlist_ids": list(self.playlist_ids),
+            "playlist_names": list(self.playlist_names),
             "playlist_id": self.playlist_id,
             "playlist_name": self.playlist_name,
         }
@@ -124,6 +128,8 @@ class ExpandedScheduleBlock:
     mode: str
     section_label: str
     genre_labels: List[str]
+    playlist_ids: List[str]
+    playlist_names: List[str]
     playlist_id: Optional[str]
     playlist_name: Optional[str]
 
@@ -137,6 +143,8 @@ class ExpandedScheduleBlock:
             "mode": self.mode,
             "section_label": self.section_label,
             "genre_labels": list(self.genre_labels),
+            "playlist_ids": list(self.playlist_ids),
+            "playlist_names": list(self.playlist_names),
             "playlist_id": self.playlist_id,
             "playlist_name": self.playlist_name,
         }
@@ -386,6 +394,15 @@ def normalize_genre_labels(value: Any) -> List[str]:
     return [chunk.strip() for chunk in text.split(",") if chunk.strip()]
 
 
+def normalize_string_list(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    text = str(value or "").strip()
+    if not text:
+        return []
+    return [text]
+
+
 def validate_daily_template(
     raw_blocks: Sequence[Mapping[str, Any]],
     playlist_by_id: Mapping[str, StationPlaylist],
@@ -430,6 +447,8 @@ def validate_daily_template(
         genres = normalize_genre_labels(entry.get("genre_labels"))
         overlaps_quiet_hours = overlaps_unscheduled_window(start_minute, end_minute)
 
+        playlist_ids: List[str] = []
+        playlist_names: List[str] = []
         playlist_id: Optional[str] = None
         playlist_name: Optional[str] = None
         if mode == "playlist":
@@ -438,37 +457,78 @@ def validate_daily_template(
                     f"Playlist blocks are not allowed between 22:00 and 06:00 "
                     f"({start_time}-{end_time}). Use mode='open'."
                 )
-            raw_playlist_id = entry.get("playlist_id")
-            if raw_playlist_id not in (None, ""):
-                playlist_id = str(raw_playlist_id).strip()
+            raw_playlist_ids = normalize_string_list(entry.get("playlist_ids"))
+            raw_playlist_names = normalize_string_list(entry.get("playlist_names"))
 
-            raw_playlist_name = str(entry.get("playlist_name") or "").strip()
-            if playlist_id is None and raw_playlist_name:
-                resolved = playlist_name_map.get(raw_playlist_name.lower())
-                if resolved is not None:
-                    playlist_id = resolved.id
+            legacy_playlist_id = str(entry.get("playlist_id") or "").strip()
+            legacy_playlist_name = str(entry.get("playlist_name") or "").strip()
+            if not raw_playlist_ids and legacy_playlist_id:
+                raw_playlist_ids = [legacy_playlist_id]
+            if not raw_playlist_names and legacy_playlist_name:
+                raw_playlist_names = [legacy_playlist_name]
 
-            if not playlist_id:
+            if raw_playlist_ids and raw_playlist_names and (
+                len(raw_playlist_ids) != len(raw_playlist_names)
+            ):
                 raise ScheduleValidationError(
-                    "Playlist blocks require playlist_id (or a resolvable playlist_name)."
-                )
-            if playlist_id not in playlist_by_id:
-                raise ScheduleValidationError(
-                    f"Unknown playlist_id '{playlist_id}' in block {start_time}-{end_time}."
+                    "playlist_ids and playlist_names must have the same length when both are provided."
                 )
 
-            playlist = playlist_by_id[playlist_id]
-            playlist_name = playlist.name
-            if not playlist.is_enabled:
+            resolved_playlists: List[StationPlaylist] = []
+            if raw_playlist_ids:
+                for raw_id in raw_playlist_ids:
+                    if raw_id not in playlist_by_id:
+                        raise ScheduleValidationError(
+                            f"Unknown playlist_id '{raw_id}' in block {start_time}-{end_time}."
+                        )
+                    resolved_playlists.append(playlist_by_id[raw_id])
+            elif raw_playlist_names:
+                for raw_name in raw_playlist_names:
+                    resolved = playlist_name_map.get(raw_name.lower())
+                    if resolved is None:
+                        raise ScheduleValidationError(
+                            f"Unknown playlist_name '{raw_name}' in block {start_time}-{end_time}."
+                        )
+                    resolved_playlists.append(resolved)
+            else:
                 raise ScheduleValidationError(
-                    f"Playlist '{playlist.name}' is disabled and cannot be scheduled explicitly."
+                    "Playlist blocks require playlist_ids/playlist_names (or legacy playlist_id/playlist_name)."
                 )
-            # Enforce canonical block naming for scheduled playlist blocks.
-            # We still allow custom labels for open blocks.
-            section_label = playlist.name
+
+            deduped_playlists: List[StationPlaylist] = []
+            seen_playlist_ids: set[str] = set()
+            for playlist in resolved_playlists:
+                if playlist.id in seen_playlist_ids:
+                    continue
+                seen_playlist_ids.add(playlist.id)
+                deduped_playlists.append(playlist)
+
+            if not deduped_playlists:
+                raise ScheduleValidationError(
+                    f"Playlist block {start_time}-{end_time} resolved to zero playlists."
+                )
+
+            for playlist in deduped_playlists:
+                if not playlist.is_enabled:
+                    raise ScheduleValidationError(
+                        f"Playlist '{playlist.name}' is disabled and cannot be scheduled explicitly."
+                    )
+
+            playlist_ids = [playlist.id for playlist in deduped_playlists]
+            playlist_names = [playlist.name for playlist in deduped_playlists]
+            playlist_id = playlist_ids[0]
+            playlist_name = playlist_names[0]
+            if not section_label:
+                section_label = (
+                    playlist_name
+                    if len(playlist_names) == 1
+                    else " + ".join(playlist_names[:2])
+                )
             if not genres:
-                genres = [playlist.name]
+                genres = playlist_names[:]
         else:
+            playlist_ids = []
+            playlist_names = []
             playlist_id = None
             playlist_name = None
             if not section_label:
@@ -485,6 +545,8 @@ def validate_daily_template(
                 mode=mode,
                 section_label=section_label,
                 genre_labels=genres,
+                playlist_ids=playlist_ids,
+                playlist_names=playlist_names,
                 playlist_id=playlist_id,
                 playlist_name=playlist_name,
             )
@@ -569,7 +631,7 @@ def expand_daily_template_to_week(
                     block.start_time_local,
                     block.end_time_local,
                     block.mode,
-                    block.playlist_id or "open",
+                    ",".join(block.playlist_ids) if block.playlist_ids else "open",
                 ]
             )
             expanded.append(
@@ -582,6 +644,8 @@ def expand_daily_template_to_week(
                     mode=block.mode,
                     section_label=block.section_label,
                     genre_labels=list(block.genre_labels),
+                    playlist_ids=list(block.playlist_ids),
+                    playlist_names=list(block.playlist_names),
                     playlist_id=block.playlist_id,
                     playlist_name=block.playlist_name,
                 )
@@ -606,14 +670,18 @@ def infer_azuracast_days(playlists: Sequence[StationPlaylist]) -> List[int]:
                     continue
 
     if inferred:
-        return sorted(set(inferred))
+        day_values = sorted(set(inferred))
+        # Older/generated schedules may use 0..6. AzuraCast expects ISO-8601 1..7.
+        if 0 in day_values and 7 not in day_values and all(0 <= day <= 6 for day in day_values):
+            return sorted({day + 1 for day in day_values})
+        return day_values
 
     # Some stations store "all days" as an explicit empty list; preserve that shape.
     if saw_empty_days_list:
         return []
 
     # Default to seven-day coverage when there is no prior schedule shape to infer.
-    return [0, 1, 2, 3, 4, 5, 6]
+    return [1, 2, 3, 4, 5, 6, 7]
 
 
 def azuracast_time_for_api(value: str) -> int:
@@ -634,20 +702,37 @@ def build_schedule_items_by_playlist(
     items_by_playlist: Dict[str, List[Dict[str, Any]]] = {
         playlist.id: [] for playlist in playlists
     }
+    enabled_playlist_ids = {
+        playlist.id for playlist in playlists if playlist.is_enabled
+    }
 
     for block in daily_template:
-        if block.mode != "playlist" or not block.playlist_id:
-            continue
-
-        if block.playlist_id not in items_by_playlist:
-            continue
-
         item = {
             "start_time": azuracast_time_for_api(block.start_time_local),
             "end_time": azuracast_time_for_api(block.end_time_local),
             "days": list(day_values),
         }
-        items_by_playlist[block.playlist_id].append(item)
+
+        target_playlist_ids: Sequence[str]
+        if block.mode == "playlist":
+            target_playlist_ids = [
+                playlist_id
+                for playlist_id in (block.playlist_ids or ([block.playlist_id] if block.playlist_id else []))
+                if playlist_id and playlist_id in items_by_playlist
+            ]
+            if not target_playlist_ids:
+                continue
+        elif block.mode == "open":
+            target_playlist_ids = [
+                playlist_id
+                for playlist_id in items_by_playlist.keys()
+                if playlist_id in enabled_playlist_ids
+            ]
+        else:
+            continue
+
+        for playlist_id in target_playlist_ids:
+            items_by_playlist[playlist_id].append(dict(item))
 
     return items_by_playlist
 
@@ -869,6 +954,8 @@ def format_seed_template_for_prompt(
             "genre_labels": list(block.genre_labels),
         }
         if block.mode == "playlist":
+            row["playlist_ids"] = list(block.playlist_ids)
+            row["playlist_names"] = list(block.playlist_names)
             row["playlist_id"] = block.playlist_id
             row["playlist_name"] = block.playlist_name
         rows.append(row)
@@ -986,8 +1073,8 @@ def build_deterministic_daily_template(
                     "start_time_local": start_time,
                     "end_time_local": end_time,
                     "mode": "open",
-                    "section_label": "Open Rotation",
-                    "genre_labels": ["mixed"],
+                    "section_label": "Rotacion abierta",
+                    "genre_labels": ["mix variado"],
                 }
             )
             last_playlist_id = None
@@ -1090,10 +1177,6 @@ def build_weekly_plan_with_llm(
         min_block_minutes=min_block_minutes,
         max_block_minutes=max_block_minutes,
     )
-    required_time_ranges = [
-        (block.start_minute, block.end_minute) for block in deterministic_template
-    ]
-
     prompt = user_template.format(
         station_slug=station_slug,
         station_name=station_name,
@@ -1161,7 +1244,6 @@ def build_weekly_plan_with_llm(
                 open_ratio_max=open_ratio_max,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
-                required_time_ranges=required_time_ranges,
             )
             expanded = expand_daily_template_to_week(daily_template, week_start)
             plan_hash = build_plan_hash(
@@ -1377,7 +1459,14 @@ def summarize_plan(plan: WeeklySchedulePlan) -> None:
 
     for block in plan.daily_template:
         if block.mode == "playlist":
-            descriptor = f"playlist={block.playlist_name} ({block.playlist_id})"
+            if len(block.playlist_ids) > 1:
+                joined = ", ".join(
+                    f"{name} ({pid})"
+                    for pid, name in zip(block.playlist_ids, block.playlist_names)
+                )
+                descriptor = f"playlists=[{joined}]"
+            else:
+                descriptor = f"playlist={block.playlist_name} ({block.playlist_id})"
         else:
             descriptor = "open-slot (AzuraCast weighted random)"
         LOGGER.info(
