@@ -23,6 +23,9 @@ Modo segun angulo:
 Regla anti-repeticion:
 - Si INPUT incluye scripts recientes, no reutilizar la forma de apertura; mantener redaccion fresca sin forzar sinonimos raros.
 
+Integracion de bloque (si INPUT lo pide):
+- Si INPUT indica mencionar bloque/seccion, integrarlo en una sola clausula natural dentro del pase (no como anuncio separado) y sin romper el flujo del puente.
+
 Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Quedo una tension muy limpia en ese cierre, y lo que viene sostiene ese pulso."
 - "Ese tema dejo una textura mas seca, y el proximo entra justo por ahi."

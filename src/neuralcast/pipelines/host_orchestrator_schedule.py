@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from neuralcast.pipelines.host_orchestrator_config import (
     LOGGER,
+    SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS,
     SCHEDULE_MENTION_MAX_ENTRIES,
     SCHEDULE_MENTION_RETENTION_DAYS,
     SCHEDULE_MID_PROGRESS_RANGE,
@@ -94,7 +95,19 @@ def prune_schedule_block_mentions(
 
         start = bool(details.get("start"))
         mid = bool(details.get("mid"))
-        if not (start or mid):
+        try:
+            speak_count = max(0, int(details.get("speak_count", 0)))
+        except (TypeError, ValueError):
+            speak_count = 0
+        try:
+            mid_mention_count = max(0, int(details.get("mid_mention_count", 0)))
+        except (TypeError, ValueError):
+            mid_mention_count = 0
+        try:
+            last_mid_speak_count = max(0, int(details.get("last_mid_speak_count", 0)))
+        except (TypeError, ValueError):
+            last_mid_speak_count = 0
+        if not (start or mid or speak_count > 0 or mid_mention_count > 0):
             continue
 
         updated_raw = details.get("updated_at")
@@ -114,6 +127,9 @@ def prune_schedule_block_mentions(
         normalized[block_key] = {
             "start": start,
             "mid": mid,
+            "speak_count": speak_count,
+            "mid_mention_count": mid_mention_count,
+            "last_mid_speak_count": last_mid_speak_count,
             "updated_at": updated_at,
         }
 
@@ -125,6 +141,59 @@ def prune_schedule_block_mentions(
         key=lambda item: float(item[1].get("updated_at", 0.0)),
     )
     return dict(ordered[-SCHEDULE_MENTION_MAX_ENTRIES:])
+
+
+def _coerce_nonnegative_int(value: Any) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _mid_mention_interval_for_block(block_key: str) -> int:
+    # Deterministically alternate 2 or 3 host breaks between block mentions.
+    return 2 + (sum(ord(char) for char in block_key) % 2)
+
+
+def _should_request_mid_block_mention(
+    *,
+    block_key: str,
+    progress_ratio: float,
+    mention_entry: Mapping[str, Any],
+) -> bool:
+    speak_count = _coerce_nonnegative_int(mention_entry.get("speak_count"))
+    mid_mention_count = _coerce_nonnegative_int(mention_entry.get("mid_mention_count"))
+    last_mid_speak_count = _coerce_nonnegative_int(
+        mention_entry.get("last_mid_speak_count")
+    )
+    start_mentioned = bool(mention_entry.get("start"))
+
+    # If we missed the boundary intro and this is the first host break we see in mid-phase,
+    # add a quick orientation line now.
+    if speak_count == 0 and not start_mentioned:
+        return True
+
+    upcoming_speak_index = speak_count + 1
+    cadence_breaks = _mid_mention_interval_for_block(block_key)
+
+    if last_mid_speak_count > 0:
+        breaks_since_last_mid = upcoming_speak_index - last_mid_speak_count
+    else:
+        # Count the start intro (if present) as the last block-related mention.
+        baseline_speak_index = 1 if start_mentioned else 0
+        breaks_since_last_mid = upcoming_speak_index - baseline_speak_index
+
+    if breaks_since_last_mid >= cadence_breaks:
+        return True
+
+    # Safety valve: make sure we don't leave the middle window without any mid mention.
+    if mid_mention_count == 0 and progress_ratio >= max(
+        SCHEDULE_MID_PROGRESS_RANGE[0],
+        SCHEDULE_MID_PROGRESS_RANGE[1] - 0.03,
+    ):
+        return True
+
+    return False
 
 
 def load_schedule_state_payload(
@@ -246,15 +315,22 @@ def resolve_schedule_context(
     mention_entry = mention_state.get(block_key, {})
     mention_intent: Optional[str] = None
     elapsed_minutes = max(0.0, (now_local - start_dt).total_seconds() / 60.0)
-    if elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES and not bool(
-        mention_entry.get("start")
+    elapsed_seconds = max(0.0, (now_local - start_dt).total_seconds())
+    if (
+        elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES
+        and elapsed_seconds <= SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS
+        and not bool(mention_entry.get("start"))
     ):
         mention_intent = "start"
     elif (
         SCHEDULE_MID_PROGRESS_RANGE[0]
         <= progress_ratio
         <= SCHEDULE_MID_PROGRESS_RANGE[1]
-        and not bool(mention_entry.get("mid"))
+        and _should_request_mid_block_mention(
+            block_key=block_key,
+            progress_ratio=progress_ratio,
+            mention_entry=mention_entry,
+        )
     ):
         mention_intent = "mid"
 

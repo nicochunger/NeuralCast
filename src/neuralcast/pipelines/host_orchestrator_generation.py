@@ -141,6 +141,7 @@ def format_shared_input(
         lines.extend(
             [
                 "- Active programming block:",
+                "  - Timing note: this block context is for when this host break will air (immediately before Next track).",
                 f"  - Section: {schedule_context.section_label}",
                 f"  - Genres: {', '.join(schedule_context.genre_labels)}",
                 f"  - Phase: {schedule_context.phase} ({int(schedule_context.progress_ratio * 100)}%)",
@@ -156,11 +157,14 @@ def format_shared_input(
 
         if schedule_context.mention_intent == "start":
             lines.append(
-                "- Schedule mention guidance: present this section as starting now."
+                "- Schedule mention guidance: this script airs at the block start boundary; present the section as starting now (right before its first song)."
             )
         elif schedule_context.mention_intent == "mid":
             lines.append(
-                "- Schedule mention guidance: mention naturally that we are currently in this section."
+                "- Schedule mention guidance: include one short, natural clause saying we are in this section/block right now."
+            )
+            lines.append(
+                "- Schedule mention style: weave the block mention into the chosen archetype flow (not as a separate announcement); these callouts happen only occasionally (about every 2-3 host breaks), so include it this time."
             )
         else:
             lines.append(

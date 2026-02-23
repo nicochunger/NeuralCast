@@ -25,6 +25,9 @@ Ejecucion conversacional:
 Regla anti-repeticion:
 - Si INPUT incluye scripts recientes, evitar repetir frases de apertura y mantener estructura variada.
 
+Integracion de bloque (si INPUT lo pide):
+- Si INPUT indica mencionar bloque/seccion, sumarlo como una referencia breve y natural dentro del relato/pase, sin convertirlo en anuncio aparte ni romper el arco.
+
 Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Hay una historia corta detras de este tema que cambia como se escucha hoy..."
 - "En esos anos la banda venia de..., y eso se nota en..."

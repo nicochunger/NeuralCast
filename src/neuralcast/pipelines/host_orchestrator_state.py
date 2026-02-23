@@ -279,12 +279,29 @@ def migrate_state(
                 continue
             start = bool(details.get("start"))
             mid = bool(details.get("mid"))
+            try:
+                speak_count = max(0, int(details.get("speak_count", 0)))
+            except (TypeError, ValueError):
+                speak_count = 0
+            try:
+                mid_mention_count = max(0, int(details.get("mid_mention_count", 0)))
+            except (TypeError, ValueError):
+                mid_mention_count = 0
+            try:
+                last_mid_speak_count = max(
+                    0, int(details.get("last_mid_speak_count", 0))
+                )
+            except (TypeError, ValueError):
+                last_mid_speak_count = 0
             updated_at = _as_float(details.get("updated_at")) or ts
-            if not (start or mid):
+            if not (start or mid or speak_count > 0 or mid_mention_count > 0):
                 continue
             normalized_mentions[block_key] = {
                 "start": start,
                 "mid": mid,
+                "speak_count": speak_count,
+                "mid_mention_count": mid_mention_count,
+                "last_mid_speak_count": last_mid_speak_count,
                 "updated_at": updated_at,
             }
 
@@ -541,21 +558,36 @@ def apply_success_state_update(
     state.schedule_block_mentions = prune_schedule_block_mentions(
         state.schedule_block_mentions, ts
     )
-    should_record_schedule_mention = (
-        schedule_context is not None
-        and (
-            (
-                schedule_context.mention_intent == "start"
-                and archetype_used == Archetype.BLOCK_INTRO
-            )
-            or schedule_context.mention_intent == "mid"
-        )
-    )
-    if should_record_schedule_mention and schedule_context is not None:
+    if schedule_context is not None:
         mention_entry = dict(
             state.schedule_block_mentions.get(schedule_context.block_key, {})
         )
-        mention_entry[schedule_context.mention_intent] = True
+        current_speak_count = int(mention_entry.get("speak_count", 0) or 0)
+        current_speak_count = max(0, current_speak_count) + 1
+        mention_entry["speak_count"] = current_speak_count
+
+        should_record_start_mention = (
+            schedule_context.mention_intent == "start"
+            and archetype_used == Archetype.BLOCK_INTRO
+        )
+        should_record_mid_mention = (
+            schedule_context.mention_intent == "mid"
+            and archetype_used
+            in {
+                Archetype.BACK_SELL,
+                Archetype.DEEP_DIVE,
+                Archetype.ULTRA_MINIMAL,
+            }
+        )
+
+        if should_record_start_mention:
+            mention_entry["start"] = True
+        if should_record_mid_mention:
+            mention_entry["mid"] = True
+            mid_mention_count = int(mention_entry.get("mid_mention_count", 0) or 0)
+            mention_entry["mid_mention_count"] = max(0, mid_mention_count) + 1
+            mention_entry["last_mid_speak_count"] = current_speak_count
+
         mention_entry["updated_at"] = ts
         state.schedule_block_mentions[schedule_context.block_key] = mention_entry
 

@@ -223,14 +223,15 @@ def run(args: argparse.Namespace) -> None:
             return
 
         LOGGER.info("[queue] Next track: %s - %s", next_track.artist, next_track.title)
+        schedule_reference_ts = now_ts() + max(0, current_remaining or 0)
         schedule_context = resolve_schedule_context(
             schedule_state=schedule_state,
-            ts=now_ts(),
+            ts=schedule_reference_ts,
             mention_state=state.schedule_block_mentions,
         )
         if schedule_context is not None:
             LOGGER.info(
-                "[schedule] Active block='%s' phase=%s mention_intent=%s",
+                "[schedule] Next-track boundary block='%s' phase=%s mention_intent=%s",
                 schedule_context.section_label,
                 schedule_context.phase,
                 schedule_context.mention_intent or "none",
