@@ -822,8 +822,21 @@ def generate_archetype_script(
     topic_attempts = 3
     conservative_news_temperature = min(0.65, temperature)
     conservative_news_top_p = max(0.90, top_p)
+    LOGGER.info(
+        "[news] Starting news generation | story_count=%s | topic_attempts=%s | sampled_temp=%.3f | sampled_top_p=%.3f",
+        story_count,
+        topic_attempts,
+        temperature,
+        top_p,
+    )
     for topic_attempt in range(topic_attempts):
         topics = pick_news_topics(story_count, rng)
+        LOGGER.info(
+            "[news] Topic roll %s/%s | topics=%s",
+            topic_attempt + 1,
+            topic_attempts,
+            topics,
+        )
         prompt = build_prompt(
             archetype=Archetype.NEWS,
             story_count=story_count,
@@ -911,6 +924,11 @@ def generate_archetype_script(
             segment, state, now_ts()
         )
         if ok:
+            LOGGER.info(
+                "[news] Accepted news segment | topics=%s | stories=%s",
+                topics,
+                segment.story_count,
+            )
             return cleanup_generated_script(segment.script), segment, Archetype.NEWS
 
         LOGGER.warning(

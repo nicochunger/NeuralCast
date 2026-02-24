@@ -6,11 +6,12 @@ import datetime as dt
 import json
 import pathlib
 import re
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 from neuralcast.pipelines.host_orchestrator_config import (
     LOGGER,
+    SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES,
     SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS,
     SCHEDULE_MENTION_MAX_ENTRIES,
     SCHEDULE_MENTION_RETENTION_DAYS,
@@ -19,7 +20,11 @@ from neuralcast.pipelines.host_orchestrator_config import (
     SCHEDULE_STATE_FILENAME,
     SYSTEM_TZ,
 )
-from neuralcast.pipelines.host_orchestrator_models import Archetype, ScheduleContext
+from neuralcast.pipelines.host_orchestrator_models import (
+    Archetype,
+    QueueTrack,
+    ScheduleContext,
+)
 
 
 def resolve_station_metadata_file(
@@ -32,6 +37,14 @@ def resolve_station_metadata_file(
     if legacy_path.exists():
         return legacy_path
     return metadata_path
+
+
+def _resolve_schedule_timezone(schedule_state: Mapping[str, Any]) -> ZoneInfo:
+    timezone_name = str(schedule_state.get("timezone") or "").strip()
+    try:
+        return ZoneInfo(timezone_name) if timezone_name else SYSTEM_TZ
+    except Exception:  # noqa: BLE001
+        return SYSTEM_TZ
 
 
 def parse_schedule_hhmm(value: str, allow_24: bool = False) -> Optional[int]:
@@ -72,6 +85,72 @@ def schedule_local_datetime(
         dt.time(hour=hour, minute=minute),
         tzinfo=tz,
     )
+
+
+def _parse_schedule_blocks(
+    schedule_state: Mapping[str, Any],
+    now_local: dt.datetime,
+    schedule_tz: ZoneInfo,
+) -> List[Tuple[dt.datetime, dt.datetime, str, Mapping[str, Any], int]]:
+    parsed_blocks: List[Tuple[dt.datetime, dt.datetime, str, Mapping[str, Any], int]] = []
+
+    expanded = schedule_state.get("expanded_blocks")
+    if isinstance(expanded, list):
+        for idx, entry in enumerate(expanded):
+            if not isinstance(entry, Mapping):
+                continue
+            date_local = str(entry.get("date_local") or "").strip()
+            start_time = str(entry.get("start_time_local") or "").strip()
+            end_time = str(entry.get("end_time_local") or "").strip()
+            if not date_local or not start_time or not end_time:
+                continue
+
+            start_dt = schedule_local_datetime(date_local, start_time, schedule_tz)
+            end_dt = schedule_local_datetime(date_local, end_time, schedule_tz)
+            if start_dt is None or end_dt is None:
+                continue
+            if end_dt <= start_dt:
+                continue
+
+            block_key = str(entry.get("block_key") or "").strip()
+            if not block_key:
+                block_key = (
+                    f"{date_local}|{idx}|{start_time}|{end_time}|"
+                    f"{str(entry.get('mode') or 'open')}"
+                )
+            parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
+
+    if parsed_blocks:
+        parsed_blocks.sort(key=lambda item: item[0])
+        return parsed_blocks
+
+    daily_template = schedule_state.get("daily_template")
+    if isinstance(daily_template, list):
+        current_date = now_local.date().isoformat()
+        for idx, entry in enumerate(daily_template):
+            if not isinstance(entry, Mapping):
+                continue
+            start_time = str(entry.get("start_time_local") or "").strip()
+            end_time = str(entry.get("end_time_local") or "").strip()
+            if not start_time or not end_time:
+                continue
+
+            start_dt = schedule_local_datetime(current_date, start_time, schedule_tz)
+            end_dt = schedule_local_datetime(current_date, end_time, schedule_tz)
+            if start_dt is None or end_dt is None:
+                continue
+            if end_dt <= start_dt:
+                end_dt = end_dt + dt.timedelta(days=1)
+
+            mode = str(entry.get("mode") or "open").strip().lower()
+            playlist_id = str(entry.get("playlist_id") or "open").strip()
+            block_key = (
+                f"{current_date}|template|{idx}|{start_time}|{end_time}|{mode}|{playlist_id}"
+            )
+            parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
+
+    parsed_blocks.sort(key=lambda item: item[0])
+    return parsed_blocks
 
 
 def prune_schedule_block_mentions(
@@ -196,6 +275,115 @@ def _should_request_mid_block_mention(
     return False
 
 
+def _normalize_playlist_token(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    return re.sub(r"\s+", " ", text)
+
+
+def _extract_queue_track_playlist_refs(track: Optional[QueueTrack]) -> Tuple[set[str], set[str]]:
+    if track is None:
+        return set(), set()
+
+    ids: set[str] = set()
+    names: set[str] = set()
+
+    def _add_id(value: Any) -> None:
+        token = _normalize_playlist_token(value)
+        if token:
+            ids.add(token)
+
+    def _add_name(value: Any) -> None:
+        token = _normalize_playlist_token(value)
+        if token:
+            names.add(token)
+
+    def _consume_mapping(payload: Mapping[str, Any]) -> None:
+        playlist_value = payload.get("playlist")
+        if isinstance(playlist_value, Mapping):
+            _add_id(playlist_value.get("id"))
+            _add_name(playlist_value.get("name"))
+            _add_name(playlist_value.get("playlist_name"))
+        elif playlist_value is not None:
+            _add_name(playlist_value)
+
+        _add_id(payload.get("playlist_id"))
+        _add_name(payload.get("playlist_name"))
+
+        playlists_value = payload.get("playlists")
+        if isinstance(playlists_value, Sequence) and not isinstance(
+            playlists_value, (str, bytes)
+        ):
+            for item in playlists_value:
+                if isinstance(item, Mapping):
+                    _add_id(item.get("id"))
+                    _add_name(item.get("name"))
+                    _add_name(item.get("playlist_name"))
+                elif item is not None:
+                    _add_name(item)
+
+    if isinstance(track.raw, Mapping):
+        _consume_mapping(track.raw)
+        song_payload = track.raw.get("song")
+        if isinstance(song_payload, Mapping):
+            _consume_mapping(song_payload)
+
+    return ids, names
+
+
+def _extract_block_playlist_refs(entry: Mapping[str, Any]) -> Tuple[set[str], set[str]]:
+    ids: set[str] = set()
+    names: set[str] = set()
+
+    playlist_ids = entry.get("playlist_ids")
+    if isinstance(playlist_ids, list):
+        ids.update(
+            token
+            for token in (_normalize_playlist_token(item) for item in playlist_ids)
+            if token
+        )
+
+    playlist_names = entry.get("playlist_names")
+    if isinstance(playlist_names, list):
+        names.update(
+            token
+            for token in (_normalize_playlist_token(item) for item in playlist_names)
+            if token
+        )
+
+    legacy_playlist_id = _normalize_playlist_token(entry.get("playlist_id"))
+    legacy_playlist_name = _normalize_playlist_token(entry.get("playlist_name"))
+    if legacy_playlist_id:
+        ids.add(legacy_playlist_id)
+    if legacy_playlist_name:
+        names.add(legacy_playlist_name)
+
+    return ids, names
+
+
+def _track_matches_block_playlist(
+    track: Optional[QueueTrack],
+    block_entry: Mapping[str, Any],
+) -> Optional[bool]:
+    block_mode = str(block_entry.get("mode") or "open").strip().lower()
+    if block_mode == "open":
+        return None
+
+    block_ids, block_names = _extract_block_playlist_refs(block_entry)
+    if not block_ids and not block_names:
+        return None
+
+    track_ids, track_names = _extract_queue_track_playlist_refs(track)
+    if not track_ids and not track_names:
+        return None
+
+    if block_ids and track_ids and block_ids.intersection(track_ids):
+        return True
+    if block_names and track_names and block_names.intersection(track_names):
+        return True
+
+    return False
+
+
 def load_schedule_state_payload(
     station_dir: pathlib.Path,
 ) -> Optional[Mapping[str, Any]]:
@@ -223,72 +411,11 @@ def resolve_schedule_context(
     if not isinstance(schedule_state, Mapping):
         return None
 
-    timezone_name = str(schedule_state.get("timezone") or "").strip()
-    try:
-        schedule_tz = ZoneInfo(timezone_name) if timezone_name else SYSTEM_TZ
-    except Exception:  # noqa: BLE001
-        schedule_tz = SYSTEM_TZ
-
+    schedule_tz = _resolve_schedule_timezone(schedule_state)
     now_local = dt.datetime.fromtimestamp(ts, tz=schedule_tz)
-
-    parsed_blocks: List[Tuple[dt.datetime, dt.datetime, str, Mapping[str, Any], int]] = []
-
-    expanded = schedule_state.get("expanded_blocks")
-    if isinstance(expanded, list):
-        for idx, entry in enumerate(expanded):
-            if not isinstance(entry, Mapping):
-                continue
-            date_local = str(entry.get("date_local") or "").strip()
-            start_time = str(entry.get("start_time_local") or "").strip()
-            end_time = str(entry.get("end_time_local") or "").strip()
-            if not date_local or not start_time or not end_time:
-                continue
-
-            start_dt = schedule_local_datetime(date_local, start_time, schedule_tz)
-            end_dt = schedule_local_datetime(date_local, end_time, schedule_tz)
-            if start_dt is None or end_dt is None:
-                continue
-            if end_dt <= start_dt:
-                continue
-
-            block_key = str(entry.get("block_key") or "").strip()
-            if not block_key:
-                block_key = (
-                    f"{date_local}|{idx}|{start_time}|{end_time}|"
-                    f"{str(entry.get('mode') or 'open')}"
-                )
-            parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
-
-    if not parsed_blocks:
-        daily_template = schedule_state.get("daily_template")
-        if isinstance(daily_template, list):
-            current_date = now_local.date().isoformat()
-            for idx, entry in enumerate(daily_template):
-                if not isinstance(entry, Mapping):
-                    continue
-                start_time = str(entry.get("start_time_local") or "").strip()
-                end_time = str(entry.get("end_time_local") or "").strip()
-                if not start_time or not end_time:
-                    continue
-
-                start_dt = schedule_local_datetime(current_date, start_time, schedule_tz)
-                end_dt = schedule_local_datetime(current_date, end_time, schedule_tz)
-                if start_dt is None or end_dt is None:
-                    continue
-                if end_dt <= start_dt:
-                    end_dt = end_dt + dt.timedelta(days=1)
-
-                mode = str(entry.get("mode") or "open").strip().lower()
-                playlist_id = str(entry.get("playlist_id") or "open").strip()
-                block_key = (
-                    f"{current_date}|template|{idx}|{start_time}|{end_time}|{mode}|{playlist_id}"
-                )
-                parsed_blocks.append((start_dt, end_dt, block_key, entry, idx))
-
+    parsed_blocks = _parse_schedule_blocks(schedule_state, now_local, schedule_tz)
     if not parsed_blocks:
         return None
-
-    parsed_blocks.sort(key=lambda item: item[0])
 
     current_index = -1
     for idx, (start_dt, end_dt, _, _, _) in enumerate(parsed_blocks):
@@ -370,6 +497,91 @@ def resolve_schedule_context(
         start_local_iso=start_dt.isoformat(),
         end_local_iso=end_dt.isoformat(),
     )
+
+
+def resolve_schedule_context_for_upcoming_break(
+    schedule_state: Optional[Mapping[str, Any]],
+    ts_now: float,
+    ts_break: float,
+    mention_state: Mapping[str, Mapping[str, Any]],
+    next_track: Optional[QueueTrack],
+) -> Optional[ScheduleContext]:
+    boundary_context = resolve_schedule_context(
+        schedule_state=schedule_state,
+        ts=ts_break,
+        mention_state=mention_state,
+    )
+    if (
+        boundary_context is not None
+        and boundary_context.mention_intent == "start"
+    ):
+        return boundary_context
+
+    if not isinstance(schedule_state, Mapping):
+        return boundary_context
+
+    schedule_tz = _resolve_schedule_timezone(schedule_state)
+    now_local = dt.datetime.fromtimestamp(ts_now, tz=schedule_tz)
+    break_local = dt.datetime.fromtimestamp(ts_break, tz=schedule_tz)
+    parsed_blocks = _parse_schedule_blocks(schedule_state, now_local, schedule_tz)
+    if not parsed_blocks:
+        return boundary_context
+
+    next_block_index: Optional[int] = None
+    for idx, (start_dt, _, _, _, _) in enumerate(parsed_blocks):
+        if start_dt > now_local:
+            next_block_index = idx
+            break
+    if next_block_index is None:
+        return boundary_context
+
+    next_start_dt, _, next_block_key, next_entry, _ = parsed_blocks[next_block_index]
+    starts_in_seconds = (next_start_dt - now_local).total_seconds()
+    if starts_in_seconds < 0:
+        return boundary_context
+    if starts_in_seconds > SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES * 60:
+        return boundary_context
+
+    mention_entry = mention_state.get(next_block_key, {})
+    if bool(mention_entry.get("start")):
+        return boundary_context
+
+    playlist_match = _track_matches_block_playlist(next_track, next_entry)
+    break_after_start = break_local >= next_start_dt
+
+    should_force_recovery_start = False
+    reason = ""
+    if break_after_start:
+        if playlist_match is False:
+            LOGGER.info(
+                "[schedule] Skipping block intro recovery for '%s': next track playlist does not match next block.",
+                str(next_entry.get("section_label") or next_entry.get("playlist_name") or "n/d"),
+            )
+            return boundary_context
+        should_force_recovery_start = True
+        reason = "break_after_block_start_recovery"
+    elif playlist_match is True:
+        should_force_recovery_start = True
+        reason = "next_track_matches_upcoming_block"
+
+    if not should_force_recovery_start:
+        return boundary_context
+
+    intro_context = resolve_schedule_context(
+        schedule_state=schedule_state,
+        ts=next_start_dt.timestamp(),
+        mention_state=mention_state,
+    )
+    if intro_context is None:
+        return boundary_context
+
+    LOGGER.info(
+        "[schedule] Robust block intro trigger for '%s' (%s; starts in %ss).",
+        intro_context.section_label,
+        reason,
+        int(starts_in_seconds),
+    )
+    return intro_context
 
 
 def should_force_block_intro(

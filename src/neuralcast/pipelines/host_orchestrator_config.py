@@ -6,7 +6,7 @@ import logging
 import pathlib
 import re
 from functools import lru_cache
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from neuralcast.config import ASSETS_ROOT
@@ -22,6 +22,8 @@ STATE_VERSION = 1
 STATE_FILENAME = "ai_host_orchestrator_state.json"
 SCHEDULE_STATE_FILENAME = "ai_schedule_state.json"
 LOCK_FILENAME = "ai_host_orchestrator.lock"
+ORCHESTRATOR_LOG_FILENAME = "ai_host_orchestrator.log"
+ORCHESTRATOR_SEGMENT_EVENTS_LOG_FILENAME = "ai_host_orchestrator_segments.log"
 LOCK_STALE_SECONDS = 10 * 60
 
 LEAD_TIME_SECONDS = 90
@@ -33,6 +35,7 @@ NEWS_DUPLICATE_WINDOW_DAYS = 7
 NEWS_DEDUP_MAX_ENTRIES = 50
 RECENT_SCRIPT_MEMORY_SIZE = 3
 SCHEDULE_START_WINDOW_MINUTES = 10
+SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES = 10
 SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS = 90
 SCHEDULE_MID_PROGRESS_RANGE = (0.40, 0.70)
 SCHEDULE_MENTION_RETENTION_DAYS = 14
@@ -41,6 +44,7 @@ SCHEDULE_MENTION_MAX_ENTRIES = 512
 SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 
 LOGGER = logging.getLogger("host_orchestrator")
+SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")
 
 
 def configure_logging(level: int = logging.INFO) -> None:
@@ -57,6 +61,84 @@ def configure_logging(level: int = logging.INFO) -> None:
     LOGGER.addHandler(handler)
     LOGGER.setLevel(level)
     LOGGER.propagate = False
+
+
+def _has_file_handler(logger: logging.Logger, target_path: pathlib.Path) -> bool:
+    resolved = str(target_path.resolve())
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            try:
+                if str(pathlib.Path(handler.baseFilename).resolve()) == resolved:
+                    return True
+            except Exception:  # noqa: BLE001
+                continue
+    return False
+
+
+def configure_station_file_logging(
+    metadata_dir: pathlib.Path,
+    *,
+    level: int = logging.INFO,
+) -> Tuple[pathlib.Path, pathlib.Path]:
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    main_log_path = metadata_dir / ORCHESTRATOR_LOG_FILENAME
+    segment_log_path = metadata_dir / ORCHESTRATOR_SEGMENT_EVENTS_LOG_FILENAME
+
+    if not _has_file_handler(LOGGER, main_log_path):
+        file_handler = logging.FileHandler(main_log_path, encoding="utf-8")
+        file_handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s | %(name)s | %(levelname)-7s | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        LOGGER.addHandler(file_handler)
+    LOGGER.setLevel(level)
+
+    if not _has_file_handler(SEGMENT_EVENTS_LOGGER, segment_log_path):
+        segment_handler = logging.FileHandler(segment_log_path, encoding="utf-8")
+        segment_handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        SEGMENT_EVENTS_LOGGER.addHandler(segment_handler)
+    SEGMENT_EVENTS_LOGGER.setLevel(level)
+    SEGMENT_EVENTS_LOGGER.propagate = False
+
+    return main_log_path, segment_log_path
+
+
+def log_segment_event(
+    *,
+    station: str,
+    archetype: str,
+    current_track: str,
+    next_track: str,
+    queued_request_id: Optional[str],
+    expected_play_at_utc: Optional[str],
+    audio_path: str,
+    remote_path: str,
+    schedule_section: Optional[str],
+    mention_intent: Optional[str],
+    news_topics: Optional[str] = None,
+) -> None:
+    parts = [
+        f"station={station}",
+        f"archetype={archetype}",
+        f"current={current_track}",
+        f"next={next_track}",
+        f"request_id={queued_request_id or 'n/a'}",
+        f"expected_play_at_utc={expected_play_at_utc or 'n/a'}",
+        f"schedule_section={schedule_section or 'n/a'}",
+        f"mention_intent={mention_intent or 'none'}",
+        f"audio={audio_path}",
+        f"remote={remote_path}",
+    ]
+    if news_topics:
+        parts.append(f"news_topics={news_topics}")
+    SEGMENT_EVENTS_LOGGER.info(" | ".join(parts))
 
 
 ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {

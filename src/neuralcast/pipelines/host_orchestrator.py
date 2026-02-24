@@ -31,7 +31,9 @@ from neuralcast.pipelines.host_orchestrator_assets import (
 from neuralcast.pipelines.host_orchestrator_config import (
     LEAD_TIME_SECONDS,
     LOGGER,
+    configure_station_file_logging,
     configure_logging,
+    log_segment_event,
 )
 from neuralcast.pipelines.host_orchestrator_generation import (
     build_system_prompt,
@@ -51,7 +53,7 @@ from neuralcast.pipelines.host_orchestrator_models import (
 from neuralcast.pipelines.host_orchestrator_schedule import (
     load_schedule_state_payload,
     prune_schedule_block_mentions,
-    resolve_schedule_context,
+    resolve_schedule_context_for_upcoming_break,
     should_force_block_intro,
 )
 from neuralcast.pipelines.host_orchestrator_state import (
@@ -84,6 +86,7 @@ from neuralcast.pipelines.host_orchestrator_transport import (
     parse_queue_tracks,
 )
 from neuralcast.pipelines.host_orchestrator_utils import (
+    iso_utc,
     now_ts,
     run_with_retries,
     station_state_paths,
@@ -108,6 +111,8 @@ def run(args: argparse.Namespace) -> None:
     rng = random.Random()
     cycle_ts = now_ts()
     station_dir, state_path, lock_path = station_state_paths(args.station)
+    metadata_dir = station_dir / "metadata"
+    main_log_path, segment_log_path = configure_station_file_logging(metadata_dir)
     lock = StationLock(lock_path)
     if not lock.acquire():
         return
@@ -117,9 +122,20 @@ def run(args: argparse.Namespace) -> None:
         args.station,
         args.dry_run,
     )
+    LOGGER.info(
+        "[log] File logs active | main=%s | segments=%s",
+        main_log_path,
+        segment_log_path,
+    )
 
     state = load_state(state_path, cycle_ts, rng)
     LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
+    LOGGER.info(
+        "[cadence] State snapshot | songs_since_last_spoken=%s | songs_until_next_speak=%s | next_deadline=%s",
+        state.songs_since_last_spoken,
+        state.songs_until_next_speak,
+        iso_utc(state.next_speak_deadline_ts),
+    )
 
     try:
         client = AzuraCastClient(
@@ -224,10 +240,12 @@ def run(args: argparse.Namespace) -> None:
 
         LOGGER.info("[queue] Next track: %s - %s", next_track.artist, next_track.title)
         schedule_reference_ts = now_ts() + max(0, current_remaining or 0)
-        schedule_context = resolve_schedule_context(
+        schedule_context = resolve_schedule_context_for_upcoming_break(
             schedule_state=schedule_state,
-            ts=schedule_reference_ts,
+            ts_now=now_ts(),
+            ts_break=schedule_reference_ts,
             mention_state=state.schedule_block_mentions,
+            next_track=next_track,
         )
         if schedule_context is not None:
             LOGGER.info(
@@ -299,6 +317,8 @@ def run(args: argparse.Namespace) -> None:
             angle or "none",
             hook,
         )
+        if selected_archetype == Archetype.NEWS:
+            LOGGER.info("[news] Archetype selected; topic rolls will be logged in generation.")
 
         script_text, news_segment, archetype_used = generate_archetype_script(
             archetype=selected_archetype,
@@ -385,6 +405,38 @@ def run(args: argparse.Namespace) -> None:
             script_text=script_text,
             schedule_context=schedule_context,
             rng=rng,
+        )
+
+        expected_play_at_utc: str | None = None
+        if current_remaining is not None:
+            expected_play_at_utc = iso_utc(success_ts + max(0, current_remaining))
+        news_topics_text = None
+        if news_segment is not None:
+            topic_list = [story.topic for story in news_segment.stories if story.topic]
+            if topic_list:
+                news_topics_text = ",".join(topic_list)
+        log_segment_event(
+            station=args.station,
+            archetype=archetype_used.value,
+            current_track=f"{current_track.artist} - {current_track.title}",
+            next_track=f"{next_track.artist} - {next_track.title}",
+            queued_request_id=request_id,
+            expected_play_at_utc=expected_play_at_utc,
+            audio_path=str(assets.audio_path),
+            remote_path=assets.remote_path,
+            schedule_section=(
+                schedule_context.section_label if schedule_context is not None else None
+            ),
+            mention_intent=(
+                schedule_context.mention_intent if schedule_context is not None else None
+            ),
+            news_topics=news_topics_text,
+        )
+        LOGGER.info(
+            "[segment] Success | archetype=%s | request_id=%s | expected_play_at_utc=%s",
+            archetype_used.value,
+            request_id or "n/a",
+            expected_play_at_utc or "n/a",
         )
 
         cleanup_local_stories(args.station, args.keep_local_days)

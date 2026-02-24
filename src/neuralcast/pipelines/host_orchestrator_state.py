@@ -526,6 +526,8 @@ def apply_success_state_update(
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
 ) -> None:
+    previous_songs_since = state.songs_since_last_spoken
+    previous_songs_until = state.songs_until_next_speak
     state.last_spoken_track_key = current_track_key
     state.last_spoken_ts = ts
     state.last_spoken_expected_end_ts = ts + max(0, current_remaining or 0)
@@ -533,6 +535,13 @@ def apply_success_state_update(
     state.songs_since_last_spoken = 0
     state.songs_until_next_speak = rng.randint(*WAIT_RANGE_SONGS)
     state.next_speak_deadline_ts = ts + SPEAK_DEADLINE_MINUTES * 60
+    LOGGER.info(
+        "[cadence] Reset after successful segment | previous_progress=%s/%s songs | next_wait_roll=%s songs | next_deadline=%s",
+        previous_songs_since,
+        previous_songs_until,
+        state.songs_until_next_speak,
+        iso_utc(state.next_speak_deadline_ts),
+    )
 
     if archetype_used in COOLDOWN_SECONDS:
         cooldown = COOLDOWN_SECONDS[archetype_used]
