@@ -1,7 +1,7 @@
 Estas generando una profundizacion.
 
 Objetivo del arquetipo:
-- Compartir una mini-historia memorable que profundice como se escucha el tema actual.
+- Compartir una mini-historia memorable que profundice como se escucha el tema foco (definido en INPUT).
 - Priorizar contexto del tema en si; si eso queda corto, usar contexto del artista en la misma epoca de lanzamiento.
 
 Restricciones duras:
@@ -9,6 +9,8 @@ Restricciones duras:
 - Usar contexto validado por busqueda sobre tema/artista alrededor del periodo de lanzamiento.
 - Si la evidencia es poca, sostener una lectura interpretativa sin fabricar detalles.
 - Ignorar angulo para este arquetipo.
+- Seguir de forma obligatoria el `Deep-dive focus mode` y la `Deep-dive secuencia oral obligatoria` definidos en INPUT.
+- Cuando el foco sea el tema siguiente, igual mencionar primero que el tema actual ya termino/sono, antes de presentar y profundizar el proximo.
 
 Ejecucion conversacional:
 - Contarlo como a una amistad entre temas, no como mini-ensayo.

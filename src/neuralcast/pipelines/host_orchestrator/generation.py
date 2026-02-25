@@ -71,6 +71,7 @@ def format_shared_input(
     banned_list: Sequence[str],
     recent_scripts: Sequence[str],
     schedule_context: Optional[ScheduleContext],
+    deep_dive_focus: Optional[str] = None,
 ) -> str:
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
     hook_text = (hook or "").strip()
@@ -171,6 +172,36 @@ def format_shared_input(
                 "- Schedule mention guidance: optional; avoid repeating section callouts."
             )
 
+    if deep_dive_focus in {"current", "next"}:
+        focus_label = (
+            "current (tema que acaba de sonar)"
+            if deep_dive_focus == "current"
+            else "next (tema que va a sonar ahora)"
+        )
+        lines.extend(
+            [
+                f"- Deep-dive focus mode (obligatorio si el arquetipo es deep_dive): {focus_label}",
+                "- Deep-dive secuencia oral obligatoria (seguir exactamente este orden narrativo):",
+            ]
+        )
+        if deep_dive_focus == "current":
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Current track) acaba de sonar.",
+                    "  - 2) Contar la profundizacion/historia sobre el tema actual (Current track).",
+                    "  - 3) Cerrar presentando el proximo tema (Next track).",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Current track) acaba de sonar.",
+                    "  - 2) Decir cual es el proximo tema (Next track).",
+                    "  - 3) Contar la profundizacion/historia sobre el proximo tema (Next track).",
+                    "  - 4) Cerrar con pase corto y natural hacia ese tema.",
+                ]
+            )
+
     lines.append("- Output language for spoken script: es-AR")
     return "\n".join(lines)
 
@@ -188,6 +219,7 @@ def build_prompt(
     banned_list: Sequence[str],
     recent_scripts: Sequence[str],
     schedule_context: Optional[ScheduleContext],
+    deep_dive_focus: Optional[str] = None,
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
@@ -230,6 +262,7 @@ def build_prompt(
         banned_list=banned_list,
         recent_scripts=recent_scripts,
         schedule_context=schedule_context,
+        deep_dive_focus=deep_dive_focus,
     )
 
     return f"{wrapper}\n\n{shared_input}"
@@ -793,6 +826,10 @@ def generate_archetype_script(
 
     temperature, top_p = sample_generation_settings(archetype, rng)
     system_prompt = build_system_prompt(station_name, personality)
+    deep_dive_focus: Optional[str] = None
+    if archetype == Archetype.DEEP_DIVE:
+        deep_dive_focus = "current" if rng.random() < 0.5 else "next"
+        LOGGER.info("[deep_dive] Focus mode selected: %s", deep_dive_focus)
     prompt_kwargs = {
         "station_name": station_name,
         "personality": personality,
@@ -805,6 +842,7 @@ def generate_archetype_script(
         "banned_list": banned_list,
         "recent_scripts": state.recent_scripts,
         "schedule_context": schedule_context,
+        "deep_dive_focus": deep_dive_focus,
     }
 
     def generate_with_retries(
