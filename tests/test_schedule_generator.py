@@ -207,7 +207,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertEqual(expanded[0].date_local, "2026-02-16")
         self.assertEqual(expanded[-1].date_local, "2026-02-22")
 
-    def test_build_schedule_items_by_playlist_skips_open_blocks(self) -> None:
+    def test_build_schedule_items_by_playlist_applies_open_blocks_to_enabled_playlists(self) -> None:
         raw_blocks = [
             {
                 "start_time_local": "00:00",
@@ -254,12 +254,24 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             daily_template=daily,
             day_values=[0, 1, 2, 3, 4, 5, 6],
         )
-        self.assertEqual(len(items["10"]), 1)
-        self.assertEqual(len(items["11"]), 1)
-        self.assertEqual(items["10"][0]["start_time"], 600)
-        self.assertEqual(items["10"][0]["end_time"], 1400)
-        self.assertEqual(items["11"][0]["start_time"], 1400)
-        self.assertEqual(items["11"][0]["end_time"], 2200)
+        self.assertEqual(len(items["10"]), 3)
+        self.assertEqual(len(items["11"]), 3)
+
+        # Open blocks are applied to all enabled playlists so AzuraCast can do
+        # weighted random selection during those windows.
+        self.assertEqual(items["10"][0]["start_time"], 0)
+        self.assertEqual(items["10"][0]["end_time"], 600)
+        self.assertEqual(items["10"][1]["start_time"], 600)
+        self.assertEqual(items["10"][1]["end_time"], 1400)
+        self.assertEqual(items["10"][2]["start_time"], 2200)
+        self.assertEqual(items["10"][2]["end_time"], 2359)
+
+        self.assertEqual(items["11"][0]["start_time"], 0)
+        self.assertEqual(items["11"][0]["end_time"], 600)
+        self.assertEqual(items["11"][1]["start_time"], 1400)
+        self.assertEqual(items["11"][1]["end_time"], 2200)
+        self.assertEqual(items["11"][2]["start_time"], 2200)
+        self.assertEqual(items["11"][2]["end_time"], 2359)
 
     def test_infer_azuracast_days_prefers_existing_shape(self) -> None:
         playlist = StationPlaylist(
