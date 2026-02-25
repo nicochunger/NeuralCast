@@ -46,6 +46,11 @@ def normalize_text_for_key(value: str) -> str:
     return normalized
 
 
+def is_ai_host_track_key(track_key: Optional[str]) -> bool:
+    text = normalize_text_for_key(track_key or "")
+    return "ai host" in text
+
+
 def source_domain(url: str) -> str:
     parsed = urlparse(url)
     domain = (parsed.netloc or "").lower()
@@ -604,6 +609,14 @@ def apply_success_state_update(
 def update_track_seen_state(
     state: OrchestratorState, current_track_key: str, ts: float
 ) -> None:
+    if is_ai_host_track_key(current_track_key):
+        # Do not count host snippets as songs for cadence spacing.
+        return
+
+    if is_ai_host_track_key(state.last_seen_track_key):
+        # Recover cleanly if an older state/run stored the host snippet as last seen.
+        state.last_seen_track_key = None
+
     if state.last_seen_track_key != current_track_key:
         if state.last_seen_track_key is not None:
             state.songs_since_last_spoken += 1

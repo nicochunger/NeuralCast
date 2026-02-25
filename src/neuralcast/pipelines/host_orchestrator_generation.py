@@ -340,6 +340,113 @@ def cleanup_generated_script(raw: str) -> str:
     return text.strip()
 
 
+def _normalize_text_for_contains(value: str) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower()
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _script_has_block_reference(script_text: str, schedule_context: ScheduleContext) -> bool:
+    script_norm = _normalize_text_for_contains(script_text)
+    if not script_norm:
+        return False
+
+    section_norm = _normalize_text_for_contains(schedule_context.section_label)
+    if section_norm and section_norm in script_norm:
+        return True
+
+    playlist_norm = _normalize_text_for_contains(schedule_context.playlist_name or "")
+    if playlist_norm and playlist_norm in script_norm:
+        return True
+
+    if "bloque" in script_norm or "seccion" in script_norm:
+        for genre in schedule_context.genre_labels:
+            genre_norm = _normalize_text_for_contains(genre)
+            if genre_norm and genre_norm in script_norm:
+                return True
+
+    # Fallback: phrases that usually indicate block orientation.
+    if "estamos en" in script_norm or "seguimos en" in script_norm:
+        return True
+
+    return False
+
+
+def _build_mid_block_clause(
+    schedule_context: ScheduleContext,
+    archetype: Archetype,
+    rng: random.Random,
+) -> str:
+    section = schedule_context.section_label.strip() or "este bloque"
+    genres = ", ".join([item for item in schedule_context.genre_labels if item][:2]).strip()
+
+    if archetype == Archetype.ULTRA_MINIMAL:
+        options = [
+            f"seguimos en {section}",
+            f"metidos en {section}",
+            f"en {section}",
+        ]
+        return rng.choice(options)
+
+    if genres:
+        options = [
+            f"seguimos en {section}, con ese clima de {genres}",
+            f"seguimos en {section}, bien en esa linea de {genres}",
+            f"aca en {section}, con ese color de {genres}",
+        ]
+    else:
+        options = [
+            f"seguimos en {section}",
+            f"aca en {section}",
+            f"metidos en {section}",
+        ]
+    return rng.choice(options)
+
+
+def ensure_mid_block_reference(
+    script_text: str,
+    archetype: Archetype,
+    schedule_context: Optional[ScheduleContext],
+    rng: random.Random,
+) -> str:
+    if (
+        schedule_context is None
+        or schedule_context.mention_intent != "mid"
+        or archetype
+        not in {Archetype.BACK_SELL, Archetype.DEEP_DIVE, Archetype.ULTRA_MINIMAL}
+    ):
+        return script_text
+
+    if _script_has_block_reference(script_text, schedule_context):
+        LOGGER.info(
+            "[schedule] Mid-block mention already present in generated %s script for '%s'.",
+            archetype.value,
+            schedule_context.section_label,
+        )
+        return script_text
+
+    clause = _build_mid_block_clause(schedule_context, archetype, rng)
+    text = script_text.strip()
+    if not text:
+        return text
+
+    if archetype == Archetype.ULTRA_MINIMAL:
+        # Keep it one sentence by inserting a short leading clause.
+        stitched = f"{clause}, {text[0].lower() + text[1:]}" if len(text) > 1 else f"{clause}, {text.lower()}"
+    else:
+        stitched = f"{clause}... {text}"
+
+    stitched = re.sub(r"\s{2,}", " ", stitched).strip()
+    LOGGER.info(
+        "[schedule] Auto-injected mid-block mention into %s script for '%s'.",
+        archetype.value,
+        schedule_context.section_label,
+    )
+    return stitched
+
+
 def parse_structured_script_and_meta(
     raw: str, pattern: re.Pattern[str]
 ) -> Tuple[Optional[str], Optional[Mapping[str, Any]], str]:
@@ -743,7 +850,14 @@ def generate_archetype_script(
             label=f"Gemini generation ({archetype.value})",
             with_search=should_enable_search(archetype, angle),
         )
-        return cleanup_generated_script(generated), None, archetype
+        cleaned = cleanup_generated_script(generated)
+        cleaned = ensure_mid_block_reference(
+            script_text=cleaned,
+            archetype=archetype,
+            schedule_context=schedule_context,
+            rng=rng,
+        )
+        return cleaned, None, archetype
 
     if archetype == Archetype.CONCERT_CHECK:
         generation_attempts = 2
