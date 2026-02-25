@@ -48,7 +48,7 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
 from neuralcast.config import ASSETS_ROOT, PROJECT_ROOT
 from neuralcast.services.openai_client import get_gemini_client
 
-LOGGER = logging.getLogger(pathlib.Path(__file__).stem)
+LOGGER = logging.getLogger("schedule_generator")
 
 PROMPTS_DIR = ASSETS_ROOT / "stories" / "prompts"
 SCHEDULE_SYSTEM_PROMPT_PATH = PROMPTS_DIR / "schedule_system.md"

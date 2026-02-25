@@ -9,7 +9,7 @@ import time
 from typing import Any, Callable, Sequence, Tuple
 
 from neuralcast.config import PROJECT_ROOT
-from neuralcast.pipelines.host_orchestrator_config import (
+from .config import (
     GENERATION_RETRIES,
     GENERATION_RETRY_DELAYS,
     LOCK_FILENAME,

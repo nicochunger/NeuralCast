@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from neuralcast.config import ASSETS_ROOT
-from neuralcast.pipelines.host_orchestrator_models import Archetype, StationPersonality
+from .models import Archetype, StationPersonality
 
 STORY_ROOT = ASSETS_ROOT / "stories"
 STORY_OUTPUT_DIR = STORY_ROOT / "snippets"

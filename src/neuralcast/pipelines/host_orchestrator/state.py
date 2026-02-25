@@ -13,7 +13,7 @@ import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
-from neuralcast.pipelines.host_orchestrator_config import (
+from .config import (
     ANGLE_OPTIONS,
     BANNED_OPENERS,
     COOLDOWN_SECONDS,
@@ -31,14 +31,14 @@ from neuralcast.pipelines.host_orchestrator_config import (
     WAIT_RANGE_SONGS,
     WEIGHTED_ARCHETYPES,
 )
-from neuralcast.pipelines.host_orchestrator_models import (
+from .models import (
     Archetype,
     NewsSegment,
     OrchestratorState,
     ScheduleContext,
 )
-from neuralcast.pipelines.host_orchestrator_schedule import prune_schedule_block_mentions
-from neuralcast.pipelines.host_orchestrator_utils import iso_utc
+from .schedule import prune_schedule_block_mentions
+from .utils import iso_utc
 
 
 def normalize_text_for_key(value: str) -> str:

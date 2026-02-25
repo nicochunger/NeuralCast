@@ -9,11 +9,12 @@ import pathlib
 import sys
 from typing import Any
 
-# Support direct execution via `python src/neuralcast/pipelines/host_orchestrator.py`.
+# Support direct execution via `python src/neuralcast/pipelines/host_orchestrator/main.py`.
 if __package__ in (None, ""):
-    src_dir = pathlib.Path(__file__).resolve().parents[2]
+    src_dir = pathlib.Path(__file__).resolve().parents[3]
     if str(src_dir) not in sys.path:
         sys.path.insert(0, str(src_dir))
+    __package__ = "neuralcast.pipelines.host_orchestrator"
 
 try:
     from dotenv import load_dotenv
@@ -22,20 +23,20 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         return False
 
-from neuralcast.pipelines.host_orchestrator_assets import (
+from .assets import (
     cleanup_local_stories,
     cleanup_remote_stories,
     ensure_story_assets,
     load_station_track_metadata,
 )
-from neuralcast.pipelines.host_orchestrator_config import (
+from .config import (
     LEAD_TIME_SECONDS,
     LOGGER,
     configure_station_file_logging,
     configure_logging,
     log_segment_event,
 )
-from neuralcast.pipelines.host_orchestrator_generation import (
+from .generation import (
     build_system_prompt,
     build_tts_instructions,
     generate_archetype_script,
@@ -44,19 +45,19 @@ from neuralcast.pipelines.host_orchestrator_generation import (
     station_name_for_generation,
     validate_news_freshness_and_dedup,
 )
-from neuralcast.pipelines.host_orchestrator_models import (
+from .models import (
     Archetype,
     OrchestratorState,
     ScheduleContext,
     TrackMetadata,
 )
-from neuralcast.pipelines.host_orchestrator_schedule import (
+from .schedule import (
     load_schedule_state_payload,
     prune_schedule_block_mentions,
     resolve_schedule_context_for_upcoming_break,
     should_force_block_intro,
 )
-from neuralcast.pipelines.host_orchestrator_state import (
+from .state import (
     StationLock,
     apply_success_state_update,
     assemble_banned_list,
@@ -72,7 +73,7 @@ from neuralcast.pipelines.host_orchestrator_state import (
     should_speak_now,
     update_track_seen_state,
 )
-from neuralcast.pipelines.host_orchestrator_transport import (
+from .transport import (
     AzuraCastClient,
     build_request_command,
     choose_next_track,
@@ -85,7 +86,7 @@ from neuralcast.pipelines.host_orchestrator_transport import (
     extract_upload_storage_path,
     parse_queue_tracks,
 )
-from neuralcast.pipelines.host_orchestrator_utils import (
+from .utils import (
     iso_utc,
     now_ts,
     run_with_retries,

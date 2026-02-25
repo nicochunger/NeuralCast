@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
-from neuralcast.pipelines.host_orchestrator_config import (
+from .config import (
     LOGGER,
     SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES,
     SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS,
@@ -20,7 +20,7 @@ from neuralcast.pipelines.host_orchestrator_config import (
     SCHEDULE_STATE_FILENAME,
     SYSTEM_TZ,
 )
-from neuralcast.pipelines.host_orchestrator_models import (
+from .models import (
     Archetype,
     QueueTrack,
     ScheduleContext,

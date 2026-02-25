@@ -23,15 +23,15 @@ When asked to redeploy the host orchestrator package to the VPS, always perform 
 3. Extract it on the VPS (overwrite existing files in-place):
    - `ssh neuralvps 'cd /root && unzip -o deploy_host_orchestrator.zip -d radio_host_orchestrator'`
 
-After extraction, verify the deployed `host_orchestrator.py` timestamp or checksum in `/root/radio_host_orchestrator/src/neuralcast/pipelines/host_orchestrator.py` when needed.
+After extraction, verify the deployed host-orchestrator entrypoint timestamp or checksum in `/root/radio_host_orchestrator/src/neuralcast/pipelines/host_orchestrator/main.py` when needed.
 
 Additional rule for host-orchestrator/scheduler edits:
 - Whenever a requested change modifies host-orchestrator runtime code/assets, automatically run the full 3-step VPS redeploy procedure after finishing the change, unless explicitly told not to deploy.
 - Treat these paths as mandatory redeploy triggers:
-  - `src/neuralcast/pipelines/host_orchestrator.py`
-  - `src/neuralcast/pipelines/host_orchestrator_*.py`
+  - `src/neuralcast/pipelines/host_orchestrator/main.py`
+  - `src/neuralcast/pipelines/host_orchestrator/*.py`
   - `src/neuralcast/pipelines/story_injector.py` (legacy compatibility shim)
-  - `src/neuralcast/pipelines/schedule_generator.py`
+  - `src/neuralcast/pipelines/schedule_generator/main.py`
   - `src/neuralcast/cli/host_orchestrator.py`
   - `inject_host_segment.py`
   - `src/neuralcast/assets/stories/prompts/*.md`

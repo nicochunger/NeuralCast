@@ -7,8 +7,8 @@ import pathlib
 import warnings
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from neuralcast.pipelines.host_orchestrator_models import QueueTrack
-from neuralcast.pipelines.host_orchestrator_utils import track_key
+from .models import QueueTrack
+from .utils import track_key
 
 try:
     import requests
