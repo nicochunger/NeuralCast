@@ -19,6 +19,7 @@ from .config import (
     SCHEDULE_START_WINDOW_MINUTES,
     SCHEDULE_STATE_FILENAME,
     SYSTEM_TZ,
+    log_schedule_debug,
 )
 from .models import (
     Archetype,
@@ -246,14 +247,32 @@ def _should_request_mid_block_mention(
         mention_entry.get("last_mid_speak_count")
     )
     start_mentioned = bool(mention_entry.get("start"))
+    cadence_breaks = _mid_mention_interval_for_block(block_key)
+    upcoming_speak_index = speak_count + 1
+
+    log_schedule_debug(
+        "schedule.mid_mention.evaluate.start",
+        block_key=block_key,
+        progress_ratio=progress_ratio,
+        speak_count=speak_count,
+        mid_mention_count=mid_mention_count,
+        last_mid_speak_count=last_mid_speak_count,
+        start_mentioned=start_mentioned,
+        upcoming_speak_index=upcoming_speak_index,
+        cadence_breaks=cadence_breaks,
+        mention_entry=dict(mention_entry),
+    )
 
     # If we missed the boundary intro and this is the first host break we see in mid-phase,
     # add a quick orientation line now.
     if speak_count == 0 and not start_mentioned:
+        log_schedule_debug(
+            "schedule.mid_mention.evaluate.result",
+            block_key=block_key,
+            decision=True,
+            reason="first_mid_break_without_start_intro",
+        )
         return True
-
-    upcoming_speak_index = speak_count + 1
-    cadence_breaks = _mid_mention_interval_for_block(block_key)
 
     if last_mid_speak_count > 0:
         breaks_since_last_mid = upcoming_speak_index - last_mid_speak_count
@@ -263,6 +282,14 @@ def _should_request_mid_block_mention(
         breaks_since_last_mid = upcoming_speak_index - baseline_speak_index
 
     if breaks_since_last_mid >= cadence_breaks:
+        log_schedule_debug(
+            "schedule.mid_mention.evaluate.result",
+            block_key=block_key,
+            decision=True,
+            reason="cadence_interval_reached",
+            breaks_since_last_mid=breaks_since_last_mid,
+            cadence_breaks=cadence_breaks,
+        )
         return True
 
     # Safety valve: make sure we don't leave the middle window without any mid mention.
@@ -270,8 +297,26 @@ def _should_request_mid_block_mention(
         SCHEDULE_MID_PROGRESS_RANGE[0],
         SCHEDULE_MID_PROGRESS_RANGE[1] - 0.03,
     ):
+        log_schedule_debug(
+            "schedule.mid_mention.evaluate.result",
+            block_key=block_key,
+            decision=True,
+            reason="safety_valve_near_end_of_mid_window",
+            progress_ratio=progress_ratio,
+            mid_mention_count=mid_mention_count,
+        )
         return True
 
+    log_schedule_debug(
+        "schedule.mid_mention.evaluate.result",
+        block_key=block_key,
+        decision=False,
+        reason="cadence_not_due",
+        breaks_since_last_mid=breaks_since_last_mid,
+        cadence_breaks=cadence_breaks,
+        progress_ratio=progress_ratio,
+        mid_mention_count=mid_mention_count,
+    )
     return False
 
 
@@ -366,22 +411,67 @@ def _track_matches_block_playlist(
 ) -> Optional[bool]:
     block_mode = str(block_entry.get("mode") or "open").strip().lower()
     if block_mode == "open":
+        log_schedule_debug(
+            "schedule.block_playlist_match",
+            result="unknown",
+            reason="block_mode_open",
+            block_mode=block_mode,
+            block_section=str(
+                block_entry.get("section_label") or block_entry.get("playlist_name") or ""
+            ).strip(),
+        )
         return None
 
     block_ids, block_names = _extract_block_playlist_refs(block_entry)
     if not block_ids and not block_names:
+        log_schedule_debug(
+            "schedule.block_playlist_match",
+            result="unknown",
+            reason="block_has_no_playlist_refs",
+            block_mode=block_mode,
+            block_section=str(
+                block_entry.get("section_label") or block_entry.get("playlist_name") or ""
+            ).strip(),
+        )
         return None
 
     track_ids, track_names = _extract_queue_track_playlist_refs(track)
     if not track_ids and not track_names:
+        log_schedule_debug(
+            "schedule.block_playlist_match",
+            result="unknown",
+            reason="track_has_no_playlist_refs",
+            block_mode=block_mode,
+            block_section=str(
+                block_entry.get("section_label") or block_entry.get("playlist_name") or ""
+            ).strip(),
+            track_artist=(track.artist if track is not None else "n/a"),
+            track_title=(track.title if track is not None else "n/a"),
+        )
         return None
 
+    result = False
     if block_ids and track_ids and block_ids.intersection(track_ids):
-        return True
+        result = True
     if block_names and track_names and block_names.intersection(track_names):
-        return True
+        result = True
 
-    return False
+    log_schedule_debug(
+        "schedule.block_playlist_match",
+        result=result,
+        reason=("matched_refs" if result else "no_ref_intersection"),
+        block_mode=block_mode,
+        block_section=str(
+            block_entry.get("section_label") or block_entry.get("playlist_name") or ""
+        ).strip(),
+        block_ids=sorted(block_ids),
+        block_names=sorted(block_names),
+        track_ids=sorted(track_ids),
+        track_names=sorted(track_names),
+        track_artist=(track.artist if track is not None else "n/a"),
+        track_title=(track.title if track is not None else "n/a"),
+    )
+    return result
 
 
 def load_schedule_state_payload(
@@ -409,12 +499,23 @@ def resolve_schedule_context(
     mention_state: Mapping[str, Mapping[str, Any]],
 ) -> Optional[ScheduleContext]:
     if not isinstance(schedule_state, Mapping):
+        log_schedule_debug(
+            "schedule.resolve.skip",
+            reason="schedule_state_missing_or_invalid",
+            ts=ts,
+        )
         return None
 
     schedule_tz = _resolve_schedule_timezone(schedule_state)
     now_local = dt.datetime.fromtimestamp(ts, tz=schedule_tz)
     parsed_blocks = _parse_schedule_blocks(schedule_state, now_local, schedule_tz)
     if not parsed_blocks:
+        log_schedule_debug(
+            "schedule.resolve.skip",
+            reason="no_parsed_blocks",
+            ts=ts,
+            now_local=now_local.isoformat(),
+        )
         return None
 
     current_index = -1
@@ -424,6 +525,13 @@ def resolve_schedule_context(
             break
 
     if current_index < 0:
+        log_schedule_debug(
+            "schedule.resolve.skip",
+            reason="no_active_block_for_timestamp",
+            ts=ts,
+            now_local=now_local.isoformat(),
+            parsed_block_count=len(parsed_blocks),
+        )
         return None
 
     start_dt, end_dt, block_key, current_entry, _ = parsed_blocks[current_index]
@@ -443,23 +551,59 @@ def resolve_schedule_context(
     mention_intent: Optional[str] = None
     elapsed_minutes = max(0.0, (now_local - start_dt).total_seconds() / 60.0)
     elapsed_seconds = max(0.0, (now_local - start_dt).total_seconds())
-    if (
-        elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES
-        and elapsed_seconds <= SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS
-        and not bool(mention_entry.get("start"))
-    ):
-        mention_intent = "start"
-    elif (
+    start_window_minutes_ok = elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES
+    start_window_grace_ok = (
+        elapsed_seconds <= SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS
+    )
+    start_already_mentioned = bool(mention_entry.get("start"))
+    mid_window_ok = (
         SCHEDULE_MID_PROGRESS_RANGE[0]
         <= progress_ratio
         <= SCHEDULE_MID_PROGRESS_RANGE[1]
+    )
+    mid_request = False
+    if (
+        start_window_minutes_ok
+        and start_window_grace_ok
+        and not start_already_mentioned
+    ):
+        mention_intent = "start"
+    elif (
+        mid_window_ok
         and _should_request_mid_block_mention(
             block_key=block_key,
             progress_ratio=progress_ratio,
             mention_entry=mention_entry,
         )
     ):
+        mid_request = True
         mention_intent = "mid"
+
+    if mid_window_ok and mention_intent != "mid":
+        mid_request = False
+
+    log_schedule_debug(
+        "schedule.resolve.active_block",
+        ts=ts,
+        now_local=now_local.isoformat(),
+        block_key=block_key,
+        section_label=str(
+            current_entry.get("section_label") or current_entry.get("playlist_name") or ""
+        ).strip(),
+        start_local=start_dt.isoformat(),
+        end_local=end_dt.isoformat(),
+        progress_ratio=progress_ratio,
+        phase=phase,
+        elapsed_minutes=elapsed_minutes,
+        elapsed_seconds=elapsed_seconds,
+        mention_entry=dict(mention_entry),
+        start_window_minutes_ok=start_window_minutes_ok,
+        start_window_grace_ok=start_window_grace_ok,
+        start_already_mentioned=start_already_mentioned,
+        mid_window_ok=mid_window_ok,
+        mid_request=mid_request,
+        mention_intent=mention_intent or "none",
+    )
 
     next_section_label: Optional[str] = None
     for start_candidate, _, _, entry_candidate, _ in parsed_blocks:
@@ -484,7 +628,7 @@ def resolve_schedule_context(
     if not genre_labels:
         genre_labels = ["mix variado"]
 
-    return ScheduleContext(
+    context = ScheduleContext(
         block_key=block_key,
         section_label=section_label,
         genre_labels=genre_labels,
@@ -497,6 +641,18 @@ def resolve_schedule_context(
         start_local_iso=start_dt.isoformat(),
         end_local_iso=end_dt.isoformat(),
     )
+    log_schedule_debug(
+        "schedule.resolve.result",
+        block_key=context.block_key,
+        section_label=context.section_label,
+        phase=context.phase,
+        progress_ratio=context.progress_ratio,
+        mention_intent=context.mention_intent or "none",
+        next_section_label=context.next_section_label or "n/a",
+        mode=context.mode,
+        playlist_name=context.playlist_name or "n/a",
+    )
+    return context
 
 
 def resolve_schedule_context_for_upcoming_break(
@@ -506,18 +662,49 @@ def resolve_schedule_context_for_upcoming_break(
     mention_state: Mapping[str, Mapping[str, Any]],
     next_track: Optional[QueueTrack],
 ) -> Optional[ScheduleContext]:
+    log_schedule_debug(
+        "schedule.upcoming_break.resolve.start",
+        ts_now=ts_now,
+        ts_break=ts_break,
+        mention_entries=len(mention_state),
+        next_track_artist=(next_track.artist if next_track is not None else "n/a"),
+        next_track_title=(next_track.title if next_track is not None else "n/a"),
+        schedule_state_present=isinstance(schedule_state, Mapping),
+    )
     boundary_context = resolve_schedule_context(
         schedule_state=schedule_state,
         ts=ts_break,
         mention_state=mention_state,
     )
+    log_schedule_debug(
+        "schedule.upcoming_break.resolve.boundary_context",
+        result=("context" if boundary_context is not None else "none"),
+        block_key=(boundary_context.block_key if boundary_context is not None else "n/a"),
+        mention_intent=(
+            boundary_context.mention_intent if boundary_context is not None else "none"
+        ),
+        section_label=(
+            boundary_context.section_label if boundary_context is not None else "n/a"
+        ),
+    )
     if (
         boundary_context is not None
         and boundary_context.mention_intent == "start"
     ):
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="boundary_context_start_intent",
+            block_key=boundary_context.block_key,
+            section_label=boundary_context.section_label,
+        )
         return boundary_context
 
     if not isinstance(schedule_state, Mapping):
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="schedule_state_missing_or_invalid",
+            boundary_result=("context" if boundary_context is not None else "none"),
+        )
         return boundary_context
 
     schedule_tz = _resolve_schedule_timezone(schedule_state)
@@ -525,6 +712,12 @@ def resolve_schedule_context_for_upcoming_break(
     break_local = dt.datetime.fromtimestamp(ts_break, tz=schedule_tz)
     parsed_blocks = _parse_schedule_blocks(schedule_state, now_local, schedule_tz)
     if not parsed_blocks:
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="no_parsed_blocks",
+            now_local=now_local.isoformat(),
+            break_local=break_local.isoformat(),
+        )
         return boundary_context
 
     next_block_index: Optional[int] = None
@@ -533,21 +726,62 @@ def resolve_schedule_context_for_upcoming_break(
             next_block_index = idx
             break
     if next_block_index is None:
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="no_future_block_found",
+            now_local=now_local.isoformat(),
+        )
         return boundary_context
 
     next_start_dt, _, next_block_key, next_entry, _ = parsed_blocks[next_block_index]
     starts_in_seconds = (next_start_dt - now_local).total_seconds()
     if starts_in_seconds < 0:
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="next_block_start_in_past",
+            starts_in_seconds=starts_in_seconds,
+            next_block_key=next_block_key,
+        )
         return boundary_context
     if starts_in_seconds > SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES * 60:
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="outside_intro_lookahead_window",
+            starts_in_seconds=starts_in_seconds,
+            lookahead_seconds=SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES * 60,
+            next_block_key=next_block_key,
+            next_block_section=str(
+                next_entry.get("section_label") or next_entry.get("playlist_name") or ""
+            ).strip(),
+        )
         return boundary_context
 
     mention_entry = mention_state.get(next_block_key, {})
     if bool(mention_entry.get("start")):
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="next_block_start_already_mentioned",
+            next_block_key=next_block_key,
+            mention_entry=dict(mention_entry),
+        )
         return boundary_context
 
     playlist_match = _track_matches_block_playlist(next_track, next_entry)
     break_after_start = break_local >= next_start_dt
+    log_schedule_debug(
+        "schedule.upcoming_break.resolve.recovery_eval",
+        next_block_key=next_block_key,
+        next_block_section=str(
+            next_entry.get("section_label") or next_entry.get("playlist_name") or ""
+        ).strip(),
+        next_start_local=next_start_dt.isoformat(),
+        now_local=now_local.isoformat(),
+        break_local=break_local.isoformat(),
+        starts_in_seconds=starts_in_seconds,
+        break_after_start=break_after_start,
+        playlist_match=playlist_match,
+        mention_entry=dict(mention_entry),
+    )
 
     should_force_recovery_start = False
     reason = ""
@@ -557,6 +791,16 @@ def resolve_schedule_context_for_upcoming_break(
                 "[schedule] Skipping block intro recovery for '%s': next track playlist does not match next block.",
                 str(next_entry.get("section_label") or next_entry.get("playlist_name") or "n/d"),
             )
+            log_schedule_debug(
+                "schedule.upcoming_break.resolve.return",
+                reason="recovery_rejected_playlist_mismatch",
+                next_block_key=next_block_key,
+                next_block_section=str(
+                    next_entry.get("section_label") or next_entry.get("playlist_name") or ""
+                ).strip(),
+                playlist_match=playlist_match,
+                break_after_start=break_after_start,
+            )
             return boundary_context
         should_force_recovery_start = True
         reason = "break_after_block_start_recovery"
@@ -565,6 +809,14 @@ def resolve_schedule_context_for_upcoming_break(
         reason = "next_track_matches_upcoming_block"
 
     if not should_force_recovery_start:
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="no_recovery_trigger",
+            next_block_key=next_block_key,
+            break_after_start=break_after_start,
+            playlist_match=playlist_match,
+            boundary_result=("context" if boundary_context is not None else "none"),
+        )
         return boundary_context
 
     intro_context = resolve_schedule_context(
@@ -573,6 +825,12 @@ def resolve_schedule_context_for_upcoming_break(
         mention_state=mention_state,
     )
     if intro_context is None:
+        log_schedule_debug(
+            "schedule.upcoming_break.resolve.return",
+            reason="failed_resolve_intro_context_at_block_start",
+            next_block_key=next_block_key,
+            recovery_reason=reason,
+        )
         return boundary_context
 
     LOGGER.info(
@@ -581,6 +839,14 @@ def resolve_schedule_context_for_upcoming_break(
         reason,
         int(starts_in_seconds),
     )
+    log_schedule_debug(
+        "schedule.upcoming_break.resolve.return",
+        reason="recovery_intro_context",
+        recovery_reason=reason,
+        returned_block_key=intro_context.block_key,
+        returned_section_label=intro_context.section_label,
+        returned_mention_intent=intro_context.mention_intent or "none",
+    )
     return intro_context
 
 
@@ -588,8 +854,18 @@ def should_force_block_intro(
     schedule_context: Optional[ScheduleContext],
     forced_archetype: Optional[Archetype],
 ) -> bool:
-    return (
+    result = (
         forced_archetype is None
         and schedule_context is not None
         and schedule_context.mention_intent == "start"
     )
+    log_schedule_debug(
+        "schedule.block_intro_force.should_force",
+        result=result,
+        forced_archetype=(forced_archetype.value if forced_archetype is not None else "none"),
+        schedule_context_present=schedule_context is not None,
+        mention_intent=(schedule_context.mention_intent if schedule_context else "none"),
+        block_key=(schedule_context.block_key if schedule_context else "n/a"),
+        section_label=(schedule_context.section_label if schedule_context else "n/a"),
+    )
+    return result

@@ -36,6 +36,7 @@ from .config import (
     WRAPPER_NEWS,
     WRAPPER_ULTRA_MINIMAL,
     load_personality_guide,
+    log_schedule_debug,
 )
 from .models import (
     Archetype,
@@ -421,7 +422,16 @@ def _build_mid_block_clause(
             f"metidos en {section}",
             f"en {section}",
         ]
-        return rng.choice(options)
+        chosen = rng.choice(options)
+        log_schedule_debug(
+            "schedule.mid_block_clause.choice",
+            archetype=archetype.value,
+            section_label=schedule_context.section_label,
+            genres=list(schedule_context.genre_labels),
+            options=options,
+            chosen_clause=chosen,
+        )
+        return chosen
 
     if genres:
         options = [
@@ -435,7 +445,16 @@ def _build_mid_block_clause(
             f"aca en {section}",
             f"metidos en {section}",
         ]
-    return rng.choice(options)
+    chosen = rng.choice(options)
+    log_schedule_debug(
+        "schedule.mid_block_clause.choice",
+        archetype=archetype.value,
+        section_label=schedule_context.section_label,
+        genres=list(schedule_context.genre_labels),
+        options=options,
+        chosen_clause=chosen,
+    )
+    return chosen
 
 
 def ensure_mid_block_reference(
@@ -444,25 +463,67 @@ def ensure_mid_block_reference(
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
 ) -> str:
-    if (
-        schedule_context is None
-        or schedule_context.mention_intent != "mid"
-        or archetype
-        not in {Archetype.BACK_SELL, Archetype.DEEP_DIVE, Archetype.ULTRA_MINIMAL}
-    ):
+    if schedule_context is None:
+        log_schedule_debug(
+            "schedule.mid_block_reference.skip",
+            reason="no_schedule_context",
+            archetype=archetype.value,
+            script_len=len(script_text or ""),
+        )
         return script_text
 
+    if schedule_context.mention_intent != "mid":
+        log_schedule_debug(
+            "schedule.mid_block_reference.skip",
+            reason="mention_intent_not_mid",
+            archetype=archetype.value,
+            mention_intent=schedule_context.mention_intent or "none",
+            section_label=schedule_context.section_label,
+            script_len=len(script_text or ""),
+        )
+        return script_text
+
+    if archetype not in {Archetype.BACK_SELL, Archetype.DEEP_DIVE, Archetype.ULTRA_MINIMAL}:
+        log_schedule_debug(
+            "schedule.mid_block_reference.skip",
+            reason="archetype_not_supported_for_mid_injection",
+            archetype=archetype.value,
+            section_label=schedule_context.section_label,
+            script_len=len(script_text or ""),
+        )
+        return script_text
+
+    log_schedule_debug(
+        "schedule.mid_block_reference.evaluate",
+        archetype=archetype.value,
+        section_label=schedule_context.section_label,
+        mention_intent=schedule_context.mention_intent or "none",
+        script_len=len(script_text or ""),
+        script_preview=(script_text or "").strip()[:180],
+    )
     if _script_has_block_reference(script_text, schedule_context):
         LOGGER.info(
             "[schedule] Mid-block mention already present in generated %s script for '%s'.",
             archetype.value,
             schedule_context.section_label,
         )
+        log_schedule_debug(
+            "schedule.mid_block_reference.result",
+            result="already_present",
+            archetype=archetype.value,
+            section_label=schedule_context.section_label,
+        )
         return script_text
 
     clause = _build_mid_block_clause(schedule_context, archetype, rng)
     text = script_text.strip()
     if not text:
+        log_schedule_debug(
+            "schedule.mid_block_reference.result",
+            result="empty_script_after_strip",
+            archetype=archetype.value,
+            section_label=schedule_context.section_label,
+        )
         return text
 
     if archetype == Archetype.ULTRA_MINIMAL:
@@ -476,6 +537,16 @@ def ensure_mid_block_reference(
         "[schedule] Auto-injected mid-block mention into %s script for '%s'.",
         archetype.value,
         schedule_context.section_label,
+    )
+    log_schedule_debug(
+        "schedule.mid_block_reference.result",
+        result="auto_injected",
+        archetype=archetype.value,
+        section_label=schedule_context.section_label,
+        injected_clause=clause,
+        original_len=len(text),
+        stitched_len=len(stitched),
+        stitched_preview=stitched[:200],
     )
     return stitched
 
