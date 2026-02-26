@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
-import pathlib
 from typing import Any
 
 try:
@@ -36,19 +34,15 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
     class InsecureRequestWarning(Warning):
         pass
 
-from neuralcast.config import ASSETS_ROOT
-
 LOGGER = logging.getLogger("schedule_generator")
-
-PROMPTS_DIR = ASSETS_ROOT / "stories" / "prompts"
-SCHEDULE_SYSTEM_PROMPT_PATH = PROMPTS_DIR / "schedule_system.md"
-SCHEDULE_USER_PROMPT_PATH = PROMPTS_DIR / "schedule_user.md"
 
 STATE_FILENAME = "ai_schedule_state.json"
 STATE_VERSION = 1
 
 DEFAULT_OPEN_RATIO_MIN = 0.20
 DEFAULT_OPEN_RATIO_MAX = 0.40
+DEFAULT_MIN_OPEN_SLOTS = 3
+DEFAULT_MAX_OPEN_SLOTS = 6
 DEFAULT_MIN_BLOCK_MINUTES = 30
 DEFAULT_MAX_BLOCK_MINUTES = 240
 DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES = 120
@@ -57,9 +51,6 @@ UNSCHEDULED_WINDOW_END_MINUTE = 6 * 60
 UNSCHEDULED_WINDOW_TOTAL_MINUTES = (
     (24 * 60 - UNSCHEDULED_WINDOW_START_MINUTE) + UNSCHEDULED_WINDOW_END_MINUTE
 )
-
-GENERATION_MAX_ATTEMPTS = 2
-DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
 
 FALLBACK_TIMEZONE = "Europe/Zurich"
 

@@ -1,4 +1,4 @@
-"""Weekly AI schedule generation and AzuraCast schedule application."""
+"""Weekly schedule generation and AzuraCast schedule application."""
 
 from __future__ import annotations
 
@@ -21,9 +21,10 @@ from .client import (
     infer_azuracast_days,
 )
 from .config import (
-    DEFAULT_GEMINI_MODEL,
     DEFAULT_MAX_BLOCK_MINUTES,
     DEFAULT_MIN_BLOCK_MINUTES,
+    DEFAULT_MAX_OPEN_SLOTS,
+    DEFAULT_MIN_OPEN_SLOTS,
     DEFAULT_OPEN_RATIO_MAX,
     DEFAULT_OPEN_RATIO_MIN,
     LOGGER,
@@ -31,12 +32,8 @@ from .config import (
     load_dotenv,
 )
 from .generation import (
-    build_playlist_catalog,
+    build_weekly_plan_with_code,
     build_weekly_plan_with_llm,
-    extract_json_object,
-    gemini_generate_schedule_text,
-    load_prompt,
-    strip_code_fences,
 )
 from .models import (
     DailyTemplateBlock,
@@ -86,6 +83,13 @@ def run(args: argparse.Namespace) -> None:
     if not (0.0 <= open_ratio_min <= open_ratio_max <= 1.0):
         raise ValueError("Open-slot ratio bounds must satisfy 0 <= min <= max <= 1.")
 
+    min_open_slots = int(args.min_open_slots)
+    max_open_slots = int(args.max_open_slots)
+    if min_open_slots < 0 or max_open_slots < 0:
+        raise ValueError("Open-slot count bounds must be non-negative.")
+    if min_open_slots > max_open_slots:
+        raise ValueError("min-open-slots cannot exceed max-open-slots.")
+
     if args.min_block_minutes > args.max_block_minutes:
         raise ValueError("min-block-minutes cannot exceed max-block-minutes.")
 
@@ -126,7 +130,7 @@ def run(args: argparse.Namespace) -> None:
         len(playlists),
     )
 
-    plan = build_weekly_plan_with_llm(
+    plan = build_weekly_plan_with_code(
         station_slug=args.station,
         station_name=station_name,
         timezone_name=timezone_name,
@@ -135,9 +139,10 @@ def run(args: argparse.Namespace) -> None:
         playlists=playlists,
         open_ratio_min=open_ratio_min,
         open_ratio_max=open_ratio_max,
+        min_open_slots=min_open_slots,
+        max_open_slots=max_open_slots,
         min_block_minutes=args.min_block_minutes,
         max_block_minutes=args.max_block_minutes,
-        model=args.model,
     )
 
     summarize_plan(plan)
@@ -184,7 +189,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Generate a fixed weekly schedule (same daily template for all 7 days) "
-            "from AzuraCast playlists using Gemini."
+            "from AzuraCast playlists using the built-in code scheduler."
         )
     )
     parser.add_argument(
@@ -197,11 +202,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--station",
         default=os.getenv("AZURACAST_STATION", "neuralforge"),
         help="AzuraCast station shortcode (default: %(default)s).",
-    )
-    parser.add_argument(
-        "--model",
-        default=DEFAULT_GEMINI_MODEL,
-        help="Gemini text model for schedule generation (default: %(default)s).",
     )
     parser.add_argument(
         "--dry-run",
@@ -229,25 +229,37 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--open-ratio-min",
         type=float,
         default=DEFAULT_OPEN_RATIO_MIN,
-        help="Minimum open-slot ratio per day (0-1).",
+        help="Minimum open-slot ratio per day (0-1) (default: %(default)s).",
     )
     parser.add_argument(
         "--open-ratio-max",
         type=float,
         default=DEFAULT_OPEN_RATIO_MAX,
-        help="Maximum open-slot ratio per day (0-1).",
+        help="Maximum open-slot ratio per day (0-1) (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--min-open-slots",
+        type=int,
+        default=DEFAULT_MIN_OPEN_SLOTS,
+        help="Minimum number of open blocks per day (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--max-open-slots",
+        type=int,
+        default=DEFAULT_MAX_OPEN_SLOTS,
+        help="Maximum number of open blocks per day (default: %(default)s).",
     )
     parser.add_argument(
         "--min-block-minutes",
         type=int,
         default=DEFAULT_MIN_BLOCK_MINUTES,
-        help="Minimum allowed block duration in minutes.",
+        help="Minimum allowed block duration in minutes (default: %(default)s).",
     )
     parser.add_argument(
         "--max-block-minutes",
         type=int,
         default=DEFAULT_MAX_BLOCK_MINUTES,
-        help="Maximum allowed block duration in minutes.",
+        help="Maximum allowed block duration in minutes (default: %(default)s).",
     )
     return parser
 

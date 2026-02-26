@@ -78,143 +78,149 @@ def format_shared_input(
     hook_text = (hook or "").strip()
     if hook_text:
         hook_line = (
-            f"- Hook cue (idea de entrada, no texto literal; opcional): {hook_text}"
+            f"- Idea de gancho (idea de entrada, no texto literal; opcional): {hook_text}"
         )
     else:
-        hook_line = "- Hook cue (idea de entrada, no texto literal; opcional): none (free opener allowed)"
+        hook_line = "- Idea de gancho (idea de entrada, no texto literal; opcional): ninguna (apertura libre permitida)"
 
     def _compose_track(label: str, track: QueueTrack, meta: TrackMetadata) -> List[str]:
         line = f"- {label}: {track.artist} — {track.title}"
         year = (meta.year or "").strip()
         genre = (meta.genre or "").strip()
         if year or genre:
-            line += f" ({year or 'year n/d'}, {genre or 'genre n/d'})"
+            line += f" ({year or 'anio n/d'}, {genre or 'genero n/d'})"
         parts = [line]
 
         optional: List[str] = []
         if meta.bpm:
             optional.append(f"bpm={meta.bpm}")
         if meta.mood_tags:
-            optional.append(f"mood_tags={meta.mood_tags}")
+            optional.append(f"etiquetas_clima={meta.mood_tags}")
         if meta.album:
             optional.append(f"album={meta.album}")
         if meta.notes:
-            optional.append(f"notes={meta.notes}")
+            optional.append(f"notas={meta.notes}")
         if optional:
-            parts.append(f"  Optional metadata: {', '.join(optional)}")
+            parts.append(f"  Metadata opcional: {', '.join(optional)}")
         return parts
 
     lines = [
-        "INPUT",
-        f"- Station: {station_name}",
-        f"- Station personality: {personality.script_profile}",
-        f"- Local time (Europe/Zurich): {now_local}",
+        "ENTRADA",
+        f"- Estacion: {station_name}",
+        f"- Personalidad de la estacion: {personality.script_profile}",
+        f"- Hora local (Europe/Zurich): {now_local}",
     ]
-    lines.extend(_compose_track("Current track", current, current_meta))
-    lines.extend(_compose_track("Next track", next_track, next_meta))
+    lines.extend(_compose_track("Tema actual", current, current_meta))
+    lines.extend(_compose_track("Proximo tema", next_track, next_meta))
     lines.extend(
         [
-            f"- Angle (sub-perspective): {angle or 'none'}",
+            f"- Angulo (sub-perspectiva): {angle or 'ninguno'}",
             hook_line,
-            "- Banned topics/phrases list:",
+            "- Lista de temas/frases prohibidas:",
         ]
     )
     if banned_list:
         lines.extend([f"  - {item}" for item in banned_list])
     else:
-        lines.append("  - none")
+        lines.append("  - ninguna")
     if recent_scripts:
         lines.extend(
             [
-                "- Recent generated host scripts (most recent first):",
-                "  Use this as anti-repetition context: avoid obvious reuse of opening phrases or repeated chunks, but keep the phrasing natural.",
+                "- Guiones recientes del host generados (mas reciente primero):",
+                "  Usar como contexto anti-repeticion: evitar reutilizar aperturas o fragmentos muy parecidos, pero manteniendo una forma natural de hablar.",
             ]
         )
         lines.extend(
             [
-                f"  - Script {index}: {previous_script}"
+                f"  - Guion {index}: {previous_script}"
                 for index, previous_script in enumerate(recent_scripts, start=1)
             ]
         )
     else:
-        lines.append("- Recent generated host scripts (most recent first): none")
+        lines.append("- Guiones recientes del host generados (mas reciente primero): ninguno")
 
     if schedule_context is not None:
         next_section_line = (
-            "  - Next section: hidden for mid-block mention (avoid end-of-block framing)."
+            "  - Proxima seccion: oculta para mencion de mitad de bloque (evitar encuadre de cierre)."
             if schedule_context.mention_intent == "mid"
-            else f"  - Next section: {schedule_context.next_section_label or 'n/d'}"
+            else f"  - Proxima seccion: {schedule_context.next_section_label or 'n/d'}"
         )
         lines.extend(
             [
-                "- Active programming block:",
-                "  - Timing note: this block context is for when this host break will air (immediately before Next track).",
-                f"  - Section: {schedule_context.section_label}",
-                f"  - Genres: {', '.join(schedule_context.genre_labels)}",
-                f"  - Phase: {schedule_context.phase} ({int(schedule_context.progress_ratio * 100)}%)",
+                "- Bloque de programacion activo:",
+                "  - Nota de timing: este contexto de bloque corresponde al momento en que saldra este corte del host (inmediatamente antes del proximo tema).",
+                f"  - Seccion: {schedule_context.section_label}",
+                f"  - Generos: {', '.join(schedule_context.genre_labels)}",
+                f"  - Fase: {schedule_context.phase} ({int(schedule_context.progress_ratio * 100)}%)",
                 next_section_line,
             ]
         )
         if schedule_context.mode == "open":
             lines.append(
-                "  - Block mode: open weighted rotation (AzuraCast chooses by playlist weights)."
+                "  - Modo del bloque: rotacion abierta ponderada (AzuraCast elige segun pesos de playlists)."
             )
         elif schedule_context.playlist_name:
-            lines.append(f"  - Block mode: fixed playlist ({schedule_context.playlist_name}).")
+            lines.append(f"  - Modo del bloque: playlist fija ({schedule_context.playlist_name}).")
 
         if schedule_context.mention_intent == "start":
             lines.append(
-                "- Schedule mention guidance: this script airs at the block start boundary; present the section as starting now (right before its first song)."
+                "- Guia de mencion de grilla: este guion sale en el limite de inicio del bloque; presentar la seccion como arrancando ahora (justo antes de su primer tema) y mencionar 1-2 etiquetas de genero que definan el bloque."
+            )
+            lines.append(
+                "- Variacion de redaccion de grilla: al nombrar el bloque, variar el sustantivo de forma natural (por ejemplo: bloque, segmento, seccion, tramo, parte) en vez de repetir siempre la misma palabra."
             )
         elif schedule_context.mention_intent == "mid":
             lines.append(
-                "- Schedule mention guidance: include one short, natural clause saying we are in this section/block right now."
+                "- Guia de mencion de grilla: incluir una clausula corta y natural diciendo que estamos en esta seccion/bloque ahora mismo, y mencionar la linea de generos que representa (1-2 etiquetas)."
             )
             lines.append(
-                "- Schedule mention style: weave the block mention into the chosen archetype flow (not as a separate announcement); these callouts happen only occasionally (about every 2-3 host breaks), so include it this time."
+                "- Variacion de redaccion de grilla: al referirte al bloque en curso, podes alternar palabras como bloque, segmento, seccion, tramo o parte para que no suene repetitivo."
             )
             lines.append(
-                "- Mid-block framing rule (obligatorio): tratar el bloque como ACTUALMENTE EN CURSO; no decir ni insinuar que el bloque/seccion se esta cerrando, terminando o por cambiar."
+                "- Estilo de mencion de grilla: integrar la mencion del bloque en el flujo del arquetipo elegido (no como anuncio separado); estos recordatorios aparecen solo ocasionalmente (aprox. cada 2-3 cortes del host), asi que incluirlo esta vez."
             )
             lines.append(
-                "- Mid-block wording preference: usar presente continuo/orientacion de continuidad (por ejemplo: 'seguimos en...', 'estamos en...', 'aca en...')."
+                "- Regla de encuadre de mitad de bloque (obligatorio): tratar el bloque como ACTUALMENTE EN CURSO; no decir ni insinuar que el bloque/seccion se esta cerrando, terminando o por cambiar."
+            )
+            lines.append(
+                "- Preferencia de redaccion para mitad de bloque: usar presente continuo/orientacion de continuidad (por ejemplo: 'seguimos en...', 'estamos en...', 'aca en...')."
             )
         else:
             lines.append(
-                "- Schedule mention guidance: optional; avoid repeating section callouts."
+                "- Guia de mencion de grilla: opcional; evitar repetir menciones de seccion."
             )
 
     if deep_dive_focus in {"current", "next"}:
         focus_label = (
-            "current (tema que acaba de sonar)"
+            "actual (tema que acaba de sonar)"
             if deep_dive_focus == "current"
-            else "next (tema que va a sonar ahora)"
+            else "proximo (tema que va a sonar ahora)"
         )
         lines.extend(
             [
-                f"- Deep-dive focus mode (obligatorio si el arquetipo es deep_dive): {focus_label}",
-                "- Deep-dive secuencia oral obligatoria (seguir exactamente este orden narrativo):",
+                f"- Modo de foco de profundizacion (obligatorio si el arquetipo es 'deep_dive'): {focus_label}",
+                "- Secuencia oral obligatoria de profundizacion (seguir exactamente este orden narrativo):",
             ]
         )
         if deep_dive_focus == "current":
             lines.extend(
                 [
-                    "  - 1) Decir de forma natural que el tema actual (Current track) acaba de sonar.",
-                    "  - 2) Contar la profundizacion/historia sobre el tema actual (Current track).",
-                    "  - 3) Cerrar presentando el proximo tema (Next track).",
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Contar la profundizacion/historia sobre el tema actual (Tema actual).",
+                    "  - 3) Cerrar presentando el proximo tema (Proximo tema).",
                 ]
             )
         else:
             lines.extend(
                 [
-                    "  - 1) Decir de forma natural que el tema actual (Current track) acaba de sonar.",
-                    "  - 2) Decir cual es el proximo tema (Next track).",
-                    "  - 3) Contar la profundizacion/historia sobre el proximo tema (Next track).",
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Decir cual es el proximo tema (Proximo tema).",
+                    "  - 3) Contar la profundizacion/historia sobre el proximo tema (Proximo tema).",
                     "  - 4) Cerrar con pase corto y natural hacia ese tema.",
                 ]
             )
 
-    lines.append("- Output language for spoken script: es-AR")
+    lines.append("- Idioma de salida del guion hablado: es-AR")
     return "\n".join(lines)
 
 
@@ -296,7 +302,7 @@ def build_system_prompt(station_name: str, personality: StationPersonality) -> s
         f"{HOST_CONSTITUTION_TEMPLATE.format(station_name=station_name).strip()}\n\n"
         f"{personality_guide}\n\n"
         f"{SCRIPT_STYLE_BASELINE.strip()}\n\n"
-        "Station personality profile:\n"
+        "Perfil de personalidad de la estacion:\n"
         f"- {personality.script_profile}\n"
     )
 
@@ -416,6 +422,18 @@ def _script_has_block_reference(script_text: str, schedule_context: ScheduleCont
     if "estamos en" in script_norm or "seguimos en" in script_norm:
         return True
 
+    return False
+
+
+def _script_has_genre_reference(script_text: str, schedule_context: ScheduleContext) -> bool:
+    script_norm = _normalize_text_for_contains(script_text)
+    if not script_norm:
+        return False
+
+    for genre in schedule_context.genre_labels:
+        genre_norm = _normalize_text_for_contains(genre)
+        if genre_norm and genre_norm in script_norm:
+            return True
     return False
 
 
@@ -560,6 +578,146 @@ def ensure_mid_block_reference(
         stitched_preview=stitched[:200],
     )
     return stitched
+
+
+def _build_schedule_genre_clause(
+    schedule_context: ScheduleContext,
+    archetype: Archetype,
+    rng: random.Random,
+) -> str:
+    section = schedule_context.section_label.strip() or "este bloque"
+    genres = [str(item).strip() for item in schedule_context.genre_labels if str(item).strip()]
+    genres_text = ", ".join(genres[:2]).strip()
+    if not genres_text:
+        return ""
+
+    mention_intent = schedule_context.mention_intent or "none"
+    if mention_intent == "start":
+        if archetype == Archetype.ULTRA_MINIMAL:
+            options = [
+                f"arranca {section}, con {genres_text}",
+                f"arrancamos {section}, con {genres_text}",
+            ]
+        else:
+            options = [
+                f"arranca {section}, con ese eje de {genres_text}",
+                f"arrancamos {section}, en clave de {genres_text}",
+                f"abre {section}, con ese color de {genres_text}",
+            ]
+    elif mention_intent == "mid":
+        if archetype == Archetype.ULTRA_MINIMAL:
+            options = [
+                f"seguimos en {section}, con {genres_text}",
+                f"aca en {section}, con {genres_text}",
+            ]
+        else:
+            options = [
+                f"seguimos en {section}, con ese clima de {genres_text}",
+                f"aca en {section}, bien en esa linea de {genres_text}",
+                f"seguimos en {section}, en clave de {genres_text}",
+            ]
+    else:
+        options = [f"en esa linea de {genres_text}"]
+
+    chosen = rng.choice(options)
+    log_schedule_debug(
+        "schedule.genre_clause.choice",
+        archetype=archetype.value,
+        mention_intent=mention_intent,
+        section_label=schedule_context.section_label,
+        genres=list(schedule_context.genre_labels),
+        options=options,
+        chosen_clause=chosen,
+    )
+    return chosen
+
+
+def ensure_schedule_genre_reference(
+    script_text: str,
+    archetype: Archetype,
+    schedule_context: Optional[ScheduleContext],
+    rng: random.Random,
+) -> str:
+    if schedule_context is None:
+        return script_text
+
+    if schedule_context.mention_intent not in {"start", "mid"}:
+        return script_text
+
+    if _script_has_genre_reference(script_text, schedule_context):
+        log_schedule_debug(
+            "schedule.genre_reference.result",
+            result="already_present",
+            archetype=archetype.value,
+            mention_intent=schedule_context.mention_intent or "none",
+            section_label=schedule_context.section_label,
+            genres=list(schedule_context.genre_labels),
+        )
+        return script_text
+
+    clause = _build_schedule_genre_clause(schedule_context, archetype, rng)
+    if not clause:
+        log_schedule_debug(
+            "schedule.genre_reference.result",
+            result="no_genres_available",
+            archetype=archetype.value,
+            mention_intent=schedule_context.mention_intent or "none",
+            section_label=schedule_context.section_label,
+        )
+        return script_text
+
+    text = (script_text or "").strip()
+    if not text:
+        return clause
+
+    if archetype == Archetype.ULTRA_MINIMAL:
+        stitched = (
+            f"{clause}, {text[0].lower() + text[1:]}" if len(text) > 1 else f"{clause}, {text.lower()}"
+        )
+    else:
+        stitched = f"{clause}... {text}"
+
+    stitched = re.sub(r"\s{2,}", " ", stitched).strip()
+    LOGGER.info(
+        "[schedule] Auto-injected genre reference into %s script for '%s'.",
+        archetype.value,
+        schedule_context.section_label,
+    )
+    log_schedule_debug(
+        "schedule.genre_reference.result",
+        result="auto_injected",
+        archetype=archetype.value,
+        mention_intent=schedule_context.mention_intent or "none",
+        section_label=schedule_context.section_label,
+        genres=list(schedule_context.genre_labels),
+        injected_clause=clause,
+        original_len=len(text),
+        stitched_len=len(stitched),
+        stitched_preview=stitched[:200],
+    )
+    return stitched
+
+
+def _postprocess_schedule_script(
+    script_text: str,
+    archetype: Archetype,
+    schedule_context: Optional[ScheduleContext],
+    rng: random.Random,
+) -> str:
+    cleaned = cleanup_generated_script(script_text)
+    cleaned = ensure_mid_block_reference(
+        script_text=cleaned,
+        archetype=archetype,
+        schedule_context=schedule_context,
+        rng=rng,
+    )
+    cleaned = ensure_schedule_genre_reference(
+        script_text=cleaned,
+        archetype=archetype,
+        schedule_context=schedule_context,
+        rng=rng,
+    )
+    return cleaned
 
 
 def parse_structured_script_and_meta(
@@ -970,9 +1128,8 @@ def generate_archetype_script(
             label=f"Gemini generation ({archetype.value})",
             with_search=should_enable_search(archetype, angle),
         )
-        cleaned = cleanup_generated_script(generated)
-        cleaned = ensure_mid_block_reference(
-            script_text=cleaned,
+        cleaned = _postprocess_schedule_script(
+            script_text=generated,
             archetype=archetype,
             schedule_context=schedule_context,
             rng=rng,
@@ -1032,7 +1189,12 @@ def generate_archetype_script(
             )
             if ok:
                 return (
-                    cleanup_generated_script(segment.script),
+                    _postprocess_schedule_script(
+                        script_text=segment.script,
+                        archetype=Archetype.CONCERT_CHECK,
+                        schedule_context=schedule_context,
+                        rng=rng,
+                    ),
                     None,
                     Archetype.CONCERT_CHECK,
                 )
@@ -1163,7 +1325,16 @@ def generate_archetype_script(
                 topics,
                 segment.story_count,
             )
-            return cleanup_generated_script(segment.script), segment, Archetype.NEWS
+            return (
+                _postprocess_schedule_script(
+                    script_text=segment.script,
+                    archetype=Archetype.NEWS,
+                    schedule_context=schedule_context,
+                    rng=rng,
+                ),
+                segment,
+                Archetype.NEWS,
+            )
 
         LOGGER.warning(
             "[news] Freshness/dedup failed (%s/%s): %s",
