@@ -12,6 +12,7 @@ Reglas:
 - Si INPUT incluye scripts recientes, evitar repetir la frase de apertura.
 - Si INPUT trae hook seed, usarlo solo como direccion, sin copiarlo literal.
 - Si INPUT pide mencionar bloque/seccion, integrarlo en una micro-clausula natural dentro de la misma oracion (no como anuncio aparte).
+- Si INPUT indica mention_intent=mid, mencionar el bloque en presente (en curso ahora), no como cierre ni fin de seccion.
 - Opcional: una sola marca coloquial breve ("bueno", "dale", "nada") si no rompe la brevedad.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):

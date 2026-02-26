@@ -140,6 +140,11 @@ def format_shared_input(
         lines.append("- Recent generated host scripts (most recent first): none")
 
     if schedule_context is not None:
+        next_section_line = (
+            "  - Next section: hidden for mid-block mention (avoid end-of-block framing)."
+            if schedule_context.mention_intent == "mid"
+            else f"  - Next section: {schedule_context.next_section_label or 'n/d'}"
+        )
         lines.extend(
             [
                 "- Active programming block:",
@@ -147,7 +152,7 @@ def format_shared_input(
                 f"  - Section: {schedule_context.section_label}",
                 f"  - Genres: {', '.join(schedule_context.genre_labels)}",
                 f"  - Phase: {schedule_context.phase} ({int(schedule_context.progress_ratio * 100)}%)",
-                f"  - Next section: {schedule_context.next_section_label or 'n/d'}",
+                next_section_line,
             ]
         )
         if schedule_context.mode == "open":
@@ -167,6 +172,12 @@ def format_shared_input(
             )
             lines.append(
                 "- Schedule mention style: weave the block mention into the chosen archetype flow (not as a separate announcement); these callouts happen only occasionally (about every 2-3 host breaks), so include it this time."
+            )
+            lines.append(
+                "- Mid-block framing rule (obligatorio): tratar el bloque como ACTUALMENTE EN CURSO; no decir ni insinuar que el bloque/seccion se esta cerrando, terminando o por cambiar."
+            )
+            lines.append(
+                "- Mid-block wording preference: usar presente continuo/orientacion de continuidad (por ejemplo: 'seguimos en...', 'estamos en...', 'aca en...')."
             )
         else:
             lines.append(

@@ -29,6 +29,7 @@ Regla anti-repeticion:
 
 Integracion de bloque (si INPUT lo pide):
 - Si INPUT indica mencionar bloque/seccion, sumarlo como una referencia breve y natural dentro del relato/pase, sin convertirlo en anuncio aparte ni romper el arco.
+- Si INPUT indica mention_intent=mid, enmarcar ese bloque como contexto presente (en curso ahora), sin sugerir que el bloque esta terminando o por cerrarse.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Hay una historia corta detras de este tema que cambia como se escucha hoy..."

@@ -25,6 +25,7 @@ Regla anti-repeticion:
 
 Integracion de bloque (si INPUT lo pide):
 - Si INPUT indica mencionar bloque/seccion, integrarlo en una sola clausula natural dentro del pase (no como anuncio separado) y sin romper el flujo del puente.
+- Si INPUT indica mention_intent=mid, nombrar el bloque como algo que esta ocurriendo ahora (en curso), no como cierre de bloque ni como anticipo de cambio de seccion.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):
 - "Quedo una tension muy limpia en ese cierre, y lo que viene sostiene ese pulso."
