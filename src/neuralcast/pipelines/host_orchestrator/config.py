@@ -295,6 +295,7 @@ HOOK_FREE_OPEN_PROB_BY_ARCHETYPE: Dict[Archetype, float] = {
 
 NEWS_TOPICS: Tuple[str, ...] = (
     "Tech/AI",
+    "Science",
     "Absurd/odd",
     "Argentina (politics/general)",
     "Switzerland (general)",
