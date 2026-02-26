@@ -15,18 +15,12 @@ from .config import (
     DEFAULT_MIN_OPEN_SLOTS,
     DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
     LOGGER,
-    UNSCHEDULED_WINDOW_END_MINUTE,
-    UNSCHEDULED_WINDOW_START_MINUTE,
-    UNSCHEDULED_WINDOW_TOTAL_MINUTES,
 )
 from .models import ScheduleValidationError, StationPlaylist, WeeklySchedulePlan
 from .template import (
-    build_deterministic_daily_template,
     build_duration_partition,
     build_plan_hash,
-    choose_open_block_indices,
     format_hhmm,
-    overlaps_unscheduled_window,
     validate_daily_template,
     expand_daily_template_to_week,
 )
@@ -178,6 +172,106 @@ def _build_random_duration_partition(
     )
 
 
+def _choose_open_indices_anywhere(
+    *,
+    block_minutes: Sequence[int],
+    open_ratio_min: float,
+    open_ratio_max: float,
+    min_open_slots: int,
+    max_open_slots: int,
+    rng: random.Random,
+) -> List[int]:
+    count = len(block_minutes)
+    if count == 0:
+        return []
+
+    total_minutes = sum(block_minutes)
+    min_open_minutes = math.ceil(open_ratio_min * total_minutes)
+    max_open_minutes = math.floor(open_ratio_max * total_minutes)
+    if max_open_minutes <= 0:
+        return []
+
+    slot_min = max(0, int(min_open_slots))
+    slot_max = min(int(max_open_slots), count - 1)  # keep at least one playlist block
+    if slot_min > slot_max:
+        raise ScheduleValidationError(
+            f"No feasible open-slot count in bounds [{min_open_slots}, {max_open_slots}] "
+            f"for {count} blocks (must keep at least one playlist block)."
+        )
+
+    target_open_minutes = ((open_ratio_min + open_ratio_max) / 2.0) * total_minutes
+    target_open_slots = (slot_min + slot_max) / 2.0
+
+    def score_indices(indices: set[int]) -> Tuple[float, float, int]:
+        open_minutes = sum(block_minutes[index] for index in indices)
+        transitions = 0
+        prev_open = False
+        for idx in range(count):
+            current_open = idx in indices
+            if idx > 0 and current_open != prev_open:
+                transitions += 1
+            prev_open = current_open
+        return (
+            abs(open_minutes - target_open_minutes),
+            abs(len(indices) - target_open_slots),
+            -transitions,
+        )
+
+    if count <= 18:
+        best_score: Optional[Tuple[float, float, int]] = None
+        best_indices: Optional[List[int]] = None
+        for mask in range(1 << count):
+            open_count = mask.bit_count()
+            if open_count < slot_min or open_count > slot_max:
+                continue
+            if open_count == count:
+                continue
+
+            open_minutes = 0
+            for idx, duration in enumerate(block_minutes):
+                if mask & (1 << idx):
+                    open_minutes += duration
+            if open_minutes < min_open_minutes or open_minutes > max_open_minutes:
+                continue
+
+            indices_set = {idx for idx in range(count) if mask & (1 << idx)}
+            current_score = score_indices(indices_set)
+            if best_score is None or current_score < best_score:
+                best_score = current_score
+                best_indices = sorted(indices_set)
+
+        if best_indices is None:
+            raise ScheduleValidationError(
+                "Unable to place open slots within ratio/count constraints across the day."
+            )
+        return best_indices
+
+    best_score = None
+    best_indices = None
+    attempts = 4000
+    for _ in range(attempts):
+        open_count = rng.randint(slot_min, slot_max)
+        if open_count <= 0:
+            indices_set: set[int] = set()
+        else:
+            indices_set = set(rng.sample(range(count), k=open_count))
+
+        open_minutes = sum(block_minutes[index] for index in indices_set)
+        if open_minutes < min_open_minutes or open_minutes > max_open_minutes:
+            continue
+
+        current_score = score_indices(indices_set)
+        if best_score is None or current_score < best_score:
+            best_score = current_score
+            best_indices = sorted(indices_set)
+
+    if best_indices is None:
+        raise ScheduleValidationError(
+            "Unable to place open slots within ratio/count constraints across the day."
+        )
+    return best_indices
+
+
 def _build_randomized_scaffold(
     *,
     open_ratio_min: float,
@@ -188,92 +282,29 @@ def _build_randomized_scaffold(
     max_block_minutes: int,
     rng: random.Random,
 ) -> List[Dict[str, object]]:
-    day_total_minutes = 24 * 60
-    min_open_minutes = math.ceil(open_ratio_min * day_total_minutes)
-    max_open_minutes = math.floor(open_ratio_max * day_total_minutes)
-
-    if max_open_minutes < UNSCHEDULED_WINDOW_TOTAL_MINUTES:
-        raise ScheduleValidationError(
-            "open_ratio_max is too low for fixed unscheduled window 22:00-06:00 "
-            f"(requires at least {UNSCHEDULED_WINDOW_TOTAL_MINUTES / day_total_minutes:.3f})."
-        )
-
-    block_durations: List[int] = []
-    segment_totals = (
-        UNSCHEDULED_WINDOW_END_MINUTE,  # 00:00-06:00
-        UNSCHEDULED_WINDOW_START_MINUTE - UNSCHEDULED_WINDOW_END_MINUTE,  # 06:00-22:00
-        (24 * 60) - UNSCHEDULED_WINDOW_START_MINUTE,  # 22:00-24:00
+    block_durations = _build_random_duration_partition(
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+        total_minutes=24 * 60,
+        rng=rng,
     )
-    for segment_total in segment_totals:
-        block_durations.extend(
-            _build_random_duration_partition(
-                min_block_minutes=min_block_minutes,
-                max_block_minutes=max_block_minutes,
-                total_minutes=segment_total,
-                rng=rng,
-            )
+
+    open_indices = set(
+        _choose_open_indices_anywhere(
+            block_minutes=block_durations,
+            open_ratio_min=open_ratio_min,
+            open_ratio_max=open_ratio_max,
+            min_open_slots=min_open_slots,
+            max_open_slots=max_open_slots,
+            rng=rng,
         )
+    )
 
-    forced_open_indices: set[int] = set()
-    daytime_indices: List[int] = []
-    cursor = 0
-    for index, duration in enumerate(block_durations):
-        block_end = cursor + duration
-        if overlaps_unscheduled_window(cursor, block_end):
-            forced_open_indices.add(index)
-        else:
-            daytime_indices.append(index)
-        cursor = block_end
-
-    forced_open_minutes = sum(block_durations[index] for index in forced_open_indices)
-    additional_open_min = max(0, min_open_minutes - forced_open_minutes)
-    additional_open_max = max_open_minutes - forced_open_minutes
-    if additional_open_max < 0:
-        raise ScheduleValidationError(
-            "open_ratio_max is too low after applying fixed unscheduled window."
-        )
-
-    optional_open_indices: set[int] = set()
-    daytime_block_minutes = [block_durations[index] for index in daytime_indices]
-    total_daytime_minutes = sum(daytime_block_minutes)
-    if additional_open_min > total_daytime_minutes:
-        raise ScheduleValidationError(
-            "open_ratio_min is too high after applying fixed unscheduled window 22:00-06:00."
-        )
-
-    if total_daytime_minutes > 0 and additional_open_max > 0:
-        day_ratio_min = additional_open_min / total_daytime_minutes
-        day_ratio_max = min(1.0, additional_open_max / total_daytime_minutes)
-        if day_ratio_min > day_ratio_max:
-            raise ScheduleValidationError(
-                "No feasible daytime open-slot ratio after applying 22:00-06:00 unscheduled window."
-            )
-        chosen_daytime_indices = choose_open_block_indices(
-            block_minutes=daytime_block_minutes,
-            open_ratio_min=day_ratio_min,
-            open_ratio_max=day_ratio_max,
-        )
-        optional_open_indices = {
-            daytime_indices[relative_index] for relative_index in chosen_daytime_indices
-        }
-
-    open_indices = forced_open_indices | optional_open_indices
-    open_slot_count = len(open_indices)
-    if open_slot_count < min_open_slots or open_slot_count > max_open_slots:
-        raise ScheduleValidationError(
-            f"Open-slot count {open_slot_count} outside bounds "
-            f"[{min_open_slots}, {max_open_slots}]."
-        )
-
-    open_labels_day = [
+    open_labels = [
         ("Rotacion abierta", ["mix variado"]),
         ("Ventana abierta", ["rotacion libre"]),
         ("Cruce libre", ["mix variado"]),
-    ]
-    open_labels_night = [
-        ("Rotacion nocturna", ["mix variado"]),
-        ("Noche abierta", ["rotacion nocturna"]),
-        ("Tramo nocturno libre", ["mix variado"]),
+        ("Tramo abierto", ["rotacion libre"]),
     ]
 
     raw_blocks: List[Dict[str, object]] = []
@@ -284,13 +315,7 @@ def _build_randomized_scaffold(
         end_time = format_hhmm(end_minute)
 
         if block_index in open_indices:
-            label_pool = (
-                open_labels_night
-                if end_minute <= UNSCHEDULED_WINDOW_END_MINUTE
-                or start_minute >= UNSCHEDULED_WINDOW_START_MINUTE
-                else open_labels_day
-            )
-            section_label, genre_labels = rng.choice(label_pool)
+            section_label, genre_labels = rng.choice(open_labels)
             raw_blocks.append(
                 {
                     "start_time_local": start_time,
@@ -500,6 +525,7 @@ def _assign_playlists_to_scaffold(
     playlists: Sequence[StationPlaylist],
     raw_blocks: List[Dict[str, object]],
     rng: random.Random,
+    allow_combo_presets: bool = True,
 ) -> None:
     enabled_playlists = [playlist for playlist in playlists if playlist.is_enabled]
     if not enabled_playlists:
@@ -512,22 +538,36 @@ def _assign_playlists_to_scaffold(
     ]
     combo_candidates = (
         _neuralforge_combo_presets(playlist_by_name_key)
-        if station_slug.strip().lower() == "neuralforge"
+        if allow_combo_presets and station_slug.strip().lower() == "neuralforge"
         else []
     )
 
+    playlist_blocks_with_durations: List[Tuple[int, int]] = [
+        (index, int(block.get("_duration_minutes") or 0))
+        for index, block in enumerate(raw_blocks)
+        if str(block.get("mode")) == "playlist"
+    ]
+    playlist_block_count = len(playlist_blocks_with_durations)
+    if playlist_block_count <= 0:
+        for block in raw_blocks:
+            block.pop("_duration_minutes", None)
+        raise ScheduleValidationError(
+            "Template cannot be fully open; at least one playlist block is required."
+        )
+    if playlist_block_count > len(enabled_playlists):
+        raise ScheduleValidationError(
+            f"Template contains {playlist_block_count} playlist blocks but only "
+            f"{len(enabled_playlists)} enabled playlists are available for no-repeat scheduling."
+        )
+
     forced_combo_block_indices: set[int] = set()
-    if combo_candidates:
-        playlist_blocks_with_durations: List[Tuple[int, int]] = [
-            (index, int(block.get("_duration_minutes") or 0))
-            for index, block in enumerate(raw_blocks)
-            if str(block.get("mode")) == "playlist"
-        ]
+    combo_slack = len(enabled_playlists) - playlist_block_count
+    if combo_candidates and combo_slack > 0:
         long_enough = [item for item in playlist_blocks_with_durations if item[1] >= 90]
         if long_enough:
             long_enough.sort(key=lambda item: (item[1], -item[0]), reverse=True)
             forced_combo_block_indices.add(long_enough[0][0])
-            if len(long_enough) >= 4 and rng.random() < 0.35:
+            if combo_slack > 1 and len(long_enough) >= 4 and rng.random() < 0.35:
                 for index, _duration in long_enough[1:]:
                     if abs(index - next(iter(forced_combo_block_indices))) > 1:
                         forced_combo_block_indices.add(index)
@@ -535,16 +575,26 @@ def _assign_playlists_to_scaffold(
 
     usage_counts: Counter[str] = Counter()
     usage_minutes: Counter[str] = Counter()
+    used_playlist_ids: set[str] = set()
     previous_playlist_ids: set[str] = set()
     previous_signatures: List[Tuple[str, ...]] = []
+    assigned_playlist_blocks = 0
 
     for block_index, block in enumerate(raw_blocks):
         if str(block.get("mode")) != "playlist":
             continue
 
         duration_minutes = int(block.get("_duration_minutes") or 0)
-        force_combo = block_index in forced_combo_block_indices
-        allow_combos = bool(combo_candidates) and (
+        remaining_blocks_including_current = playlist_block_count - assigned_playlist_blocks
+        remaining_unused_playlists = len(enabled_playlists) - len(used_playlist_ids)
+        if remaining_blocks_including_current > remaining_unused_playlists:
+            raise ScheduleValidationError(
+                "Insufficient unused playlists remaining to avoid repeats in playlist blocks."
+            )
+
+        extra_playlist_budget = remaining_unused_playlists - remaining_blocks_including_current
+        force_combo = block_index in forced_combo_block_indices and extra_playlist_budget > 0
+        allow_combos = bool(combo_candidates) and extra_playlist_budget > 0 and (
             force_combo or (rng.random() < _combo_probability_for_duration(duration_minutes))
         )
         candidate_pool = list(solo_candidates)
@@ -557,18 +607,43 @@ def _assign_playlists_to_scaffold(
         if not candidate_pool:
             raise ScheduleValidationError("No playlist assignment candidates available.")
 
-        no_overlap_pool = [
+        candidate_pool = [
+            candidate
+            for candidate in candidate_pool
+            if not (set(candidate.playlist_ids) & used_playlist_ids)
+        ]
+        if not candidate_pool:
+            raise ScheduleValidationError(
+                "No valid playlist candidates remain without reusing a playlist."
+            )
+
+        no_adjacent_overlap_pool = [
             candidate
             for candidate in candidate_pool
             if not (set(candidate.playlist_ids) & previous_playlist_ids)
         ]
-        if no_overlap_pool:
-            candidate_pool = no_overlap_pool
+        if no_adjacent_overlap_pool:
+            candidate_pool = no_adjacent_overlap_pool
 
         if force_combo:
             combo_only_pool = [candidate for candidate in candidate_pool if candidate.kind == "combo"]
             if combo_only_pool:
                 candidate_pool = combo_only_pool
+
+        # Choosing a combo spends >1 unique playlist. Keep enough unused playlists
+        # available so every remaining playlist block can still get a unique assignment.
+        remaining_future_blocks = remaining_blocks_including_current - 1
+        feasible_pool = [
+            candidate
+            for candidate in candidate_pool
+            if (remaining_unused_playlists - len(candidate.playlist_ids)) >= remaining_future_blocks
+        ]
+        if feasible_pool:
+            candidate_pool = feasible_pool
+        else:
+            raise ScheduleValidationError(
+                "No feasible candidates remain while preserving no-repeat scheduling across remaining blocks."
+            )
 
         weights = [
             _candidate_selection_weight(
@@ -598,6 +673,8 @@ def _assign_playlists_to_scaffold(
 
         previous_playlist_ids = set(chosen.playlist_ids)
         previous_signatures.append(tuple(chosen.playlist_ids))
+        used_playlist_ids.update(chosen.playlist_ids)
+        assigned_playlist_blocks += 1
         for playlist_id in chosen.playlist_ids:
             usage_counts[playlist_id] += 1
             usage_minutes[playlist_id] += duration_minutes
@@ -667,6 +744,7 @@ def build_weekly_plan_with_code(
                 open_ratio_max=open_ratio_max,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
+                enforce_unscheduled_window=False,
             )
             expanded = expand_daily_template_to_week(daily_template, week_start)
             plan_hash = build_plan_hash(
@@ -682,7 +760,8 @@ def build_weekly_plan_with_code(
             )
             rationale = (
                 "Plan semanal generado por codigo (sin LLM), con bloques variables, "
-                "ventana nocturna abierta fija y seleccion pseudoaleatoria estable por semana."
+                "slots abiertos distribuidos a lo largo del dia y seleccion pseudoaleatoria "
+                "estable por semana, sin repetir playlists en bloques programados."
                 f"{combo_note}"
             )
             return WeeklySchedulePlan(
@@ -708,48 +787,78 @@ def build_weekly_plan_with_code(
             )
 
     LOGGER.warning(
-        "[code] Falling back to deterministic template after repeated failures: %s",
+        "[code] Retrying with fallback mode (combos disabled) after repeated failures: %s",
         last_error,
     )
-    deterministic_template = build_deterministic_daily_template(
-        playlist_by_id=playlist_by_id,
-        open_ratio_min=open_ratio_min,
-        open_ratio_max=open_ratio_max,
-        min_block_minutes=min_block_minutes,
-        max_block_minutes=max_block_minutes,
-    )
-    deterministic_open_slots = sum(
-        1 for block in deterministic_template if block.mode == "open"
-    )
-    if deterministic_open_slots < min_open_slots or deterministic_open_slots > max_open_slots:
-        raise ScheduleValidationError(
-            "Deterministic fallback template violates open-slot count bounds "
-            f"[{min_open_slots}, {max_open_slots}] (got {deterministic_open_slots})."
-        )
-    expanded = expand_daily_template_to_week(deterministic_template, week_start)
-    plan_hash = build_plan_hash(
-        station=station_slug,
-        timezone_name=timezone_name,
-        week_start=week_start,
-        daily_template=deterministic_template,
-    )
-    rationale = "Plan semanal deterministico de respaldo (sin LLM)."
-    if last_error is not None:
-        rationale = f"{rationale} Error previo: {last_error}"
+    fallback_error: Optional[Exception] = last_error
+    for attempt in range(1, 25):
+        rng = random.Random(seed + 100_000 + (attempt * 3137))
+        try:
+            raw_blocks = _build_randomized_scaffold(
+                open_ratio_min=open_ratio_min,
+                open_ratio_max=open_ratio_max,
+                min_open_slots=min_open_slots,
+                max_open_slots=max_open_slots,
+                min_block_minutes=min_block_minutes,
+                max_block_minutes=max_block_minutes,
+                rng=rng,
+            )
+            _assign_playlists_to_scaffold(
+                station_slug=station_slug,
+                playlists=enabled_playlists,
+                raw_blocks=raw_blocks,
+                rng=rng,
+                allow_combo_presets=False,
+            )
+            daily_template = validate_daily_template(
+                raw_blocks=raw_blocks,
+                playlist_by_id=playlist_by_id,
+                open_ratio_min=open_ratio_min,
+                open_ratio_max=open_ratio_max,
+                min_block_minutes=min_block_minutes,
+                max_block_minutes=max_block_minutes,
+                enforce_unscheduled_window=False,
+            )
+            expanded = expand_daily_template_to_week(daily_template, week_start)
+            plan_hash = build_plan_hash(
+                station=station_slug,
+                timezone_name=timezone_name,
+                week_start=week_start,
+                daily_template=daily_template,
+            )
+            rationale = (
+                "Plan semanal generado por codigo (sin LLM) en modo de respaldo, "
+                "sin combinaciones curadas, con slots abiertos distribuidos durante el dia "
+                "y sin repetir playlists en bloques programados."
+            )
+            if fallback_error is not None:
+                rationale = f"{rationale} Error previo: {fallback_error}"
 
-    return WeeklySchedulePlan(
-        station=station_slug,
-        station_name=station_name,
-        timezone=timezone_name,
-        week_start_local_date=week_start.isoformat(),
-        week_end_local_date=week_end.isoformat(),
-        generated_at_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
-        open_ratio_min=open_ratio_min,
-        open_ratio_max=open_ratio_max,
-        daily_template=deterministic_template,
-        expanded_blocks=expanded,
-        rationale=rationale,
-        plan_hash=plan_hash,
+            return WeeklySchedulePlan(
+                station=station_slug,
+                station_name=station_name,
+                timezone=timezone_name,
+                week_start_local_date=week_start.isoformat(),
+                week_end_local_date=week_end.isoformat(),
+                generated_at_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+                open_ratio_min=open_ratio_min,
+                open_ratio_max=open_ratio_max,
+                daily_template=daily_template,
+                expanded_blocks=expanded,
+                rationale=rationale,
+                plan_hash=plan_hash,
+            )
+        except Exception as exc:  # noqa: BLE001
+            fallback_error = exc
+            LOGGER.warning(
+                "[code] Fallback generation attempt failed (%s/24): %s",
+                attempt,
+                exc,
+            )
+
+    raise RuntimeError(
+        "Unable to generate weekly schedule with current constraints "
+        f"(no-repeat playlist blocks, open slot bounds, duration bounds): {fallback_error}"
     )
 
 

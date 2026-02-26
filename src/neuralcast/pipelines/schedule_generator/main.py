@@ -9,6 +9,8 @@ import os
 from typing import Mapping
 from zoneinfo import ZoneInfo
 
+from neuralcast.config import PROJECT_ROOT
+
 from .client import (
     AzuraCastClient,
     apply_weekly_schedule,
@@ -70,10 +72,18 @@ from .template import (
 )
 
 
+VPS_SCHEDULER_PROJECT_ROOT = "/root/radio_host_orchestrator"
+
+
 def run(args: argparse.Namespace) -> None:
     configure_logging()
 
     load_dotenv()
+    base_url = str(args.base_url or os.getenv("AZURACAST_BASE_URL") or "").strip()
+    if not base_url:
+        raise RuntimeError(
+            "AZURACAST_BASE_URL is not set (and --base-url was not provided)."
+        )
     api_key = os.getenv("AZURACAST_API_KEY")
     if not api_key:
         raise RuntimeError("AZURACAST_API_KEY is not set in the environment.")
@@ -93,8 +103,17 @@ def run(args: argparse.Namespace) -> None:
     if args.min_block_minutes > args.max_block_minutes:
         raise ValueError("min-block-minutes cannot exceed max-block-minutes.")
 
+    if not args.dry_run:
+        current_project_root = str(PROJECT_ROOT.resolve())
+        if current_project_root != VPS_SCHEDULER_PROJECT_ROOT:
+            raise RuntimeError(
+                "Refusing non-dry-run schedule generation outside the VPS deployment root. "
+                f"Current PROJECT_ROOT={current_project_root!r}; expected "
+                f"{VPS_SCHEDULER_PROJECT_ROOT!r}. Use --dry-run locally, or run on the VPS."
+            )
+
     client = AzuraCastClient(
-        base_url=args.base_url.rstrip("/"),
+        base_url=base_url.rstrip("/"),
         api_key=api_key,
         verify_tls=args.verify_tls,
     )
@@ -194,8 +213,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--base-url",
-        default=os.getenv("AZURACAST_BASE_URL", "https://192.168.1.226"),
-        help="Base URL for AzuraCast instance (default: %(default)s).",
+        help=(
+            "Base URL for AzuraCast instance. If omitted, reads "
+            "AZURACAST_BASE_URL from environment/.env (required)."
+        ),
     )
     parser.add_argument(
         "-s",

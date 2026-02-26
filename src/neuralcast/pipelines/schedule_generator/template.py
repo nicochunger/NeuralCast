@@ -93,6 +93,7 @@ def validate_daily_template(
     min_block_minutes: int,
     max_block_minutes: int,
     required_time_ranges: Optional[Sequence[Tuple[int, int]]] = None,
+    enforce_unscheduled_window: bool = True,
 ) -> List[DailyTemplateBlock]:
     if not isinstance(raw_blocks, Sequence) or not raw_blocks:
         raise ScheduleValidationError("daily_template must be a non-empty array.")
@@ -127,7 +128,10 @@ def validate_daily_template(
         mode = normalize_mode(entry.get("mode"))
         section_label = str(entry.get("section_label") or "").strip()
         genres = normalize_genre_labels(entry.get("genre_labels"))
-        overlaps_quiet_hours = overlaps_unscheduled_window(start_minute, end_minute)
+        overlaps_quiet_hours = (
+            enforce_unscheduled_window
+            and overlaps_unscheduled_window(start_minute, end_minute)
+        )
 
         playlist_ids: List[str] = []
         playlist_names: List[str] = []
@@ -137,7 +141,7 @@ def validate_daily_template(
             if overlaps_quiet_hours:
                 raise ScheduleValidationError(
                     f"Playlist blocks are not allowed between 22:00 and 06:00 "
-                    f"({start_time}-{end_time}). Use mode='open'."
+                    f"({start_time}-{end_time}). Use mode='open' or disable quiet-hour enforcement."
                 )
             raw_playlist_ids = normalize_string_list(entry.get("playlist_ids"))
             raw_playlist_names = normalize_string_list(entry.get("playlist_names"))
@@ -741,5 +745,4 @@ def summarize_plan(plan: WeeklySchedulePlan) -> None:
             block.section_label,
             ", ".join(block.genre_labels),
         )
-
 
