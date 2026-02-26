@@ -25,7 +25,7 @@ Claves de estilo conversacional:
 - Volver naturalmente al tema siguiente.
 - Si INPUT incluye scripts recientes, evitar repetir frases de apertura; mantener la redaccion fresca.
 - Abrir con lo util ahora (quien toca, cuando, donde) en orden oral simple.
-- Permitir una respiracion oral breve y, si encaja, una muletilla suave ("bueno", "mira", "a ver", "la verdad"), sin sobrecargar.
+- Permitir una respiracion oral breve y, si encaja, una muletilla suave ("bueno", "mira", "a ver"), sin sobrecargar.
 - Si INPUT trae hook seed, usarlo solo como disparador de tono; no como frase fija de apertura.
 
 Entregar:

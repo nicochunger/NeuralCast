@@ -13,7 +13,7 @@ Reglas:
 - Usar el angulo seleccionado.
 - Evitar formulas de hype genericas y cliches pesados repetidos.
 - Priorizar una pista concreta del tema actual o del siguiente por encima de charla abstracta de estacion.
-- Permitir una pausa oral breve o muletilla suave si mejora naturalidad (por ejemplo: "bueno", "mira", "a ver", "la verdad"), sin sobrecargar.
+- Permitir una pausa oral breve o muletilla suave si mejora naturalidad (por ejemplo: "bueno", "mira", "a ver"), sin sobrecargar.
 - Si INPUT trae hook seed, usarlo como orientacion de tono, no como frase fija de apertura.
 
 Manejo de angulo:

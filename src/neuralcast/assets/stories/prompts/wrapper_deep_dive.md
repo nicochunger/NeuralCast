@@ -21,7 +21,7 @@ Ejecucion conversacional:
 - Priorizar 1-2 datos puntuales que cambien la escucha, por encima de cronologia amplia.
 - Si hay pocos datos, dar una lectura interpretativa breve en lugar de rellenar con generalidades.
 - Incluir al menos una pausa oral visible (por ejemplo: "..." o un corte breve con punto aparte).
-- Muletillas/fillers opcionales y sutiles: usar 0-2 si salen naturales, nunca por cuota fija (por ejemplo: "bueno", "mira", "la verdad", "viste", "no se", "che", "ponele", "te juro").
+- Muletillas/fillers opcionales y sutiles: usar 0-2 si salen naturales, nunca por cuota fija (por ejemplo: "bueno", "mira", "viste", "no se", "che", "ponele", "te juro").
 - Si INPUT trae hook seed, tomarlo como disparador de enfoque; no copiarlo literal ni obligatoriamente al inicio.
 
 Regla anti-repeticion:

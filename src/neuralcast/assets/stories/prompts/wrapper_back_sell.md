@@ -13,7 +13,7 @@ Como suena una buena salida:
 - Forma sugerida: detalle sonoro concreto -> lectura corta -> puente al proximo tema.
 - Dejar respiracion oral natural (pausa breve o muletilla suave) solo si suma y no fuerza el texto.
 - Si INPUT trae hook seed, tomarlo como direccion flexible; no copiarlo literal ni como arranque obligatorio.
-- Muletillas sugeridas, opcionales y sutiles: "bueno", "mira", "la verdad", "viste", "nada".
+- Muletillas sugeridas, opcionales y sutiles: "bueno", "mira", "viste", "nada".
 
 Modo segun angulo:
 - Minimalist: una observacion clara y pase limpio.

@@ -33,7 +33,7 @@ Claves de estilo conversacional:
 - Volver a la musica con puente calido y fluido.
 - Si INPUT incluye scripts recientes, evitar repetir frases de apertura; variar la forma de la frase naturalmente.
 - Sonar como curaduria de relevancia, no lectura de boletin.
-- Mantener respiracion oral: incluir pausas breves y, si encaja, muletillas suaves sin sobrecargar (por ejemplo: "bueno", "mira", "la verdad", "nada").
+- Mantener respiracion oral: incluir pausas breves y, si encaja, muletillas suaves sin sobrecargar (por ejemplo: "bueno", "mira", "nada").
 - Si INPUT trae hook seed, usarlo como orientacion de entrada y no como texto fijo obligatorio.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):
