@@ -140,6 +140,7 @@ def format_shared_input(
         lines.append("- Guiones recientes del host generados (mas reciente primero): ninguno")
 
     if schedule_context is not None:
+        spoken_section_label = _spoken_section_label(schedule_context)
         next_section_line = (
             "  - Proxima seccion: oculta para mencion de mitad de bloque (evitar encuadre de cierre)."
             if schedule_context.mention_intent == "mid"
@@ -149,7 +150,7 @@ def format_shared_input(
             [
                 "- Bloque de programacion activo:",
                 "  - Nota de timing: este contexto de bloque corresponde al momento en que saldra este corte del host (inmediatamente antes del proximo tema).",
-                f"  - Seccion: {schedule_context.section_label}",
+                f"  - Seccion: {spoken_section_label}",
                 f"  - Generos: {', '.join(schedule_context.genre_labels)}",
                 f"  - Fase: {schedule_context.phase} ({int(schedule_context.progress_ratio * 100)}%)",
                 next_section_line,
@@ -157,7 +158,10 @@ def format_shared_input(
         )
         if schedule_context.mode == "open":
             lines.append(
-                "  - Modo del bloque: rotacion abierta ponderada (AzuraCast elige segun pesos de playlists)."
+                "  - Modo del bloque: bloque libre / sin tematica (AzuraCast baraja canciones del catalogo completo segun pesos)."
+            )
+            lines.append(
+                "  - Si mencionas este bloque open, sumar una clausula corta aclarando que puede sonar cualquier genero o cruce del catalogo."
             )
         elif schedule_context.playlist_name:
             lines.append(f"  - Modo del bloque: playlist fija ({schedule_context.playlist_name}).")
@@ -430,6 +434,18 @@ def _script_has_genre_reference(script_text: str, schedule_context: ScheduleCont
     if not script_norm:
         return False
 
+    if schedule_context.mode == "open":
+        for marker in (
+            "bloque libre",
+            "sin tematica",
+            "mezcla libre",
+            "cualquier genero",
+            "catalogo",
+            "generos cruzados",
+        ):
+            if marker in script_norm:
+                return True
+
     for genre in schedule_context.genre_labels:
         genre_norm = _normalize_text_for_contains(genre)
         if genre_norm and genre_norm in script_norm:
@@ -437,13 +453,45 @@ def _script_has_genre_reference(script_text: str, schedule_context: ScheduleCont
     return False
 
 
+def _spoken_section_label(schedule_context: ScheduleContext) -> str:
+    if schedule_context.mode == "open":
+        return "bloque libre"
+
+    section = schedule_context.section_label.strip()
+    return section or "este bloque"
+
+
 def _build_mid_block_clause(
     schedule_context: ScheduleContext,
     archetype: Archetype,
     rng: random.Random,
 ) -> str:
-    section = schedule_context.section_label.strip() or "este bloque"
+    section = _spoken_section_label(schedule_context)
     genres = ", ".join([item for item in schedule_context.genre_labels if item][:2]).strip()
+
+    if schedule_context.mode == "open":
+        if archetype == Archetype.ULTRA_MINIMAL:
+            options = [
+                "seguimos en bloque libre, sin tematica",
+                "aca en bloque libre, mezcla libre",
+                "en bloque libre, sin tematica",
+            ]
+        else:
+            options = [
+                "seguimos en bloque libre, sin tematica, con mezcla de todo el catalogo",
+                "aca en bloque libre: pueden caer generos cruzados de todo el catalogo",
+                "seguimos en mezcla libre, sin tematica fija, con catalogo barajado",
+            ]
+        chosen = rng.choice(options)
+        log_schedule_debug(
+            "schedule.mid_block_clause.choice",
+            archetype=archetype.value,
+            section_label=schedule_context.section_label,
+            genres=list(schedule_context.genre_labels),
+            options=options,
+            chosen_clause=chosen,
+        )
+        return chosen
 
     if archetype == Archetype.ULTRA_MINIMAL:
         options = [
@@ -585,14 +633,41 @@ def _build_schedule_genre_clause(
     archetype: Archetype,
     rng: random.Random,
 ) -> str:
-    section = schedule_context.section_label.strip() or "este bloque"
+    section = _spoken_section_label(schedule_context)
     genres = [str(item).strip() for item in schedule_context.genre_labels if str(item).strip()]
     genres_text = ", ".join(genres[:2]).strip()
-    if not genres_text:
+    if not genres_text and schedule_context.mode != "open":
         return ""
 
     mention_intent = schedule_context.mention_intent or "none"
-    if mention_intent == "start":
+    if schedule_context.mode == "open":
+        if mention_intent == "start":
+            if archetype == Archetype.ULTRA_MINIMAL:
+                options = [
+                    "arranca bloque libre, sin tematica",
+                    "arranca mezcla libre, sin tematica",
+                ]
+            else:
+                options = [
+                    "arranca bloque libre, sin tematica: puede sonar cualquier genero del catalogo",
+                    "arranca mezcla libre, con catalogo barajado y cruce de generos",
+                    "arranca bloque libre, sin tematica fija, con todo el catalogo en juego",
+                ]
+        elif mention_intent == "mid":
+            if archetype == Archetype.ULTRA_MINIMAL:
+                options = [
+                    "seguimos en bloque libre, sin tematica",
+                    "aca en bloque libre, mezcla libre",
+                ]
+            else:
+                options = [
+                    "seguimos en bloque libre, sin tematica, pueden caer generos de todo el catalogo",
+                    "aca en mezcla libre, sin tematica fija, con catalogo barajado",
+                    "seguimos en bloque libre: cruce de generos de todo el catalogo",
+                ]
+        else:
+            options = ["en bloque libre, sin tematica"]
+    elif mention_intent == "start":
         if archetype == Archetype.ULTRA_MINIMAL:
             options = [
                 f"arranca {section}, con {genres_text}",

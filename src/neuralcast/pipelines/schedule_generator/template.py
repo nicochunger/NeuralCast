@@ -218,9 +218,9 @@ def validate_daily_template(
             playlist_id = None
             playlist_name = None
             if not section_label:
-                section_label = "Rotacion abierta"
+                section_label = "Bloque libre"
             if not genres:
-                genres = ["mix variado"]
+                genres = ["sin tematica"]
 
         parsed_blocks.append(
             DailyTemplateBlock(
@@ -661,8 +661,8 @@ def build_deterministic_daily_template(
                     "start_time_local": start_time,
                     "end_time_local": end_time,
                     "mode": "open",
-                    "section_label": "Rotacion abierta",
-                    "genre_labels": ["mix variado"],
+                    "section_label": "Bloque libre",
+                    "genre_labels": ["sin tematica"],
                 }
             )
             last_playlist_id = None
@@ -745,4 +745,3 @@ def summarize_plan(plan: WeeklySchedulePlan) -> None:
             block.section_label,
             ", ".join(block.genre_labels),
         )
-

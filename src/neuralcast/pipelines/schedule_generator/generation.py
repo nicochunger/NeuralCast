@@ -301,10 +301,10 @@ def _build_randomized_scaffold(
     )
 
     open_labels = [
-        ("Rotacion abierta", ["mix variado"]),
-        ("Ventana abierta", ["rotacion libre"]),
-        ("Cruce libre", ["mix variado"]),
-        ("Tramo abierto", ["rotacion libre"]),
+        ("Bloque libre", ["sin tematica"]),
+        ("Sin tematica", ["mix variado"]),
+        ("Cruce libre", ["sin tematica"]),
+        ("Mezcla libre", ["catalogo completo"]),
     ]
 
     raw_blocks: List[Dict[str, object]] = []
