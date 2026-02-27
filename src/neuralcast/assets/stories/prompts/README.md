@@ -18,7 +18,6 @@ Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
 - `wrapper_concert_check.md`: wrapper de arquetipo para `concert_check` (incluye placeholder `{concert_countries}`).
 - `wrapper_block_intro.md`: wrapper de arquetipo para `block_intro` (introduccion de inicio de bloque).
 - `wrapper_ultra_minimal.md`: wrapper de arquetipo para pase minimo/fallback.
-- `schedule_user.md`: plantilla legacy de prompt usuario para planificacion semanal; la grilla actual se arma por codigo.
 
 ## Archivos de reparacion
 
