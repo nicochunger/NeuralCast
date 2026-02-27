@@ -20,11 +20,16 @@ Reglas:
 
 Claves de estilo conversacional:
 - Arrancar con transicion suave desde el tema que termino.
+- Seguir este orden narrativo obligatorio:
+  1) Si hay concierto del artista que acaba de sonar, contarlo primero (quien, cuando, donde).
+  2) Presentar explicitamente el proximo tema (artista + titulo).
+  3) Recien despues, si aplica, contar el concierto del artista que viene como continuidad natural de ese anuncio.
+  4) Cerrar con un handoff corto y directo al proximo tema.
 - Mantenerlo practico y cercano a lenguaje radial, no base de datos de agenda.
 - Mencionar solo 1-2 eventos mas fuertes.
-- Volver naturalmente al tema siguiente.
+- Evitar estructura desconectada del tipo "concierto de X" y luego "ahora suena Y" como datos sueltos.
 - Si INPUT incluye scripts recientes, evitar repetir frases de apertura; mantener la redaccion fresca.
-- Abrir con lo util ahora (quien toca, cuando, donde) en orden oral simple.
+- Al mencionar conciertos, abrir con lo util ahora (quien toca, cuando, donde) en orden oral simple.
 - Permitir una respiracion oral breve y, si encaja, una muletilla suave ("bueno", "mira", "a ver"), sin sobrecargar.
 - Si INPUT trae hook seed, usarlo solo como disparador de tono; no como frase fija de apertura.
 
