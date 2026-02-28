@@ -12,6 +12,7 @@ Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
 - `script_style_baseline.md`: linea base global de escritura para guion hablado.
 - `tts_instructions.md`: instrucciones compartidas de entrega TTS para todos los arquetipos.
 - `wrapper_back_sell.md`: wrapper de arquetipo para `back_sell`.
+- `wrapper_up_next_tease.md`: wrapper de arquetipo para `up_next_tease` (back-sell con adelanto de bandas en cola).
 - `wrapper_system_check.md`: wrapper legacy/deprecado (ya no lo usa el runtime actual).
 - `wrapper_deep_dive.md`: wrapper de arquetipo para `deep_dive` (version larga).
 - `wrapper_short_story.md`: wrapper de arquetipo para `short_story`.

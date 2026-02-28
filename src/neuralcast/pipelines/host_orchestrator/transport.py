@@ -216,10 +216,26 @@ def extract_current_listeners(now_playing_payload: Mapping[str, Any]) -> Optiona
 def choose_next_track(
     current: QueueTrack, queue_tracks: Sequence[QueueTrack]
 ) -> Optional[QueueTrack]:
+    upcoming = choose_upcoming_tracks(current, queue_tracks, limit=1)
+    return upcoming[0] if upcoming else None
+
+
+def choose_upcoming_tracks(
+    current: QueueTrack,
+    queue_tracks: Sequence[QueueTrack],
+    limit: int = 4,
+) -> List[QueueTrack]:
+    if limit <= 0:
+        return []
+
+    upcoming: List[QueueTrack] = []
     for candidate in queue_tracks:
-        if not tracks_match(candidate, current):
-            return candidate
-    return None
+        if tracks_match(candidate, current):
+            continue
+        upcoming.append(candidate)
+        if len(upcoming) >= limit:
+            break
+    return upcoming
 
 
 def derive_station_display_name(

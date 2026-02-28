@@ -35,6 +35,7 @@ from .config import (
     WRAPPER_DEEP_DIVE,
     WRAPPER_NEWS,
     WRAPPER_SHORT_STORY,
+    WRAPPER_UP_NEXT_TEASE,
     WRAPPER_ULTRA_MINIMAL,
     load_personality_guide,
     log_schedule_debug,
@@ -62,10 +63,12 @@ from neuralcast.services.openai_client import get_gemini_client
 
 
 def format_shared_input(
+    archetype: Archetype,
     station_name: str,
     personality: StationPersonality,
     current: QueueTrack,
     next_track: QueueTrack,
+    upcoming_tracks: Sequence[QueueTrack],
     current_meta: TrackMetadata,
     next_meta: TrackMetadata,
     angle: Optional[str],
@@ -114,6 +117,39 @@ def format_shared_input(
     ]
     lines.extend(_compose_track("Tema actual", current, current_meta))
     lines.extend(_compose_track("Proximo tema", next_track, next_meta))
+    if archetype == Archetype.UP_NEXT_TEASE:
+        immediate_upcoming = list(upcoming_tracks[:4])
+        if immediate_upcoming:
+            lines.append("- Cola inmediata de temas por sonar (orden de queue):")
+            lines.extend(
+                [
+                    f"  - {index}) {track.artist} — {track.title}"
+                    for index, track in enumerate(immediate_upcoming, start=1)
+                ]
+            )
+            unique_artists: List[str] = []
+            seen_artists: set[str] = set()
+            for track in immediate_upcoming:
+                artist = str(track.artist or "").strip()
+                if not artist:
+                    continue
+                artist_key = artist.lower()
+                if artist_key in seen_artists:
+                    continue
+                seen_artists.add(artist_key)
+                unique_artists.append(artist)
+            if unique_artists:
+                lines.append(
+                    "- Bandas/artistas a mencionar como \"lo que sigue\": "
+                    + ", ".join(unique_artists[:4])
+                )
+            lines.append(
+                "- Regla del arquetipo up_next_tease: mencionar casualmente 2-4 bandas de esta cola e invitar a quedarse en este bloque."
+            )
+        else:
+            lines.append(
+                "- Cola inmediata de temas por sonar: no disponible; no inventar bandas."
+            )
     lines.extend(
         [
             f"- Angulo (sub-perspectiva): {angle or 'ninguno'}",
@@ -244,6 +280,7 @@ def build_prompt(
     personality: StationPersonality,
     current: QueueTrack,
     next_track: QueueTrack,
+    upcoming_tracks: Sequence[QueueTrack],
     current_meta: TrackMetadata,
     next_meta: TrackMetadata,
     angle: Optional[str],
@@ -278,6 +315,7 @@ def build_prompt(
     else:
         wrapper = {
             Archetype.BACK_SELL: WRAPPER_BACK_SELL,
+            Archetype.UP_NEXT_TEASE: WRAPPER_UP_NEXT_TEASE,
             Archetype.DEEP_DIVE: WRAPPER_DEEP_DIVE,
             Archetype.SHORT_STORY: WRAPPER_SHORT_STORY,
             Archetype.BLOCK_INTRO: WRAPPER_BLOCK_INTRO,
@@ -285,10 +323,12 @@ def build_prompt(
         }.get(archetype, WRAPPER_ULTRA_MINIMAL)
 
     shared_input = format_shared_input(
+        archetype=archetype,
         station_name=station_name,
         personality=personality,
         current=current,
         next_track=next_track,
+        upcoming_tracks=upcoming_tracks,
         current_meta=current_meta,
         next_meta=next_meta,
         angle=angle,
@@ -575,6 +615,7 @@ def ensure_mid_block_reference(
 
     if archetype not in {
         Archetype.BACK_SELL,
+        Archetype.UP_NEXT_TEASE,
         Archetype.SHORT_STORY,
         Archetype.DEEP_DIVE,
         Archetype.ULTRA_MINIMAL,
@@ -1114,6 +1155,7 @@ def fallback_to_ultra_minimal(
     personality: StationPersonality,
     current_track: QueueTrack,
     next_track: QueueTrack,
+    upcoming_tracks: Sequence[QueueTrack],
     current_meta: TrackMetadata,
     next_meta: TrackMetadata,
     banned_list: Sequence[str],
@@ -1128,6 +1170,7 @@ def fallback_to_ultra_minimal(
         personality=personality,
         current_track=current_track,
         next_track=next_track,
+        upcoming_tracks=upcoming_tracks,
         current_meta=current_meta,
         next_meta=next_meta,
         angle=None,
@@ -1147,6 +1190,7 @@ def generate_archetype_script(
     personality: StationPersonality,
     current_track: QueueTrack,
     next_track: QueueTrack,
+    upcoming_tracks: Sequence[QueueTrack],
     current_meta: TrackMetadata,
     next_meta: TrackMetadata,
     angle: Optional[str],
@@ -1185,6 +1229,7 @@ def generate_archetype_script(
         "personality": personality,
         "current": current_track,
         "next_track": next_track,
+        "upcoming_tracks": upcoming_tracks,
         "current_meta": current_meta,
         "next_meta": next_meta,
         "angle": angle,
@@ -1224,6 +1269,7 @@ def generate_archetype_script(
             personality=personality,
             current_track=current_track,
             next_track=next_track,
+            upcoming_tracks=upcoming_tracks,
             current_meta=current_meta,
             next_meta=next_meta,
             banned_list=banned_list,

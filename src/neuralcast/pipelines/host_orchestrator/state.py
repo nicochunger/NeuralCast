@@ -427,6 +427,7 @@ def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
     legal: List[Archetype] = []
     for archetype in (
         Archetype.BACK_SELL,
+        Archetype.UP_NEXT_TEASE,
         Archetype.SHORT_STORY,
         Archetype.DEEP_DIVE,
         Archetype.NEWS,
@@ -636,6 +637,7 @@ def apply_success_state_update(
             and archetype_used
             in {
                 Archetype.BACK_SELL,
+                Archetype.UP_NEXT_TEASE,
                 Archetype.SHORT_STORY,
                 Archetype.DEEP_DIVE,
                 Archetype.ULTRA_MINIMAL,

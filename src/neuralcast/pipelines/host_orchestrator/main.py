@@ -77,7 +77,7 @@ from .state import (
 from .transport import (
     AzuraCastClient,
     build_request_command,
-    choose_next_track,
+    choose_upcoming_tracks,
     choose_station_payload,
     derive_station_display_name,
     extract_current_listeners,
@@ -251,12 +251,22 @@ def run(args: argparse.Namespace) -> None:
             lambda: client.get_upcoming_queue(args.station),
         )
         queue_tracks = parse_queue_tracks(queue_payload)
-        next_track = choose_next_track(current_track, queue_tracks)
+        upcoming_tracks = choose_upcoming_tracks(
+            current=current_track,
+            queue_tracks=queue_tracks,
+            limit=4,
+        )
+        next_track = upcoming_tracks[0] if upcoming_tracks else None
         if next_track is None:
             LOGGER.info("[queue] No suitable next track found; skipping cycle.")
             return
 
         LOGGER.info("[queue] Next track: %s - %s", next_track.artist, next_track.title)
+        LOGGER.info(
+            "[queue] Upcoming queue snapshot (%s): %s",
+            len(upcoming_tracks),
+            " | ".join(f"{track.artist} - {track.title}" for track in upcoming_tracks),
+        )
         schedule_reference_ts = now_ts() + max(0, current_remaining or 0)
         log_schedule_debug(
             "schedule.upcoming_break_lookup.start",
@@ -403,6 +413,7 @@ def run(args: argparse.Namespace) -> None:
             personality=station_personality,
             current_track=current_track,
             next_track=next_track,
+            upcoming_tracks=upcoming_tracks,
             current_meta=current_meta,
             next_meta=next_meta,
             angle=angle,

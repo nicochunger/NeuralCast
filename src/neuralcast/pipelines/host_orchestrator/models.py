@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 class Archetype(str, Enum):
     BACK_SELL = "back_sell"
+    UP_NEXT_TEASE = "up_next_tease"
     SHORT_STORY = "short_story"
     DEEP_DIVE = "deep_dive"
     NEWS = "news"

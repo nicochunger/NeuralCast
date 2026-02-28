@@ -183,11 +183,17 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
         "Connector",
         "Fanatic",
     ),
+    Archetype.UP_NEXT_TEASE: (
+        "Back-sell + bloque que sigue",
+        "Nombrar 2-3 bandas y quedarse",
+        "Puente corto con tease casual",
+    ),
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.35,
-    Archetype.SHORT_STORY: 0.25,
+    Archetype.BACK_SELL: 0.25,
+    Archetype.UP_NEXT_TEASE: 0.20,
+    Archetype.SHORT_STORY: 0.20,
     Archetype.DEEP_DIVE: 0.10,
     Archetype.NEWS: 0.15,
     Archetype.CONCERT_CHECK: 0.15,
@@ -195,6 +201,7 @@ WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
 
 COOLDOWN_SECONDS: Dict[Archetype, int] = {
     Archetype.BACK_SELL: 30 * 60,
+    Archetype.UP_NEXT_TEASE: 40 * 60,
     Archetype.SHORT_STORY: 60 * 60,
     Archetype.DEEP_DIVE: 6 * 60 * 60,
     Archetype.NEWS: 120 * 60,
@@ -205,6 +212,7 @@ TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype, Tuple[Tuple[float, float], Tuple[float, float]]
 ] = {
     Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
+    Archetype.UP_NEXT_TEASE: ((0.4, 0.7), (0.7, 0.9)),
     Archetype.SHORT_STORY: ((1.0, 1.5), (0.9, 0.98)),
     Archetype.DEEP_DIVE: ((0.8, 1.2), (0.88, 0.96)),
     # NEWS uses a strict grounded + structured contract; lower variance is more reliable.
@@ -226,6 +234,18 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "lo que quedó en el aire y hacia dónde va",
         "puente por dinámica, no por hype",
         "cierre del tema y giro al próximo",
+    ),
+    Archetype.UP_NEXT_TEASE: (
+        "cierre corto y adelanto de las bandas que siguen",
+        "nombrar rapido el tramo que viene y quedarse ahi",
+        "puente casual con dos o tres nombres del bloque",
+        "mostrar el hilo del bloque sin sonar listado",
+        "encadenar artistas en modo charla y seguir",
+        "pase rapido con efecto de bloque en vivo",
+        "vender continuidad del tramo sin sobreexplicar",
+        "dejar ganas con una mini secuencia de bandas",
+        "pasar de este cierre a lo que sigue con naturalidad",
+        "invitar a quedarse por la seguidilla que viene",
     ),
     Archetype.SHORT_STORY: (
         "detalle chico que cambia la escucha",
@@ -301,6 +321,7 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
 # Probability that a segment receives no hook cue at all, allowing a free opener.
 HOOK_FREE_OPEN_PROB_BY_ARCHETYPE: Dict[Archetype, float] = {
     Archetype.BACK_SELL: 0.40,
+    Archetype.UP_NEXT_TEASE: 0.35,
     Archetype.SHORT_STORY: 0.35,
     Archetype.DEEP_DIVE: 0.15,
     Archetype.NEWS: 0.25,
@@ -363,6 +384,7 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "host_constitution": "host_constitution.md",
     "script_style_baseline": "script_style_baseline.md",
     "wrapper_back_sell": "wrapper_back_sell.md",
+    "wrapper_up_next_tease": "wrapper_up_next_tease.md",
     "wrapper_deep_dive": "wrapper_deep_dive.md",
     "wrapper_short_story": "wrapper_short_story.md",
     "wrapper_news": "wrapper_news.md",
@@ -418,6 +440,7 @@ def get_prompt_template(template_name: str, **template_vars: Any) -> str:
 HOST_CONSTITUTION_TEMPLATE = get_prompt_template("host_constitution")
 SCRIPT_STYLE_BASELINE = get_prompt_template("script_style_baseline")
 WRAPPER_BACK_SELL = get_prompt_template("wrapper_back_sell")
+WRAPPER_UP_NEXT_TEASE = get_prompt_template("wrapper_up_next_tease")
 WRAPPER_DEEP_DIVE = get_prompt_template("wrapper_deep_dive")
 WRAPPER_SHORT_STORY = get_prompt_template("wrapper_short_story")
 WRAPPER_NEWS = get_prompt_template("wrapper_news")
