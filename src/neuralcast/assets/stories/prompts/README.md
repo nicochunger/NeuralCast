@@ -13,7 +13,8 @@ Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
 - `tts_instructions.md`: instrucciones compartidas de entrega TTS para todos los arquetipos.
 - `wrapper_back_sell.md`: wrapper de arquetipo para `back_sell`.
 - `wrapper_system_check.md`: wrapper legacy/deprecado (ya no lo usa el runtime actual).
-- `wrapper_deep_dive.md`: wrapper de arquetipo para `deep_dive`.
+- `wrapper_deep_dive.md`: wrapper de arquetipo para `deep_dive` (version larga).
+- `wrapper_short_story.md`: wrapper de arquetipo para `short_story`.
 - `wrapper_news.md`: wrapper de arquetipo para `news` (incluye placeholders `{story_count}`, `{news_topics}`, ventanas de antiguedad).
 - `wrapper_concert_check.md`: wrapper de arquetipo para `concert_check` (incluye placeholder `{concert_countries}`).
 - `wrapper_block_intro.md`: wrapper de arquetipo para `block_intro` (introduccion de inicio de bloque).
@@ -56,6 +57,7 @@ Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
 - Aleatoriedad por arquetipo: `sample_generation_settings(...)` controla rangos de temperature/top-p.
 - Grounding de busqueda habilitado en `should_enable_search(...)` para:
   - `deep_dive`
+  - `short_story`
   - `news`
   - `concert_check`
 - Si el formato de salida de `news`/`concert_check` es invalido, se ejecuta pase de reparacion con plantilla `repair_*.md`.

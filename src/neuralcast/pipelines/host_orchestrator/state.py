@@ -42,6 +42,20 @@ from .schedule import prune_schedule_block_mentions
 from .utils import iso_utc
 
 
+def normalize_archetype_value(
+    value: Any, *, map_legacy_deep_dive_to_short_story: bool
+) -> Optional[str]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if map_legacy_deep_dive_to_short_story and text == Archetype.DEEP_DIVE.value:
+        text = Archetype.SHORT_STORY.value
+    try:
+        return Archetype(text).value
+    except ValueError:
+        return None
+
+
 def normalize_text_for_key(value: str) -> str:
     normalized = re.sub(r"\s+", " ", (value or "").strip().lower())
     return normalized
@@ -212,17 +226,42 @@ def migrate_state(
         raw.get("last_spoken_expected_end_ts")
     )
 
+    try:
+        raw_state_version = int(raw.get("state_version", 0))
+    except (TypeError, ValueError):
+        raw_state_version = 0
+    map_legacy_deep_dive = raw_state_version < 2
+
     cooldown_raw = raw.get("cooldown_until")
     if isinstance(cooldown_raw, Mapping):
-        for arch in COOLDOWN_SECONDS:
-            value = cooldown_raw.get(arch.value)
+        normalized_cooldowns: Dict[str, float] = {}
+        for key, value in cooldown_raw.items():
+            normalized_arch = normalize_archetype_value(
+                key,
+                map_legacy_deep_dive_to_short_story=map_legacy_deep_dive,
+            )
             parsed = _as_float(value)
+            if normalized_arch is not None and parsed is not None:
+                normalized_cooldowns[normalized_arch] = parsed
+        for arch in COOLDOWN_SECONDS:
+            parsed = normalized_cooldowns.get(arch.value)
             if parsed is not None:
                 state.cooldown_until[arch.value] = parsed
 
     recent_archetypes = raw.get("recent_archetypes")
     if isinstance(recent_archetypes, list):
-        state.recent_archetypes = [str(item) for item in recent_archetypes if item][:1]
+        normalized_recent = [
+            normalized
+            for item in recent_archetypes
+            for normalized in [
+                normalize_archetype_value(
+                    item,
+                    map_legacy_deep_dive_to_short_story=map_legacy_deep_dive,
+                )
+            ]
+            if normalized
+        ]
+        state.recent_archetypes = normalized_recent[:1]
 
     recent_hooks = raw.get("recent_hooks")
     if isinstance(recent_hooks, list):
@@ -234,7 +273,12 @@ def migrate_state(
         for key, value in last_angle.items():
             if not key or not value:
                 continue
-            archetype_key = str(key)
+            archetype_key = normalize_archetype_value(
+                key,
+                map_legacy_deep_dive_to_short_story=map_legacy_deep_dive,
+            )
+            if archetype_key is None:
+                continue
             angle_value = str(value)
             try:
                 arch = Archetype(archetype_key)
@@ -383,6 +427,7 @@ def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
     legal: List[Archetype] = []
     for archetype in (
         Archetype.BACK_SELL,
+        Archetype.SHORT_STORY,
         Archetype.DEEP_DIVE,
         Archetype.NEWS,
         Archetype.CONCERT_CHECK,
@@ -591,6 +636,7 @@ def apply_success_state_update(
             and archetype_used
             in {
                 Archetype.BACK_SELL,
+                Archetype.SHORT_STORY,
                 Archetype.DEEP_DIVE,
                 Archetype.ULTRA_MINIMAL,
             }

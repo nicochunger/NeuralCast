@@ -18,7 +18,7 @@ PROMPTS_DIR = STORY_ROOT / "prompts"
 TTS_INSTRUCTIONS_PATH = PROMPTS_DIR / "tts_instructions.md"
 PERSONALITY_GUIDE_PATH = PROMPTS_DIR / "personality.md"
 
-STATE_VERSION = 1
+STATE_VERSION = 2
 STATE_FILENAME = "ai_host_orchestrator_state.json"
 SCHEDULE_STATE_FILENAME = "ai_schedule_state.json"
 LOCK_FILENAME = "ai_host_orchestrator.lock"
@@ -186,15 +186,17 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.40,
-    Archetype.DEEP_DIVE: 0.30,
+    Archetype.BACK_SELL: 0.35,
+    Archetype.SHORT_STORY: 0.25,
+    Archetype.DEEP_DIVE: 0.10,
     Archetype.NEWS: 0.15,
     Archetype.CONCERT_CHECK: 0.15,
 }
 
 COOLDOWN_SECONDS: Dict[Archetype, int] = {
     Archetype.BACK_SELL: 30 * 60,
-    Archetype.DEEP_DIVE: 60 * 60,
+    Archetype.SHORT_STORY: 60 * 60,
+    Archetype.DEEP_DIVE: 6 * 60 * 60,
     Archetype.NEWS: 120 * 60,
     Archetype.CONCERT_CHECK: 180 * 60,
 }
@@ -203,7 +205,8 @@ TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype, Tuple[Tuple[float, float], Tuple[float, float]]
 ] = {
     Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
-    Archetype.DEEP_DIVE: ((1.0, 1.5), (0.9, 0.98)),
+    Archetype.SHORT_STORY: ((1.0, 1.5), (0.9, 0.98)),
+    Archetype.DEEP_DIVE: ((0.8, 1.2), (0.88, 0.96)),
     # NEWS uses a strict grounded + structured contract; lower variance is more reliable.
     Archetype.NEWS: ((0.45, 0.85), (0.88, 0.95)),
     Archetype.CONCERT_CHECK: ((0.6, 1.0), (0.85, 0.95)),
@@ -224,7 +227,7 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "puente por dinámica, no por hype",
         "cierre del tema y giro al próximo",
     ),
-    Archetype.DEEP_DIVE: (
+    Archetype.SHORT_STORY: (
         "detalle chico que cambia la escucha",
         "historia breve detrás del tema",
         "contexto de época en una punta concreta",
@@ -235,6 +238,18 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "momento de la banda en esa etapa",
         "detalle de producción si aparece",
         "lectura interpretativa breve si faltan datos",
+    ),
+    Archetype.DEEP_DIVE: (
+        "historia larga de banda con arco claro",
+        "origen, quiebre y legado en modo narrativo",
+        "mini documental radial sobre una etapa",
+        "cronologia viva con puntos de giro",
+        "debut, reinvencion y momento bisagra",
+        "historia de album con contexto de epoca",
+        "genealogia de cancion y su evolucion en vivo",
+        "trama de escena y como encaja la banda",
+        "version larga con clima de radio nocturna",
+        "relato profundo con cierre al proximo tema",
     ),
     Archetype.NEWS: (
         "mini paneo útil y volvemos a la música",
@@ -286,7 +301,8 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
 # Probability that a segment receives no hook cue at all, allowing a free opener.
 HOOK_FREE_OPEN_PROB_BY_ARCHETYPE: Dict[Archetype, float] = {
     Archetype.BACK_SELL: 0.40,
-    Archetype.DEEP_DIVE: 0.35,
+    Archetype.SHORT_STORY: 0.35,
+    Archetype.DEEP_DIVE: 0.15,
     Archetype.NEWS: 0.25,
     Archetype.CONCERT_CHECK: 0.25,
     Archetype.BLOCK_INTRO: 0.30,
@@ -348,6 +364,7 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "script_style_baseline": "script_style_baseline.md",
     "wrapper_back_sell": "wrapper_back_sell.md",
     "wrapper_deep_dive": "wrapper_deep_dive.md",
+    "wrapper_short_story": "wrapper_short_story.md",
     "wrapper_news": "wrapper_news.md",
     "wrapper_concert_check": "wrapper_concert_check.md",
     "wrapper_block_intro": "wrapper_block_intro.md",
@@ -402,6 +419,7 @@ HOST_CONSTITUTION_TEMPLATE = get_prompt_template("host_constitution")
 SCRIPT_STYLE_BASELINE = get_prompt_template("script_style_baseline")
 WRAPPER_BACK_SELL = get_prompt_template("wrapper_back_sell")
 WRAPPER_DEEP_DIVE = get_prompt_template("wrapper_deep_dive")
+WRAPPER_SHORT_STORY = get_prompt_template("wrapper_short_story")
 WRAPPER_NEWS = get_prompt_template("wrapper_news")
 WRAPPER_CONCERT_CHECK = get_prompt_template("wrapper_concert_check")
 WRAPPER_BLOCK_INTRO = get_prompt_template("wrapper_block_intro")

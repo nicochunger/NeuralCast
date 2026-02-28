@@ -34,6 +34,7 @@ from .config import (
     WRAPPER_CONCERT_CHECK,
     WRAPPER_DEEP_DIVE,
     WRAPPER_NEWS,
+    WRAPPER_SHORT_STORY,
     WRAPPER_ULTRA_MINIMAL,
     load_personality_guide,
     log_schedule_debug,
@@ -72,7 +73,8 @@ def format_shared_input(
     banned_list: Sequence[str],
     recent_scripts: Sequence[str],
     schedule_context: Optional[ScheduleContext],
-    deep_dive_focus: Optional[str] = None,
+    short_story_focus: Optional[str] = None,
+    deep_dive_lane: Optional[str] = None,
 ) -> str:
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
     hook_text = (hook or "").strip()
@@ -194,19 +196,19 @@ def format_shared_input(
                 "- Guia de mencion de grilla: opcional; evitar repetir menciones de seccion."
             )
 
-    if deep_dive_focus in {"current", "next"}:
+    if short_story_focus in {"current", "next"}:
         focus_label = (
             "actual (tema que acaba de sonar)"
-            if deep_dive_focus == "current"
+            if short_story_focus == "current"
             else "proximo (tema que va a sonar ahora)"
         )
         lines.extend(
             [
-                f"- Modo de foco de profundizacion (obligatorio si el arquetipo es 'deep_dive'): {focus_label}",
-                "- Secuencia oral obligatoria de profundizacion (seguir exactamente este orden narrativo):",
+                f"- Short-story focus mode (obligatorio si el arquetipo es 'short_story'): {focus_label}",
+                "- Short-story secuencia oral obligatoria (seguir exactamente este orden narrativo):",
             ]
         )
-        if deep_dive_focus == "current":
+        if short_story_focus == "current":
             lines.extend(
                 [
                     "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
@@ -223,6 +225,14 @@ def format_shared_input(
                     "  - 4) Cerrar con pase corto y natural hacia ese tema.",
                 ]
             )
+
+    if deep_dive_lane:
+        lines.extend(
+            [
+                f"- Deep-dive lane (obligatorio si el arquetipo es 'deep_dive'): {deep_dive_lane}",
+                "- Deep-dive formato objetivo: relato largo de 3-5 minutos (aprox. 420-700 palabras).",
+            ]
+        )
 
     lines.append("- Idioma de salida del guion hablado: es-AR")
     return "\n".join(lines)
@@ -241,7 +251,8 @@ def build_prompt(
     banned_list: Sequence[str],
     recent_scripts: Sequence[str],
     schedule_context: Optional[ScheduleContext],
-    deep_dive_focus: Optional[str] = None,
+    short_story_focus: Optional[str] = None,
+    deep_dive_lane: Optional[str] = None,
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
@@ -268,6 +279,7 @@ def build_prompt(
         wrapper = {
             Archetype.BACK_SELL: WRAPPER_BACK_SELL,
             Archetype.DEEP_DIVE: WRAPPER_DEEP_DIVE,
+            Archetype.SHORT_STORY: WRAPPER_SHORT_STORY,
             Archetype.BLOCK_INTRO: WRAPPER_BLOCK_INTRO,
             Archetype.ULTRA_MINIMAL: WRAPPER_ULTRA_MINIMAL,
         }.get(archetype, WRAPPER_ULTRA_MINIMAL)
@@ -284,7 +296,8 @@ def build_prompt(
         banned_list=banned_list,
         recent_scripts=recent_scripts,
         schedule_context=schedule_context,
-        deep_dive_focus=deep_dive_focus,
+        short_story_focus=short_story_focus,
+        deep_dive_lane=deep_dive_lane,
     )
 
     return f"{wrapper}\n\n{shared_input}"
@@ -560,7 +573,12 @@ def ensure_mid_block_reference(
         )
         return script_text
 
-    if archetype not in {Archetype.BACK_SELL, Archetype.DEEP_DIVE, Archetype.ULTRA_MINIMAL}:
+    if archetype not in {
+        Archetype.BACK_SELL,
+        Archetype.SHORT_STORY,
+        Archetype.DEEP_DIVE,
+        Archetype.ULTRA_MINIMAL,
+    }:
         log_schedule_debug(
             "schedule.mid_block_reference.skip",
             reason="archetype_not_supported_for_mid_injection",
@@ -1083,7 +1101,12 @@ def pick_news_topics(story_count: int, rng: random.Random) -> List[str]:
 
 
 def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
-    return archetype in {Archetype.NEWS, Archetype.DEEP_DIVE, Archetype.CONCERT_CHECK}
+    return archetype in {
+        Archetype.NEWS,
+        Archetype.SHORT_STORY,
+        Archetype.DEEP_DIVE,
+        Archetype.CONCERT_CHECK,
+    }
 
 
 def fallback_to_ultra_minimal(
@@ -1141,10 +1164,22 @@ def generate_archetype_script(
 
     temperature, top_p = sample_generation_settings(archetype, rng)
     system_prompt = build_system_prompt(station_name, personality)
-    deep_dive_focus: Optional[str] = None
+    short_story_focus: Optional[str] = None
+    deep_dive_lane: Optional[str] = None
+    if archetype == Archetype.SHORT_STORY:
+        short_story_focus = "current" if rng.random() < 0.5 else "next"
+        LOGGER.info("[short_story] Focus mode selected: %s", short_story_focus)
     if archetype == Archetype.DEEP_DIVE:
-        deep_dive_focus = "current" if rng.random() < 0.5 else "next"
-        LOGGER.info("[deep_dive] Focus mode selected: %s", deep_dive_focus)
+        deep_dive_lane = rng.choice(
+            [
+                "historia de la banda",
+                "era y contexto",
+                "historia de album",
+                "genealogia de cancion",
+                "mitologia en vivo",
+            ]
+        )
+        LOGGER.info("[deep_dive] Story lane selected: %s", deep_dive_lane)
     prompt_kwargs = {
         "station_name": station_name,
         "personality": personality,
@@ -1157,7 +1192,8 @@ def generate_archetype_script(
         "banned_list": banned_list,
         "recent_scripts": state.recent_scripts,
         "schedule_context": schedule_context,
-        "deep_dive_focus": deep_dive_focus,
+        "short_story_focus": short_story_focus,
+        "deep_dive_lane": deep_dive_lane,
     }
 
     def generate_with_retries(

@@ -48,6 +48,28 @@ class OrchestratorHelpersTest(unittest.TestCase):
         self.assertEqual(state.songs_until_next_speak, 5)
         self.assertGreater(state.cooldown_until["back_sell"], ts)
 
+    def test_migrate_state_legacy_and_current_deep_dive_keys(self) -> None:
+        ts = time.time()
+        rng_seed = __import__("random").Random(123)
+
+        legacy_raw = {
+            "state_version": 1,
+            "cooldown_until": {"deep_dive": ts + 120},
+            "recent_archetypes": ["deep_dive"],
+        }
+        legacy_state = migrate_state(legacy_raw, ts, rng_seed)
+        self.assertGreater(legacy_state.cooldown_until["short_story"], ts)
+        self.assertEqual(legacy_state.recent_archetypes, ["short_story"])
+
+        current_raw = {
+            "state_version": 2,
+            "cooldown_until": {"deep_dive": ts + 240},
+            "recent_archetypes": ["deep_dive"],
+        }
+        current_state = migrate_state(current_raw, ts, rng_seed)
+        self.assertGreater(current_state.cooldown_until["deep_dive"], ts)
+        self.assertEqual(current_state.recent_archetypes, ["deep_dive"])
+
     def test_wait_gate_song_count_and_repeat_protection(self) -> None:
         ts = time.time()
         state = OrchestratorState(
@@ -60,7 +82,7 @@ class OrchestratorHelpersTest(unittest.TestCase):
             last_spoken_track_key="x|y",
             last_spoken_ts=ts - 360,
             last_spoken_expected_end_ts=ts - 100,
-            cooldown_until={"back_sell": 0, "system_check": 0, "deep_dive": 0, "news": 0},
+            cooldown_until={"back_sell": 0, "system_check": 0, "short_story": 0, "news": 0},
             recent_archetypes=[],
             recent_hooks=[],
             last_angle_by_archetype={},
@@ -81,8 +103,8 @@ class OrchestratorHelpersTest(unittest.TestCase):
     def test_weighted_choice_single_legal(self) -> None:
         rng = __import__("random").Random(7)
         state = default_state(time.time(), __import__("random").Random(1))
-        selected = choose_weighted_archetype([Archetype.DEEP_DIVE], state, rng)
-        self.assertEqual(selected, Archetype.DEEP_DIVE)
+        selected = choose_weighted_archetype([Archetype.SHORT_STORY], state, rng)
+        self.assertEqual(selected, Archetype.SHORT_STORY)
 
     def test_weighted_choice_avoids_immediate_repeat_when_possible(self) -> None:
         rng = __import__("random").Random(9)
