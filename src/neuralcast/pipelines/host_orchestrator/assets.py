@@ -105,43 +105,6 @@ def load_station_track_metadata(station_dir: pathlib.Path) -> Dict[str, TrackMet
     return metadata
 
 
-def maybe_apply_speed_jitter(audio_path: pathlib.Path, rng: Any) -> None:
-    # Keep this subtle: only 50% of segments receive speed variation.
-    if rng.random() >= 0.5:
-        return
-
-    factor = rng.uniform(0.9, 1.1)
-    if abs(factor - 1.0) < 0.005:
-        return
-
-    jitter_path = audio_path.with_suffix(".jitter.mp3")
-    result = subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(audio_path),
-            "-filter:a",
-            f"atempo={factor:.4f}",
-            str(jitter_path),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip()
-        LOGGER.warning(
-            "[audio] Failed to apply speed jitter (%.3fx): %s",
-            factor,
-            detail,
-        )
-        jitter_path.unlink(missing_ok=True)
-        return
-
-    jitter_path.replace(audio_path)
-
-
 def apply_replaygain(audio_path: pathlib.Path) -> None:
     LOGGER.info("[audio] Applying ReplayGain: %s", audio_path.name)
     try:
@@ -169,7 +132,6 @@ def ensure_story_assets(
     archetype: Archetype,
     script_text: str,
     tts_instructions: str,
-    rng: Any,
 ) -> StoryAssets:
     safe_artist = sanitize_filename_component(current_track.artist).replace("'", "")
     safe_title = sanitize_filename_component(current_track.title).replace("'", "")
@@ -192,7 +154,6 @@ def ensure_story_assets(
         gemini_model="gemini-2.5-flash-preview-tts",
     )
 
-    maybe_apply_speed_jitter(audio_path, rng)
     apply_replaygain(audio_path)
 
     return StoryAssets(

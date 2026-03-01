@@ -437,7 +437,6 @@ def run(args: argparse.Namespace) -> None:
                 archetype=archetype_used,
                 script_text=script_text,
                 tts_instructions=tts_instructions,
-                rng=rng,
             ),
         )
         LOGGER.info("[assets] Script saved: %s", assets.text_path)
