@@ -7,7 +7,7 @@ This file records the initial cleanup classification so future tidy-ups can cont
 - `readme.md` (primary overview)
 - `AGENTS.md` (repository workflow/rules)
 - `GEMINI.md` (assistant-specific summary)
-- Root CLI compatibility shims: `main.py`, `update_new_releases.py`, `inject_host_segment.py`, `inject_story_snippet.py`, `schedule_generator.py`
+- Root CLI compatibility shims: `main.py`, `update_new_releases.py`, `inject_host_segment.py`, `schedule_generator.py`
 - Station data directories: `NeuralCast/`, `NeuralForge/`
 
 ## Quarantined to `docs/archive/` (Historical Reference)
@@ -21,14 +21,14 @@ These files are preserved for history/reference but are not considered current o
 
 ## Quarantined Binary Backup (`archive/`)
 
-- `archive/porting/porting_backup.zip`
-
-This is intentionally retained during cleanup review but moved out of the repo root.
+- No in-repo binary backup retained.
 
 ## Runtime-Generated Artifacts (Do Not Track)
 
 - `deployment/deploy_host_orchestrator.zip`
 - `logs/*.log`
+- `*/duplicate_analysis.log`
+- `*/albums_not_validated.csv`
 - `*/metadata/ai_host_orchestrator_state.json`
 - `*/metadata/ai_schedule_state.json`
 - `src/neuralcast/assets/stories/snippets/` generated snippet outputs

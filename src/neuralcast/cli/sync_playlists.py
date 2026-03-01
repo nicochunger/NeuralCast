@@ -13,7 +13,7 @@ def run() -> None:
         "-s",
         "--station",
         type=str,
-        help="The name of the radio station to process (e.g., NeuralCast, NeuralForge).",
+        help="The name of the radio station to process (e.g., NeuralForge, NeuralCast).",
     )
     parser.add_argument(
         "-n",
@@ -22,7 +22,7 @@ def run() -> None:
         help="Dry run: validate and re-tag existing MP3s, but skip new downloads.",
     )
     args = parser.parse_args()
-    station = args.station or "NeuralCast"
+    station = args.station or "NeuralForge"
     from neuralcast.pipelines.playlist_sync import list_playlists, main
 
     list_playlists(station)

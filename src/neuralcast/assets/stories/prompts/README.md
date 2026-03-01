@@ -1,69 +1,63 @@
 # Composicion de Prompts del Host Orchestrator
 
-Esta carpeta contiene las plantillas de prompts de Gemini usadas por:
-- `src/neuralcast/pipelines/host_orchestrator.py`
-- `src/neuralcast/pipelines/schedule_generator.py`
-- `src/neuralcast/pipelines/story_injector.py` (shim legacy de compatibilidad)
+Esta carpeta contiene plantillas de prompts usadas por:
 
-## Archivos principales de prompts
+- `src/neuralcast/pipelines/host_orchestrator/main.py`
+- `src/neuralcast/pipelines/schedule_generator/main.py`
 
-- `host_constitution.md`: constitucion base del sistema (comportamiento de estacion y contrato de seguridad).
-- `personality.md`: carta de personalidad del host compartida por todos los arquetipos.
+## Archivos principales
+
+- `host_constitution.md`: constitucion base del sistema (con `{station_name}`).
+- `personality.md`: carta de personalidad del host.
 - `script_style_baseline.md`: linea base global de escritura para guion hablado.
-- `tts_instructions.md`: instrucciones compartidas de entrega TTS para todos los arquetipos.
-- `wrapper_back_sell.md`: wrapper de arquetipo para `back_sell`.
-- `wrapper_up_next_tease.md`: wrapper de arquetipo para `up_next_tease` (back-sell con adelanto de bandas en cola).
-- `wrapper_system_check.md`: wrapper legacy/deprecado (ya no lo usa el runtime actual).
-- `wrapper_deep_dive.md`: wrapper de arquetipo para `deep_dive` (version larga).
-- `wrapper_short_story.md`: wrapper de arquetipo para `short_story`.
-- `wrapper_news.md`: wrapper de arquetipo para `news` (incluye placeholders `{story_count}`, `{news_topics}`, ventanas de antiguedad).
-- `wrapper_concert_check.md`: wrapper de arquetipo para `concert_check` (incluye placeholder `{concert_countries}`).
-- `wrapper_block_intro.md`: wrapper de arquetipo para `block_intro` (introduccion de inicio de bloque).
-- `wrapper_ultra_minimal.md`: wrapper de arquetipo para pase minimo/fallback.
+- `tts_instructions.md`: instrucciones compartidas para entrega TTS.
+- `wrapper_back_sell.md`: wrapper para `back_sell`.
+- `wrapper_up_next_tease.md`: wrapper para `up_next_tease`.
+- `wrapper_deep_dive.md`: wrapper para `deep_dive`.
+- `wrapper_short_story.md`: wrapper para `short_story`.
+- `wrapper_news.md`: wrapper para `news` (usa placeholders como `{story_count}`, `{news_topics}`).
+- `wrapper_concert_check.md`: wrapper para `concert_check` (usa `{concert_countries}`).
+- `wrapper_block_intro.md`: wrapper para `block_intro`.
+- `wrapper_ultra_minimal.md`: wrapper para fallback ultra minimo.
 
 ## Archivos de reparacion
 
-- `repair_news_contract.md`: contrato estricto de reformateo para salida `news` malformada.
-- `repair_concert_contract.md`: contrato estricto de reformateo para salida `concert_check` malformada.
+- `repair_news_contract.md`: contrato de reformateo para salida `news` malformada.
+- `repair_concert_contract.md`: contrato de reformateo para salida `concert_check` malformada.
 
-## Como se arman los prompts
+## Como se arma el prompt final
 
-1. `build_system_prompt(...)` arma `system_instruction` de Gemini:
-   - `host_constitution.md` (formateado con `{station_name}`)
+1. `build_system_prompt(...)` compone `system_instruction` con:
+   - `host_constitution.md`
    - `personality.md`
    - `script_style_baseline.md`
-   - linea inline de personalidad de estacion (`personality.script_profile`)
+   - ajuste inline de personalidad de estacion (`personality.script_profile`)
 
-2. `build_tts_instructions(...)` arma las instrucciones de comportamiento TTS:
+2. `build_tts_instructions(...)` compone instrucciones de TTS con:
    - `tts_instructions.md`
-   - ajuste inline opcional de personalidad TTS de estacion (`personality.tts_profile`)
+   - ajuste inline opcional de personalidad (`personality.tts_profile`)
 
-3. `build_prompt(...)` arma `contents` de Gemini (prompt usuario):
-   - archivo wrapper de arquetipo (`wrapper_*.md`)
-   - mas bloque `format_shared_input(...)` con contexto de ejecucion:
-     - metadata de track actual/siguiente
-     - angulo seleccionado
-     - semilla de gancho
-     - lista de aperturas/temas bloqueados
-     - contexto de estacion/personalidad/tiempo
+3. `build_prompt(...)` compone `contents` (prompt de usuario) con:
+   - un wrapper `wrapper_*.md`
+   - el bloque de contexto `format_shared_input(...)`
 
-4. Para `news` y `concert_check`, los wrappers se renderizan con placeholders en runtime antes de concatenar.
+4. Para `news` y `concert_check`, se renderizan placeholders de wrapper antes de concatenar.
 
-5. `gemini_generate_text(...)` envia ambas piezas:
+5. `gemini_generate_text(...)` envia:
    - `system_instruction = build_system_prompt(...)`
    - `contents = build_prompt(...)`
 
-## Modificadores y perillas de comportamiento
+## Perillas de comportamiento
 
-- Aleatoriedad por arquetipo: `sample_generation_settings(...)` controla rangos de temperature/top-p.
-- Grounding de busqueda habilitado en `should_enable_search(...)` para:
+- `sample_generation_settings(...)` ajusta `temperature/top-p` por arquetipo.
+- `should_enable_search(...)` habilita grounding de busqueda para:
   - `deep_dive`
   - `short_story`
   - `news`
   - `concert_check`
-- Si el formato de salida de `news`/`concert_check` es invalido, se ejecuta pase de reparacion con plantilla `repair_*.md`.
+- Si `news`/`concert_check` salen con formato invalido, se aplica pase de reparacion con `repair_*.md`.
 
 ## Notas de edicion
 
-- Mantener placeholders exactamente como estan (ejemplo: `{station_name}`, `{story_count}`).
-- En plantillas formateadas con Python `.format(...)`, las llaves literales de JSON deben quedar dobladas (`{{` y `}}`).
+- Mantener placeholders exactamente como estan (`{station_name}`, `{story_count}`, etc.).
+- En templates con `.format(...)`, llaves literales de JSON deben ir dobladas (`{{` y `}}`).

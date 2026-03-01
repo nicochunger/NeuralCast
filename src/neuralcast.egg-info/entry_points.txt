@@ -1,5 +1,0 @@
-[console_scripts]
-neuralcast-host = neuralcast.cli.host_orchestrator:main
-neuralcast-new-releases = neuralcast.cli.update_new_releases:run
-neuralcast-schedule = neuralcast.cli.schedule_generator:main
-neuralcast-sync = neuralcast.cli.sync_playlists:run

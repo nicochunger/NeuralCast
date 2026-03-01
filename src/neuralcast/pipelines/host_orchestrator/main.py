@@ -550,7 +550,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-s",
         "--station",
-        default=os.getenv("AZURACAST_STATION", "neuralcast"),
+        default=os.getenv("AZURACAST_STATION", "neuralforge"),
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(

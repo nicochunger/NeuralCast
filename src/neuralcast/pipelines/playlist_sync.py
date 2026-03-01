@@ -32,7 +32,7 @@ from neuralcast.playlists.utils import (
     sanitize_filename_component,
     save_playlist_with_validation,
 )
-from neuralcast.services.openai_client import (
+from neuralcast.services.ai_client import (
     make_fun_fact,
     openai_text_completion,
     tts,
@@ -48,8 +48,7 @@ from neuralcast.services.validation import (
 STATION_PATH = None
 PLAYLISTS_PATH = None
 
-AZURACAST_URL = "http://192.168.1.162/"
-STATION = "neuralcast"
+STATION = "neuralforge"
 
 TTS = False  # turn off if you only want music
 VOICE_NAME = "Adam"  # ElevenLabs voice
@@ -1079,7 +1078,7 @@ if __name__ == "__main__":
         "-s",
         "--station",
         type=str,
-        help="The name of the radio station to process (e.g., NeuralCast, NeuralForge).",
+        help="The name of the radio station to process (e.g., NeuralForge, NeuralCast).",
     )
     # dry-run flag
     parser.add_argument(
@@ -1090,8 +1089,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Default to 'NeuralCast' if not provided
-    station = args.station or "NeuralCast"
+    # Default to 'NeuralForge' if not provided
+    station = args.station or "NeuralForge"
 
     list_playlists(station)
     main(station, args.dry_run)  # pass dry-run flag

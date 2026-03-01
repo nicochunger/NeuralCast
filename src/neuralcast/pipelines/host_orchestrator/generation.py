@@ -59,7 +59,7 @@ from .state import (
     sample_generation_settings,
 )
 from .utils import now_ts, run_with_retries
-from neuralcast.services.openai_client import get_gemini_client
+from neuralcast.services.ai_client import get_gemini_client
 
 
 def format_shared_input(

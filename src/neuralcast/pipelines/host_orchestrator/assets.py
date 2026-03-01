@@ -15,7 +15,7 @@ from .models import Archetype, QueueTrack, StoryAssets, TrackMetadata
 from .schedule import resolve_station_metadata_file
 from .transport import AzuraCastClient
 from .utils import normalize_component, track_key
-from neuralcast.services.openai_client import synthesize_speech
+from neuralcast.services.ai_client import synthesize_speech
 
 try:
     from neuralcast.playlists.utils import sanitize_filename_component

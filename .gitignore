@@ -6,9 +6,13 @@ __pycache__/
 .cache
 *.mp3
 .vscode/
+build/
+*.egg-info/
 src/neuralcast/assets/stories/snippets/
 deployment/deploy_host_orchestrator.zip
 logs/*.log
+*/duplicate_analysis.log
+*/albums_not_validated.csv
 */metadata/ai_host_orchestrator_state.json
 */metadata/ai_host_orchestrator_state.corrupt.*.json
 */metadata/ai_schedule_state.json

@@ -1,97 +1,67 @@
-# Deployment Instructions for Host Orchestrator
+# VPS Deployment Instructions (Host Orchestrator + Scheduler)
 
-This package contains the necessary source code and dependencies to run the `host_orchestrator.py` runtime on your VPS.
+This repository now deploys runtime code with rsync, not zip packaging.
 
 ## Prerequisites
 
-- Access to the VPS terminal.
+- Local machine with `rsync` and `ssh`
+- VPS reachable through the `neuralvps` SSH target (or override `REMOTE_HOST`)
+- `rsync` installed on the VPS
 
-## Step 1: Transfer the package
+## Deploy Command
 
-Transfer the `deployment/deploy_host_orchestrator.zip` file to your VPS. Replace `user@your-vps-ip` with your actual username and IP address.
-
-```bash
-scp deployment/deploy_host_orchestrator.zip user@your-vps-ip:~/deploy_host_orchestrator.zip
-```
-
-## Step 2: Set up on the VPS
-
-SSH into your VPS and perform the following steps:
-
-1.  **Install Python and Unzip:**
-
-    Update your package list and install Python 3, pip, venv, and unzip.
-
-    ```bash
-    # For Debian/Ubuntu
-    sudo apt update
-    sudo apt install -y python3 python3-pip python3-venv unzip
-    ```
-
-2.  **Unzip the package:**
-
-    ```bash
-    unzip deploy_host_orchestrator.zip -d radio_host_orchestrator
-    cd radio_host_orchestrator
-    ```
-
-3.  **Set up a virtual environment and install dependencies:**
-
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r vps_requirements.txt
-    ```
-
-4.  **Configure Environment Variables:**
-
-    Create a `.env` file in the `radio_host_orchestrator` directory:
-
-    ```bash
-    nano .env
-    ```
-
-    Paste your configuration keys (modify values as needed):
-
-    ```env
-    AZURACAST_API_KEY=your_azuracast_key_here
-    AZURACAST_BASE_URL=https://your-radio-url.com
-    GEMINI_API_KEY=your_gemini_key_here
-    ```
-
-    *Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).*
-
-## Step 3: Test Manually
-
-Before setting up the cronjob, verify that the script runs correctly. The `src` directory needs to be in the python path.
+From repository root:
 
 ```bash
-# Ensure you are inside the radio_host_orchestrator folder and venv is active
-export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-python3 src/neuralcast/pipelines/host_orchestrator.py --station neuralcast --dry-run
+./deployment/redeploy_host_orchestrator_rsync.sh
 ```
 
--   Remove `--dry-run` to actually upload and inject a story.
--   Replace `neuralcast` with your station's shortcode if different.
+What it does:
 
-## Step 4: Setup the Cronjob
+- Syncs `src/` to `/root/radio_host_orchestrator/src/` with `rsync --delete`
+- Syncs `vps_requirements.txt`
+- Preserves generated snippet media under `src/neuralcast/assets/stories/snippets/`
+- Verifies deployed entrypoints and confirms legacy top-level pipeline files are gone
 
-Open your crontab editor:
+## Environment Variables on VPS
+
+Create or update `/root/radio_host_orchestrator/.env`:
+
+```env
+AZURACAST_API_KEY=your_azuracast_key
+AZURACAST_BASE_URL=https://your-radio-url.com
+AZURACAST_STATION=neuralforge
+GEMINI_API_KEY=your_gemini_key
+```
+
+## Manual Runtime Checks
+
+Use module entrypoints (preferred):
 
 ```bash
-crontab -e
+cd /root/radio_host_orchestrator
+source venv/bin/activate
+PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
+PYTHONPATH=$(pwd)/src python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
 
-Add a line to run the script periodically (e.g., every hour).
-**Note:** We set `PYTHONPATH` inline to ensure the imports work correctly.
+Notes:
+
+- `host_orchestrator --dry-run` still reads AzuraCast APIs and requires valid API credentials.
+- Remove `--dry-run` only when you intend to apply changes/upload queue media.
+
+## Cron Examples (VPS)
 
 ```cron
-# Run every hour at the 5th minute
-5 * * * * cd /home/user/radio_host_orchestrator && export PYTHONPATH=$PYTHONPATH:$(pwd)/src && ./venv/bin/python3 src/neuralcast/pipelines/host_orchestrator.py --station neuralcast >> /home/user/radio_host_orchestrator/host_orchestrator.log 2>&1
+# Host orchestrator every hour at minute 5
+5 * * * * cd /root/radio_host_orchestrator && PYTHONPATH=$(pwd)/src ./venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> /root/radio_host_orchestrator/host_orchestrator.log 2>&1
+
+# Weekly schedule generator every Monday at 02:10
+10 2 * * 1 cd /root/radio_host_orchestrator && PYTHONPATH=$(pwd)/src ./venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> /root/radio_host_orchestrator/schedule_generator.log 2>&1
 ```
 
-### Common Flags
+## Optional Deploy Overrides
 
--   `--station <shortcode>`: Target station (default: `neuralcast`).
--   `--min-listeners <n>`: Minimum listeners required to run (default: `1`).
--   `--dry-run`: Generate files locally but do not upload to AzuraCast.
+```bash
+REMOTE_HOST=myvps REMOTE_DIR=/opt/radio_host_orchestrator ./deployment/redeploy_host_orchestrator_rsync.sh
+```
