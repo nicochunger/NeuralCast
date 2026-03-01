@@ -224,6 +224,18 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
         if mtime < cutoff:
             file_path.unlink(missing_ok=True)
 
+    # Prune empty dated folders left behind after file cleanup.
+    subdirs = [
+        path
+        for path in base_dir.rglob("*")
+        if path.is_dir()
+    ]
+    for dir_path in sorted(subdirs, key=lambda path: len(path.parts), reverse=True):
+        try:
+            dir_path.rmdir()
+        except OSError:
+            continue
+
 
 def cleanup_remote_stories(
     client: AzuraCastClient, station_slug: str, keep_days: int
