@@ -7,7 +7,7 @@ import pathlib
 import time
 from typing import Any, Mapping, Optional, Sequence
 
-from neuralcast.config import PROJECT_ROOT
+from neuralcast.config import station_dir_from_slug
 
 from .config import LOGGER, STATE_FILENAME
 
@@ -37,18 +37,7 @@ def run_with_retries(
 
 
 def resolve_station_dir(station: str) -> pathlib.Path:
-    direct = PROJECT_ROOT / station
-    if direct.exists():
-        return direct
-
-    lowered = station.lower()
-    for candidate in PROJECT_ROOT.iterdir():
-        if not candidate.is_dir():
-            continue
-        if candidate.name.lower() == lowered:
-            return candidate
-
-    return direct
+    return station_dir_from_slug(station)
 
 
 def schedule_state_path(station: str) -> pathlib.Path:
@@ -77,5 +66,4 @@ def save_schedule_state_atomic(path: pathlib.Path, payload: Mapping[str, Any]) -
         encoding="utf-8",
     )
     tmp_path.replace(path)
-
 

@@ -23,6 +23,8 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         return False
 
+from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
+
 from .assets import (
     cleanup_local_stories,
     cleanup_remote_stories,
@@ -550,7 +552,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-s",
         "--station",
-        default=os.getenv("AZURACAST_STATION", "neuralforge"),
+        choices=ALLOWED_STATION_SLUGS,
+        default=os.getenv("AZURACAST_STATION", DEFAULT_STATION_SLUG),
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(

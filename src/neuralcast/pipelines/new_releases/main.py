@@ -22,7 +22,12 @@ from tqdm import tqdm
 import unicodedata
 
 from neuralcast.metadata.album_lookup import guess_album
-from neuralcast.config import PROJECT_ROOT
+from neuralcast.config import (
+    ALLOWED_STATION_SLUGS,
+    DEFAULT_STATION_SLUG,
+    PROJECT_ROOT,
+    station_dir_from_slug,
+)
 
 _DEBUG_ENABLED = False
 
@@ -1206,9 +1211,11 @@ def parse_args() -> argparse.Namespace:
         description="Refresh the New Releases playlist for a station."
     )
     parser.add_argument(
-        "station",
-        metavar="STATION",
-        help="Station directory name (e.g., NeuralForge or NeuralCast)",
+        "-s",
+        "--station",
+        choices=ALLOWED_STATION_SLUGS,
+        default=DEFAULT_STATION_SLUG,
+        help="Station slug (default: %(default)s).",
     )
     parser.add_argument(
         "--days",
@@ -1248,41 +1255,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def _resolve_station_paths(station_arg: str) -> tuple[Path, Path]:
-    raw_path = Path(station_arg)
-    candidates = (
-        [raw_path]
-        if raw_path.is_absolute()
-        else [raw_path, PROJECT_ROOT / raw_path]
-    )
-
-    def casefold_dir_match(target: Path) -> Optional[Path]:
-        parent = target.parent
-        if not parent.exists():
-            return None
-        target_name = target.name.casefold()
-        for entry in parent.iterdir():
-            if entry.is_dir() and entry.name.casefold() == target_name:
-                return entry
-        return None
-
-    for candidate in candidates:
-        if candidate.name.lower() == "playlists":
-            playlists_dir = candidate
-            station_dir = candidate.parent
-        else:
-            station_dir = candidate
-            playlists_dir = candidate / "playlists"
-        if playlists_dir.exists():
-            return station_dir, playlists_dir
-
-        matched_station = casefold_dir_match(station_dir)
-        if matched_station:
-            matched_playlists = matched_station / "playlists"
-            if matched_playlists.exists():
-                return matched_station, matched_playlists
-
-    # Fall back to the original behavior for consistent error messaging.
-    station_dir = candidates[-1]
+    station_dir = station_dir_from_slug(station_arg)
     return station_dir, station_dir / "playlists"
 
 

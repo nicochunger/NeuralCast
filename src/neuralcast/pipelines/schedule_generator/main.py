@@ -9,7 +9,11 @@ import os
 from typing import Mapping
 from zoneinfo import ZoneInfo
 
-from neuralcast.config import PROJECT_ROOT
+from neuralcast.config import (
+    ALLOWED_STATION_SLUGS,
+    DEFAULT_STATION_SLUG,
+    PROJECT_ROOT,
+)
 
 from .client import (
     AzuraCastClient,
@@ -221,7 +225,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-s",
         "--station",
-        default=os.getenv("AZURACAST_STATION", "neuralforge"),
+        choices=ALLOWED_STATION_SLUGS,
+        default=os.getenv("AZURACAST_STATION", DEFAULT_STATION_SLUG),
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(

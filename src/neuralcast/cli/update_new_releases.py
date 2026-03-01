@@ -5,16 +5,19 @@ from __future__ import annotations
 import argparse
 import sys
 
+from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
+
 
 def _build_help_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Refresh the New Releases playlist for a station."
     )
     parser.add_argument(
-        "station",
-        metavar="STATION",
-        nargs="?",
-        help="Station directory name (e.g., NeuralForge or NeuralCast)",
+        "-s",
+        "--station",
+        choices=ALLOWED_STATION_SLUGS,
+        default=DEFAULT_STATION_SLUG,
+        help="Station slug (default: %(default)s).",
     )
     parser.add_argument(
         "--days",

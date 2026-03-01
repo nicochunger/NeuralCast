@@ -61,15 +61,15 @@ Playlist sync:
 
 ```bash
 python main.py --dry-run
-python main.py --station NeuralCast --dry-run
-python main.py --station NeuralForge
+python main.py --station neuralcast --dry-run
+python main.py --station neuralforge
 ```
 
 New releases:
 
 ```bash
-python update_new_releases.py NeuralForge --dry-run
-python update_new_releases.py NeuralCast
+python update_new_releases.py -s neuralforge --dry-run
+python update_new_releases.py -s neuralcast
 ```
 
 Host orchestrator:

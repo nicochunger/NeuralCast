@@ -8,9 +8,9 @@ Global storytelling assets live under `src/neuralcast/assets/stories/`, includin
 ## Build, Test, and Development Commands
 - `python -m pip install -e .` installs the package and CLI entrypoints from `pyproject.toml` for local development. Use `python -m pip install -e '.[dev]'` if you also want the optional dev extras (currently `pytest`).
 - Runtime workflows currently assume editable/repo-layout installs; wheel-safe packaging for all runtime assets is deferred.
-- `python main.py --station NeuralForge --dry-run` audits playlists and tags without writing MP3s (root shim for `neuralcast.cli.sync_playlists`); run this before shipping changes.
-- `python main.py --station NeuralForge` performs the full sync, including downloads and tag rewrites.
-- `python update_new_releases.py NeuralForge --dry-run` previews Spotify-driven updates to `New Releases.csv`; drop `--dry-run` to write results (shim for `neuralcast.cli.update_new_releases`).
+- `python main.py --station neuralforge --dry-run` audits playlists and tags without writing MP3s (root shim for `neuralcast.cli.sync_playlists`); run this before shipping changes.
+- `python main.py --station neuralforge` performs the full sync, including downloads and tag rewrites.
+- `python update_new_releases.py -s neuralforge --dry-run` previews Spotify-driven updates to `New Releases.csv`; drop `--dry-run` to write results (shim for `neuralcast.cli.update_new_releases`).
 - `python inject_host_segment.py --base-url https://192.168.1.226 -s neuralforge --dry-run` exercises the AzuraCast host orchestrator locally (no uploads); remove `--dry-run` only when you intend to push the MP3 and queue it live (shim for `neuralcast.cli.host_orchestrator`).
 - `python schedule_generator.py --base-url https://192.168.1.226 -s neuralforge --dry-run` generates and validates a weekly AzuraCast schedule plan without writing it (shim for `neuralcast.cli.schedule_generator`).
 - `python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge` and `python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge` are the stable module entrypoints to prefer in cron/scripts and for VPS parity.

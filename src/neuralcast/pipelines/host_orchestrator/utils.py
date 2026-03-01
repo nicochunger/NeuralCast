@@ -8,7 +8,7 @@ import re
 import time
 from typing import Any, Callable, Sequence, Tuple
 
-from neuralcast.config import PROJECT_ROOT
+from neuralcast.config import station_dir_from_slug
 from .config import (
     GENERATION_RETRIES,
     GENERATION_RETRY_DELAYS,
@@ -45,19 +45,7 @@ def run_with_retries(
 
 
 def resolve_station_dir(station: str) -> pathlib.Path:
-    direct = PROJECT_ROOT / station
-    if direct.exists():
-        return direct
-
-    lowered = station.lower()
-    for candidate in PROJECT_ROOT.iterdir():
-        if not candidate.is_dir():
-            continue
-        if candidate.name.lower() == lowered:
-            return candidate
-
-    # Fallback keeps behavior deterministic for new stations.
-    return direct
+    return station_dir_from_slug(station)
 
 
 def station_state_paths(

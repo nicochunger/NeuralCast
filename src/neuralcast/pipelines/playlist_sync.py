@@ -18,7 +18,12 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from mutagen.easyid3 import EasyID3
 
-from neuralcast.config import PROJECT_ROOT
+from neuralcast.config import (
+    ALLOWED_STATION_SLUGS,
+    DEFAULT_STATION_SLUG,
+    PROJECT_ROOT,
+    station_dir_from_slug,
+)
 from neuralcast.audio.download import tag_mp3, youtube_to_mp3
 from neuralcast.metadata.album_lookup import guess_album
 from neuralcast.models import Song, ValidationResult
@@ -269,19 +274,15 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     return updated_song, True
 
 
-def main(station_name: str, dry_run: bool = False):  # dry_run flag
+def main(station_slug: str, dry_run: bool = False):  # dry_run flag
     global PLAYLISTS_PATH, STATION_PATH, STATION
-    # Determine the base path for stations (repo root)
-    stations_base_dir = PROJECT_ROOT
+    station_dir = station_dir_from_slug(station_slug)
 
-    # Set paths based on the station name
-    PLAYLISTS_PATH = stations_base_dir / station_name / "playlists"
-    STATION_PATH = stations_base_dir / station_name / "songs"
+    PLAYLISTS_PATH = station_dir / "playlists"
+    STATION_PATH = station_dir / "songs"
+    STATION = station_slug
 
-    # Also set AzuraCast station slug from station name (lowercased)
-    STATION = station_name.lower()
-
-    print(f"Running for station: {station_name}")
+    print(f"Running for station: {station_slug} ({station_dir.name})")
     if dry_run:
         print("Mode: DRY-RUN (no downloads; existing MP3s will be re-tagged if needed)")
     print(f"Playlists path: {PLAYLISTS_PATH}")
@@ -1044,14 +1045,12 @@ def main(station_name: str, dry_run: bool = False):  # dry_run flag
     )
 
 
-def list_playlists(station_name: str):
+def list_playlists(station_slug: str):
     """List all available playlists."""
     global PLAYLISTS_PATH, STATION_PATH
-    stations_base_dir = PROJECT_ROOT
-
-    # Set paths based on the station name
-    PLAYLISTS_PATH = stations_base_dir / station_name / "playlists"
-    STATION_PATH = stations_base_dir / station_name / "songs"
+    station_dir = station_dir_from_slug(station_slug)
+    PLAYLISTS_PATH = station_dir / "playlists"
+    STATION_PATH = station_dir / "songs"
 
     playlists_dir = pathlib.Path(PLAYLISTS_PATH)
     if not playlists_dir.exists():
@@ -1078,7 +1077,9 @@ if __name__ == "__main__":
         "-s",
         "--station",
         type=str,
-        help="The name of the radio station to process (e.g., NeuralForge, NeuralCast).",
+        choices=ALLOWED_STATION_SLUGS,
+        default=DEFAULT_STATION_SLUG,
+        help="Station slug (default: %(default)s).",
     )
     # dry-run flag
     parser.add_argument(
@@ -1089,8 +1090,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Default to 'NeuralForge' if not provided
-    station = args.station or "NeuralForge"
-
-    list_playlists(station)
-    main(station, args.dry_run)  # pass dry-run flag
+    list_playlists(args.station)
+    main(args.station, args.dry_run)  # pass dry-run flag

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
 
 def run() -> None:
     parser = argparse.ArgumentParser(
@@ -13,7 +14,9 @@ def run() -> None:
         "-s",
         "--station",
         type=str,
-        help="The name of the radio station to process (e.g., NeuralForge, NeuralCast).",
+        choices=ALLOWED_STATION_SLUGS,
+        default=DEFAULT_STATION_SLUG,
+        help="Station slug (default: %(default)s).",
     )
     parser.add_argument(
         "-n",
@@ -22,11 +25,10 @@ def run() -> None:
         help="Dry run: validate and re-tag existing MP3s, but skip new downloads.",
     )
     args = parser.parse_args()
-    station = args.station or "NeuralForge"
     from neuralcast.pipelines.playlist_sync import list_playlists, main
 
-    list_playlists(station)
-    main(station, args.dry_run)
+    list_playlists(args.station)
+    main(args.station, args.dry_run)
 
 
 if __name__ == "__main__":
