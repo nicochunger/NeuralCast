@@ -32,22 +32,6 @@ _DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
 _DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
 
 
-def _env_float(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    text = raw.strip()
-    if not text:
-        return default
-    try:
-        return float(text)
-    except ValueError:
-        return default
-
-
-_DEFAULT_GEMINI_TTS_TEMPERATURE = _env_float("GEMINI_TTS_TEMPERATURE", 0.2)
-
-
 def get_openai_client() -> openai.OpenAI:
     if openai is None:
         raise RuntimeError(
@@ -216,7 +200,6 @@ def gemini_speech(
     model: str = "gemini-2.5-flash-preview-tts",
     voice: str = "Enceladus",
     instructions: Optional[str] = None,
-    temperature: float = _DEFAULT_GEMINI_TTS_TEMPERATURE,
 ):
     client = get_gemini_client()
     try:
@@ -232,7 +215,6 @@ def gemini_speech(
         contents=prompt,
         config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
-            temperature=temperature,
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
@@ -274,7 +256,6 @@ def synthesize_speech(
     openai_voice: str = "ash",
     gemini_model: str = "gemini-2.5-flash-preview-tts",
     gemini_voice: str = "Enceladus",
-    gemini_temperature: float = _DEFAULT_GEMINI_TTS_TEMPERATURE,
 ):
     resolved_provider = (provider or _DEFAULT_TTS_PROVIDER).strip().lower()
     if resolved_provider == "openai":
@@ -293,7 +274,6 @@ def synthesize_speech(
             model=gemini_model,
             voice=gemini_voice,
             instructions=instructions,
-            temperature=gemini_temperature,
         )
         return
     raise ValueError(
