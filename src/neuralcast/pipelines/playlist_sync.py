@@ -21,7 +21,6 @@ from mutagen.easyid3 import EasyID3
 from neuralcast.config import (
     ALLOWED_STATION_SLUGS,
     DEFAULT_STATION_SLUG,
-    PROJECT_ROOT,
     station_dir_from_slug,
 )
 from neuralcast.audio.download import tag_mp3, youtube_to_mp3
@@ -32,6 +31,7 @@ from neuralcast.playlists.utils import (
     deduplicate_and_sort_songs,
     delete_marked_mp3_files,
     load_playlist,
+    normalize_year_value,
     playlist_song_key,
     replace_song_entry,
     sanitize_filename_component,
@@ -46,6 +46,13 @@ from neuralcast.services.validation import (
     perform_song_validation,
     verified,
     verified_album,
+)
+from neuralcast.pipelines.media_sync import (
+    RemoteSyncRequest,
+    add_remote_sync_args,
+    build_remote_sync_config,
+    remote_sync_request_from_args,
+    run_remote_sync,
 )
 
 
@@ -274,7 +281,12 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     return updated_song, True
 
 
-def main(station_slug: str, dry_run: bool = False):  # dry_run flag
+def main(
+    station_slug: str,
+    dry_run: bool = False,
+    *,
+    remote_sync: RemoteSyncRequest | None = None,
+):  # dry_run flag
     global PLAYLISTS_PATH, STATION_PATH, STATION
     station_dir = station_dir_from_slug(station_slug)
 
@@ -633,9 +645,10 @@ def main(station_slug: str, dry_run: bool = False):  # dry_run flag
                     needs.append("artist")
                 if cur_title.strip() != song.title.strip():
                     needs.append("title")
-                year_value = (song.year or "").strip()
+                year_value = normalize_year_value(song.year) or ""
+                current_year_value = normalize_year_value(cur_year) or cur_year.strip()
                 if year_value and year_value.casefold() != "unknown":
-                    if cur_year.strip() != year_value:
+                    if current_year_value != year_value:
                         needs.append("year")
                 if cur_genre.strip() != playlist_name:
                     needs.append("genre")
@@ -1044,6 +1057,38 @@ def main(station_slug: str, dry_run: bool = False):  # dry_run flag
         f"📝 Albums not validated written to {invalid_albums_path} ({len(df)} row(s))"
     )
 
+    if remote_sync and remote_sync.enabled:
+        print("\n🌐 Remote media mirror requested: preparing rsync...")
+        remote_sync_config = build_remote_sync_config(
+            station_slug=station_slug,
+            local_songs_root=pathlib.Path(STATION_PATH),
+            dry_run=dry_run,
+            remote_host=remote_sync.remote_host,
+            remote_user=remote_sync.remote_user,
+            remote_port=remote_sync.remote_port,
+            remote_media_root=remote_sync.remote_media_root,
+            remote_ssh_key=remote_sync.remote_ssh_key,
+            remote_rsync_bin=remote_sync.remote_rsync_bin,
+            remote_extra_rsync_args=remote_sync.remote_extra_rsync_args,
+            delete_remote=remote_sync.delete_remote,
+            timeout_seconds=remote_sync.timeout_seconds,
+        )
+        mode_label = "preview" if dry_run else "apply"
+        print(
+            f"[remote-sync] Running rsync ({mode_label}) from "
+            f"{remote_sync_config.local_songs_root} to "
+            f"{remote_sync_config.remote_host}:{remote_sync_config.remote_media_root}/"
+        )
+        remote_result = run_remote_sync(remote_sync_config)
+        if remote_result.stdout.strip():
+            print(remote_result.stdout.rstrip())
+        if remote_result.stderr.strip():
+            print(remote_result.stderr.rstrip())
+        print(
+            f"[remote-sync] Completed: {remote_result.changed_count} changed item(s), "
+            f"{remote_result.deleted_count} deletion(s)."
+        )
+
 
 def list_playlists(station_slug: str):
     """List all available playlists."""
@@ -1088,7 +1133,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Dry run: validate and re-tag existing MP3s, but skip new downloads.",
     )
+    add_remote_sync_args(parser)
     args = parser.parse_args()
 
     list_playlists(args.station)
-    main(args.station, args.dry_run)  # pass dry-run flag
+    main(
+        args.station,
+        args.dry_run,
+        remote_sync=remote_sync_request_from_args(args),
+    )  # pass dry-run flag

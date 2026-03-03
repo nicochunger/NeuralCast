@@ -54,6 +54,12 @@ Depending on the workflow, configure:
 - `AZURACAST_STATION` (optional; defaults to `neuralforge`)
 - `GEMINI_API_KEY` (story generation/TTS via Gemini path)
 - `OPENAI_API_KEY` (optional for OpenAI-specific helpers)
+- `NC_REMOTE_SYNC_HOST` (optional rsync SSH host, default: `neuralvps`)
+- `NC_REMOTE_SYNC_USER` (optional rsync SSH username)
+- `NC_REMOTE_SYNC_PORT` (optional rsync SSH port)
+- `NC_REMOTE_SYNC_MEDIA_ROOT` (optional remote path template, default: `/var/lib/docker/volumes/azuracast_station_data/_data/{station}/media`)
+- `NC_REMOTE_SYNC_SSH_KEY` (optional SSH key path for rsync)
+- `NC_REMOTE_SYNC_TIMEOUT_SECONDS` (optional rsync timeout, default: `300`)
 
 ## Common Commands
 
@@ -63,6 +69,8 @@ Playlist sync:
 python main.py --dry-run
 python main.py --station neuralcast --dry-run
 python main.py --station neuralforge
+python main.py --station neuralforge --sync-remote
+python main.py --station neuralforge --dry-run --sync-remote
 ```
 
 New releases:
@@ -90,6 +98,8 @@ Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.
 - Module entrypoints are preferred for cron/VPS usage.
+- `--sync-remote` mirrors local `<station>/songs/` to AzuraCast media with rsync.
+- Remote mirror uses `--delete` by default and excludes `AI Stories/***` so host-generated stories are preserved.
 
 ## Station Data Layout
 

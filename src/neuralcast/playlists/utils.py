@@ -13,6 +13,8 @@ from neuralcast.models import Song
 DELETE_MARKER = "[DEL]"
 _YOUTUBE_HOST_FRAGMENTS = ("youtube.com", "youtu.be")
 _OVERRIDE_PATTERN = re.compile(r"^\[(https?://[^\]]+)\]\s*(.*)$")
+_FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
+_ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
 
 
 def _normalize_csv_value(value: object) -> Optional[str]:
@@ -28,6 +30,24 @@ def _normalize_csv_value(value: object) -> Optional[str]:
     text = str(value).strip()
     if not text or text.lower() == "nan":
         return None
+    return text
+
+
+def normalize_year_value(value: object) -> Optional[str]:
+    text = _normalize_csv_value(value)
+    if text is None:
+        return None
+    if text.casefold() == "unknown":
+        return "Unknown"
+
+    float_match = _FLOAT_YEAR_PATTERN.fullmatch(text)
+    if float_match:
+        return float_match.group(1)
+
+    zeroed_date_match = _ZEROED_DATE_YEAR_PATTERN.fullmatch(text)
+    if zeroed_date_match:
+        return zeroed_date_match.group(1)
+
     return text
 
 
@@ -115,11 +135,11 @@ def load_playlist(
             if "title" in column_lookup
             else None
         )
-        year = (
-            _normalize_csv_value(row[column_lookup["year"]])
-            if "year" in column_lookup
-            else None
-        )
+        year_raw = row[column_lookup["year"]] if "year" in column_lookup else None
+        year = normalize_year_value(year_raw)
+        original_year = _normalize_csv_value(year_raw)
+        if original_year and year and year != original_year:
+            needs_save = True
         album_raw = (
             _normalize_csv_value(row[column_lookup["album"]])
             if "album" in column_lookup
@@ -245,7 +265,7 @@ def backfill_songs_from_library(
             except Exception as exc:
                 print(f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {exc}")
 
-        year_to_use = file_year if file_year else "Unknown"
+        year_to_use = normalize_year_value(file_year) or "Unknown"
         new_song = Song(
             artist=file_artist,
             title=file_title,
@@ -319,7 +339,8 @@ def save_playlist_with_validation(
                 else song.artist
             )
             row["Title"] = song.title
-            row["Year"] = str(song.year).strip() if song.year else ""
+            normalized_year = normalize_year_value(song.year)
+            row["Year"] = normalized_year if normalized_year else ""
             row["Album"] = song.album or ""
             row["Validated"] = bool(song.validated)
             updated_rows.append(row.to_dict())
@@ -337,7 +358,8 @@ def save_playlist_with_validation(
                 else song.artist
             )
             new_row["Title"] = song.title
-            new_row["Year"] = str(song.year).strip() if song.year else ""
+            normalized_year = normalize_year_value(song.year)
+            new_row["Year"] = normalized_year if normalized_year else ""
             new_row["Album"] = song.album or ""
             new_row["Validated"] = bool(song.validated)
             updated_rows.append({col: new_row.get(col, "") for col in df.columns})
@@ -394,4 +416,5 @@ __all__ = [
     "delete_marked_mp3_files",
     "sanitize_filename_component",
     "playlist_song_key",
+    "normalize_year_value",
 ]

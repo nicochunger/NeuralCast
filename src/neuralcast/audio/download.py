@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -11,6 +12,25 @@ from mutagen.id3 import APIC, ID3, ID3NoHeaderError, error
 
 from neuralcast.audio.album_art import embed_from_artist_album
 from neuralcast.config import ASSETS_ROOT
+
+_FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
+_ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
+
+
+def _normalize_year_for_id3(year: object) -> str:
+    text = str(year).strip() if year is not None else ""
+    if not text:
+        return ""
+
+    float_match = _FLOAT_YEAR_PATTERN.fullmatch(text)
+    if float_match:
+        return float_match.group(1)
+
+    zeroed_date_match = _ZEROED_DATE_YEAR_PATTERN.fullmatch(text)
+    if zeroed_date_match:
+        return zeroed_date_match.group(1)
+
+    return text
 
 
 def ensure_easyid3(path: str) -> EasyID3:
@@ -34,7 +54,7 @@ def tag_mp3(
 ):
     file_name = os.path.basename(path)
     trimmed_album = str(album).strip() if album else ""
-    trimmed_year = str(year).strip() if year is not None else ""
+    trimmed_year = _normalize_year_for_id3(year)
 
     def _log(message: str) -> None:
         prefix = log_prefix or ""

@@ -5,6 +5,11 @@ from __future__ import annotations
 import argparse
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
+from neuralcast.pipelines.media_sync import (
+    add_remote_sync_args,
+    remote_sync_request_from_args,
+)
+
 
 def run() -> None:
     parser = argparse.ArgumentParser(
@@ -24,11 +29,16 @@ def run() -> None:
         action="store_true",
         help="Dry run: validate and re-tag existing MP3s, but skip new downloads.",
     )
+    add_remote_sync_args(parser)
     args = parser.parse_args()
     from neuralcast.pipelines.playlist_sync import list_playlists, main
 
     list_playlists(args.station)
-    main(args.station, args.dry_run)
+    main(
+        args.station,
+        args.dry_run,
+        remote_sync=remote_sync_request_from_args(args),
+    )
 
 
 if __name__ == "__main__":
