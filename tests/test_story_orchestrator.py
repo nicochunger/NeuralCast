@@ -278,6 +278,104 @@ META (JSON):
         assert already_mentioned_context is not None
         self.assertIsNone(already_mentioned_context.mention_intent)
 
+    def test_schedule_context_start_intent_late_fallback_within_window(self) -> None:
+        tz = ZoneInfo("Europe/Zurich")
+        start_local = dt.datetime(2026, 2, 16, 20, 0, tzinfo=tz)
+        now_local = start_local + dt.timedelta(minutes=4, seconds=17)
+        date_local = now_local.date().isoformat()
+        block_key = f"{date_local}|0|20:00|22:00|playlist|10"
+        schedule_state = {
+            "timezone": "Europe/Zurich",
+            "expanded_blocks": [
+                {
+                    "block_key": block_key,
+                    "date_local": date_local,
+                    "start_time_local": "20:00",
+                    "end_time_local": "22:00",
+                    "mode": "playlist",
+                    "section_label": "Metal sinfonico",
+                    "genre_labels": ["symphonic", "metal"],
+                    "playlist_id": "10",
+                    "playlist_name": "Symphonic Metal",
+                }
+            ],
+        }
+
+        context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_local.timestamp(),
+            mention_state={},
+        )
+        self.assertIsNotNone(context)
+        assert context is not None
+        self.assertEqual(context.phase, "start")
+        self.assertEqual(context.mention_intent, "start")
+
+    def test_schedule_context_start_intent_late_fallback_not_repeated(self) -> None:
+        tz = ZoneInfo("Europe/Zurich")
+        start_local = dt.datetime(2026, 2, 16, 20, 0, tzinfo=tz)
+        now_local = start_local + dt.timedelta(minutes=5)
+        date_local = now_local.date().isoformat()
+        block_key = f"{date_local}|0|20:00|22:00|playlist|10"
+        schedule_state = {
+            "timezone": "Europe/Zurich",
+            "expanded_blocks": [
+                {
+                    "block_key": block_key,
+                    "date_local": date_local,
+                    "start_time_local": "20:00",
+                    "end_time_local": "22:00",
+                    "mode": "playlist",
+                    "section_label": "Metal sinfonico",
+                    "genre_labels": ["symphonic", "metal"],
+                    "playlist_id": "10",
+                    "playlist_name": "Symphonic Metal",
+                }
+            ],
+        }
+
+        context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_local.timestamp(),
+            mention_state={block_key: {"start": True, "updated_at": now_local.timestamp()}},
+        )
+        self.assertIsNotNone(context)
+        assert context is not None
+        self.assertIsNone(context.mention_intent)
+
+    def test_schedule_context_start_intent_late_fallback_expires(self) -> None:
+        tz = ZoneInfo("Europe/Zurich")
+        start_local = dt.datetime(2026, 2, 16, 20, 0, tzinfo=tz)
+        now_local = start_local + dt.timedelta(minutes=11)
+        date_local = now_local.date().isoformat()
+        block_key = f"{date_local}|0|20:00|22:00|playlist|10"
+        schedule_state = {
+            "timezone": "Europe/Zurich",
+            "expanded_blocks": [
+                {
+                    "block_key": block_key,
+                    "date_local": date_local,
+                    "start_time_local": "20:00",
+                    "end_time_local": "22:00",
+                    "mode": "playlist",
+                    "section_label": "Metal sinfonico",
+                    "genre_labels": ["symphonic", "metal"],
+                    "playlist_id": "10",
+                    "playlist_name": "Symphonic Metal",
+                }
+            ],
+        }
+
+        context = resolve_schedule_context(
+            schedule_state=schedule_state,
+            ts=now_local.timestamp(),
+            mention_state={},
+        )
+        self.assertIsNotNone(context)
+        assert context is not None
+        self.assertEqual(context.phase, "start")
+        self.assertIsNone(context.mention_intent)
+
     def test_should_force_block_intro_on_start_intent(self) -> None:
         context = ScheduleContext(
             block_key="2026-02-16|0|00:00|08:00|playlist|10",

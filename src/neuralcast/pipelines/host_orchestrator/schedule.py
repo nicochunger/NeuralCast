@@ -13,6 +13,7 @@ from .config import (
     LOGGER,
     SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES,
     SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS,
+    SCHEDULE_BLOCK_INTRO_LATE_START_WINDOW_MINUTES,
     SCHEDULE_MENTION_MAX_ENTRIES,
     SCHEDULE_MENTION_RETENTION_DAYS,
     SCHEDULE_MID_PROGRESS_RANGE,
@@ -555,6 +556,10 @@ def resolve_schedule_context(
     start_window_grace_ok = (
         elapsed_seconds <= SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS
     )
+    late_start_window_seconds = (
+        SCHEDULE_BLOCK_INTRO_LATE_START_WINDOW_MINUTES * 60
+    )
+    late_start_window_ok = elapsed_seconds <= late_start_window_seconds
     start_already_mentioned = bool(mention_entry.get("start"))
     mid_window_ok = (
         SCHEDULE_MID_PROGRESS_RANGE[0]
@@ -562,12 +567,23 @@ def resolve_schedule_context(
         <= SCHEDULE_MID_PROGRESS_RANGE[1]
     )
     mid_request = False
+    late_start_fallback_used = False
+    mention_intent_reason = "none"
     if (
         start_window_minutes_ok
         and start_window_grace_ok
         and not start_already_mentioned
     ):
         mention_intent = "start"
+        mention_intent_reason = "start_on_time_grace"
+    elif (
+        phase == "start"
+        and not start_already_mentioned
+        and late_start_window_ok
+    ):
+        mention_intent = "start"
+        mention_intent_reason = "start_late_fallback"
+        late_start_fallback_used = True
     elif (
         mid_window_ok
         and _should_request_mid_block_mention(
@@ -578,6 +594,7 @@ def resolve_schedule_context(
     ):
         mid_request = True
         mention_intent = "mid"
+        mention_intent_reason = "mid_window"
 
     if mid_window_ok and mention_intent != "mid":
         mid_request = False
@@ -599,9 +616,14 @@ def resolve_schedule_context(
         mention_entry=dict(mention_entry),
         start_window_minutes_ok=start_window_minutes_ok,
         start_window_grace_ok=start_window_grace_ok,
+        late_start_window_ok=late_start_window_ok,
+        late_start_fallback_used=late_start_fallback_used,
+        late_start_elapsed_seconds=elapsed_seconds,
+        late_start_window_seconds=late_start_window_seconds,
         start_already_mentioned=start_already_mentioned,
         mid_window_ok=mid_window_ok,
         mid_request=mid_request,
+        mention_intent_reason=mention_intent_reason,
         mention_intent=mention_intent or "none",
     )
 
