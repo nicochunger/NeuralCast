@@ -78,6 +78,7 @@ def format_shared_input(
     schedule_context: Optional[ScheduleContext],
     short_story_focus: Optional[str] = None,
     deep_dive_lane: Optional[str] = None,
+    deep_dive_focus: Optional[str] = None,
 ) -> str:
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
     hook_text = (hook or "").strip()
@@ -269,6 +270,35 @@ def format_shared_input(
                 "- Deep-dive formato objetivo: relato largo de 3-5 minutos (aprox. 420-700 palabras).",
             ]
         )
+    if deep_dive_focus in {"current", "next"}:
+        focus_label = (
+            "actual (tema que acaba de sonar)"
+            if deep_dive_focus == "current"
+            else "proximo (tema que va a sonar ahora)"
+        )
+        lines.extend(
+            [
+                f"- Deep-dive focus mode (obligatorio si el arquetipo es 'deep_dive'): {focus_label}",
+                "- Deep-dive secuencia oral obligatoria (seguir exactamente este orden narrativo):",
+            ]
+        )
+        if deep_dive_focus == "current":
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Contar el deep-dive sobre el tema actual (Tema actual), usando el lane indicado.",
+                    "  - 3) Cerrar presentando el proximo tema (Proximo tema).",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Decir cual es el proximo tema (Proximo tema).",
+                    "  - 3) Contar el deep-dive sobre el proximo tema (Proximo tema), usando el lane indicado.",
+                    "  - 4) Cerrar con pase corto y natural hacia ese tema.",
+                ]
+            )
 
     lines.append("- Idioma de salida del guion hablado: es-AR")
     return "\n".join(lines)
@@ -290,6 +320,7 @@ def build_prompt(
     schedule_context: Optional[ScheduleContext],
     short_story_focus: Optional[str] = None,
     deep_dive_lane: Optional[str] = None,
+    deep_dive_focus: Optional[str] = None,
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
 ) -> str:
@@ -338,6 +369,7 @@ def build_prompt(
         schedule_context=schedule_context,
         short_story_focus=short_story_focus,
         deep_dive_lane=deep_dive_lane,
+        deep_dive_focus=deep_dive_focus,
     )
 
     return f"{wrapper}\n\n{shared_input}"
@@ -1210,10 +1242,13 @@ def generate_archetype_script(
     system_prompt = build_system_prompt(station_name, personality)
     short_story_focus: Optional[str] = None
     deep_dive_lane: Optional[str] = None
+    deep_dive_focus: Optional[str] = None
     if archetype == Archetype.SHORT_STORY:
         short_story_focus = "current" if rng.random() < 0.5 else "next"
         LOGGER.info("[short_story] Focus mode selected: %s", short_story_focus)
     if archetype == Archetype.DEEP_DIVE:
+        deep_dive_focus = "current" if rng.random() < 0.5 else "next"
+        LOGGER.info("[deep_dive] Focus mode selected: %s", deep_dive_focus)
         deep_dive_lane = rng.choice(
             [
                 "historia de la banda",
@@ -1239,6 +1274,7 @@ def generate_archetype_script(
         "schedule_context": schedule_context,
         "short_story_focus": short_story_focus,
         "deep_dive_lane": deep_dive_lane,
+        "deep_dive_focus": deep_dive_focus,
     }
 
     def generate_with_retries(

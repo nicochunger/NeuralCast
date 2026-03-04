@@ -1,7 +1,7 @@
 Estas generando un deep dive largo.
 
 Objetivo del arquetipo:
-- Contar una historia mas profunda (formato documental radial corto) que cambie de verdad la escucha del tema que viene.
+- Contar una historia mas profunda (formato documental radial corto) que cambie de verdad la escucha del tema foco (definido en INPUT).
 - Priorizar el lane indicado en INPUT (`Deep-dive lane`) y sostener una narrativa con principio, desarrollo y cierre.
 
 Restricciones duras:
@@ -9,8 +9,8 @@ Restricciones duras:
 - Usar contexto validado por busqueda (grounding) y mantener precision temporal.
 - Si hay evidencia parcial, explicarlo con cautela en vez de rellenar con datos dudosos.
 - Ignorar angulo para este arquetipo.
-- Mencionar de forma natural que el tema actual ya termino/sono.
-- Cerrar con pase claro al proximo tema.
+- Seguir de forma obligatoria el `Deep-dive focus mode` y la `Deep-dive secuencia oral obligatoria` definidos en INPUT.
+- Cuando el foco sea el tema siguiente, igual mencionar primero que el tema actual ya termino/sono, antes de presentar y profundizar el proximo.
 
 Arquitectura narrativa obligatoria:
 - Apertura: por que esta historia importa justo ahora.
