@@ -1,5 +1,13 @@
 {
   "entries": {
+    "alcatrazz|transylvanian requiem|prior convictions|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 14,
+      "ReleaseDate": "2025-11-07T00:00:00+00:00",
+      "TrackID": "5pHNpygHUhqvLaazube4iY",
+      "Validated": false
+    },
     "amorphis|crowned in crimson (from \u201cson of revenge - the story of kalevala\u201d)|crowned in crimson (from \u201cson of revenge - the story of kalevala\u201d)|2025": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -15,6 +23,22 @@
       "ReleaseDate": "2025-12-19T00:00:00+00:00",
       "TrackID": "7GFJNPnoifJEIfKsYhEUbi",
       "Validated": true
+    },
+    "angus mcsix|dig down|dig down|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 43,
+      "ReleaseDate": "2026-01-28T00:00:00+00:00",
+      "TrackID": "6umkxHRfCmU0eS85fNOfix",
+      "Validated": false
+    },
+    "anthriel|entwined|entwined|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 8,
+      "ReleaseDate": "2025-11-27T00:00:00+00:00",
+      "TrackID": "49i6sRMdqT6usFtsrwYnWD",
+      "Validated": false
     },
     "antti martikainen|hei\u00f0r|hei\u00f0r|2026": {
       "AlbumType": "single",
@@ -32,18 +56,10 @@
       "TrackID": "0EXCcGq8gHty245Sx1QRKe",
       "Validated": false
     },
-    "antti martikainen|valholl|valholl|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Popularity": 32,
-      "ReleaseDate": "2026-01-30T00:00:00+00:00",
-      "TrackID": "0WiNlB71JwMFoXevG99Rg2",
-      "Validated": true
-    },
     "antti martikainen|\u00e1stir|\u00e1stir|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 32,
+      "Popularity": 31,
       "ReleaseDate": "2026-02-06T00:00:00+00:00",
       "TrackID": "1JQC4Nuk78Jpgo3uLgg7BA",
       "Validated": false
@@ -54,7 +70,7 @@
       "Popularity": 59,
       "ReleaseDate": "2026-02-19T00:00:00+00:00",
       "TrackID": "6eQkDPZCtGpJ0rIYwIBNxN",
-      "Validated": false
+      "Validated": true
     },
     "at the gates|the fever mask|the fever mask|2026": {
       "AlbumType": "single",
@@ -62,6 +78,30 @@
       "Popularity": 49,
       "ReleaseDate": "2026-02-20T00:00:00+00:00",
       "TrackID": "29Uss2uPm7lOeKzoLyQXQ6",
+      "Validated": true
+    },
+    "atavistia|from the ancient stones - reforged|the winter way (reforged)|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 14,
+      "ReleaseDate": "2025-12-12T00:00:00+00:00",
+      "TrackID": "249UH6bary7K5crjYhJSfj",
+      "Validated": false
+    },
+    "atavistia|mystic tavern|mystic tavern|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 27,
+      "ReleaseDate": "2026-02-13T00:00:00+00:00",
+      "TrackID": "1gfEaijo6sw97OssKJQtiA",
+      "Validated": false
+    },
+    "atavistia|through the hollow raven's eyes - reforged|through the hollow raven's eyes (reforged)|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 8,
+      "ReleaseDate": "2025-11-14T00:00:00+00:00",
+      "TrackID": "0z829HqBF2QFK5TEVTLsOy",
       "Validated": false
     },
     "audiomachine|second son|equilibrium|2026": {
@@ -70,6 +110,14 @@
       "Popularity": 31,
       "ReleaseDate": "2026-01-16T00:00:00+00:00",
       "TrackID": "0XujXnSz7liVzOkZZXkd9W",
+      "Validated": true
+    },
+    "avenger|shorty|shorty|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 0,
+      "ReleaseDate": "2025-12-24T00:00:00+00:00",
+      "TrackID": "029YEHKCMt2SK1Sm7IJ23l",
       "Validated": false
     },
     "ayreon|loser|loser|2026": {
@@ -80,13 +128,21 @@
       "TrackID": "7tgn9OrcohjNnwtkxAdSQa",
       "Validated": true
     },
+    "battlesoul|no legacy|the wheel|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 10,
+      "ReleaseDate": "2026-01-15T00:00:00+00:00",
+      "TrackID": "6k0bNf9ZimAwlrEfHrZ2xl",
+      "Validated": false
+    },
     "beyond the black|ravens|ravens|2025": {
       "AlbumType": "single",
       "IsSingle": true,
       "Popularity": 42,
       "ReleaseDate": "2025-12-05T00:00:00+00:00",
       "TrackID": "7DBF159mGFVoZZQw2SYHKJ",
-      "Validated": false
+      "Validated": true
     },
     "beyond the black|rising high|break the silence|2026": {
       "AlbumType": "album",
@@ -94,6 +150,38 @@
       "Popularity": 42,
       "ReleaseDate": "2026-01-09T00:00:00+00:00",
       "TrackID": "62bsYfJYWQngntvUXVhFlT",
+      "Validated": true
+    },
+    "chris poland|black flame|black flame|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 20,
+      "ReleaseDate": "2026-01-16T00:00:00+00:00",
+      "TrackID": "7COeyi8FTGDuShLdxWvRxp",
+      "Validated": false
+    },
+    "chris poland|dice and thunder|dice and thunder|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 30,
+      "ReleaseDate": "2026-01-30T00:00:00+00:00",
+      "TrackID": "28M1vZAuoM42aLNH3III0z",
+      "Validated": false
+    },
+    "chris poland|electric burn|electric burn|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 26,
+      "ReleaseDate": "2026-02-13T00:00:00+00:00",
+      "TrackID": "7yDb6NVzvuUVuvLyTSfDhz",
+      "Validated": false
+    },
+    "crowheart|solitude|solitude ep|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 1,
+      "ReleaseDate": "2025-12-08T00:00:00+00:00",
+      "TrackID": "5qjmNlDjZNbCOjWnl0Apyi",
       "Validated": false
     },
     "def leppard|rejoice|rejoice|2026": {
@@ -118,7 +206,7 @@
       "Popularity": 48,
       "ReleaseDate": "2026-02-18T00:00:00+00:00",
       "TrackID": "7GTDi9XB4eyzeHSVR286XM",
-      "Validated": false
+      "Validated": true
     },
     "edenbridge|set the dark on fire|set the dark on fire|2025": {
       "AlbumType": "single",
@@ -144,12 +232,36 @@
       "TrackID": "1Syy5gdj5Ug4kIYwnjYQT5",
       "Validated": true
     },
+    "elvenking|the past is forever|the past is forever|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 6,
+      "ReleaseDate": "2026-03-06T00:00:00+00:00",
+      "TrackID": "72k871NJTB8tVUSlZw1c6P",
+      "Validated": false
+    },
     "ensiferum|heavy metal happycore (feat. petri lindroos of ensiferum)|heavy metal happycore (feat. petri lindroos of ensiferum)|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 39,
+      "Popularity": 38,
       "ReleaseDate": "2026-01-07T00:00:00+00:00",
       "TrackID": "4vIdMr4KouhPyYDzcDCZSU",
+      "Validated": false
+    },
+    "eons enthroned|to sheathe the blade ~a second turning~|to sheathe the blade ~a second turning~|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 12,
+      "ReleaseDate": "2026-01-09T00:00:00+00:00",
+      "TrackID": "4k1D2a1UUyJJQVwgWs1mXa",
+      "Validated": false
+    },
+    "eons enthroned|visions of war|at the end of hope|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 11,
+      "ReleaseDate": "2025-11-07T00:00:00+00:00",
+      "TrackID": "4yQatCb4AmFDwlpGe7iSQy",
       "Validated": false
     },
     "epica|avatar - the final incarnation -|avatar - the final incarnation -|2025": {
@@ -168,13 +280,29 @@
       "TrackID": "7BSN7om9kQxojOB6ruC4jF",
       "Validated": true
     },
-    "evergrey|oxygen!|oxygen!|2025": {
+    "evergrey|architects of the new weave|architects of the new weave|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 39,
-      "ReleaseDate": "2025-11-06T00:00:00+00:00",
-      "TrackID": "01OuTCfQH5RKwMDaVvNEZ1",
-      "Validated": true
+      "Popularity": 7,
+      "ReleaseDate": "2026-03-05T00:00:00+00:00",
+      "TrackID": "6qL75AUcdTH2u3g7vScpL7",
+      "Validated": false
+    },
+    "fading aeon|fall into the icarian sea|fall into the icarian sea|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 8,
+      "ReleaseDate": "2025-12-05T00:00:00+00:00",
+      "TrackID": "2k4GuQDfeTTU5sJ4THWOAJ",
+      "Validated": false
+    },
+    "fading aeon|the tree of knowledge|the tree of knowledge|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 12,
+      "ReleaseDate": "2026-02-13T00:00:00+00:00",
+      "TrackID": "4BpCm9ZrCG4eQhIxrLLdZx",
+      "Validated": false
     },
     "fractal gates|awakening|awakening|2026": {
       "AlbumType": "single",
@@ -182,6 +310,46 @@
       "Popularity": 2,
       "ReleaseDate": "2026-02-28T00:00:00+00:00",
       "TrackID": "1oZQ1NoF4mY90yxDTTar5M",
+      "Validated": true
+    },
+    "girlschool|hit the lights (feat. joe stump, alcatrazz)|hit the lights (feat. joe stump, alcatrazz)|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 17,
+      "ReleaseDate": "2025-11-26T00:00:00+00:00",
+      "TrackID": "1cI463MlPrv33zHAuoCdu1",
+      "Validated": false
+    },
+    "gladenfold|fire wind|soulbound|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 26,
+      "ReleaseDate": "2026-02-27T00:00:00+00:00",
+      "TrackID": "0BQawhNoBjjCEwVQQh6xPI",
+      "Validated": false
+    },
+    "gladenfold|mercy|mercy|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 11,
+      "ReleaseDate": "2025-12-19T00:00:00+00:00",
+      "TrackID": "45bLmLAkBzBe74mVeNrqGi",
+      "Validated": false
+    },
+    "gladenfold|wardens of time|wardens of time|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 22,
+      "ReleaseDate": "2026-01-23T00:00:00+00:00",
+      "TrackID": "71mV6G2UcG0rbNF5LeW9lI",
+      "Validated": false
+    },
+    "grimgotts|sing for the bard|sing for the bard|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 3,
+      "ReleaseDate": "2025-12-05T00:00:00+00:00",
+      "TrackID": "5cZz4OuDRZ2rlEXB0bSH4c",
       "Validated": false
     },
     "guns n' roses|atlas|atlas|2025": {
@@ -199,6 +367,38 @@
       "ReleaseDate": "2025-12-04T00:00:00+00:00",
       "TrackID": "49u9MlLKXc0NLg6m775ecd",
       "Validated": true
+    },
+    "holy dragons|the last clockmaster|guardians of time, part i|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 6,
+      "ReleaseDate": "2026-01-16T00:00:00+00:00",
+      "TrackID": "6he8tcjh7lYEzU4TTYP2YD",
+      "Validated": false
+    },
+    "inthraced|neon frontiers|neon frontiers|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 11,
+      "ReleaseDate": "2025-11-26T00:00:00+00:00",
+      "TrackID": "1lZqzdS5c76NcdlYSvSHpA",
+      "Validated": false
+    },
+    "inthraced|the black star|the black star|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 18,
+      "ReleaseDate": "2026-01-21T00:00:00+00:00",
+      "TrackID": "6DI2nRPUXH4MM3K9G60oXg",
+      "Validated": false
+    },
+    "inthraced|the way of the voice|the way of the voice|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 20,
+      "ReleaseDate": "2026-02-26T00:00:00+00:00",
+      "TrackID": "7yBeemISH1nIg1ahsSKHL4",
+      "Validated": false
     },
     "iron savior|forever young|forever young|2025": {
       "AlbumType": "single",
@@ -230,7 +430,7 @@
       "Popularity": 28,
       "ReleaseDate": "2026-02-13T00:00:00+00:00",
       "TrackID": "3J6kS5mzCnLEDFaABmTQxW",
-      "Validated": false
+      "Validated": true
     },
     "karnivool|animation|animation|2026": {
       "AlbumType": "single",
@@ -238,7 +438,7 @@
       "Popularity": 45,
       "ReleaseDate": "2026-01-27T00:00:00+00:00",
       "TrackID": "4zw5bZc1DGuokk5Hzv6SqS",
-      "Validated": false
+      "Validated": true
     },
     "karnivool|ghost|in verses|2026": {
       "AlbumType": "album",
@@ -246,7 +446,7 @@
       "Popularity": 55,
       "ReleaseDate": "2026-02-06T00:00:00+00:00",
       "TrackID": "31oGHC1Qz48n904uygla5x",
-      "Validated": false
+      "Validated": true
     },
     "karnivool|opal|opal|2025": {
       "AlbumType": "single",
@@ -254,15 +454,31 @@
       "Popularity": 38,
       "ReleaseDate": "2025-12-02T00:00:00+00:00",
       "TrackID": "5HV27urO2DzuZCGDigSHj0",
-      "Validated": false
+      "Validated": true
     },
-    "korpiklaani|got the time|got the time|2025": {
+    "lars eric mattsson|everything|everything|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 42,
-      "ReleaseDate": "2025-11-05T00:00:00+00:00",
-      "TrackID": "0cuT5kNhxJT4IQ1bR521zr",
-      "Validated": true
+      "Popularity": 33,
+      "ReleaseDate": "2026-02-05T00:00:00+00:00",
+      "TrackID": "6vKDvmwVo04LSyF7bbKKuA",
+      "Validated": false
+    },
+    "lars eric mattsson|the enemy we face|the enemy we face|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 16,
+      "ReleaseDate": "2025-11-21T00:00:00+00:00",
+      "TrackID": "4u9PhApVUbnx9cPqiKcZXw",
+      "Validated": false
+    },
+    "lars eric mattsson|warriors|warriors|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 27,
+      "ReleaseDate": "2025-11-07T00:00:00+00:00",
+      "TrackID": "32Y7ioPZRQNX4s8JjbCDMY",
+      "Validated": false
     },
     "leaves' eyes|song of darkness|song of darkness|2025": {
       "AlbumType": "single",
@@ -271,6 +487,22 @@
       "ReleaseDate": "2025-12-09T00:00:00+00:00",
       "TrackID": "4pabSMVJJxi1NRyhT6Q6rt",
       "Validated": true
+    },
+    "lurte|a fragua d'o turb\u00f3n|a fragua d'o turb\u00f3n|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 16,
+      "ReleaseDate": "2026-02-05T00:00:00+00:00",
+      "TrackID": "3c5QjCNIB4jFKryK22JuFW",
+      "Validated": false
+    },
+    "lyriel|the skye boat song (from \"outlander\")|the skye boat song (from \"outlander\")|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 29,
+      "ReleaseDate": "2026-01-23T00:00:00+00:00",
+      "TrackID": "1Ck0tL9rik7lkeZKhhnUBd",
+      "Validated": false
     },
     "masterplan|chase the light|chase the light|2026": {
       "AlbumType": "single",
@@ -312,6 +544,14 @@
       "TrackID": "7ByfoLm7Z1KJAgDwbxocs5",
       "Validated": true
     },
+    "narnia|agua viva|agua viva|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 21,
+      "ReleaseDate": "2025-12-19T00:00:00+00:00",
+      "TrackID": "74GVFr3eXFYncbtjJ5qMjR",
+      "Validated": false
+    },
     "omnium gatherum|may the bridges we burn light the way|may the bridges we burn light the way|2025": {
       "AlbumType": "album",
       "IsSingle": false,
@@ -334,6 +574,30 @@
       "Popularity": 31,
       "ReleaseDate": "2025-12-19T00:00:00+00:00",
       "TrackID": "4K8LjT8u5paPAxGEj77ZRx",
+      "Validated": true
+    },
+    "paul gilbert|conscience is the most certain judge|conscience is the most certain judge|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 4,
+      "ReleaseDate": "2026-02-04T00:00:00+00:00",
+      "TrackID": "4ngxbqJ1ueEKEGNTq4bzAX",
+      "Validated": false
+    },
+    "paul gilbert|keep your feet firm and even|wroc|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 28,
+      "ReleaseDate": "2026-02-27T00:00:00+00:00",
+      "TrackID": "7tCi3fHHBLpKftleOdXXqY",
+      "Validated": false
+    },
+    "paul gilbert|show not yourself glad (at the misfortune of another)|show not yourself glad (at the misfortune of another)|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 0,
+      "ReleaseDate": "2026-01-07T00:00:00+00:00",
+      "TrackID": "68uWjV5u1P70RBq2RWMvfM",
       "Validated": false
     },
     "plini|helmi|helmi|2026": {
@@ -342,6 +606,30 @@
       "Popularity": 42,
       "ReleaseDate": "2026-02-18T00:00:00+00:00",
       "TrackID": "3H90wWD5N0TIt6hWHFWC1f",
+      "Validated": true
+    },
+    "power paladin|aegis of eternity|aegis of eternity|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 0,
+      "ReleaseDate": "2026-03-06T00:00:00+00:00",
+      "TrackID": "6fbq7l8BbX3LTlemr4O46R",
+      "Validated": false
+    },
+    "power paladin|glade lords of athel loren|glade lords of athel loren|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 27,
+      "ReleaseDate": "2026-02-05T00:00:00+00:00",
+      "TrackID": "6biFqxkbigVVUOeSvIpEIj",
+      "Validated": false
+    },
+    "power paladin|sword vigor|sword vigor|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 33,
+      "ReleaseDate": "2025-12-18T00:00:00+00:00",
+      "TrackID": "2GuMHrlQNIV3jhNouW7f5h",
       "Validated": false
     },
     "primal fear|one|one|2026": {
@@ -350,7 +638,7 @@
       "Popularity": 42,
       "ReleaseDate": "2026-02-20T00:00:00+00:00",
       "TrackID": "4kr0TJoXUl2FHU8WSBcB8T",
-      "Validated": false
+      "Validated": true
     },
     "really slow motion|quaternion|cathedral of ash|2026": {
       "AlbumType": "album",
@@ -358,7 +646,7 @@
       "Popularity": 35,
       "ReleaseDate": "2026-01-16T00:00:00+00:00",
       "TrackID": "4jcJ6Y3oXRe0EdoNWVpgox",
-      "Validated": false
+      "Validated": true
     },
     "rhapsody of fire|i am adam mcsix|i am adam mcsix|2025": {
       "AlbumType": "single",
@@ -374,7 +662,7 @@
       "Popularity": 11,
       "ReleaseDate": "2026-01-12T00:00:00+00:00",
       "TrackID": "5874GpKqEZMi1T1KCj1ojQ",
-      "Validated": false
+      "Validated": true
     },
     "saltatio mortis|der derwisch|tr\u00e4ume von staub & schatten, vol. 1 (epic fantasy ambience | reading, d&d, dsa, rpg)|2026": {
       "AlbumType": "single",
@@ -382,7 +670,7 @@
       "Popularity": 36,
       "ReleaseDate": "2026-02-20T00:00:00+00:00",
       "TrackID": "55bmgudBJi42h8mc8kfHp3",
-      "Validated": false
+      "Validated": true
     },
     "saltatio mortis|ein neuer anfang|heimkehr|2026": {
       "AlbumType": "single",
@@ -424,18 +712,34 @@
       "TrackID": "74Hmv8okVMkMZ7qKipFTUx",
       "Validated": true
     },
+    "samson|heavenly father|praise & worship songs|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 0,
+      "ReleaseDate": "2025-11-10T00:00:00+00:00",
+      "TrackID": "5bHQ8hGkGfJ7SQxikh6Zrv",
+      "Validated": false
+    },
+    "samson|in christ jesus|praise and worship heavenly sound|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 0,
+      "ReleaseDate": "2025-11-10T00:00:00+00:00",
+      "TrackID": "2XQTRpKgj7bbEPzvmbcQ5r",
+      "Validated": false
+    },
     "scorpions|i'm goin' mad - 2026 mix|lonesome crow (2026 mix)|2026": {
       "AlbumType": "album",
       "IsSingle": false,
       "Popularity": 34,
       "ReleaseDate": "2026-02-26T00:00:00+00:00",
       "TrackID": "3xSJJKHteASIa3uA6wnG5q",
-      "Validated": false
+      "Validated": true
     },
     "secession studios|reign eternal|reign eternal|2026": {
       "AlbumType": "album",
       "IsSingle": false,
-      "Popularity": 32,
+      "Popularity": 36,
       "ReleaseDate": "2026-02-24T00:00:00+00:00",
       "TrackID": "4rEIzRaRlbiH6BVDoCqXc3",
       "Validated": false
@@ -470,14 +774,14 @@
       "Popularity": 40,
       "ReleaseDate": "2025-12-09T00:00:00+00:00",
       "TrackID": "1CEvLhTR7stgSU34gqFRrQ",
-      "Validated": false
+      "Validated": true
     },
-    "soen|mercenary|mercenary|2025": {
+    "soen|indifferent|indifferent|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 38,
-      "ReleaseDate": "2025-11-04T00:00:00+00:00",
-      "TrackID": "6gfrg6juktpmPpXHLEJ3Hc",
+      "Popularity": 34,
+      "ReleaseDate": "2026-01-13T00:00:00+00:00",
+      "TrackID": "5y2BO9NljWHT2DcY0ydfBm",
       "Validated": false
     },
     "soen|primal|reliance|2026": {
@@ -486,7 +790,7 @@
       "Popularity": 49,
       "ReleaseDate": "2026-01-16T00:00:00+00:00",
       "TrackID": "7tgHcoO614rNmjv9TpnuqH",
-      "Validated": false
+      "Validated": true
     },
     "sonata arctica|freedom concept|freedom concept|2026": {
       "AlbumType": "single",
@@ -494,15 +798,15 @@
       "Popularity": 39,
       "ReleaseDate": "2026-02-27T00:00:00+00:00",
       "TrackID": "3g8dRL2mQOgqUZVdK4Ba6O",
-      "Validated": false
+      "Validated": true
     },
-    "subway to sally|r\u00e4uber und narren (feat. schandmaul)|r\u00e4uber und narren (feat. schandmaul)|2025": {
+    "suodeth|indictment|indictment|2025": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 39,
-      "ReleaseDate": "2025-11-05T00:00:00+00:00",
-      "TrackID": "01UEQTiJP9IqEIIMGPIA7W",
-      "Validated": true
+      "Popularity": 0,
+      "ReleaseDate": "2025-11-18T00:00:00+00:00",
+      "TrackID": "6zSHYRiUKPEEHk8mDcdQXM",
+      "Validated": false
     },
     "tarja|dark christmas|dark christmas|2025": {
       "AlbumType": "single",
@@ -528,13 +832,37 @@
       "TrackID": "1IDuxqcMBQUJjETyTxKQ6s",
       "Validated": false
     },
+    "the great kat|beethoven's 666th|beethoven's 666th|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 4,
+      "ReleaseDate": "2026-02-26T00:00:00+00:00",
+      "TrackID": "1vkSbnxq1r5X9e4F3AGCZe",
+      "Validated": false
+    },
+    "the great kat|fate|fate|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 4,
+      "ReleaseDate": "2026-02-24T00:00:00+00:00",
+      "TrackID": "3M7RIcTrGuasGsWWzmx0jC",
+      "Validated": false
+    },
+    "the great kat|wagner's the ring siegfried idyll siegfried|wagner's the ring siegfried idyll siegfried|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 3,
+      "ReleaseDate": "2026-02-25T00:00:00+00:00",
+      "TrackID": "1k7LuBBxUvLxspmpFOHwr7",
+      "Validated": false
+    },
     "the halo effect|i wanna be somebody|we are shadows|2025": {
       "AlbumType": "single",
       "IsSingle": true,
       "Popularity": 29,
       "ReleaseDate": "2025-11-21T00:00:00+00:00",
       "TrackID": "11jzF6poUoOGdQoky9YwfU",
-      "Validated": false
+      "Validated": true
     },
     "the halo effect|lest we fall|lest we fall|2026": {
       "AlbumType": "single",
@@ -542,12 +870,12 @@
       "Popularity": 43,
       "ReleaseDate": "2026-02-27T00:00:00+00:00",
       "TrackID": "1g0YyvMI8e82KtutPZV8QG",
-      "Validated": false
+      "Validated": true
     },
     "the hu|pray to the sun feat. declan de barra & the hu (from the netflix series \"one piece\")|pray to the sun feat. declan de barra & the hu (from the netflix series \"one piece\")|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 38,
+      "Popularity": 46,
       "ReleaseDate": "2026-02-27T00:00:00+00:00",
       "TrackID": "0RrxvorJNZPl02N2XBYwoB",
       "Validated": false
@@ -558,7 +886,7 @@
       "Popularity": 49,
       "ReleaseDate": "2026-01-23T00:00:00+00:00",
       "TrackID": "5ZeZSbuvupOAfm3zD73tp2",
-      "Validated": false
+      "Validated": true
     },
     "the ocean|even deeper|even deeper|2025": {
       "AlbumType": "single",
@@ -566,12 +894,12 @@
       "Popularity": 28,
       "ReleaseDate": "2025-11-13T00:00:00+00:00",
       "TrackID": "1gxoWqN2P5SLlZfmc6RCNV",
-      "Validated": false
+      "Validated": true
     },
     "the pogues|fairytale of new york (feat. kirsty maccoll)|fairytale of new york|2025": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 23,
+      "Popularity": 22,
       "ReleaseDate": "2025-12-12T00:00:00+00:00",
       "TrackID": "4vgxTZeKBrstzyN3jtASFo",
       "Validated": false
@@ -590,7 +918,7 @@
       "Popularity": 21,
       "ReleaseDate": "2025-12-18T00:00:00+00:00",
       "TrackID": "77kR0lXJkyfdElmv8v3Pdr",
-      "Validated": false
+      "Validated": true
     },
     "their dogs were astronauts|centaur|centaur|2025": {
       "AlbumType": "single",
@@ -598,7 +926,7 @@
       "Popularity": 18,
       "ReleaseDate": "2025-11-20T00:00:00+00:00",
       "TrackID": "78vtk5SsvqfkXBeEtCOeAs",
-      "Validated": false
+      "Validated": true
     },
     "thin lizzy|she knows - bbc radio 1 john peel session / 1974|she knows (bbc radio 1 john peel session / 1974)|2025": {
       "AlbumType": "single",
@@ -606,7 +934,7 @@
       "Popularity": 13,
       "ReleaseDate": "2025-11-07T00:00:00+00:00",
       "TrackID": "2NIum7NkXdrTsmuTGYxKDv",
-      "Validated": false
+      "Validated": true
     },
     "thin lizzy|she knows|nightlife / fighting|2025": {
       "AlbumType": "album",
@@ -614,6 +942,14 @@
       "Popularity": 20,
       "ReleaseDate": "2025-11-21T00:00:00+00:00",
       "TrackID": "6nOcGuTIdGDs5CgKbjmnAR",
+      "Validated": true
+    },
+    "tokyo blade|midnight rendezvous - midnight rendezvous ep|beware the blade: classic, rare & unreleased 1983 - 2025|2025": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 4,
+      "ReleaseDate": "2025-11-21T00:00:00+00:00",
+      "TrackID": "696ooHuXxXy1gPZdkUVxDG",
       "Validated": false
     },
     "twilight force|magic of a new dawn|magic of a new dawn|2026": {
@@ -623,6 +959,14 @@
       "ReleaseDate": "2026-02-17T00:00:00+00:00",
       "TrackID": "0LHzktVjECYTxQd7fRpM8i",
       "Validated": true
+    },
+    "venom|lay down your soul|lay down your soul|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 6,
+      "ReleaseDate": "2026-03-05T00:00:00+00:00",
+      "TrackID": "07dB6A1bWXRvVbmPDlU0FQ",
+      "Validated": false
     },
     "versengold|der tag mag kommen|eingenordet|2026": {
       "AlbumType": "album",
@@ -691,10 +1035,10 @@
     "wolfchant|goddess of fire|goddess of fire|2025": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Popularity": 29,
+      "Popularity": 15,
       "ReleaseDate": "2025-11-21T00:00:00+00:00",
       "TrackID": "0JjusIKfEYjORnc3FL6cK5",
-      "Validated": true
+      "Validated": false
     },
     "wolfchant|lifeblood|lifeblood|2026": {
       "AlbumType": "single",
@@ -703,6 +1047,30 @@
       "ReleaseDate": "2026-01-16T00:00:00+00:00",
       "TrackID": "3mEKMzjzUHg3QlUFpT4AYk",
       "Validated": true
+    },
+    "yrzen|darkening mind|darkening mind|2025": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 2,
+      "ReleaseDate": "2025-12-19T00:00:00+00:00",
+      "TrackID": "4e0xIunDqfNLlr7s7uAlS0",
+      "Validated": false
+    },
+    "zgripsorum|bofors 40mm.|bofors 40mm.|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Popularity": 4,
+      "ReleaseDate": "2026-01-08T00:00:00+00:00",
+      "TrackID": "0ltwamMUK0uagxNpzfKWDI",
+      "Validated": false
+    },
+    "zgripsorum|the crown of malice|crown of malice|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Popularity": 5,
+      "ReleaseDate": "2026-01-15T00:00:00+00:00",
+      "TrackID": "433vAnOW6achsUEGPLWAaJ",
+      "Validated": false
     }
   }
 }
