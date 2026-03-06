@@ -349,10 +349,12 @@ def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, 
 
     return {
         _name_key("Classic Metal"): ("Metal clasico", ("metal clasico",)),
+        _name_key("Celtic Metal"): ("Metal celta", ("metal celta", "folk metal")),
         _name_key("Epic Cinematic Orchestral"): (
             "Cinematico epico",
             ("orquestal", "epico"),
         ),
+        _name_key("Fantasy Metal"): ("Metal fantastico", ("fantasy metal", "power metal")),
         _name_key("Folk Metal"): ("Folk metal", ("folk metal",)),
         _name_key("Folk Rock"): ("Folk rock", ("folk rock",)),
         _name_key("Instrumental Prog Metal"): (
@@ -363,7 +365,15 @@ def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, 
             "Death melodico",
             ("death melodico", "metal extremo"),
         ),
+        _name_key("Neo Classical Metal"): (
+            "Metal neo clasico",
+            ("metal neo clasico", "virtuosismo"),
+        ),
         _name_key("New Releases"): ("Novedades", ("novedades",)),
+        _name_key("NWOBHM"): (
+            "Heavy britanico clasico",
+            ("nwobhm", "heavy metal clasico"),
+        ),
         _name_key("Power Metal"): ("Power metal", ("power metal",)),
         _name_key("Prog Metal"): ("Metal progresivo", ("metal progresivo",)),
         _name_key("Symphonic Metal"): ("Metal sinfonico", ("metal sinfonico",)),
@@ -391,6 +401,30 @@ def _neuralforge_combo_presets(
             "Cruce folk",
             ("folk rock", "folk metal"),
             1.10,
+        ),
+        (
+            ("Prog Metal", "Neo Classical Metal"),
+            "Progresivo y neo clasico",
+            ("metal progresivo", "metal neo clasico"),
+            1.08,
+        ),
+        (
+            ("Symphonic Metal", "Fantasy Metal"),
+            "Fantasia sinfonica",
+            ("metal sinfonico", "fantasy metal"),
+            1.12,
+        ),
+        (
+            ("Folk Metal", "Celtic Metal"),
+            "Folk y celta",
+            ("folk metal", "metal celta"),
+            1.10,
+        ),
+        (
+            ("Classic Metal", "NWOBHM"),
+            "Raices del heavy",
+            ("metal clasico", "nwobhm"),
+            1.05,
         ),
     ]
 
@@ -754,7 +788,9 @@ def build_weekly_plan_with_code(
                 daily_template=daily_template,
             )
             combo_note = (
-                " NeuralForge usa combinaciones curadas (prog+instrumental, power+sinfonico, folk rock+folk metal)."
+                " NeuralForge usa combinaciones curadas (prog+instrumental, power+sinfonico, "
+                "folk rock+folk metal, prog+neo clasico, sinfonico+fantasy, folk+celtic, "
+                "classic+nwobhm)."
                 if station_slug.strip().lower() == "neuralforge"
                 else ""
             )
