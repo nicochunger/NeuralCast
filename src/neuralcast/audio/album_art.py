@@ -491,6 +491,24 @@ def _flatten_alpha(image: Image.Image) -> Image.Image:
     return image.convert("RGB")
 
 
+def _has_alpha_channel(image: Image.Image) -> bool:
+    return image.mode in {"RGBA", "LA"} or (
+        image.mode == "P" and "transparency" in image.info
+    )
+
+
+def _has_meaningful_alpha(image: Image.Image) -> bool:
+    if not _has_alpha_channel(image):
+        return False
+    try:
+        alpha_channel = image.convert("RGBA").getchannel("A")
+        alpha_min, _ = alpha_channel.getextrema()
+        return alpha_min < 255
+    except Exception:
+        # If inspection fails, preserve alpha safety.
+        return True
+
+
 def _encode_image_bytes(
     image: Image.Image, *, format_name: str, quality: int | None = None
 ) -> bytes:
@@ -502,6 +520,54 @@ def _encode_image_bytes(
         save_kwargs.update({"optimize": True})
     image.save(buffer, **save_kwargs)
     return buffer.getvalue()
+
+
+def _encode_jpeg_under_budget(image: Image.Image, *, max_bytes: int) -> bytes:
+    best = _encode_image_bytes(image, format_name="JPEG")
+    if len(best) <= max_bytes:
+        return best
+
+    for quality in (80, 70, 60, 50, 40, 35, 30):
+        candidate = _encode_image_bytes(image, format_name="JPEG", quality=quality)
+        if len(candidate) < len(best):
+            best = candidate
+        if len(candidate) <= max_bytes:
+            return candidate
+    return best
+
+
+def _downscale_png_under_budget(
+    image: Image.Image,
+    *,
+    max_bytes: int,
+    min_edge_px: int = 300,
+    max_steps: int = 12,
+) -> tuple[Image.Image, bytes]:
+    current = image
+    best_image = current
+    best_encoded = _encode_image_bytes(current, format_name="PNG")
+
+    for _ in range(max_steps):
+        if len(best_encoded) <= max_bytes:
+            break
+
+        width, height = current.size
+        if max(width, height) <= min_edge_px:
+            break
+
+        next_width = max(1, int(round(width * 0.9)))
+        next_height = max(1, int(round(height * 0.9)))
+        if (next_width, next_height) == (width, height):
+            next_width = max(1, width - 1)
+            next_height = max(1, height - 1)
+
+        current = current.resize((next_width, next_height), Image.LANCZOS)
+        encoded = _encode_image_bytes(current, format_name="PNG")
+        if len(encoded) <= len(best_encoded):
+            best_image = current
+            best_encoded = encoded
+
+    return best_image, best_encoded
 
 
 def _normalize_cover_art(
@@ -529,9 +595,7 @@ def _normalize_cover_art(
             if needs_resize:
                 working_image.thumbnail((max_px, max_px), Image.LANCZOS)
 
-            has_alpha = working_image.mode in {"RGBA", "LA"} or (
-                working_image.mode == "P" and "transparency" in working_image.info
-            )
+            has_alpha = _has_meaningful_alpha(working_image)
             prefers_png = "png" in (mime_type or "").lower() or image.format == "PNG"
             if has_alpha:
                 target_format = "PNG"
@@ -545,13 +609,41 @@ def _normalize_cover_art(
                 )
 
             encoded = _encode_image_bytes(output_image, format_name=target_format)
-            if target_format == "JPEG" and len(encoded) > max_bytes:
-                for quality in (80, 70, 60, 50, 40):
-                    encoded = _encode_image_bytes(
-                        output_image, format_name=target_format, quality=quality
+            if target_format == "JPEG":
+                encoded = _encode_jpeg_under_budget(output_image, max_bytes=max_bytes)
+            elif len(encoded) > max_bytes:
+                if not has_alpha:
+                    jpeg_image = _flatten_alpha(output_image)
+                    jpeg_encoded = _encode_jpeg_under_budget(
+                        jpeg_image, max_bytes=max_bytes
                     )
-                    if len(encoded) <= max_bytes:
-                        break
+                    if len(jpeg_encoded) <= max_bytes or len(jpeg_encoded) < len(encoded):
+                        output_image = jpeg_image
+                        target_format = "JPEG"
+                        target_mime = "image/jpeg"
+                        encoded = jpeg_encoded
+
+                if target_format == "PNG" and len(encoded) > max_bytes:
+                    output_image, encoded = _downscale_png_under_budget(
+                        output_image, max_bytes=max_bytes
+                    )
+
+                if target_format == "PNG" and len(encoded) > max_bytes and not has_alpha:
+                    jpeg_image = _flatten_alpha(output_image)
+                    jpeg_encoded = _encode_jpeg_under_budget(
+                        jpeg_image, max_bytes=max_bytes
+                    )
+                    if len(jpeg_encoded) < len(encoded):
+                        output_image = jpeg_image
+                        target_format = "JPEG"
+                        target_mime = "image/jpeg"
+                        encoded = jpeg_encoded
+
+            limit_note = (
+                f" (still above {max_bytes / 1024:.1f}KB target)"
+                if len(encoded) > max_bytes
+                else ""
+            )
 
             if (
                 len(encoded) != original_size
@@ -564,7 +656,7 @@ def _normalize_cover_art(
                         f"{original_dimensions[0]}x{original_dimensions[1]} "
                         f"({original_size / 1024:.1f}KB) -> "
                         f"{output_image.size[0]}x{output_image.size[1]} "
-                        f"({len(encoded) / 1024:.1f}KB)"
+                        f"({len(encoded) / 1024:.1f}KB){limit_note}"
                     ),
                     icon="🎨",
                     prefix=log_prefix,
