@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,33 @@ from neuralcast.config import ASSETS_ROOT
 
 _FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
 _ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
+
+
+def _yt_dlp_cookie_args() -> list[str]:
+    cookies_file = (
+        str(
+            os.getenv("NC_YTDLP_COOKIES_FILE")
+            or os.getenv("YTDLP_COOKIES_FILE")
+            or ""
+        )
+        .strip()
+    )
+    if cookies_file:
+        return ["--cookies", cookies_file]
+
+    cookies_from_browser = (
+        str(
+            os.getenv("NC_YTDLP_COOKIES_FROM_BROWSER")
+            or os.getenv("YTDLP_COOKIES_FROM_BROWSER")
+            or ""
+        )
+        .strip()
+    )
+    if cookies_from_browser:
+        # Accept raw yt-dlp value, e.g. "firefox" or "firefox:default".
+        return ["--cookies-from-browser", cookies_from_browser]
+
+    return []
 
 
 def _normalize_year_for_id3(year: object) -> str:
@@ -122,9 +150,15 @@ def tag_mp3(
 def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
     filtered_query = f"{query}"
     source = f"ytsearch1:{filtered_query}" if use_search else filtered_query
+    cookie_args = _yt_dlp_cookie_args()
     cmd = [
-        "yt-dlp",
+        sys.executable,
+        "-m",
+        "yt_dlp",
         source,
+        "--remote-components",
+        "ejs:github",
+        *cookie_args,
         "-x",
         "--audio-format",
         "mp3",
