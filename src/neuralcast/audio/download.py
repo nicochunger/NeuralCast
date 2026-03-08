@@ -18,6 +18,14 @@ _FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
 _ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
 
 
+class DownloadNoResultsError(FileNotFoundError):
+    """Raised when a yt-dlp search query resolves to no downloadable items."""
+
+
+class DownloadOutputMissingError(FileNotFoundError):
+    """Raised when yt-dlp succeeds but does not produce the requested MP3."""
+
+
 def _yt_dlp_cookie_args() -> list[str]:
     cookies_file = (
         str(
@@ -28,6 +36,7 @@ def _yt_dlp_cookie_args() -> list[str]:
         .strip()
     )
     if cookies_file:
+        cookies_file = os.path.expanduser(os.path.expandvars(cookies_file))
         return ["--cookies", cookies_file]
 
     cookies_from_browser = (
@@ -170,7 +179,58 @@ def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
         "--no-playlist",
     ]
     subprocess.run(cmd, check=True)
-    print(f"Downloaded: {outfile}")
+    output_path = Path(outfile)
+    if output_path.exists():
+        print(f"Downloaded: {outfile}")
+        return
+
+    if use_search:
+        search_has_results = _yt_dlp_search_has_results(filtered_query)
+        if search_has_results is False:
+            raise DownloadNoResultsError(
+                f"yt-dlp search returned no results for query: {filtered_query}"
+            )
+
+    raise DownloadOutputMissingError(
+        f"yt-dlp finished without creating expected output file: {outfile}"
+    )
 
 
-__all__ = ["ensure_easyid3", "tag_mp3", "youtube_to_mp3"]
+def _yt_dlp_search_has_results(query: str) -> Optional[bool]:
+    source = f"ytsearch1:{query}"
+    cookie_args = _yt_dlp_cookie_args()
+    cmd = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        source,
+        "--remote-components",
+        "ejs:github",
+        *cookie_args,
+        "--flat-playlist",
+        "--skip-download",
+        "--print",
+        "id",
+        "--quiet",
+        "--no-playlist",
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+
+    return bool(result.stdout.strip())
+
+
+__all__ = [
+    "DownloadNoResultsError",
+    "DownloadOutputMissingError",
+    "ensure_easyid3",
+    "tag_mp3",
+    "youtube_to_mp3",
+]

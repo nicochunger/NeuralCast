@@ -23,7 +23,12 @@ from neuralcast.config import (
     DEFAULT_STATION_SLUG,
     station_dir_from_slug,
 )
-from neuralcast.audio.download import tag_mp3, youtube_to_mp3
+from neuralcast.audio.download import (
+    DownloadNoResultsError,
+    DownloadOutputMissingError,
+    tag_mp3,
+    youtube_to_mp3,
+)
 from neuralcast.metadata.album_lookup import guess_album
 from neuralcast.models import Song, ValidationResult
 from neuralcast.playlists.utils import (
@@ -279,6 +284,35 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
 
     updated_song = song.copy(update=updated_fields)
     return updated_song, True
+
+
+def _save_playlist_state(
+    playlist_file: pathlib.Path,
+    playlist_name: str,
+    songs: List[Song],
+    playlist_df: pd.DataFrame,
+    *,
+    songs_to_remove: Optional[List[Song]] = None,
+    save_validation_updates: bool = False,
+) -> List[Song]:
+    songs_to_remove = songs_to_remove or []
+    removed_count = 0
+
+    if songs_to_remove:
+        original_song_count = len(songs)
+        songs = [song for song in songs if song not in songs_to_remove]
+        removed_count = original_song_count - len(songs)
+        if removed_count > 0:
+            print(f"📝 Removed {removed_count} song(s) from playlist CSV file")
+
+    if save_validation_updates or removed_count > 0:
+        save_playlist_with_validation(str(playlist_file), songs, playlist_df)
+        print("📝 Updated playlist CSV file")
+
+    if removed_count > 0 and playlist_name.casefold() == "new releases":
+        remove_new_releases_metadata_entries(playlist_file.parent, songs_to_remove)
+
+    return songs
 
 
 def main(
@@ -859,20 +893,14 @@ def main(
 
         # Save validation updates to playlist
         if validation_updates or songs_to_remove_from_playlist:
-            # Remove invalid songs
-            if songs_to_remove_from_playlist:
-                original_song_count = len(songs)
-                songs = [
-                    song for song in songs if song not in songs_to_remove_from_playlist
-                ]
-                removed_count = original_song_count - len(songs)
-                print(
-                    f"📝 Removed {removed_count} invalid song(s) from playlist CSV file"
-                )
-
-            # Save updated playlist with validation status and all columns
-            save_playlist_with_validation(str(playlist_file), songs, entry["df"])
-            print(f"📝 Updated validation status in playlist CSV file")
+            songs = _save_playlist_state(
+                playlist_file,
+                playlist_name,
+                songs,
+                entry["df"],
+                songs_to_remove=songs_to_remove_from_playlist,
+                save_validation_updates=validation_updates,
+            )
 
         if valid_count == 0 and missing_count > 0:
             print(f"\n❌ No valid songs to download for playlist '{playlist_name}'!")
@@ -896,6 +924,7 @@ def main(
             # Process only valid missing songs
             downloaded_count = 0
             failed_count = 0
+            download_removals: List[Song] = []
 
             for idx, (song, song_path) in enumerate(valid_songs, start=1):
                 artist = song.artist
@@ -915,10 +944,31 @@ def main(
                     )
                     print(f"✓ Downloaded and tagged: {artist} - {title}")
                     downloaded_count += 1
+                except DownloadNoResultsError as exc:
+                    print(f"✗ No yt-dlp search results for {artist} - {title}: {exc}")
+                    songs_to_remove_from_playlist.append(song)
+                    download_removals.append(song)
+                    failed_count += 1
+                    continue
+                except DownloadOutputMissingError as exc:
+                    print(
+                        f"✗ Download completed without an MP3 for {artist} - {title}: {exc}"
+                    )
+                    failed_count += 1
+                    continue
                 except CalledProcessError as e:
                     print(f"✗ Failed to download {artist} - {title}: {e}")
                     failed_count += 1
                     continue
+
+            if download_removals:
+                songs = _save_playlist_state(
+                    playlist_file,
+                    playlist_name,
+                    songs,
+                    entry["df"],
+                    songs_to_remove=download_removals,
+                )
 
         # Final summary
         total_removed = len(songs_to_remove_from_playlist)
