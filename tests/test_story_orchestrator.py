@@ -8,27 +8,32 @@ import time
 import unittest
 from zoneinfo import ZoneInfo
 
-from neuralcast.pipelines.host_orchestrator import (  # noqa: E402
+from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
+    build_system_prompt,
+    build_tts_instructions,
+    ensure_schedule_genre_reference,
+    parse_news_output,
+    resolve_station_personality,
+    station_name_for_generation,
+    validate_news_freshness_and_dedup,
+)
+from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
     Archetype,
     OrchestratorState,
     ScheduleContext,
+)
+from neuralcast.pipelines.host_orchestrator.schedule import (  # noqa: E402
+    resolve_schedule_context,
+    should_force_block_intro,
+)
+from neuralcast.pipelines.host_orchestrator.state import (  # noqa: E402
     apply_success_state_update,
-    build_system_prompt,
-    build_tts_instructions,
     build_news_dedup_key,
     choose_weighted_archetype,
     default_state,
+    legal_archetypes_for_remaining,
     migrate_state,
-    parse_news_output,
-    resolve_schedule_context,
-    resolve_station_personality,
-    should_force_block_intro,
-    station_name_for_generation,
     should_speak_now,
-    validate_news_freshness_and_dedup,
-)
-from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
-    ensure_schedule_genre_reference,
 )
 
 
@@ -110,9 +115,33 @@ class OrchestratorHelpersTest(unittest.TestCase):
         rng = __import__("random").Random(9)
         state = default_state(time.time(), __import__("random").Random(2))
         state.recent_archetypes = [Archetype.BACK_SELL.value]
-        legal = [Archetype.BACK_SELL, Archetype.SYSTEM_CHECK]
+        legal = [Archetype.BACK_SELL, Archetype.SHORT_STORY]
         selected = choose_weighted_archetype(legal, state, rng)
-        self.assertEqual(selected, Archetype.SYSTEM_CHECK)
+        self.assertEqual(selected, Archetype.SHORT_STORY)
+
+    def test_legal_archetypes_for_remaining_excludes_deep_dive_below_120_seconds(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(3))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=100,
+        )
+
+        self.assertIn(Archetype.BACK_SELL, legal)
+        self.assertIn(Archetype.NEWS, legal)
+        self.assertNotIn(Archetype.DEEP_DIVE, legal)
+
+    def test_legal_archetypes_for_remaining_includes_deep_dive_at_120_seconds(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(4))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=120,
+        )
+
+        self.assertIn(Archetype.DEEP_DIVE, legal)
 
     def test_parse_news_output_valid(self) -> None:
         output = """SCRIPT:
@@ -272,7 +301,15 @@ META (JSON):
         already_mentioned_context = resolve_schedule_context(
             schedule_state=schedule_state,
             ts=now_local.timestamp(),
-            mention_state={block_key: {"mid": True, "updated_at": now_local.timestamp()}},
+            mention_state={
+                block_key: {
+                    "mid": True,
+                    "speak_count": 1,
+                    "mid_mention_count": 1,
+                    "last_mid_speak_count": 1,
+                    "updated_at": now_local.timestamp(),
+                }
+            },
         )
         self.assertIsNotNone(already_mentioned_context)
         assert already_mentioned_context is not None
@@ -424,7 +461,9 @@ META (JSON):
             schedule_context=context,
             rng=__import__("random").Random(2),
         )
-        self.assertNotIn(context.block_key, state.schedule_block_mentions)
+        self.assertIn(context.block_key, state.schedule_block_mentions)
+        self.assertEqual(state.schedule_block_mentions[context.block_key]["speak_count"], 1)
+        self.assertNotIn("start", state.schedule_block_mentions[context.block_key])
 
         apply_success_state_update(
             state=state,

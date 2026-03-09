@@ -11,6 +11,7 @@ from neuralcast.pipelines.schedule_generator import (  # noqa: E402
     azuracast_time_for_api,
     build_schedule_items_by_playlist,
     build_deterministic_daily_template,
+    build_arg_parser,
     expand_daily_template_to_week,
     infer_azuracast_days,
     validate_daily_template,
@@ -302,6 +303,10 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertEqual(azuracast_time_for_api("07:30"), 730)
         self.assertEqual(azuracast_time_for_api("24:00"), 2359)
 
+    def test_build_arg_parser_defaults_max_block_minutes_to_ninety(self) -> None:
+        args = build_arg_parser().parse_args(["--base-url", "https://example.test"])
+        self.assertEqual(args.max_block_minutes, 90)
+
     def test_validate_daily_template_rejects_playlist_in_unscheduled_window(self) -> None:
         raw_blocks = [
             {
@@ -351,12 +356,13 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             open_ratio_min=0.20,
             open_ratio_max=0.40,
             min_block_minutes=30,
-            max_block_minutes=240,
+            max_block_minutes=90,
         )
         self.assertGreater(len(template), 0)
         self.assertEqual(template[0].start_time_local, "00:00")
         self.assertEqual(template[-1].end_time_local, "24:00")
         for block in template:
+            self.assertLessEqual(block.end_minute - block.start_minute, 90)
             if block.start_minute < 360 or block.end_minute > 1320:
                 self.assertEqual(block.mode, "open")
 

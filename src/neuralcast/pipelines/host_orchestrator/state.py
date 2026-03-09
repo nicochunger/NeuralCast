@@ -19,6 +19,7 @@ from .config import (
     COOLDOWN_SECONDS,
     HOOKS_BY_ARCHETYPE,
     HOOK_FREE_OPEN_PROB_BY_ARCHETYPE,
+    lead_time_seconds_for_archetype,
     LOCK_STALE_SECONDS,
     LOGGER,
     NEWS_DEDUP_MAX_ENTRIES,
@@ -424,6 +425,14 @@ def should_speak_now(
 
 
 def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
+    return legal_archetypes_for_remaining(state, ts, current_remaining=None)
+
+
+def legal_archetypes_for_remaining(
+    state: OrchestratorState,
+    ts: float,
+    current_remaining: Optional[int],
+) -> List[Archetype]:
     legal: List[Archetype] = []
     for archetype in (
         Archetype.BACK_SELL,
@@ -435,6 +444,10 @@ def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
     ):
         cooldown_until = float(state.cooldown_until.get(archetype.value, 0.0))
         if ts >= cooldown_until:
+            if current_remaining is not None and (
+                current_remaining < lead_time_seconds_for_archetype(archetype)
+            ):
+                continue
             legal.append(archetype)
     return legal
 

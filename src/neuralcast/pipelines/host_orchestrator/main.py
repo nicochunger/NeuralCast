@@ -36,6 +36,7 @@ from .config import (
     LOGGER,
     configure_station_file_logging,
     configure_logging,
+    lead_time_seconds_for_archetype,
     log_segment_event,
     log_schedule_debug,
 )
@@ -69,7 +70,7 @@ from .state import (
     choose_hook,
     choose_weighted_archetype,
     default_state,
-    legal_archetypes,
+    legal_archetypes_for_remaining,
     load_state,
     migrate_state,
     save_state_atomic,
@@ -346,6 +347,17 @@ def run(args: argparse.Namespace) -> None:
                 effective_forced_archetype=forced_archetype.value if forced_archetype else "none",
             )
 
+        if forced_archetype is not None:
+            required_lead_time = lead_time_seconds_for_archetype(forced_archetype)
+            if current_remaining < required_lead_time:
+                LOGGER.info(
+                    "[gate] Forced archetype %s requires %ss lead time; current track has %ss remaining. Skipping cycle.",
+                    forced_archetype.value,
+                    required_lead_time,
+                    current_remaining,
+                )
+                return
+
         if forced_archetype is None:
             eligible, wait_reason = should_speak_now(state, current_key, now_ts())
             if not eligible:
@@ -367,7 +379,11 @@ def run(args: argparse.Namespace) -> None:
         if forced_archetype is not None:
             selected_archetype = forced_archetype
         else:
-            legal = legal_archetypes(state, now_ts())
+            legal = legal_archetypes_for_remaining(
+                state,
+                now_ts(),
+                current_remaining=current_remaining,
+            )
             if legal:
                 selected_archetype = choose_weighted_archetype(legal, state, rng)
                 LOGGER.info(

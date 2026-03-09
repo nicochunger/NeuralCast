@@ -28,6 +28,9 @@ ORCHESTRATOR_SCHEDULE_DEBUG_LOG_FILENAME = "ai_host_orchestrator_schedule_debug.
 LOCK_STALE_SECONDS = 10 * 60
 
 LEAD_TIME_SECONDS = 90
+ARCHETYPE_LEAD_TIME_SECONDS: Dict[Archetype, int] = {
+    Archetype.DEEP_DIVE: 120,
+}
 SPEAK_DEADLINE_MINUTES = 45
 WAIT_RANGE_SONGS = (2, 5)
 NEWS_MAX_AGE_HOURS = 7 * 24
@@ -48,6 +51,13 @@ SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 LOGGER = logging.getLogger("host_orchestrator")
 SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")
 SCHEDULE_DEBUG_LOGGER = logging.getLogger("host_orchestrator.schedule_debug")
+
+
+def lead_time_seconds_for_archetype(archetype: Archetype) -> int:
+    return max(
+        LEAD_TIME_SECONDS,
+        int(ARCHETYPE_LEAD_TIME_SECONDS.get(archetype, LEAD_TIME_SECONDS)),
+    )
 
 
 def configure_logging(level: int = logging.INFO) -> None:
