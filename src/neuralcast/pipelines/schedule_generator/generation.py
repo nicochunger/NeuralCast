@@ -354,7 +354,7 @@ def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, 
             "Cinematico epico",
             ("orquestal", "epico"),
         ),
-        _name_key("Fantasy Metal"): ("Metal fantastico", ("fantasy metal", "power metal")),
+        _name_key("Fantasy Metal"): ("Fantasy Metal", ("fantasy metal", "power metal")),
         _name_key("Folk Metal"): ("Folk metal", ("folk metal",)),
         _name_key("Folk Rock"): ("Folk rock", ("folk rock",)),
         _name_key("Instrumental Prog Metal"): (
