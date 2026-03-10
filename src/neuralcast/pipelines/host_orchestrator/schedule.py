@@ -891,3 +891,53 @@ def should_force_block_intro(
         section_label=(schedule_context.section_label if schedule_context else "n/a"),
     )
     return result
+
+
+def seconds_until_schedule_block_change(
+    schedule_context: Optional[ScheduleContext],
+    ts: float,
+) -> Optional[float]:
+    if schedule_context is None:
+        return None
+
+    end_text = str(schedule_context.end_local_iso or "").strip()
+    if not end_text:
+        log_schedule_debug(
+            "schedule.block_change.seconds_until",
+            result="none",
+            reason="missing_end_local_iso",
+            block_key=schedule_context.block_key,
+            section_label=schedule_context.section_label,
+        )
+        return None
+
+    try:
+        end_dt = dt.datetime.fromisoformat(end_text)
+    except ValueError:
+        log_schedule_debug(
+            "schedule.block_change.seconds_until",
+            result="none",
+            reason="invalid_end_local_iso",
+            block_key=schedule_context.block_key,
+            section_label=schedule_context.section_label,
+            end_local_iso=end_text,
+        )
+        return None
+
+    if end_dt.tzinfo is not None:
+        reference_dt = dt.datetime.fromtimestamp(ts, tz=end_dt.tzinfo)
+    else:
+        reference_dt = dt.datetime.fromtimestamp(ts)
+
+    seconds_until = (end_dt - reference_dt).total_seconds()
+    log_schedule_debug(
+        "schedule.block_change.seconds_until",
+        result="value",
+        block_key=schedule_context.block_key,
+        section_label=schedule_context.section_label,
+        end_local_iso=end_text,
+        reference_ts=ts,
+        reference_local_iso=reference_dt.isoformat(),
+        seconds_until=seconds_until,
+    )
+    return seconds_until

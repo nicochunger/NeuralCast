@@ -29,6 +29,7 @@ from .config import (
     SPEAK_DEADLINE_MINUTES,
     STATE_VERSION,
     TEMPERATURE_TOP_P_RANGES,
+    UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE,
     WAIT_RANGE_SONGS,
     WEIGHTED_ARCHETYPES,
     log_schedule_debug,
@@ -432,6 +433,7 @@ def legal_archetypes_for_remaining(
     state: OrchestratorState,
     ts: float,
     current_remaining: Optional[int],
+    seconds_until_block_change: Optional[float] = None,
 ) -> List[Archetype]:
     legal: List[Archetype] = []
     for archetype in (
@@ -447,6 +449,19 @@ def legal_archetypes_for_remaining(
             if current_remaining is not None and (
                 current_remaining < lead_time_seconds_for_archetype(archetype)
             ):
+                continue
+            if (
+                archetype == Archetype.UP_NEXT_TEASE
+                and seconds_until_block_change is not None
+                and seconds_until_block_change
+                < UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE
+            ):
+                log_schedule_debug(
+                    "archetype.legal.skip_up_next_tease_near_block_change",
+                    archetype=archetype.value,
+                    seconds_until_block_change=seconds_until_block_change,
+                    minimum_seconds=UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE,
+                )
                 continue
             legal.append(archetype)
     return legal

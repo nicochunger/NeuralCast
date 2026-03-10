@@ -24,6 +24,7 @@ from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
 )
 from neuralcast.pipelines.host_orchestrator.schedule import (  # noqa: E402
     resolve_schedule_context,
+    seconds_until_schedule_block_change,
     should_force_block_intro,
 )
 from neuralcast.pipelines.host_orchestrator.state import (  # noqa: E402
@@ -142,6 +143,31 @@ class OrchestratorHelpersTest(unittest.TestCase):
         )
 
         self.assertIn(Archetype.DEEP_DIVE, legal)
+
+    def test_legal_archetypes_for_remaining_excludes_up_next_tease_within_20_minutes_of_block_change(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(5))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=120,
+            seconds_until_block_change=(20 * 60) - 1,
+        )
+
+        self.assertNotIn(Archetype.UP_NEXT_TEASE, legal)
+        self.assertIn(Archetype.BACK_SELL, legal)
+
+    def test_legal_archetypes_for_remaining_keeps_up_next_tease_at_20_minutes_to_block_change(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(6))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=120,
+            seconds_until_block_change=20 * 60,
+        )
+
+        self.assertIn(Archetype.UP_NEXT_TEASE, legal)
 
     def test_parse_news_output_valid(self) -> None:
         output = """SCRIPT:
@@ -430,6 +456,28 @@ META (JSON):
 
         self.assertTrue(should_force_block_intro(context, None))
         self.assertFalse(should_force_block_intro(context, Archetype.BACK_SELL))
+
+    def test_seconds_until_schedule_block_change_uses_context_end_time(self) -> None:
+        context = ScheduleContext(
+            block_key="2026-02-16|0|12:00|13:00|playlist|10",
+            section_label="Prog Dawn",
+            genre_labels=["prog", "metal"],
+            mode="playlist",
+            playlist_name="Prog Metal",
+            progress_ratio=0.5,
+            phase="middle",
+            mention_intent=None,
+            next_section_label="Open Rotation",
+            start_local_iso="2026-02-16T12:00:00+01:00",
+            end_local_iso="2026-02-16T13:00:00+01:00",
+        )
+
+        ts = dt.datetime(2026, 2, 16, 12, 45, tzinfo=ZoneInfo("Europe/Zurich")).timestamp()
+
+        seconds_until = seconds_until_schedule_block_change(context, ts)
+
+        assert seconds_until is not None
+        self.assertAlmostEqual(seconds_until, 15 * 60, delta=1)
 
     def test_start_schedule_mention_recorded_only_for_block_intro(self) -> None:
         ts = time.time()

@@ -59,6 +59,7 @@ from .schedule import (
     load_schedule_state_payload,
     prune_schedule_block_mentions,
     resolve_schedule_context_for_upcoming_break,
+    seconds_until_schedule_block_change,
     should_force_block_intro,
 )
 from .state import (
@@ -379,21 +380,31 @@ def run(args: argparse.Namespace) -> None:
         if forced_archetype is not None:
             selected_archetype = forced_archetype
         else:
+            seconds_until_block_change = seconds_until_schedule_block_change(
+                schedule_context,
+                schedule_reference_ts,
+            )
             legal = legal_archetypes_for_remaining(
                 state,
                 now_ts(),
                 current_remaining=current_remaining,
+                seconds_until_block_change=seconds_until_block_change,
             )
             if legal:
                 selected_archetype = choose_weighted_archetype(legal, state, rng)
                 LOGGER.info(
-                    "[archetype] Legal archetypes: %s",
+                    "[archetype] Legal archetypes: %s (seconds_until_block_change=%s)",
                     [item.value for item in legal],
+                    (
+                        "n/a"
+                        if seconds_until_block_change is None
+                        else round(seconds_until_block_change, 1)
+                    ),
                 )
             else:
                 selected_archetype = Archetype.ULTRA_MINIMAL
                 LOGGER.warning(
-                    "[archetype] No legal archetypes available after cooldowns; using ultra_minimal."
+                    "[archetype] No legal archetypes available after cooldowns/block-change guards; using ultra_minimal."
                 )
 
         angle = choose_angle(selected_archetype, state, rng)
