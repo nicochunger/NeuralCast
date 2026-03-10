@@ -9,6 +9,7 @@ Como debe sonar:
 - Conversacional, suelto y humano (es-AR), sin tono de listado ni anuncio formal.
 - Integrar los nombres de bandas dentro de una frase natural, no en formato enumeracion mecanica.
 - Mantener ritmo de radio en vivo: breve, seguro y con movimiento.
+- No sonar a flyer de festival ni a promesa inflada de evento.
 - Si INPUT trae mention_intent=mid, tratar el bloque como en curso ("seguimos en..."), nunca como cierre.
 - Si INPUT trae mention_intent=start, presentar el bloque como recien arrancando.
 - Si INPUT trae hook seed, usarlo solo como direccion.

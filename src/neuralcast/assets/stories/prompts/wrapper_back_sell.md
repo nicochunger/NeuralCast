@@ -9,9 +9,11 @@ Como suena una buena salida:
 - Especifica para el tema actual y el que viene.
 - Nunca con tono slogan ni energia de saludo enlatado.
 - La primera frase debe incluir una observacion musical concreta cuando los metadatos lo permitan.
+- Hablar desde lo que deja la escucha, no desde una ficha tecnica ni una descripcion demasiado prolija.
 - Evitar metaforas de musica pesada gastadas, salvo justificacion clara por contexto provisto.
 - Forma sugerida: detalle sonoro concreto -> lectura corta -> puente al proximo tema.
 - Dejar respiracion oral natural (pausa breve o muletilla suave) solo si suma y no fuerza el texto.
+- Si una frase queda demasiado cerrada o redactada, cortarla o reformularla para que suene dicha al aire.
 - Si INPUT trae hook seed, tomarlo como direccion flexible; no copiarlo literal ni como arranque obligatorio.
 - Muletillas sugeridas, opcionales y sutiles: "bueno", "mira", "viste", "nada".
 

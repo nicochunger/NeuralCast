@@ -17,10 +17,12 @@ Ejecucion conversacional:
 - Usar un arco oral claro y flexible: apertura viva, 2-3 ideas compactas, y pase fluido.
 - El gancho puede ser una frase espontanea o una entrada directa; no hace falta formula fija.
 - Mantener oraciones variadas y orales, con transiciones naturales.
+- Hablar desde la escucha y el detalle que pega, no desde una ficha tecnica o reseña ordenada.
 - Mantener vocabulario concreto y aterrizado; evitar metafora dramatica de stock.
 - Priorizar 1-2 datos puntuales que cambien la escucha, por encima de cronologia amplia.
 - Si hay pocos datos, dar una lectura interpretativa breve en lugar de rellenar con generalidades.
 - Incluir al menos una pausa oral visible (por ejemplo: "..." o un corte breve con punto aparte).
+- Si una frase queda demasiado perfecta o simetrica, romperla con una pausa o una reformulacion breve.
 - Muletillas/fillers opcionales y sutiles: usar 0-2 si salen naturales, nunca por cuota fija (por ejemplo: "bueno", "mira", "viste", "no se", "che", "ponele", "te juro").
 - Si INPUT trae hook seed, tomarlo como disparador de enfoque; no copiarlo literal ni obligatoriamente al inicio.
 
