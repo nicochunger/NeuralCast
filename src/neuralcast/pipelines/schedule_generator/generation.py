@@ -357,6 +357,7 @@ def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, 
         _name_key("Fantasy Metal"): ("Fantasy Metal", ("fantasy metal", "power metal")),
         _name_key("Folk Metal"): ("Folk metal", ("folk metal",)),
         _name_key("Folk Rock"): ("Folk rock", ("folk rock",)),
+        _name_key("Hard Rock"): ("Hard rock", ("hard rock",)),
         _name_key("Instrumental Prog Metal"): (
             "Prog instrumental",
             ("prog instrumental", "metal progresivo"),
@@ -384,6 +385,12 @@ def _neuralforge_combo_presets(
     playlist_by_name_key: Mapping[str, StationPlaylist],
 ) -> List[AssignmentCandidate]:
     preset_specs = [
+        (
+            ("Hard Rock", "Classic Metal"),
+            "Hard y heavy",
+            ("hard rock", "metal clasico"),
+            1.08,
+        ),
         (
             ("Prog Metal", "Instrumental Prog Metal"),
             "Progresivo e instrumental",
@@ -787,13 +794,13 @@ def build_weekly_plan_with_code(
                 week_start=week_start,
                 daily_template=daily_template,
             )
-            combo_note = (
-                " NeuralForge usa combinaciones curadas (prog+instrumental, power+sinfonico, "
-                "folk rock+folk metal, prog+neo clasico, sinfonico+fantasy, folk+celtic, "
-                "classic+nwobhm)."
-                if station_slug.strip().lower() == "neuralforge"
-                else ""
-            )
+            combo_note = ""
+            if station_slug.strip().lower() == "neuralforge":
+                combo_note = (
+                    " NeuralForge usa combinaciones curadas (hard rock+classic, "
+                    "prog+instrumental, power+sinfonico, folk rock+folk metal, "
+                    "prog+neo clasico, sinfonico+fantasy, folk+celtic, classic+nwobhm)."
+                )
             rationale = (
                 "Plan semanal generado por codigo (sin LLM), con bloques variables, "
                 "slots abiertos distribuidos a lo largo del dia y seleccion pseudoaleatoria "

@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as dt
 import unittest
 
+import neuralcast.pipelines.schedule_generator.generation as schedule_generation  # noqa: E402
 from neuralcast.pipelines.schedule_generator import (  # noqa: E402
     StationPlaylist,
     azuracast_time_for_api,
@@ -365,6 +366,41 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             self.assertLessEqual(block.end_minute - block.start_minute, 90)
             if block.start_minute < 360 or block.end_minute > 1320:
                 self.assertEqual(block.mode, "open")
+
+    def test_neuralforge_hard_rock_programming_metadata_is_wired(self) -> None:
+        label_map = schedule_generation._station_label_map("neuralforge")
+        self.assertEqual(
+            label_map[schedule_generation._name_key("Hard Rock")],
+            ("Hard rock", ("hard rock",)),
+        )
+
+        playlists = {
+            schedule_generation._name_key("Hard Rock"): StationPlaylist(
+                id="77",
+                name="Hard Rock",
+                is_enabled=True,
+                weight=1.0,
+                schedule_items=[],
+                raw={},
+            ),
+            schedule_generation._name_key("Classic Metal"): StationPlaylist(
+                id="23",
+                name="Classic Metal",
+                is_enabled=True,
+                weight=1.0,
+                schedule_items=[],
+                raw={},
+            ),
+        }
+        combos = schedule_generation._neuralforge_combo_presets(playlists)
+        self.assertTrue(
+            any(
+                combo.playlist_names == ("Hard Rock", "Classic Metal")
+                and combo.section_label == "Hard y heavy"
+                and combo.genre_labels == ("hard rock", "metal clasico")
+                for combo in combos
+            )
+        )
 
 
 if __name__ == "__main__":
