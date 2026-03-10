@@ -20,6 +20,7 @@ ENV_REMOTE_HOST = "NC_REMOTE_SYNC_HOST"
 ENV_REMOTE_USER = "NC_REMOTE_SYNC_USER"
 ENV_REMOTE_PORT = "NC_REMOTE_SYNC_PORT"
 ENV_REMOTE_MEDIA_ROOT = "NC_REMOTE_SYNC_MEDIA_ROOT"
+ENV_REMOTE_MEDIA_ROOT_PREFIX = "NC_REMOTE_SYNC_MEDIA_ROOT_"
 ENV_REMOTE_SSH_KEY = "NC_REMOTE_SYNC_SSH_KEY"
 ENV_REMOTE_RSYNC_BIN = "NC_REMOTE_SYNC_RSYNC_BIN"
 ENV_REMOTE_TIMEOUT_SECONDS = "NC_REMOTE_SYNC_TIMEOUT_SECONDS"
@@ -92,7 +93,10 @@ def add_remote_sync_args(parser: argparse.ArgumentParser) -> None:
         "--remote-media-root",
         help=(
             "Remote AzuraCast media root. Supports '{station}' placeholder "
-            f"(default: ${ENV_REMOTE_MEDIA_ROOT} or {DEFAULT_REMOTE_MEDIA_ROOT_TEMPLATE})."
+            "(default: station-specific "
+            f"${ENV_REMOTE_MEDIA_ROOT_PREFIX}<STATION_SLUG_UPPER>, "
+            f"then ${ENV_REMOTE_MEDIA_ROOT}, "
+            f"then {DEFAULT_REMOTE_MEDIA_ROOT_TEMPLATE})."
         ),
     )
     group.add_argument(
@@ -150,6 +154,19 @@ def _parse_optional_env_int(name: str) -> int | None:
         raise ValueError(f"Environment variable {name} must be an integer, got {raw!r}.") from exc
 
 
+def _station_specific_env_name(prefix: str, station_slug: str) -> str:
+    sanitized_slug = "".join(
+        char if char.isalnum() else "_" for char in station_slug.strip().upper()
+    )
+    return f"{prefix}{sanitized_slug}"
+
+
+def _station_specific_env_value(prefix: str, station_slug: str) -> str | None:
+    env_name = _station_specific_env_name(prefix, station_slug)
+    raw_value = (os.getenv(env_name) or "").strip()
+    return raw_value or None
+
+
 def _resolved_remote_media_root(template_or_path: str, station_slug: str) -> str:
     try:
         resolved = template_or_path.format(station=station_slug).strip()
@@ -193,6 +210,7 @@ def build_remote_sync_config(
 
     resolved_remote_root_template = (
         remote_media_root
+        or _station_specific_env_value(ENV_REMOTE_MEDIA_ROOT_PREFIX, station_slug)
         or os.getenv(ENV_REMOTE_MEDIA_ROOT)
         or DEFAULT_REMOTE_MEDIA_ROOT_TEMPLATE
     )

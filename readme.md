@@ -57,6 +57,7 @@ Depending on the workflow, configure:
 - `NC_REMOTE_SYNC_HOST` (optional rsync SSH host, default: `neuralvps`)
 - `NC_REMOTE_SYNC_USER` (optional rsync SSH username)
 - `NC_REMOTE_SYNC_PORT` (optional rsync SSH port)
+- `NC_REMOTE_SYNC_MEDIA_ROOT_<STATION_SLUG_UPPER>` (optional per-station remote path override, for example `NC_REMOTE_SYNC_MEDIA_ROOT_NEURALCAST`)
 - `NC_REMOTE_SYNC_MEDIA_ROOT` (optional remote path template, default: `/var/lib/docker/volumes/azuracast_station_data/_data/{station}/media`)
 - `NC_REMOTE_SYNC_SSH_KEY` (optional SSH key path for rsync)
 - `NC_REMOTE_SYNC_TIMEOUT_SECONDS` (optional rsync timeout, default: `300`)
