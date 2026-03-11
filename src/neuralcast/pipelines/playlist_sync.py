@@ -247,7 +247,8 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
         match = guess_album(
             song.artist,
             song.title,
-            prefer_spotify=True,
+            prefer_spotify=False,
+            prefer_deezer=True,
             min_confidence=0.55,
             allow_fallback=True,
         )

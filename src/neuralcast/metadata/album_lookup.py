@@ -13,12 +13,15 @@ from typing import List, Optional, Sequence
 
 import dotenv
 import musicbrainzngs
+import requests
 import spotipy
+from requests import Session
 from spotipy import Spotify
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from neuralcast.services.ai_client import openai_text_completion
+from neuralcast.services.deezer import get_album, parse_release_date, search_tracks
 
 # Ensure environment variables (e.g., Spotify credentials) are available.
 dotenv.load_dotenv()
@@ -27,6 +30,9 @@ dotenv.load_dotenv()
 musicbrainzngs.set_useragent("NeuralCast", "0.1", "neuralcast@example.com")
 
 _LOGGER = logging.getLogger(__name__)
+_ITUNES_SESSION: Session = requests.Session()
+_ITUNES_SESSION.headers.update({"User-Agent": "NeuralCast/1.0"})
+_REQUEST_TIMEOUT = 10
 
 
 def _styled_warning(message: str, *, prefix: str = "   ") -> None:
@@ -279,6 +285,25 @@ def _parse_spotify_release_date(
     return None
 
 
+def _itunes_search(term: str, limit: int) -> list[dict]:
+    url = "https://itunes.apple.com/search"
+    try:
+        response = _ITUNES_SESSION.get(
+            url,
+            params={"term": term, "entity": "song", "limit": limit},
+            timeout=_REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        return []
+
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return []
+    return [item for item in results if isinstance(item, dict)]
+
+
 @lru_cache(maxsize=1)
 def _get_spotify_client() -> Optional[Spotify]:
     client_id = os.getenv("SPOTIFY_CLIENT_ID")
@@ -461,6 +486,201 @@ def _spotify_candidates(artist: str, title: str, limit: int = 50) -> List[AlbumM
     return matches
 
 
+def _deezer_artist_names(item: dict) -> List[str]:
+    names: list[str] = []
+    artist_obj = item.get("artist")
+    if isinstance(artist_obj, dict):
+        artist_name = str(artist_obj.get("name") or "").strip()
+        if artist_name:
+            names.append(artist_name)
+    contributors = item.get("contributors")
+    if isinstance(contributors, list):
+        for contributor in contributors:
+            if not isinstance(contributor, dict):
+                continue
+            contributor_name = str(contributor.get("name") or "").strip()
+            if contributor_name and contributor_name not in names:
+                names.append(contributor_name)
+    return names
+
+
+def _deezer_album_artist_names(item: dict) -> List[str]:
+    names: list[str] = []
+    artist_obj = item.get("artist")
+    if isinstance(artist_obj, dict):
+        artist_name = str(artist_obj.get("name") or "").strip()
+        if artist_name:
+            names.append(artist_name)
+    contributors = item.get("contributors")
+    if isinstance(contributors, list):
+        for contributor in contributors:
+            if not isinstance(contributor, dict):
+                continue
+            contributor_name = str(contributor.get("name") or "").strip()
+            if contributor_name and contributor_name not in names:
+                names.append(contributor_name)
+    return names
+
+
+def _deezer_candidates(artist: str, title: str, limit: int = 20) -> List[AlbumMatch]:
+    if not artist or not title:
+        return []
+
+    query = f'artist:"{artist}" track:"{title}"'
+    items = search_tracks(query, limit=limit)
+    query_title = _normalize_title(title)
+    artist_tokens = _split_artist_aliases(artist)
+    album_cache: dict[str, Optional[dict]] = {}
+    matches: List[AlbumMatch] = []
+
+    for item in items:
+        track_name = str(item.get("title") or item.get("title_short") or "")
+        normalized_track = _normalize_title(track_name)
+        title_score = _ratio(query_title, normalized_track)
+        if title_score < 0.55:
+            continue
+        track_is_live = _has_live_indicator(track_name)
+
+        candidate_artists = _deezer_artist_names(item)
+        candidate_tokens = [_normalize_artist_token(name) for name in candidate_artists]
+        artist_score_candidates = [
+            _ratio(query_artist, candidate_artist)
+            for query_artist in artist_tokens
+            for candidate_artist in candidate_tokens
+            if query_artist and candidate_artist
+        ]
+        artist_score = max(artist_score_candidates, default=0.0)
+        if artist_score < 0.40:
+            if not any(
+                query_artist in candidate_artist or candidate_artist in query_artist
+                for query_artist in artist_tokens
+                for candidate_artist in candidate_tokens
+            ):
+                continue
+
+        album_obj = item.get("album") if isinstance(item.get("album"), dict) else {}
+        album_name = str(album_obj.get("title") or album_obj.get("name") or "")
+        album_id = str(album_obj.get("id") or "").strip()
+
+        album_detail = album_cache.get(album_id)
+        if album_id and album_id not in album_cache:
+            album_detail = get_album(album_id)
+            album_cache[album_id] = album_detail
+
+        album_type = None
+        release_date = None
+        album_artists: list[str] = []
+        if album_detail:
+            album_type = str(album_detail.get("record_type") or "").strip().lower() or None
+            release_date = parse_release_date(str(album_detail.get("release_date") or ""))
+            album_artists = _deezer_album_artist_names(album_detail)
+
+        album_is_live = _has_live_indicator(album_name)
+        is_reissue = _is_reissue(album_name)
+        album_rank = _album_type_rank(album_type)
+
+        is_tribute = any(
+            keyword in album_name.lower()
+            for keyword in ["tribute", "cover", "karaoke", "in the style of"]
+        )
+        artist_names_lower = " ".join(candidate_artists).lower()
+        is_tribute = is_tribute or any(
+            keyword in artist_names_lower
+            for keyword in ["tribute", "karaoke", "orchestra", "ensemble"]
+        )
+
+        album_artist_tokens = [
+            _normalize_artist_token(name) for name in album_artists if name
+        ]
+        album_artist_score_candidates = [
+            _ratio(query_artist, album_artist)
+            for query_artist in artist_tokens
+            for album_artist in album_artist_tokens
+            if query_artist and album_artist
+        ]
+        album_artist_score = max(album_artist_score_candidates, default=0.0)
+
+        popularity = None
+        rank_value = item.get("rank")
+        if rank_value not in (None, ""):
+            try:
+                popularity = int(rank_value)
+            except (TypeError, ValueError):
+                popularity = None
+
+        penalty = 0.08 * album_rank
+        if is_reissue:
+            penalty += 0.15
+        if track_is_live:
+            penalty += 0.3
+        if album_is_live:
+            penalty += 0.2
+        if is_tribute:
+            penalty += 0.4
+        if artist_score < 0.60:
+            penalty += 0.2
+        if album_artist_tokens and album_artist_score < _ALBUM_ARTIST_MISMATCH_THRESHOLD:
+            penalty += 0.25
+        exact_title = track_name.strip().lower() == title.strip().lower()
+        if not exact_title:
+            penalty += 0.05
+        bonus = 0.05 if exact_title else 0.0
+        if artist_score >= 0.85:
+            bonus += 0.05
+
+        confidence = max(
+            0.0,
+            min(1.0, 0.7 * title_score + 0.3 * artist_score - penalty + bonus),
+        )
+
+        flags = []
+        if album_type and album_type != "album":
+            flags.append(f"type:{album_type}")
+        if is_reissue:
+            flags.append("reissue")
+        if track_is_live:
+            flags.append("live_track")
+        if album_is_live:
+            flags.append("live_album")
+        if popularity is not None and popularity < 1000:
+            flags.append("low_popularity")
+        if album_artist_tokens and album_artist_score < _ALBUM_ARTIST_MISMATCH_THRESHOLD:
+            flags.append("album_artist_mismatch")
+
+        raw_album = album_name.strip()
+        clean_album = _clean_album_name(raw_album)
+        matches.append(
+            AlbumMatch(
+                album=clean_album,
+                source="deezer",
+                confidence=confidence,
+                album_type=album_type,
+                raw_album=raw_album,
+                release_date=release_date,
+                track_id=str(item.get("id") or "") or None,
+                track_name=track_name,
+                title_score=title_score,
+                artist_score=artist_score,
+                album_artist_score=album_artist_score,
+                popularity=popularity,
+                flags=tuple(flags),
+            )
+        )
+
+    matches.sort(
+        key=lambda match: (
+            _album_type_rank(match.album_type),
+            -(match.popularity or 0),
+            match.release_date or datetime(3000, 1, 1),
+            -match.confidence,
+            "reissue" in match.flags,
+            "live_album" in match.flags,
+            "live_track" in match.flags,
+        )
+    )
+    return matches
+
+
 def _parse_musicbrainz_date(date_str: Optional[str]) -> Optional[datetime]:
     if not date_str:
         return None
@@ -586,12 +806,158 @@ def _musicbrainz_candidates(
     return matches
 
 
+def _itunes_candidates(artist: str, title: str, limit: int = 10) -> List[AlbumMatch]:
+    if not artist or not title:
+        return []
+
+    term = f"{artist} {title}"
+    results = _itunes_search(term, limit)
+    query_title = _normalize_title(title)
+    artist_tokens = _split_artist_aliases(artist)
+    matches: List[AlbumMatch] = []
+
+    for item in results:
+        track_name = str(item.get("trackName") or "")
+        normalized_track = _normalize_title(track_name)
+        title_score = _ratio(query_title, normalized_track)
+        if title_score < 0.55:
+            continue
+        track_is_live = _has_live_indicator(track_name)
+
+        candidate_artist = str(item.get("artistName") or "")
+        candidate_tokens = _split_artist_aliases(candidate_artist)
+        artist_score_candidates = [
+            _ratio(query_artist, candidate_artist_token)
+            for query_artist in artist_tokens
+            for candidate_artist_token in candidate_tokens
+            if query_artist and candidate_artist_token
+        ]
+        artist_score = max(artist_score_candidates, default=0.0)
+        if artist_score < 0.40:
+            if not any(
+                query_artist in candidate_artist_token
+                or candidate_artist_token in query_artist
+                for query_artist in artist_tokens
+                for candidate_artist_token in candidate_tokens
+            ):
+                continue
+
+        album_name = str(item.get("collectionName") or "")
+        raw_album = album_name.strip()
+        album_type = str(item.get("collectionType") or "").strip().lower() or None
+        if album_type == "song":
+            album_type = "single"
+        release_date = parse_release_date(str(item.get("releaseDate") or "")[:10])
+        album_is_live = _has_live_indicator(album_name)
+        is_reissue = _is_reissue(album_name)
+        popularity = None
+
+        penalty = 0.08 * _album_type_rank(album_type)
+        if is_reissue:
+            penalty += 0.15
+        if track_is_live:
+            penalty += 0.3
+        if album_is_live:
+            penalty += 0.2
+        if artist_score < 0.60:
+            penalty += 0.2
+        exact_title = track_name.strip().lower() == title.strip().lower()
+        if not exact_title:
+            penalty += 0.05
+        bonus = 0.05 if exact_title else 0.0
+
+        confidence = max(
+            0.0,
+            min(1.0, 0.7 * title_score + 0.3 * artist_score - penalty + bonus),
+        )
+
+        flags = []
+        if album_type and album_type != "album":
+            flags.append(f"type:{album_type}")
+        if is_reissue:
+            flags.append("reissue")
+        if track_is_live:
+            flags.append("live_track")
+        if album_is_live:
+            flags.append("live_album")
+
+        matches.append(
+            AlbumMatch(
+                album=_clean_album_name(raw_album),
+                source="itunes",
+                confidence=confidence,
+                album_type=album_type,
+                raw_album=raw_album,
+                release_date=release_date,
+                track_id=str(item.get("trackId") or "") or None,
+                track_name=track_name,
+                title_score=title_score,
+                artist_score=artist_score,
+                album_artist_score=artist_score,
+                popularity=popularity,
+                flags=tuple(flags),
+            )
+        )
+
+    matches.sort(
+        key=lambda match: (
+            _album_type_rank(match.album_type),
+            match.release_date or datetime(3000, 1, 1),
+            -match.confidence,
+            "reissue" in match.flags,
+            "live_album" in match.flags,
+            "live_track" in match.flags,
+        )
+    )
+    return matches
+
+
+def _candidate_provider_order(
+    *, prefer_spotify: bool, prefer_deezer: bool
+) -> List[str]:
+    order: List[str] = []
+    if prefer_deezer:
+        order.append("deezer")
+    elif prefer_spotify:
+        order.append("spotify")
+
+    for provider in ("musicbrainz", "itunes"):
+        if provider not in order:
+            order.append(provider)
+
+    if prefer_deezer:
+        if prefer_spotify and "spotify" not in order:
+            order.append("spotify")
+    else:
+        if "deezer" not in order:
+            order.append("deezer")
+        if prefer_spotify and "spotify" not in order:
+            order.insert(0, "spotify")
+
+    return order
+
+
+def _provider_candidates(
+    provider: str, artist: str, title: str, *, limit: int
+) -> List[AlbumMatch]:
+    if provider == "deezer":
+        return _deezer_candidates(artist, title, limit=min(limit, 20))
+    if provider == "spotify":
+        return _spotify_candidates(artist, title, limit=limit)
+    if provider == "musicbrainz":
+        return _musicbrainz_candidates(artist, title, limit=min(limit, 10))
+    if provider == "itunes":
+        return _itunes_candidates(artist, title, limit=min(limit, 10))
+    return []
+
+
 @lru_cache(maxsize=4096)
 def album_candidates(
     artist: str,
     title: str,
     *,
     prefer_spotify: bool = True,
+    prefer_deezer: bool = False,
     limit: int = 50,
 ) -> List[AlbumMatch]:
     artist = (artist or "").strip()
@@ -599,22 +965,13 @@ def album_candidates(
     if not artist or not title:
         return []
 
-    spotify_matches: List[AlbumMatch] = []
-    musicbrainz_matches: List[AlbumMatch] = []
-
-    mb_limit = min(limit, 10)
-
-    if prefer_spotify:
-        spotify_matches = _spotify_candidates(artist, title, limit=limit)
-        if spotify_matches:
-            return spotify_matches
-        musicbrainz_matches = _musicbrainz_candidates(artist, title, limit=mb_limit)
-        return musicbrainz_matches
-
-    musicbrainz_matches = _musicbrainz_candidates(artist, title, limit=mb_limit)
-    if musicbrainz_matches:
-        return musicbrainz_matches
-    return _spotify_candidates(artist, title, limit=limit)
+    for provider in _candidate_provider_order(
+        prefer_spotify=prefer_spotify, prefer_deezer=prefer_deezer
+    ):
+        matches = _provider_candidates(provider, artist, title, limit=limit)
+        if matches:
+            return matches
+    return []
 
 
 def _prefer_official(matches: Sequence[AlbumMatch]) -> List[AlbumMatch]:
@@ -739,6 +1096,7 @@ def guess_album(
     title: str,
     *,
     prefer_spotify: bool = True,
+    prefer_deezer: bool = False,
     min_confidence: float = 0.5,
     allow_fallback: bool = True,
 ) -> Optional[AlbumMatch]:
@@ -756,7 +1114,15 @@ def guess_album(
             -match.confidence,
         )
 
-    primary_matches = album_candidates(artist, title, prefer_spotify=prefer_spotify)
+    provider_order = _candidate_provider_order(
+        prefer_spotify=prefer_spotify, prefer_deezer=prefer_deezer
+    )
+    primary_matches = album_candidates(
+        artist,
+        title,
+        prefer_spotify=prefer_spotify,
+        prefer_deezer=prefer_deezer,
+    )
     if not primary_matches:
         return None
     primary_matches = _prefer_official(primary_matches)
@@ -790,16 +1156,18 @@ def guess_album(
 
     if allow_fallback:
         primary_source = primary_matches[0].source
-        if primary_source == "spotify":
-            fallback_matches = _musicbrainz_candidates(artist, title)
-        else:
-            fallback_matches = _spotify_candidates(artist, title)
-        fallback_confident = [
-            match for match in fallback_matches if match.confidence >= min_confidence
-        ]
-        if fallback_confident:
+        for provider in provider_order:
+            if provider == primary_source:
+                continue
+            fallback_matches = _provider_candidates(
+                provider, artist, title, limit=50
+            )
+            fallback_confident = [
+                match for match in fallback_matches if match.confidence >= min_confidence
+            ]
+            if not fallback_confident:
+                continue
             fallback_confident = _prefer_official(fallback_confident)
-            # Also try earliest studio album for fallback
             earliest_fallback = _prefer_earliest_studio_album(fallback_confident)
             if earliest_fallback:
                 earliest_fallback.sort(key=sort_key)
@@ -815,6 +1183,7 @@ def get_official_album_name(
     title: str,
     *,
     prefer_spotify: bool = True,
+    prefer_deezer: bool = False,
     min_confidence: float = 0.5,
     allow_fallback: bool = True,
 ) -> Optional[str]:
@@ -822,6 +1191,7 @@ def get_official_album_name(
         artist,
         title,
         prefer_spotify=prefer_spotify,
+        prefer_deezer=prefer_deezer,
         min_confidence=min_confidence,
         allow_fallback=allow_fallback,
     )

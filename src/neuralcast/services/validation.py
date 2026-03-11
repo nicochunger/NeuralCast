@@ -2,46 +2,22 @@
 from __future__ import annotations
 
 import difflib
-import os
 import urllib.parse
 from functools import lru_cache
 from typing import List, Optional
 
-import dotenv
 import musicbrainzngs
 import requests
-import spotipy
 from requests import Session
-from spotipy.oauth2 import SpotifyClientCredentials
 
 from neuralcast.models import Song, ValidationResult
-
-# Load environment variables from .env file
-# Keeping this here avoids requiring callers to import dotenv themselves.
-dotenv.load_dotenv()
+from neuralcast.services.deezer import search_tracks
 
 musicbrainzngs.set_useragent("NeuralCast", "0.1", "you@example.com")
 
 SESSION: Session = requests.Session()
 SESSION.headers.update({"User-Agent": "NeuralCast/1.0"})
 _REQUEST_TIMEOUT = 10
-
-_SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-_SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-
-try:
-    _SPOTIFY_CLIENT = (
-        spotipy.Spotify(
-            auth_manager=SpotifyClientCredentials(
-                client_id=_SPOTIFY_CLIENT_ID,
-                client_secret=_SPOTIFY_CLIENT_SECRET,
-            )
-        )
-        if _SPOTIFY_CLIENT_ID and _SPOTIFY_CLIENT_SECRET
-        else None
-    )
-except Exception:
-    _SPOTIFY_CLIENT = None
 
 
 def _close_enough(a: str, b: str) -> bool:
@@ -62,8 +38,13 @@ def _itunes_lookup(term: str) -> Optional[dict]:
         return None
 
 
-def _ensure_spotify_client() -> Optional[spotipy.Spotify]:
-    return _SPOTIFY_CLIENT
+def _track_matches(item: dict, artist: str, title: str) -> bool:
+    artist_name = ""
+    artist_obj = item.get("artist")
+    if isinstance(artist_obj, dict):
+        artist_name = str(artist_obj.get("name", ""))
+    title_name = str(item.get("title") or item.get("title_short") or "")
+    return _close_enough(artist_name, artist) and _close_enough(title_name, title)
 
 
 def _musicbrainz_search(query: str, limit: int = 1) -> Optional[dict]:
@@ -80,21 +61,22 @@ def _mb_recording_found(result: Optional[dict]) -> bool:
 
 
 @lru_cache(maxsize=2048)
-def spotify_ok(artist: str, title: str) -> bool:
+def deezer_ok(artist: str, title: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     if not artist or not title:
         return False
 
-    client = _ensure_spotify_client()
-    if client is None:
-        return False
-
+    query = f'artist:"{artist}" track:"{title}"'
     try:
-        res = client.search(q=f'artist:"{artist}" track:"{title}"', type="track", limit=1)
-        return res.get("tracks", {}).get("total", 0) > 0
+        return any(_track_matches(item, artist, title) for item in search_tracks(query, limit=5))
     except Exception:
         return False
+
+
+def spotify_ok(artist: str, title: str) -> bool:
+    """Compatibility wrapper for callers that still import spotify_ok."""
+    return deezer_ok(artist, title)
 
 
 @lru_cache(maxsize=2048)
@@ -134,33 +116,40 @@ def verified(artist: str, title: str) -> bool:
     if not artist or not title:
         return False
 
-    return spotify_ok(artist, title) or mb_ok(artist, title) or itunes_ok(artist, title)
+    return deezer_ok(artist, title) or mb_ok(artist, title) or itunes_ok(artist, title)
 
 
 @lru_cache(maxsize=2048)
-def spotify_album_ok(artist: str, title: str, album: str) -> bool:
+def deezer_album_ok(artist: str, title: str, album: str) -> bool:
     artist = _norm(artist)
     title = _norm(title)
     album = _norm(album)
     if not artist or not title or not album:
         return False
 
-    client = _ensure_spotify_client()
-    if client is None:
-        return False
-
+    queries = [
+        f'artist:"{artist}" track:"{title}" album:"{album}"',
+        f'artist:"{artist}" track:"{title}"',
+    ]
     try:
-        res = client.search(
-            q=f'artist:"{artist}" track:"{title}" album:"{album}"',
-            type="track",
-            limit=1,
-        )
-        if res.get("tracks", {}).get("total", 0) == 0:
-            return False
-        item = res["tracks"]["items"][0]
-        return _close_enough(item.get("album", {}).get("name", ""), album)
+        for query in queries:
+            for item in search_tracks(query, limit=10):
+                if not _track_matches(item, artist, title):
+                    continue
+                album_obj = item.get("album")
+                album_name = ""
+                if isinstance(album_obj, dict):
+                    album_name = str(album_obj.get("title") or album_obj.get("name") or "")
+                if _close_enough(album_name, album):
+                    return True
+        return False
     except Exception:
         return False
+
+
+def spotify_album_ok(artist: str, title: str, album: str) -> bool:
+    """Compatibility wrapper for callers that still import spotify_album_ok."""
+    return deezer_album_ok(artist, title, album)
 
 
 @lru_cache(maxsize=2048)
@@ -198,33 +187,33 @@ def itunes_album_ok(artist: str, title: str, album: str) -> bool:
 
 @lru_cache(maxsize=4096)
 def verified_album(artist: str, title: str, album: str, verbose: bool = False):
-    """Validate a track's album against Spotify, MusicBrainz, and iTunes."""
+    """Validate a track's album against Deezer, MusicBrainz, and iTunes."""
     artist = _norm(artist)
     title = _norm(title)
     album = _norm(album)
     if not artist or not title or not album:
         if verbose:
             return {
-                "spotify": False,
+                "deezer": False,
                 "musicbrainz": False,
                 "itunes": False,
                 "any": False,
             }
         return False
 
-    spotify = spotify_album_ok(artist, title, album)
+    deezer = deezer_album_ok(artist, title, album)
     mb = mb_album_ok(artist, title, album)
     itunes = itunes_album_ok(artist, title, album)
 
     if verbose:
         return {
-            "spotify": spotify,
+            "deezer": deezer,
             "musicbrainz": mb,
             "itunes": itunes,
-            "any": spotify or mb or itunes,
+            "any": deezer or mb or itunes,
         }
 
-    return spotify or mb or itunes
+    return deezer or mb or itunes
 
 
 def validate_album_field(artist: str, title: str, album: Optional[str]) -> dict:
@@ -326,10 +315,12 @@ def perform_song_validation(
 
 
 __all__ = [
+    "deezer_ok",
     "spotify_ok",
     "mb_ok",
     "itunes_ok",
     "verified",
+    "deezer_album_ok",
     "spotify_album_ok",
     "mb_album_ok",
     "itunes_album_ok",
