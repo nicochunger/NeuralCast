@@ -31,6 +31,7 @@ dev = [
 [project.scripts]
 neuralcast-sync = "neuralcast.cli.sync_playlists:run"
 neuralcast-new-releases = "neuralcast.cli.update_new_releases:run"
+neuralcast-new-releases-deezer = "neuralcast.cli.update_new_releases_deezer:run"
 neuralcast-host = "neuralcast.cli.host_orchestrator:main"
 neuralcast-schedule = "neuralcast.cli.schedule_generator:main"
 

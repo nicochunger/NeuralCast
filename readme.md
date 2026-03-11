@@ -4,6 +4,7 @@ NeuralCast is a package-first toolkit for:
 
 - Station playlist synchronization (`main.py` shim -> `neuralcast.cli.sync_playlists`)
 - Spotify-based New Releases updates (`update_new_releases.py` shim -> `neuralcast.cli.update_new_releases`)
+- Deezer-based standalone New Releases testing (`update_new_releases_deezer.py` shim -> `neuralcast.cli.update_new_releases_deezer`)
 - AI host orchestration for AzuraCast (`inject_host_segment.py` shim -> `neuralcast.cli.host_orchestrator`)
 - Weekly schedule generation for AzuraCast (`schedule_generator.py` shim -> `neuralcast.cli.schedule_generator`)
 
@@ -12,7 +13,7 @@ Default station for CLI workflows is `neuralforge` unless overridden.
 ## Repository Layout
 
 - `src/neuralcast/`: main Python package
-- Root compatibility shims: `main.py`, `update_new_releases.py`, `inject_host_segment.py`, `schedule_generator.py`
+- Root compatibility shims: `main.py`, `update_new_releases.py`, `update_new_releases_deezer.py`, `inject_host_segment.py`, `schedule_generator.py`
 - Station folders at repo root (for example `NeuralForge/`, `NeuralCast/`)
 - Prompt/media assets: `src/neuralcast/assets/`
 - Deployment helpers: `deployment/`
@@ -79,6 +80,8 @@ New releases:
 ```bash
 python update_new_releases.py -s neuralforge --dry-run
 python update_new_releases.py -s neuralcast
+python update_new_releases_deezer.py -s neuralforge --dry-run
+python update_new_releases_deezer.py -s neuralcast
 ```
 
 Host orchestrator:
@@ -101,6 +104,7 @@ Notes:
 - Module entrypoints are preferred for cron/VPS usage.
 - `--sync-remote` mirrors local `<station>/songs/` to AzuraCast media with rsync.
 - Remote mirror uses `--delete` by default and excludes `AI Stories/***` so host-generated stories are preserved.
+- The Deezer updater writes to `New Releases Deezer.csv` plus `metadata/New Releases Deezer.metadata.json` and `metadata/DeezerArtistIDs.json`, leaving the Spotify New Releases files untouched.
 
 ## Station Data Layout
 
@@ -108,7 +112,7 @@ Each station directory keeps:
 
 - `playlists/` (CSV definitions)
 - `songs/` (downloaded/tagged MP3s)
-- `metadata/` (Spotify cache + orchestrator/schedule state)
+- `metadata/` (Spotify/Deezer New Releases caches + orchestrator/schedule state)
 - `tts_snippets/` (manual/scripted snippets)
 
 ## Reports and Artifacts
