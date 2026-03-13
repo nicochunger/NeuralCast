@@ -30,7 +30,7 @@ from neuralcast.audio.download import (
     youtube_to_mp3,
 )
 from neuralcast.metadata.album_lookup import guess_album
-from neuralcast.models import Song, ValidationResult
+from neuralcast.models import Song
 from neuralcast.playlists.utils import (
     backfill_songs_from_library,
     deduplicate_and_sort_songs,
@@ -228,6 +228,18 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     year_value = str(song.year).strip() if song.year is not None else ""
     missing_year = not year_value or year_value.casefold() == "unknown"
     track_label = f"{song.artist} - {song.title}"
+    album_needs_replacement = False
+
+    def clear_album_metadata() -> tuple[Song, bool]:
+        print(f"     ↳ Clearing album metadata: {album_value}")
+        return song.model_copy(update={"album": None}), True
+
+    def handle_missing_match() -> tuple[Song, bool]:
+        print(f"     ⚠️ No album match found for {track_label}")
+        if album_needs_replacement:
+            return clear_album_metadata()
+        return song, False
+
     if album_value:
         print(f"   • Rechecking album for {track_label}: {album_value}")
     else:
@@ -238,7 +250,13 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
                 print(f"     ✓ Album verified: {album_value}")
                 if not missing_year:
                     return song, False
+            else:
+                album_needs_replacement = True
+                print(
+                    f"     ↳ Album could not be confirmed: {album_value}; trying lookup"
+                )
         except Exception as exc:
+            album_needs_replacement = True
             print(
                 f"Warning: Album check failed for {song.artist} - {song.title}: {exc}"
             )
@@ -254,16 +272,16 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
         )
     except Exception as exc:
         print(f"Warning: Album lookup failed for {song.artist} - {song.title}: {exc}")
+        if album_needs_replacement:
+            return clear_album_metadata()
         return song, False
 
     if not match or not match.album:
-        print(f"     ⚠️ No album match found for {track_label}")
-        return song, False
+        return handle_missing_match()
 
     new_album = (match.album or "").strip()
     if not new_album:
-        print(f"     ⚠️ No album match found for {track_label}")
-        return song, False
+        return handle_missing_match()
 
     updated_fields = {}
     if not album_value or new_album.casefold() != album_value.casefold():
@@ -283,8 +301,19 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     if not updated_fields:
         return song, False
 
-    updated_song = song.copy(update=updated_fields)
+    updated_song = song.model_copy(update=updated_fields)
     return updated_song, True
+
+
+def _log_album_validation_result(song: Song, result) -> None:
+    if not result.album:
+        return
+    if result.album_cleared:
+        print(
+            f"   ↳ Album removed after validation failure: {result.album} ({song.artist} - {song.title})"
+        )
+        return
+    print(f"   ↳ Album validated: {result.album}")
 
 
 def _save_playlist_state(
@@ -334,9 +363,6 @@ def main(
         print("Mode: DRY-RUN (no downloads; existing MP3s will be re-tagged if needed)")
     print(f"Playlists path: {PLAYLISTS_PATH}")
     print(f"Songs path: {STATION_PATH}")
-
-    # collect albums that are not validated
-    invalid_albums: List[dict] = []
 
     playlists_dir = pathlib.Path(PLAYLISTS_PATH)
     if not playlists_dir.exists():
@@ -735,34 +761,17 @@ def main(
                 print(
                     f"\n🔍 {scope}Validating {len(unvalidated_existing)} unvalidated existing songs..."
                 )
-                valid_existing: List[Tuple[Song, pathlib.Path]] = []
                 invalid_existing: List[Tuple[Song, pathlib.Path]] = []
 
                 for song, song_path in unvalidated_existing:
-                    result = perform_song_validation(
-                        song, playlist_name, invalid_albums
-                    )
+                    result = perform_song_validation(song)
+                    _log_album_validation_result(song, result)
 
-                    if result.album_validated is True and result.album:
-                        print(f"   ↳ Album validated: {result.album}")
-                    elif result.album_validated is False and result.album:
-                        if result.album_reason == "validation_error":
-                            print(
-                                f"   ↳ Album validation error (skipped): {result.album}"
-                            )
-                        else:
-                            print(f"   ↳ Album not validated: {result.album}")
-
-                    if result.status == "valid" and result.song:
+                    if result.song:
                         replace_song_entry(songs, result.song)
-                        valid_existing.append((result.song, song_path))
                         validation_updates = True
                         print(
                             f"✓ Validated: {result.song.artist} - {result.song.title}"
-                        )
-                    elif result.status == "album_failed":
-                        print(
-                            f"   ↳ Keeping Validated=False due to album validation failure"
                         )
                     else:
                         invalid_existing.append((song, song_path))
@@ -814,7 +823,7 @@ def main(
             for song, song_path in missing_songs:
                 updated_song, album_changed = _backfill_album_for_missing_song(song)
                 if album_changed and updated_song.validated:
-                    updated_song = updated_song.copy(update={"validated": False})
+                    updated_song = updated_song.model_copy(update={"validated": False})
                 if album_changed:
                     replace_song_entry(songs, updated_song)
                     validation_updates = True
@@ -846,26 +855,15 @@ def main(
             newly_validated: List[Tuple[Song, pathlib.Path]] = []
 
             for song, song_path in unvalidated_missing:
-                result = perform_song_validation(song, playlist_name, invalid_albums)
+                result = perform_song_validation(song)
+                _log_album_validation_result(song, result)
 
-                if result.album_validated is True and result.album:
-                    print(f"   ↳ Album validated: {result.album}")
-                elif result.album_validated is False and result.album:
-                    if result.album_reason == "validation_error":
-                        print(f"   ↳ Album validation error (skipped): {result.album}")
-                    else:
-                        print(f"   ↳ Album not validated: {result.album}")
-
-                if result.status == "valid" and result.song:
+                if result.song:
                     replace_song_entry(songs, result.song)
                     newly_validated.append((result.song, song_path))
                     validation_updates = True
                     print(
                         f"✓ Validated for download: {result.song.artist} - {result.song.title}"
-                    )
-                elif result.status == "album_failed":
-                    print(
-                        "   ↳ Skipping download; keeping Validated=False due to album validation failure"
                     )
                 else:
                     invalid_songs.append((song, song_path))
@@ -1079,34 +1077,6 @@ def main(
     with open(analysis_log_file, "w", encoding="utf-8") as f:
         f.write("\n".join(analysis_lines) + "\n")
     print(f"📝 Cross-playlist analysis written to {analysis_log_file}")
-
-    # write albums that were not validated to CSV in the station directory
-    invalid_albums_path = STATION_PATH.parent / "albums_not_validated.csv"
-    # Deduplicate entries
-    if invalid_albums:
-        deduped = []
-        seen = set()
-        for row in invalid_albums:
-            key = (
-                row["Artist"].lower().strip(),
-                row["Title"].lower().strip(),
-                row["Album"].lower().strip(),
-                row["Playlist"].lower().strip(),
-                row["Reason"],
-            )
-            if key not in seen:
-                seen.add(key)
-                deduped.append(row)
-        invalid_albums = deduped
-
-    df = pd.DataFrame(
-        invalid_albums or [],
-        columns=["Artist", "Title", "Album", "Playlist", "Reason"],
-    )
-    df.to_csv(invalid_albums_path, index=False)
-    print(
-        f"📝 Albums not validated written to {invalid_albums_path} ({len(df)} row(s))"
-    )
 
     if remote_sync and remote_sync.enabled:
         print("\n🌐 Remote media mirror requested: preparing rsync...")

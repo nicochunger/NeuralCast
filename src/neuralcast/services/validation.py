@@ -4,7 +4,7 @@ from __future__ import annotations
 import difflib
 import urllib.parse
 from functools import lru_cache
-from typing import List, Optional
+from typing import Optional
 
 import musicbrainzngs
 import requests
@@ -216,101 +216,26 @@ def verified_album(artist: str, title: str, album: str, verbose: bool = False):
     return deezer or mb or itunes
 
 
-def validate_album_field(artist: str, title: str, album: Optional[str]) -> dict:
-    """Validate an optional album column for a track."""
-    if album is None:
-        return {
-            "provided": False,
-            "validated": None,
-            "message": "No album column present",
-        }
-
-    album_str = _norm(album)
-    if not album_str:
-        return {
-            "provided": True,
-            "validated": None,
-            "message": "Album not provided (empty)",
-        }
-
-    validation_details = verified_album(artist, title, album_str, verbose=True)
-    is_valid = validation_details["any"]
-
-    if is_valid:
-        validated_by = [
-            provider.capitalize()
-            for provider, passed in validation_details.items()
-            if provider != "any" and passed
-        ]
-        return {
-            "provided": True,
-            "validated": True,
-            "message": f"Album validated by {', '.join(validated_by)}",
-        }
-
-    return {
-        "provided": True,
-        "validated": False,
-        "message": "Album not validated by any provider",
-    }
-
-
-def perform_song_validation(
-    song: Song, playlist_name: str, invalid_albums: List[dict]
-) -> ValidationResult:
+def perform_song_validation(song: Song) -> ValidationResult:
+    """Validate a song by artist/title and drop album metadata when it cannot be confirmed."""
     if not verified(song.artist, song.title):
-        return ValidationResult(status="song_invalid", song=None)
+        return ValidationResult(song=None)
 
+    validated_song = song.model_copy(update={"validated": True})
     album_value = (song.album or "").strip() if song.album else ""
-    if album_value:
-        try:
-            if verified_album(song.artist, song.title, album_value):
-                return ValidationResult(
-                    status="valid",
-                    song=song.copy(update={"validated": True}),
-                    album=album_value,
-                    album_validated=True,
-                )
+    if not album_value:
+        return ValidationResult(song=validated_song)
 
-            invalid_albums.append(
-                {
-                    "Artist": song.artist,
-                    "Title": song.title,
-                    "Album": album_value,
-                    "Playlist": playlist_name,
-                    "Reason": "not_validated",
-                }
-            )
-            return ValidationResult(
-                status="album_failed",
-                song=None,
-                album=album_value,
-                album_validated=False,
-                album_reason="not_validated",
-            )
-        except Exception:
-            invalid_albums.append(
-                {
-                    "Artist": song.artist,
-                    "Title": song.title,
-                    "Album": album_value,
-                    "Playlist": playlist_name,
-                    "Reason": "validation_error",
-                }
-            )
-            return ValidationResult(
-                status="album_failed",
-                song=None,
-                album=album_value,
-                album_validated=False,
-                album_reason="validation_error",
-            )
+    try:
+        if verified_album(song.artist, song.title, album_value):
+            return ValidationResult(song=validated_song, album=album_value)
+    except Exception:
+        pass
 
     return ValidationResult(
-        status="valid",
-        song=song.copy(update={"validated": True}),
-        album=None,
-        album_validated=None,
+        song=validated_song.model_copy(update={"album": None}),
+        album=album_value,
+        album_cleared=True,
     )
 
 
@@ -325,6 +250,5 @@ __all__ = [
     "mb_album_ok",
     "itunes_album_ok",
     "verified_album",
-    "validate_album_field",
     "perform_song_validation",
 ]

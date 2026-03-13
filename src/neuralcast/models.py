@@ -20,11 +20,9 @@ class Playlist(BaseModel):
 
 @dataclass
 class ValidationResult:
-    status: str
     song: Optional[Song]
     album: Optional[str] = None
-    album_validated: Optional[bool] = None
-    album_reason: Optional[str] = None
+    album_cleared: bool = False
 
 
 __all__ = ["Song", "Playlist", "ValidationResult"]

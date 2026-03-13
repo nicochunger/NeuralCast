@@ -28,7 +28,6 @@ These files are preserved for history/reference but are not considered current o
 - `deployment/deploy_host_orchestrator.zip`
 - `logs/*.log`
 - `*/duplicate_analysis.log`
-- `*/albums_not_validated.csv`
 - `*/metadata/ai_host_orchestrator_state.json`
 - `*/metadata/ai_schedule_state.json`
 - `src/neuralcast/assets/stories/snippets/` generated snippet outputs

@@ -59,6 +59,27 @@ class DeezerSyncProviderTest(unittest.TestCase):
             },
         )
 
+    def test_perform_song_validation_clears_unverified_album_but_keeps_song(self) -> None:
+        song = Song(
+            artist="Ghost",
+            title="Rats",
+            album="Wrong Album",
+            year="2018",
+            validated=False,
+        )
+
+        with (
+            patch.object(validation, "verified", return_value=True),
+            patch.object(validation, "verified_album", return_value=False),
+        ):
+            result = validation.perform_song_validation(song)
+
+        assert result.song is not None
+        self.assertTrue(result.song.validated)
+        self.assertIsNone(result.song.album)
+        self.assertEqual(result.album, "Wrong Album")
+        self.assertTrue(result.album_cleared)
+
     def test_deezer_candidates_build_album_match(self) -> None:
         track_hit = {
             "id": 505508952,
@@ -163,6 +184,25 @@ class DeezerSyncProviderTest(unittest.TestCase):
                 "allow_fallback": True,
             },
         )
+
+    def test_playlist_sync_clears_unverified_album_when_no_replacement_is_found(self) -> None:
+        song = Song(
+            artist="Ghost",
+            title="Rats",
+            album="Wrong Album",
+            year="2018",
+            validated=True,
+        )
+
+        with (
+            patch.object(playlist_sync, "verified_album", return_value=False),
+            patch.object(playlist_sync, "guess_album", return_value=None),
+        ):
+            updated_song, changed = playlist_sync._backfill_album_for_missing_song(song)
+
+        self.assertTrue(changed)
+        self.assertIsNone(updated_song.album)
+        self.assertTrue(updated_song.validated)
 
 
 if __name__ == "__main__":

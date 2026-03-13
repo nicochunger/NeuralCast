@@ -117,7 +117,7 @@ Each station directory keeps:
 
 ## Reports and Artifacts
 
-Runtime reports such as `duplicate_analysis.log` and `albums_not_validated.csv` are generated during operation but are not intended as committed source artifacts.
+Runtime reports such as `duplicate_analysis.log` are generated during operation but are not intended as committed source artifacts.
 
 ## Packaging Note
 
