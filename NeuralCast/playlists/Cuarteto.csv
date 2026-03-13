@@ -1,12 +1,12 @@
 Artist,Title,Album,Year,Validated
 La Mona Jiménez,Quién se ha tomado todo el vino,La Mona 53 años. El Streaming.,2020,True
-"Rodrigo ""El Potro""",La Mano de Dios,La mano de Dios,2000,False
-"Rodrigo ""El Potro""",La Cerveza,Compilado,,False
-"Rodrigo ""El Potro""",Ocho Cuarenta,El potro,1999,False
+"Rodrigo ""El Potro""",La Mano de Dios,,2000,True
+"Rodrigo ""El Potro""",La Cerveza,,,True
+"Rodrigo ""El Potro""",Ocho Cuarenta,,1999,True
 La K'onga,Universo Paralelo,Universo Paralelo,2021,True
 Luck Ra,Te Mentiría,Te Mentiría (Versión Cuarteto),2021,True
 Tru-la-lá,Aventura,Tru La La por Siempre,2000,True
-"Rodrigo ""El Potro""",Soy Cordobés,A 2000: Cuarteto característico,1999,False
+"Rodrigo ""El Potro""",Soy Cordobés,,1999,True
 La Mona Jiménez,El Renegado,En la Puerta del Universo,1996,True
 La K'onga,Te Perdiste Mi Amor,Dejando Huellas,2013,True
 Gary,Te Quiero,Gary... La Diferencia,1997,True
@@ -17,4 +17,4 @@ Walter Olmos,Amor Fugitivo,A Pura Sangre,2000,True
 La Mona Jiménez,Beso a Beso,Beso a Beso (con La Mona),1998,True
 La Mona Jiménez,Ramito de Violetas,Gracias a Dios,1985,True
 Desakta2,Tu misterioso alguien,Y Suena,2025,True
-"Rodrigo ""El Potro""",Que ironía,"El Potro, Lo Mejor del Amor (Banda de Sonido Original de la Película)",1999,False
+"Rodrigo ""El Potro""",Que ironía,,1999,True
