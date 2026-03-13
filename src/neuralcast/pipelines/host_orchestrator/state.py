@@ -440,6 +440,8 @@ def legal_archetypes_for_remaining(
         Archetype.BACK_SELL,
         Archetype.UP_NEXT_TEASE,
         Archetype.SHORT_STORY,
+        Archetype.ALBUM_SPOTLIGHT,
+        Archetype.ERA_SNAPSHOT,
         Archetype.DEEP_DIVE,
         Archetype.NEWS,
         Archetype.CONCERT_CHECK,

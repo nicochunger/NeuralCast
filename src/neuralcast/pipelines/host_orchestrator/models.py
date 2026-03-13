@@ -12,6 +12,8 @@ class Archetype(str, Enum):
     BACK_SELL = "back_sell"
     UP_NEXT_TEASE = "up_next_tease"
     SHORT_STORY = "short_story"
+    ALBUM_SPOTLIGHT = "album_spotlight"
+    ERA_SNAPSHOT = "era_snapshot"
     DEEP_DIVE = "deep_dive"
     NEWS = "news"
     CONCERT_CHECK = "concert_check"

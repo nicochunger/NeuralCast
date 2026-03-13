@@ -29,6 +29,7 @@ LOCK_STALE_SECONDS = 10 * 60
 
 LEAD_TIME_SECONDS = 90
 ARCHETYPE_LEAD_TIME_SECONDS: Dict[Archetype, int] = {
+    Archetype.ERA_SNAPSHOT: 120,
     Archetype.DEEP_DIVE: 120,
 }
 SPEAK_DEADLINE_MINUTES = 45
@@ -203,10 +204,12 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.25,
-    Archetype.UP_NEXT_TEASE: 0.20,
-    Archetype.SHORT_STORY: 0.20,
-    Archetype.DEEP_DIVE: 0.10,
+    Archetype.BACK_SELL: 0.22,
+    Archetype.UP_NEXT_TEASE: 0.18,
+    Archetype.SHORT_STORY: 0.17,
+    Archetype.ALBUM_SPOTLIGHT: 0.12,
+    Archetype.ERA_SNAPSHOT: 0.08,
+    Archetype.DEEP_DIVE: 0.08,
     Archetype.NEWS: 0.15,
     Archetype.CONCERT_CHECK: 0.15,
 }
@@ -215,6 +218,8 @@ COOLDOWN_SECONDS: Dict[Archetype, int] = {
     Archetype.BACK_SELL: 30 * 60,
     Archetype.UP_NEXT_TEASE: 40 * 60,
     Archetype.SHORT_STORY: 60 * 60,
+    Archetype.ALBUM_SPOTLIGHT: 90 * 60,
+    Archetype.ERA_SNAPSHOT: 4 * 60 * 60,
     Archetype.DEEP_DIVE: 6 * 60 * 60,
     Archetype.NEWS: 120 * 60,
     Archetype.CONCERT_CHECK: 180 * 60,
@@ -226,6 +231,8 @@ TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
     Archetype.UP_NEXT_TEASE: ((0.4, 0.7), (0.7, 0.9)),
     Archetype.SHORT_STORY: ((1.0, 1.5), (0.9, 0.98)),
+    Archetype.ALBUM_SPOTLIGHT: ((0.75, 1.05), (0.88, 0.96)),
+    Archetype.ERA_SNAPSHOT: ((0.75, 1.0), (0.88, 0.95)),
     Archetype.DEEP_DIVE: ((0.8, 1.2), (0.88, 0.96)),
     # NEWS uses a strict grounded + structured contract; lower variance is more reliable.
     Archetype.NEWS: ((0.45, 0.85), (0.88, 0.95)),
@@ -270,6 +277,30 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "momento de la banda en esa etapa",
         "detalle de producción si aparece",
         "lectura interpretativa breve si faltan datos",
+    ),
+    Archetype.ALBUM_SPOTLIGHT: (
+        "el disco alrededor de este tema",
+        "por que ese album cambia la escucha",
+        "identidad del album en una postal corta",
+        "como entra este tema dentro del disco",
+        "mood general del album y su peso",
+        "una lectura del album sin hacer reseña",
+        "el momento de la banda en ese disco",
+        "textura y concepto del album en pocas lineas",
+        "que tiene ese album que hace pegar distinto este tema",
+        "mirada corta al album y pase natural",
+    ),
+    Archetype.ERA_SNAPSHOT: (
+        "postal de epoca alrededor del tema",
+        "que estaba cambiando en esa escena",
+        "momento del genero sin hacer documental",
+        "la banda metida en ese clima historico",
+        "foto corta de la epoca y su sonido",
+        "lo que estaba pasando alrededor de ese lanzamiento",
+        "escena, contexto y por que importa para escuchar esto",
+        "un corte de epoca con hilo musical",
+        "movimiento de escena y aterrizaje al tema",
+        "contexto amplio pero vivo, con cierre al proximo",
     ),
     Archetype.DEEP_DIVE: (
         "historia larga de banda con arco claro",
@@ -335,6 +366,8 @@ HOOK_FREE_OPEN_PROB_BY_ARCHETYPE: Dict[Archetype, float] = {
     Archetype.BACK_SELL: 0.40,
     Archetype.UP_NEXT_TEASE: 0.35,
     Archetype.SHORT_STORY: 0.35,
+    Archetype.ALBUM_SPOTLIGHT: 0.30,
+    Archetype.ERA_SNAPSHOT: 0.20,
     Archetype.DEEP_DIVE: 0.15,
     Archetype.NEWS: 0.25,
     Archetype.CONCERT_CHECK: 0.25,
@@ -399,6 +432,8 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "wrapper_up_next_tease": "wrapper_up_next_tease.md",
     "wrapper_deep_dive": "wrapper_deep_dive.md",
     "wrapper_short_story": "wrapper_short_story.md",
+    "wrapper_album_spotlight": "wrapper_album_spotlight.md",
+    "wrapper_era_snapshot": "wrapper_era_snapshot.md",
     "wrapper_news": "wrapper_news.md",
     "wrapper_concert_check": "wrapper_concert_check.md",
     "wrapper_block_intro": "wrapper_block_intro.md",
@@ -455,6 +490,8 @@ WRAPPER_BACK_SELL = get_prompt_template("wrapper_back_sell")
 WRAPPER_UP_NEXT_TEASE = get_prompt_template("wrapper_up_next_tease")
 WRAPPER_DEEP_DIVE = get_prompt_template("wrapper_deep_dive")
 WRAPPER_SHORT_STORY = get_prompt_template("wrapper_short_story")
+WRAPPER_ALBUM_SPOTLIGHT = get_prompt_template("wrapper_album_spotlight")
+WRAPPER_ERA_SNAPSHOT = get_prompt_template("wrapper_era_snapshot")
 WRAPPER_NEWS = get_prompt_template("wrapper_news")
 WRAPPER_CONCERT_CHECK = get_prompt_template("wrapper_concert_check")
 WRAPPER_BLOCK_INTRO = get_prompt_template("wrapper_block_intro")

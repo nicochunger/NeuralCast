@@ -29,10 +29,12 @@ from .config import (
     STATION_PERSONALITIES,
     SYSTEM_TZ,
     TTS_INSTRUCTIONS_PATH,
+    WRAPPER_ALBUM_SPOTLIGHT,
     WRAPPER_BACK_SELL,
     WRAPPER_BLOCK_INTRO,
     WRAPPER_CONCERT_CHECK,
     WRAPPER_DEEP_DIVE,
+    WRAPPER_ERA_SNAPSHOT,
     WRAPPER_NEWS,
     WRAPPER_SHORT_STORY,
     WRAPPER_UP_NEXT_TEASE,
@@ -77,6 +79,9 @@ def format_shared_input(
     recent_scripts: Sequence[str],
     schedule_context: Optional[ScheduleContext],
     short_story_focus: Optional[str] = None,
+    album_spotlight_focus: Optional[str] = None,
+    era_snapshot_lane: Optional[str] = None,
+    era_snapshot_focus: Optional[str] = None,
     deep_dive_lane: Optional[str] = None,
     deep_dive_focus: Optional[str] = None,
 ) -> str:
@@ -263,6 +268,73 @@ def format_shared_input(
                 ]
             )
 
+    if album_spotlight_focus in {"current", "next"}:
+        focus_label = (
+            "actual (tema que acaba de sonar)"
+            if album_spotlight_focus == "current"
+            else "proximo (tema que va a sonar ahora)"
+        )
+        lines.extend(
+            [
+                f"- Album-spotlight focus mode (obligatorio si el arquetipo es 'album_spotlight'): {focus_label}",
+                "- Album-spotlight secuencia oral obligatoria (seguir exactamente este orden narrativo):",
+            ]
+        )
+        if album_spotlight_focus == "current":
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Abrir la mirada al album del tema actual (Tema actual), priorizando el disco por encima de la biografia general.",
+                    "  - 3) Cerrar presentando el proximo tema (Proximo tema).",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Decir cual es el proximo tema (Proximo tema).",
+                    "  - 3) Abrir la mirada al album del proximo tema (Proximo tema), priorizando el disco por encima de la biografia general.",
+                    "  - 4) Cerrar con pase corto y natural hacia ese tema.",
+                ]
+            )
+
+    if era_snapshot_lane:
+        lines.extend(
+            [
+                f"- Era-snapshot lane (obligatorio si el arquetipo es 'era_snapshot'): {era_snapshot_lane}",
+                "- Era-snapshot formato objetivo: contexto amplio pero mas ligero que un deep-dive (aprox. 260-420 palabras).",
+            ]
+        )
+    if era_snapshot_focus in {"current", "next"}:
+        focus_label = (
+            "actual (tema que acaba de sonar)"
+            if era_snapshot_focus == "current"
+            else "proximo (tema que va a sonar ahora)"
+        )
+        lines.extend(
+            [
+                f"- Era-snapshot focus mode (obligatorio si el arquetipo es 'era_snapshot'): {focus_label}",
+                "- Era-snapshot secuencia oral obligatoria (seguir exactamente este orden narrativo):",
+            ]
+        )
+        if era_snapshot_focus == "current":
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Contar la postal de epoca/escena sobre el tema actual (Tema actual), usando el lane indicado.",
+                    "  - 3) Cerrar presentando el proximo tema (Proximo tema).",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "  - 1) Decir de forma natural que el tema actual (Tema actual) acaba de sonar.",
+                    "  - 2) Decir cual es el proximo tema (Proximo tema).",
+                    "  - 3) Contar la postal de epoca/escena sobre el proximo tema (Proximo tema), usando el lane indicado.",
+                    "  - 4) Cerrar con pase corto y natural hacia ese tema.",
+                ]
+            )
+
     if deep_dive_lane:
         lines.extend(
             [
@@ -319,6 +391,9 @@ def build_prompt(
     recent_scripts: Sequence[str],
     schedule_context: Optional[ScheduleContext],
     short_story_focus: Optional[str] = None,
+    album_spotlight_focus: Optional[str] = None,
+    era_snapshot_lane: Optional[str] = None,
+    era_snapshot_focus: Optional[str] = None,
     deep_dive_lane: Optional[str] = None,
     deep_dive_focus: Optional[str] = None,
     story_count: Optional[int] = None,
@@ -349,6 +424,8 @@ def build_prompt(
             Archetype.UP_NEXT_TEASE: WRAPPER_UP_NEXT_TEASE,
             Archetype.DEEP_DIVE: WRAPPER_DEEP_DIVE,
             Archetype.SHORT_STORY: WRAPPER_SHORT_STORY,
+            Archetype.ALBUM_SPOTLIGHT: WRAPPER_ALBUM_SPOTLIGHT,
+            Archetype.ERA_SNAPSHOT: WRAPPER_ERA_SNAPSHOT,
             Archetype.BLOCK_INTRO: WRAPPER_BLOCK_INTRO,
             Archetype.ULTRA_MINIMAL: WRAPPER_ULTRA_MINIMAL,
         }.get(archetype, WRAPPER_ULTRA_MINIMAL)
@@ -368,6 +445,9 @@ def build_prompt(
         recent_scripts=recent_scripts,
         schedule_context=schedule_context,
         short_story_focus=short_story_focus,
+        album_spotlight_focus=album_spotlight_focus,
+        era_snapshot_lane=era_snapshot_lane,
+        era_snapshot_focus=era_snapshot_focus,
         deep_dive_lane=deep_dive_lane,
         deep_dive_focus=deep_dive_focus,
     )
@@ -649,6 +729,8 @@ def ensure_mid_block_reference(
         Archetype.BACK_SELL,
         Archetype.UP_NEXT_TEASE,
         Archetype.SHORT_STORY,
+        Archetype.ALBUM_SPOTLIGHT,
+        Archetype.ERA_SNAPSHOT,
         Archetype.DEEP_DIVE,
         Archetype.ULTRA_MINIMAL,
     }:
@@ -1177,9 +1259,36 @@ def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
     return archetype in {
         Archetype.NEWS,
         Archetype.SHORT_STORY,
+        Archetype.ALBUM_SPOTLIGHT,
+        Archetype.ERA_SNAPSHOT,
         Archetype.DEEP_DIVE,
         Archetype.CONCERT_CHECK,
     }
+
+
+def select_album_spotlight_focus(
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    rng: random.Random,
+) -> str:
+    current_has_album = bool((current_meta.album or "").strip())
+    next_has_album = bool((next_meta.album or "").strip())
+    if current_has_album and not next_has_album:
+        return "current"
+    if next_has_album and not current_has_album:
+        return "next"
+    return "current" if rng.random() < 0.5 else "next"
+
+
+def select_era_snapshot_lane(rng: random.Random) -> str:
+    return rng.choice(
+        [
+            "escena y geografia",
+            "mutacion del genero",
+            "momento cultural / industrial",
+            "la banda dentro de esa epoca",
+        ]
+    )
 
 
 def fallback_to_ultra_minimal(
@@ -1241,11 +1350,29 @@ def generate_archetype_script(
     temperature, top_p = sample_generation_settings(archetype, rng)
     system_prompt = build_system_prompt(station_name, personality)
     short_story_focus: Optional[str] = None
+    album_spotlight_focus: Optional[str] = None
+    era_snapshot_lane: Optional[str] = None
+    era_snapshot_focus: Optional[str] = None
     deep_dive_lane: Optional[str] = None
     deep_dive_focus: Optional[str] = None
     if archetype == Archetype.SHORT_STORY:
         short_story_focus = "current" if rng.random() < 0.5 else "next"
         LOGGER.info("[short_story] Focus mode selected: %s", short_story_focus)
+    if archetype == Archetype.ALBUM_SPOTLIGHT:
+        album_spotlight_focus = select_album_spotlight_focus(
+            current_meta=current_meta,
+            next_meta=next_meta,
+            rng=rng,
+        )
+        LOGGER.info(
+            "[album_spotlight] Focus mode selected: %s",
+            album_spotlight_focus,
+        )
+    if archetype == Archetype.ERA_SNAPSHOT:
+        era_snapshot_focus = "current" if rng.random() < 0.5 else "next"
+        era_snapshot_lane = select_era_snapshot_lane(rng)
+        LOGGER.info("[era_snapshot] Focus mode selected: %s", era_snapshot_focus)
+        LOGGER.info("[era_snapshot] Story lane selected: %s", era_snapshot_lane)
     if archetype == Archetype.DEEP_DIVE:
         deep_dive_focus = "current" if rng.random() < 0.5 else "next"
         LOGGER.info("[deep_dive] Focus mode selected: %s", deep_dive_focus)
@@ -1273,6 +1400,9 @@ def generate_archetype_script(
         "recent_scripts": state.recent_scripts,
         "schedule_context": schedule_context,
         "short_story_focus": short_story_focus,
+        "album_spotlight_focus": album_spotlight_focus,
+        "era_snapshot_lane": era_snapshot_lane,
+        "era_snapshot_focus": era_snapshot_focus,
         "deep_dive_lane": deep_dive_lane,
         "deep_dive_focus": deep_dive_focus,
     }
@@ -1321,12 +1451,24 @@ def generate_archetype_script(
             label=f"Gemini generation ({archetype.value})",
             with_search=should_enable_search(archetype, angle),
         )
+        if generated.strip() == "NO_SCRIPT":
+            LOGGER.info(
+                "[%s] Gemini returned NO_SCRIPT; falling back to ultra_minimal.",
+                archetype.value,
+            )
+            return fallback()
         cleaned = _postprocess_schedule_script(
             script_text=generated,
             archetype=archetype,
             schedule_context=schedule_context,
             rng=rng,
         )
+        if not cleaned.strip() or cleaned.strip() == "NO_SCRIPT":
+            LOGGER.info(
+                "[%s] Empty/invalid script after cleanup; falling back to ultra_minimal.",
+                archetype.value,
+            )
+            return fallback()
         return cleaned, None, archetype
 
     if archetype == Archetype.CONCERT_CHECK:

@@ -6,21 +6,28 @@ from __future__ import annotations
 import datetime as dt
 import time
 import unittest
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
+    build_prompt,
     build_system_prompt,
     build_tts_instructions,
     ensure_schedule_genre_reference,
+    generate_archetype_script,
     parse_news_output,
     resolve_station_personality,
+    select_album_spotlight_focus,
+    should_enable_search,
     station_name_for_generation,
     validate_news_freshness_and_dedup,
 )
 from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
     Archetype,
     OrchestratorState,
+    QueueTrack,
     ScheduleContext,
+    TrackMetadata,
 )
 from neuralcast.pipelines.host_orchestrator.schedule import (  # noqa: E402
     resolve_schedule_context,
@@ -39,6 +46,25 @@ from neuralcast.pipelines.host_orchestrator.state import (  # noqa: E402
 
 
 class OrchestratorHelpersTest(unittest.TestCase):
+    @staticmethod
+    def _queue_track(artist: str, title: str) -> QueueTrack:
+        return QueueTrack(
+            queue_id=f"{artist}-{title}",
+            song_id=None,
+            artist=artist,
+            title=title,
+            duration=240,
+        )
+
+    @staticmethod
+    def _track_meta(
+        *,
+        album: str = "",
+        year: str = "1998",
+        genre: str = "metal",
+    ) -> TrackMetadata:
+        return TrackMetadata(album=album or None, year=year, genre=genre)
+
     def test_migrate_state_clamps_wait_range(self) -> None:
         ts = time.time()
         rng_seed = __import__("random").Random(123)
@@ -143,6 +169,39 @@ class OrchestratorHelpersTest(unittest.TestCase):
         )
 
         self.assertIn(Archetype.DEEP_DIVE, legal)
+
+    def test_legal_archetypes_for_remaining_includes_album_spotlight_at_90_seconds(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(14))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=90,
+        )
+
+        self.assertIn(Archetype.ALBUM_SPOTLIGHT, legal)
+
+    def test_legal_archetypes_for_remaining_excludes_era_snapshot_below_120_seconds(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(15))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=119,
+        )
+
+        self.assertNotIn(Archetype.ERA_SNAPSHOT, legal)
+
+    def test_legal_archetypes_for_remaining_includes_era_snapshot_at_120_seconds(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(16))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=120,
+        )
+
+        self.assertIn(Archetype.ERA_SNAPSHOT, legal)
 
     def test_legal_archetypes_for_remaining_excludes_up_next_tease_within_20_minutes_of_block_change(self) -> None:
         state = default_state(time.time(), __import__("random").Random(5))
@@ -252,6 +311,122 @@ META (JSON):
         self.assertIn("Perfil de personalidad de la estacion", system_prompt)
         self.assertIn("metal", system_prompt.lower())
         self.assertIn("La voz suena natural", tts_instructions)
+
+    def test_should_enable_search_for_new_archetypes(self) -> None:
+        self.assertTrue(should_enable_search(Archetype.ALBUM_SPOTLIGHT, None))
+        self.assertTrue(should_enable_search(Archetype.ERA_SNAPSHOT, None))
+
+    def test_build_prompt_routes_album_spotlight_wrapper(self) -> None:
+        personality = resolve_station_personality("neuralforge")
+        prompt = build_prompt(
+            archetype=Archetype.ALBUM_SPOTLIGHT,
+            station_name="NeuralForge",
+            personality=personality,
+            current=self._queue_track("Emperor", "I Am the Black Wizards"),
+            next_track=self._queue_track("Bathory", "A Fine Day to Die"),
+            upcoming_tracks=[],
+            current_meta=self._track_meta(album="In the Nightside Eclipse"),
+            next_meta=self._track_meta(album="Blood Fire Death"),
+            angle=None,
+            hook="el disco alrededor de este tema",
+            banned_list=[],
+            recent_scripts=[],
+            schedule_context=None,
+            album_spotlight_focus="current",
+        )
+        self.assertIn("Estas generando un album spotlight.", prompt)
+        self.assertIn("Album-spotlight focus mode", prompt)
+
+    def test_build_prompt_routes_era_snapshot_wrapper(self) -> None:
+        personality = resolve_station_personality("neuralforge")
+        prompt = build_prompt(
+            archetype=Archetype.ERA_SNAPSHOT,
+            station_name="NeuralForge",
+            personality=personality,
+            current=self._queue_track("Entombed", "Left Hand Path"),
+            next_track=self._queue_track("At the Gates", "Blinded by Fear"),
+            upcoming_tracks=[],
+            current_meta=self._track_meta(album="Left Hand Path"),
+            next_meta=self._track_meta(album="Slaughter of the Soul"),
+            angle=None,
+            hook="postal de epoca alrededor del tema",
+            banned_list=[],
+            recent_scripts=[],
+            schedule_context=None,
+            era_snapshot_lane="mutacion del genero",
+            era_snapshot_focus="next",
+        )
+        self.assertIn("Estas generando un era snapshot.", prompt)
+        self.assertIn("Era-snapshot lane", prompt)
+
+    def test_select_album_spotlight_focus_prefers_track_with_album_metadata(self) -> None:
+        rng = __import__("random").Random(17)
+        focus = select_album_spotlight_focus(
+            current_meta=self._track_meta(album=""),
+            next_meta=self._track_meta(album="The Mantle"),
+            rng=rng,
+        )
+        self.assertEqual(focus, "next")
+
+    def test_generate_album_spotlight_falls_back_on_no_script(self) -> None:
+        rng = __import__("random").Random(18)
+        state = default_state(time.time(), __import__("random").Random(19))
+        personality = resolve_station_personality("neuralforge")
+
+        with patch(
+            "neuralcast.pipelines.host_orchestrator.generation.gemini_generate_text",
+            side_effect=["NO_SCRIPT", "Puente minimo hacia el proximo tema."],
+        ):
+            script, _, archetype_used = generate_archetype_script(
+                archetype=Archetype.ALBUM_SPOTLIGHT,
+                station_name="NeuralForge",
+                personality=personality,
+                current_track=self._queue_track("Opeth", "The Moor"),
+                next_track=self._queue_track("Agalloch", "In the Shadow of Our Pale Companion"),
+                upcoming_tracks=[],
+                current_meta=self._track_meta(album="Still Life"),
+                next_meta=self._track_meta(album="The Mantle"),
+                angle=None,
+                hook="el disco alrededor de este tema",
+                banned_list=[],
+                schedule_context=None,
+                state=state,
+                rng=rng,
+                forced_mode=False,
+            )
+
+        self.assertEqual(archetype_used, Archetype.ULTRA_MINIMAL)
+        self.assertIn("Puente minimo", script)
+
+    def test_generate_era_snapshot_falls_back_on_no_script(self) -> None:
+        rng = __import__("random").Random(20)
+        state = default_state(time.time(), __import__("random").Random(21))
+        personality = resolve_station_personality("neuralforge")
+
+        with patch(
+            "neuralcast.pipelines.host_orchestrator.generation.gemini_generate_text",
+            side_effect=["NO_SCRIPT", "Seguimos y ahora entra el proximo tema."],
+        ):
+            script, _, archetype_used = generate_archetype_script(
+                archetype=Archetype.ERA_SNAPSHOT,
+                station_name="NeuralForge",
+                personality=personality,
+                current_track=self._queue_track("Celtic Frost", "Procreation (Of the Wicked)"),
+                next_track=self._queue_track("Mayhem", "Freezing Moon"),
+                upcoming_tracks=[],
+                current_meta=self._track_meta(album="To Mega Therion"),
+                next_meta=self._track_meta(album="De Mysteriis Dom Sathanas"),
+                angle=None,
+                hook="postal de epoca alrededor del tema",
+                banned_list=[],
+                schedule_context=None,
+                state=state,
+                rng=rng,
+                forced_mode=False,
+            )
+
+        self.assertEqual(archetype_used, Archetype.ULTRA_MINIMAL)
+        self.assertIn("proximo tema", script.lower())
 
     def test_schedule_context_start_intent(self) -> None:
         tz = ZoneInfo("Europe/Zurich")
