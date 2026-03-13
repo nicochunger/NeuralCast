@@ -54,7 +54,7 @@ class RemoteSyncResult:
 
 @dataclass(frozen=True)
 class RemoteSyncRequest:
-    enabled: bool = False
+    enabled: bool = True
     remote_host: str | None = None
     remote_user: str | None = None
     remote_port: int | None = None
@@ -71,10 +71,17 @@ def add_remote_sync_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--sync-remote",
         action="store_true",
+        default=True,
         help=(
             "Mirror station songs to AzuraCast media via rsync after local sync "
-            "(includes deletions by default)."
+            "(default: enabled; includes deletions by default)."
         ),
+    )
+    group.add_argument(
+        "--no-sync-remote",
+        action="store_false",
+        dest="sync_remote",
+        help="Disable the default remote rsync mirror step.",
     )
     group.add_argument(
         "--remote-host",
@@ -131,7 +138,7 @@ def add_remote_sync_args(parser: argparse.ArgumentParser) -> None:
 
 def remote_sync_request_from_args(args: argparse.Namespace) -> RemoteSyncRequest:
     return RemoteSyncRequest(
-        enabled=bool(getattr(args, "sync_remote", False)),
+        enabled=bool(getattr(args, "sync_remote", True)),
         remote_host=getattr(args, "remote_host", None),
         remote_user=getattr(args, "remote_user", None),
         remote_port=getattr(args, "remote_port", None),
