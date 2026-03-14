@@ -26,6 +26,7 @@ echo "[deploy] Target: ${SSH_TARGET}:${REMOTE_DIR}"
 echo "[deploy] Repo:   ${REPO_ROOT}"
 
 ssh "${SSH_TARGET}" "mkdir -p '${REMOTE_DIR}/src'"
+ssh "${SSH_TARGET}" "mkdir -p '${REMOTE_DIR}/deployment/systemd'"
 
 echo "[deploy] Syncing src/ (with delete + excludes; excluded files are preserved on VPS)..."
 rsync -az --delete \
@@ -38,6 +39,10 @@ rsync -az --delete \
 echo "[deploy] Syncing vps_requirements.txt..."
 rsync -az \
   "${REPO_ROOT}/vps_requirements.txt" "${SSH_TARGET}:${REMOTE_DIR}/vps_requirements.txt"
+
+echo "[deploy] Syncing deployment/systemd/..."
+rsync -az \
+  "${REPO_ROOT}/deployment/systemd/" "${SSH_TARGET}:${REMOTE_DIR}/deployment/systemd/"
 
 echo "[deploy] Removing legacy zip artifact (if present)..."
 ssh "${SSH_TARGET}" "rm -f /root/deploy_host_orchestrator.zip"

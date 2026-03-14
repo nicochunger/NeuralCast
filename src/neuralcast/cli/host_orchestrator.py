@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from neuralcast.pipelines.host_orchestrator import build_arg_parser, run
+from neuralcast.pipelines.host_orchestrator.main import build_arg_parser, run
 
 
 def main() -> None:

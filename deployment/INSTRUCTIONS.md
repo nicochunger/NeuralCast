@@ -20,6 +20,7 @@ What it does:
 
 - Syncs `src/` to `/root/radio_host_orchestrator/src/` with `rsync --delete`
 - Syncs `vps_requirements.txt`
+- Syncs `deployment/systemd/` so canonical unit files are available on the VPS
 - Preserves generated snippet media under `src/neuralcast/assets/stories/snippets/`
 - Verifies deployed entrypoints and confirms legacy top-level pipeline files are gone
 

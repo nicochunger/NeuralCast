@@ -21,11 +21,14 @@ dependencies = [
     "google-genai",
     "pydantic",
     "pillow",
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "httpx",
 ]
 
 [project.scripts]
@@ -34,6 +37,7 @@ neuralcast-new-releases = "neuralcast.cli.update_new_releases:run"
 neuralcast-new-releases-deezer = "neuralcast.cli.update_new_releases_deezer:run"
 neuralcast-host = "neuralcast.cli.host_orchestrator:main"
 neuralcast-schedule = "neuralcast.cli.schedule_generator:main"
+neuralcast-admin-api = "neuralcast.cli.admin_api:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

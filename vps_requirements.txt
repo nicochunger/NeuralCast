@@ -2,3 +2,5 @@ google-genai
 openai
 python-dotenv
 requests
+fastapi
+uvicorn
