@@ -145,6 +145,11 @@ class DeezerNewReleasesTest(unittest.TestCase):
                     },
                 ],
             ),
+            patch.object(
+                deezer_new_releases,
+                "_is_probable_old_catalog_release",
+                return_value=False,
+            ),
         ):
             releases = deezer_new_releases.fetch_recent_releases(
                 "Atavistia",
@@ -155,6 +160,105 @@ class DeezerNewReleasesTest(unittest.TestCase):
         self.assertEqual(len(releases), 1)
         self.assertEqual(releases[0].title, "Mystic Tavern")
         self.assertEqual(releases[0].track_id, "3785083802")
+
+    def test_is_alt_or_reissue_treats_mix_as_alternate_version(self) -> None:
+        self.assertTrue(
+            deezer_new_releases._is_alt_or_reissue("Mama Kin (2024 Mix)", "")
+        )
+
+    def test_is_probable_old_catalog_release_uses_musicbrainz_dates(self) -> None:
+        deezer_new_releases._MB_RELEASE_CACHE.clear()
+        with patch.object(
+            deezer_new_releases,
+            "_musicbrainz_earliest_release_date",
+            side_effect=[
+                datetime(1996, 9, 1, tzinfo=UTC),
+                None,
+            ],
+        ):
+            result = deezer_new_releases._is_probable_old_catalog_release(
+                "Aerosmith",
+                "Institutional Man",
+                "Angry Machines",
+                datetime(2026, 2, 1, tzinfo=UTC),
+            )
+
+        self.assertTrue(result)
+
+    def test_musicbrainz_earliest_release_date_ignores_other_artists(self) -> None:
+        deezer_new_releases._MB_RELEASE_CACHE.clear()
+        with patch.object(
+            deezer_new_releases.musicbrainzngs,
+            "search_releases",
+            return_value={
+                "release-list": [
+                    {
+                        "title": "Old Gods Awaken",
+                        "date": "2020-10-30",
+                        "artist-credit-phrase": "Black Tar Superstar",
+                    },
+                    {
+                        "title": "Old Gods Awaken",
+                        "date": "2026-05-15",
+                        "artist-credit-phrase": "Atavistia",
+                    },
+                ]
+            },
+        ):
+            result = deezer_new_releases._musicbrainz_earliest_release_date(
+                "Atavistia", "Old Gods Awaken", entity="release"
+            )
+
+        self.assertEqual(result, datetime(2026, 5, 15, tzinfo=UTC))
+
+    def test_fetch_recent_releases_skips_musicbrainz_old_catalog_release(self) -> None:
+        with (
+            patch.object(
+                deezer_new_releases,
+                "_resolve_artist",
+                return_value={"id": "123", "name": "Aerosmith"},
+            ),
+            patch.object(
+                deezer_new_releases,
+                "_iter_recent_albums",
+                return_value=[
+                    (
+                        datetime(2026, 2, 1, tzinfo=UTC),
+                        {
+                            "id": "456",
+                            "title": "Mama Kin (2024 Mix)",
+                            "record_type": "single",
+                        },
+                    )
+                ],
+            ),
+            patch.object(
+                deezer_new_releases,
+                "_album_tracks_by_artist",
+                return_value=[
+                    {
+                        "id": "789",
+                        "title": "Mama Kin (2024 Mix)",
+                        "readable": True,
+                        "track_position": 1,
+                        "disk_number": 1,
+                        "rank": 80000,
+                    }
+                ],
+            ),
+            patch.object(
+                deezer_new_releases,
+                "_is_probable_old_catalog_release",
+                return_value=True,
+            ),
+        ):
+            releases = deezer_new_releases.fetch_recent_releases(
+                "Aerosmith",
+                cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+                known_titles={"Dream On"},
+            )
+
+        self.assertEqual(releases, [])
 
     def test_resolve_artist_uses_cached_artist_without_track_verification(self) -> None:
         cache = deezer_new_releases.ArtistIDCache(entries={}, dirty=False)

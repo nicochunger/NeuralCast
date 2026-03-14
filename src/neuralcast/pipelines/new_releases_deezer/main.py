@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import musicbrainzngs
 import os
 import re
 import sys
@@ -47,6 +48,9 @@ SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": "NeuralCast/1.0"})
 _LAST_REQUEST_TS = 0.0
 _QUOTA_PAUSE_UNTIL = 0.0
+_MB_RELEASE_CACHE: dict[tuple[str, str, str], Optional[datetime]] = {}
+
+musicbrainzngs.set_useragent("NeuralCast", "0.1", "neuralcast@example.com")
 
 
 def _env_flag(value: str | None) -> bool:
@@ -97,6 +101,12 @@ def _normalize_audio_label(*parts: str) -> str:
     text = " ".join(part or "" for part in parts)
     normalized = unicodedata.normalize("NFKD", text)
     return re.sub(r"[^a-z0-9]", "", normalized.casefold())
+
+
+def _normalize_musicbrainz_label(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    stripped = "".join(char for char in normalized if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]", "", stripped.casefold())
 
 
 def _normalize_metadata_component(value: str) -> str:
@@ -489,6 +499,7 @@ def _resolve_artist(
 
 _TITLE_EXCLUDE_PATTERNS = [
     re.compile(r"\blive\b", re.I),
+    re.compile(r"\bmix\b", re.I),
     re.compile(r"\bremaster(?:ed|s|ing)?\b", re.I),
     re.compile(r"\bre[-\s]?record(?:ed|ing)?\b", re.I),
     re.compile(r"\bre[-\s]?imagined\b", re.I),
@@ -522,6 +533,123 @@ def _is_alt_or_reissue(title: str, album_name: str) -> bool:
     for pattern in _ALBUM_EXCLUDE_PATTERNS:
         if pattern.search(album_name or ""):
             return True
+    return False
+
+
+def _parse_musicbrainz_date(date_str: str | None) -> Optional[datetime]:
+    value = (date_str or "").strip()
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+        try:
+            parsed = datetime.strptime(value, fmt)
+            if fmt == "%Y":
+                parsed = parsed.replace(month=1, day=1)
+            elif fmt == "%Y-%m":
+                parsed = parsed.replace(day=1)
+            return parsed.replace(tzinfo=UTC)
+        except ValueError:
+            continue
+    return None
+
+
+def _musicbrainz_item_matches_artist(item: dict, artist_name: str, *, entity: str) -> bool:
+    target = _normalize_text(artist_name)
+    if not target:
+        return False
+    if entity == "release":
+        artist_credits = item.get("artist-credit", []) or []
+        for credit in artist_credits:
+            if not isinstance(credit, dict):
+                continue
+            candidate = str((credit.get("artist") or {}).get("name") or "").strip()
+            if candidate and _close_enough(candidate, artist_name, minimum=0.9):
+                return True
+        artist_phrase = str(item.get("artist-credit-phrase") or "").strip()
+        return bool(artist_phrase and _close_enough(artist_phrase, artist_name, minimum=0.9))
+
+    artist_credits = item.get("artist-credit", []) or []
+    for credit in artist_credits:
+        if not isinstance(credit, dict):
+            continue
+        candidate = str((credit.get("artist") or {}).get("name") or "").strip()
+        if candidate and _close_enough(candidate, artist_name, minimum=0.9):
+            return True
+    artist_phrase = str(item.get("artist-credit-phrase") or "").strip()
+    return bool(artist_phrase and _close_enough(artist_phrase, artist_name, minimum=0.9))
+
+
+def _musicbrainz_earliest_release_date(
+    artist_name: str, value: str, *, entity: str
+) -> Optional[datetime]:
+    artist_name = str(artist_name or "").strip()
+    value = str(value or "").strip()
+    if not artist_name or not value:
+        return None
+    cache_key = (_normalize_text(artist_name), entity, _normalize_musicbrainz_label(value))
+    if cache_key in _MB_RELEASE_CACHE:
+        return _MB_RELEASE_CACHE[cache_key]
+
+    normalized_value = _normalize_musicbrainz_label(value)
+    search = (
+        musicbrainzngs.search_releases
+        if entity == "release"
+        else musicbrainzngs.search_recordings
+    )
+    key = "release-list" if entity == "release" else "recording-list"
+
+    try:
+        response = search(artist=artist_name, **{entity: value}, limit=25)
+    except Exception:
+        _MB_RELEASE_CACHE[cache_key] = None
+        return None
+
+    earliest: Optional[datetime] = None
+    for item in response.get(key, []) or []:
+        if not isinstance(item, dict):
+            continue
+        if not _musicbrainz_item_matches_artist(item, artist_name, entity=entity):
+            continue
+        title_key = "title" if entity == "release" else "title"
+        item_value = str(item.get(title_key) or "").strip()
+        if _normalize_musicbrainz_label(item_value) != normalized_value:
+            continue
+
+        if entity == "release":
+            release_dates = [_parse_musicbrainz_date(item.get("date"))]
+        else:
+            release_dates = [
+                _parse_musicbrainz_date(release.get("date"))
+                for release in item.get("release-list", []) or []
+                if isinstance(release, dict)
+            ]
+
+        for release_date in release_dates:
+            if not release_date:
+                continue
+            if earliest is None or release_date < earliest:
+                earliest = release_date
+
+    _MB_RELEASE_CACHE[cache_key] = earliest
+    return earliest
+
+
+def _is_probable_old_catalog_release(
+    artist_name: str, title: str, album_name: str, release_date: datetime
+) -> bool:
+    cutoff = timedelta(days=365 * 2)
+    checks = (
+        ("album", album_name, _musicbrainz_earliest_release_date(artist_name, album_name, entity="release")),
+        ("recording", title, _musicbrainz_earliest_release_date(artist_name, title, entity="recording")),
+    )
+    for label, value, earliest_release in checks:
+        if not earliest_release or release_date - earliest_release <= cutoff:
+            continue
+        log_debug(
+            f"Skipping probable old catalog release for {artist_name} - {title}: "
+            f"MusicBrainz {label} '{value}' dates back to {earliest_release.date().isoformat()}"
+        )
+        return True
     return False
 
 
@@ -601,6 +729,8 @@ def fetch_recent_releases(
         title = str(chosen_track.get("title") or "").strip()
         track_id = str(chosen_track.get("id") or "").strip()
         if not title or not track_id:
+            continue
+        if _is_probable_old_catalog_release(artist_name, title, album_name, release_date):
             continue
         record_type = str(album.get("record_type") or "").strip().lower() or None
         rank_value = chosen_track.get("rank")
