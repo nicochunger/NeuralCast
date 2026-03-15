@@ -30,7 +30,7 @@ Integracion de bloque (si INPUT lo pide):
 - Si INPUT indica mention_intent=mid, nombrar el bloque como algo que esta ocurriendo ahora (en curso), no como cierre de bloque ni como anticipo de cambio de seccion.
 
 Ejemplos de direccion (referencia de estilo, no copiar textual):
-- "Quedo una tension muy limpia en ese cierre, y lo que viene sostiene ese pulso."
+- "Quedo una tension muy limpia en ese cierre, y lo que viene la sigue por otro lado."
 - "Ese tema dejo una textura mas seca, y el proximo entra justo por ahi."
 - "Se noto ese contraste de dinamica; ahora seguimos con algo que lo completa."
 - "Bueno, quedo ese golpe final flotando... y el que viene lo engancha perfecto."

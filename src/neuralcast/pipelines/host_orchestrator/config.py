@@ -246,7 +246,7 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
         "detalle del cierre que quedó sonando",
         "textura que dejó el tema",
         "contraste suave con lo que viene",
-        "pulso que sigue pero cambia",
+        "continuidad con un giro suave",
         "observación corta del tema y puente",
         "ese final todavía flotando",
         "un matiz del cierre para enlazar",
@@ -412,6 +412,7 @@ OVERUSED_STYLE_CLICHES: Tuple[str, ...] = (
     "tormenta",
     "explosion",
     "incendio",
+    "pulso",
 )
 
 GENERATION_RETRIES = 2

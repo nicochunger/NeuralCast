@@ -12,6 +12,7 @@ Linea base de escritura del guion:
 * Priorizar este arco oral: pista concreta -> lectura corta -> pase.
 * Mantener espontaneidad real: ritmo natural, pequenos toques coloquiales, nada que suene escrito de antemano.
 * El hook seed de INPUT es solo orientacion de enfoque: no copiarlo literal ni arrancar siempre con el.
+* No apoyarse demasiado en una misma palabra-ancla; si aparece "pulso", usarla solo de forma excepcional y nunca como muletilla de estilo.
 * Las muletillas coloquiales y pequenas hesitaciones son opcionales; si no encajan, omitirlas.
 * Se permiten micro-reformulaciones o autocorrecciones si vuelven mas humana la frase y no ensucian el ritmo.
 * Banco orientativo de muletillas/fillers (usar pocas y variar): "bueno", "viste", "no se", "mira", "en realidad", "la verdad", "bah", "que se yo", "ponele", "como que", "te juro", "nada", "a ver", "sabes que", "de hecho", "medio que", pausas cortas. "che" y "posta" solo con mas cuidado, nunca como muleta automatica.
