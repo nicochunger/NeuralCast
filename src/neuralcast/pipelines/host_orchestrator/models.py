@@ -21,6 +21,23 @@ class Archetype(str, Enum):
     ULTRA_MINIMAL = "ultra_minimal"
 
 
+class TrackFocus(str, Enum):
+    CURRENT = "current"
+    NEXT = "next"
+
+
+TRACK_FOCUS_ARCHETYPES = (
+    Archetype.SHORT_STORY,
+    Archetype.ALBUM_SPOTLIGHT,
+    Archetype.ERA_SNAPSHOT,
+    Archetype.DEEP_DIVE,
+)
+
+
+def supports_track_focus(archetype: Archetype) -> bool:
+    return archetype in TRACK_FOCUS_ARCHETYPES
+
+
 @dataclass
 class QueueTrack:
     queue_id: str

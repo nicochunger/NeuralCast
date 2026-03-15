@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
-from neuralcast.pipelines.host_orchestrator.main import build_arg_parser, run
+from neuralcast.pipelines.host_orchestrator.main import (
+    ArgumentValidationError,
+    build_arg_parser,
+    run,
+)
 
 
 def main() -> None:
-    args = build_arg_parser().parse_args()
-    run(args)
+    parser = build_arg_parser()
+    args = parser.parse_args()
+    try:
+        run(args)
+    except ArgumentValidationError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":

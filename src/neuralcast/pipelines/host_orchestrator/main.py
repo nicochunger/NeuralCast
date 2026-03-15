@@ -53,7 +53,9 @@ from .models import (
     Archetype,
     OrchestratorState,
     ScheduleContext,
+    TrackFocus,
     TrackMetadata,
+    supports_track_focus,
 )
 from .schedule import (
     load_schedule_state_payload,
@@ -100,13 +102,45 @@ from .utils import (
 )
 
 
+class ArgumentValidationError(ValueError):
+    """Raised when a host-orchestrator CLI argument combination is invalid."""
+
+
+def validate_runtime_args(args: argparse.Namespace) -> TrackFocus | None:
+    """Validate cross-argument constraints and return any forced track focus."""
+
+    force_track_focus = getattr(args, "force_track_focus", None)
+    if not force_track_focus:
+        return None
+
+    if not args.force_archetype:
+        raise ArgumentValidationError(
+            "--force-track-focus requires --force-archetype."
+        )
+
+    forced_archetype = Archetype(args.force_archetype)
+    if not supports_track_focus(forced_archetype):
+        supported = ", ".join(
+            archetype.value for archetype in Archetype if supports_track_focus(archetype)
+        )
+        raise ArgumentValidationError(
+            "--force-track-focus is only supported for forceable story archetypes: "
+            f"{supported}."
+        )
+
+    return TrackFocus(force_track_focus)
+
+
 def run(args: argparse.Namespace) -> None:
     configure_logging()
+    forced_track_focus = validate_runtime_args(args)
     LOGGER.info("%s", "=" * 84)
     LOGGER.info(
-        "[cycle] Invocation received | station=%s | dry_run=%s",
+        "[cycle] Invocation received | station=%s | dry_run=%s | force_archetype=%s | force_track_focus=%s",
         args.station,
         args.dry_run,
+        args.force_archetype or "none",
+        forced_track_focus.value if forced_track_focus is not None else "none",
     )
 
     load_dotenv()
@@ -376,6 +410,11 @@ def run(args: argparse.Namespace) -> None:
                     "[gate] Force archetype active: %s; bypassing wait gate.",
                     forced_archetype.value,
                 )
+            if forced_track_focus is not None:
+                LOGGER.info(
+                    "[gate] Forced track focus active: %s.",
+                    forced_track_focus.value,
+                )
 
         if forced_archetype is not None:
             selected_archetype = forced_archetype
@@ -452,6 +491,7 @@ def run(args: argparse.Namespace) -> None:
             state=state,
             rng=rng,
             forced_mode=forced_archetype == Archetype.NEWS,
+            forced_track_focus=forced_track_focus,
         )
 
         if not script_text.strip():
@@ -606,6 +646,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--force-track-focus",
+        choices=[focus.value for focus in TrackFocus],
+        help=(
+            "When used with --force-archetype for short_story, album_spotlight, "
+            "era_snapshot, or deep_dive, force the archetype to focus on the "
+            "current or next track instead of choosing randomly."
+        ),
+    )
+    parser.add_argument(
         "--verify-tls",
         action="store_true",
         help="Verify TLS certificates for AzuraCast requests.",
@@ -626,4 +675,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 if __name__ == "__main__":
-    run(build_arg_parser().parse_args())
+    parser = build_arg_parser()
+    parsed_args = parser.parse_args()
+    try:
+        run(parsed_args)
+    except ArgumentValidationError as exc:
+        parser.error(str(exc))

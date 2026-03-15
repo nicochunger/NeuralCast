@@ -32,6 +32,7 @@ def run_job(job_file: Path) -> int:
         argv, env, cwd = build_orchestrator_command(
             station=job.station,
             archetype=job.archetype,
+            track_focus=job.track_focus,
             dry_run=job.dry_run,
         )
         append_job_log(log_path, f"[admin-api] job accepted at {job.accepted_at}")

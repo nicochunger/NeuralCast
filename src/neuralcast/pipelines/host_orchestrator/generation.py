@@ -52,6 +52,7 @@ from .models import (
     QueueTrack,
     ScheduleContext,
     StationPersonality,
+    TrackFocus,
     TrackMetadata,
 )
 from .state import (
@@ -1341,6 +1342,7 @@ def generate_archetype_script(
     state: OrchestratorState,
     rng: random.Random,
     forced_mode: bool,
+    forced_track_focus: Optional[TrackFocus] = None,
 ) -> Tuple[str, Optional[NewsSegment], Archetype]:
     """Generate script and optional structured metadata.
 
@@ -1356,26 +1358,45 @@ def generate_archetype_script(
     deep_dive_lane: Optional[str] = None
     deep_dive_focus: Optional[str] = None
     if archetype == Archetype.SHORT_STORY:
-        short_story_focus = "current" if rng.random() < 0.5 else "next"
-        LOGGER.info("[short_story] Focus mode selected: %s", short_story_focus)
+        if forced_track_focus is not None:
+            short_story_focus = forced_track_focus.value
+            LOGGER.info("[short_story] Focus mode forced: %s", short_story_focus)
+        else:
+            short_story_focus = "current" if rng.random() < 0.5 else "next"
+            LOGGER.info("[short_story] Focus mode selected: %s", short_story_focus)
     if archetype == Archetype.ALBUM_SPOTLIGHT:
-        album_spotlight_focus = select_album_spotlight_focus(
-            current_meta=current_meta,
-            next_meta=next_meta,
-            rng=rng,
-        )
-        LOGGER.info(
-            "[album_spotlight] Focus mode selected: %s",
-            album_spotlight_focus,
-        )
+        if forced_track_focus is not None:
+            album_spotlight_focus = forced_track_focus.value
+            LOGGER.info(
+                "[album_spotlight] Focus mode forced: %s",
+                album_spotlight_focus,
+            )
+        else:
+            album_spotlight_focus = select_album_spotlight_focus(
+                current_meta=current_meta,
+                next_meta=next_meta,
+                rng=rng,
+            )
+            LOGGER.info(
+                "[album_spotlight] Focus mode selected: %s",
+                album_spotlight_focus,
+            )
     if archetype == Archetype.ERA_SNAPSHOT:
-        era_snapshot_focus = "current" if rng.random() < 0.5 else "next"
+        if forced_track_focus is not None:
+            era_snapshot_focus = forced_track_focus.value
+            LOGGER.info("[era_snapshot] Focus mode forced: %s", era_snapshot_focus)
+        else:
+            era_snapshot_focus = "current" if rng.random() < 0.5 else "next"
+            LOGGER.info("[era_snapshot] Focus mode selected: %s", era_snapshot_focus)
         era_snapshot_lane = select_era_snapshot_lane(rng)
-        LOGGER.info("[era_snapshot] Focus mode selected: %s", era_snapshot_focus)
         LOGGER.info("[era_snapshot] Story lane selected: %s", era_snapshot_lane)
     if archetype == Archetype.DEEP_DIVE:
-        deep_dive_focus = "current" if rng.random() < 0.5 else "next"
-        LOGGER.info("[deep_dive] Focus mode selected: %s", deep_dive_focus)
+        if forced_track_focus is not None:
+            deep_dive_focus = forced_track_focus.value
+            LOGGER.info("[deep_dive] Focus mode forced: %s", deep_dive_focus)
+        else:
+            deep_dive_focus = "current" if rng.random() < 0.5 else "next"
+            LOGGER.info("[deep_dive] Focus mode selected: %s", deep_dive_focus)
         deep_dive_lane = rng.choice(
             [
                 "historia de la banda",

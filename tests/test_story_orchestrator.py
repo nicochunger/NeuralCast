@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import time
 import unittest
@@ -27,7 +28,12 @@ from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
     OrchestratorState,
     QueueTrack,
     ScheduleContext,
+    TrackFocus,
     TrackMetadata,
+)
+from neuralcast.pipelines.host_orchestrator.main import (  # noqa: E402
+    ArgumentValidationError,
+    validate_runtime_args,
 )
 from neuralcast.pipelines.host_orchestrator.schedule import (  # noqa: E402
     resolve_schedule_context,
@@ -398,6 +404,42 @@ META (JSON):
         self.assertEqual(archetype_used, Archetype.ULTRA_MINIMAL)
         self.assertIn("Puente minimo", script)
 
+    def test_generate_album_spotlight_uses_forced_track_focus(self) -> None:
+        rng = __import__("random").Random(24)
+        state = default_state(time.time(), __import__("random").Random(25))
+        personality = resolve_station_personality("neuralforge")
+
+        with patch(
+            "neuralcast.pipelines.host_orchestrator.generation.gemini_generate_text",
+            return_value="Mirada al disco del tema actual.",
+        ) as mock_generate:
+            script, _, archetype_used = generate_archetype_script(
+                archetype=Archetype.ALBUM_SPOTLIGHT,
+                station_name="NeuralForge",
+                personality=personality,
+                current_track=self._queue_track("Opeth", "The Moor"),
+                next_track=self._queue_track(
+                    "Agalloch", "In the Shadow of Our Pale Companion"
+                ),
+                upcoming_tracks=[],
+                current_meta=self._track_meta(album="Still Life"),
+                next_meta=self._track_meta(album="The Mantle"),
+                angle=None,
+                hook="el disco alrededor de este tema",
+                banned_list=[],
+                schedule_context=None,
+                state=state,
+                rng=rng,
+                forced_mode=False,
+                forced_track_focus=TrackFocus.CURRENT,
+            )
+
+        self.assertEqual(archetype_used, Archetype.ALBUM_SPOTLIGHT)
+        self.assertIn("Mirada al disco", script)
+        prompt = mock_generate.call_args.kwargs["prompt"]
+        self.assertIn("Album-spotlight focus mode", prompt)
+        self.assertIn("actual (tema que acaba de sonar)", prompt)
+
     def test_generate_era_snapshot_falls_back_on_no_script(self) -> None:
         rng = __import__("random").Random(20)
         state = default_state(time.time(), __import__("random").Random(21))
@@ -427,6 +469,78 @@ META (JSON):
 
         self.assertEqual(archetype_used, Archetype.ULTRA_MINIMAL)
         self.assertIn("proximo tema", script.lower())
+
+    def test_generate_short_story_uses_forced_track_focus(self) -> None:
+        rng = __import__("random").Random(22)
+        state = default_state(time.time(), __import__("random").Random(23))
+        personality = resolve_station_personality("neuralforge")
+
+        with patch(
+            "neuralcast.pipelines.host_orchestrator.generation.gemini_generate_text",
+            return_value="Historia breve del proximo tema.",
+        ) as mock_generate:
+            script, _, archetype_used = generate_archetype_script(
+                archetype=Archetype.SHORT_STORY,
+                station_name="NeuralForge",
+                personality=personality,
+                current_track=self._queue_track("Amorphis", "Black Winter Day"),
+                next_track=self._queue_track("Sentenced", "Noose"),
+                upcoming_tracks=[],
+                current_meta=self._track_meta(album="Tales from the Thousand Lakes"),
+                next_meta=self._track_meta(album="Down"),
+                angle=None,
+                hook="historia breve alrededor del tema",
+                banned_list=[],
+                schedule_context=None,
+                state=state,
+                rng=rng,
+                forced_mode=False,
+                forced_track_focus=TrackFocus.NEXT,
+            )
+
+        self.assertEqual(archetype_used, Archetype.SHORT_STORY)
+        self.assertIn("Historia breve", script)
+        prompt = mock_generate.call_args.kwargs["prompt"]
+        self.assertIn("Short-story focus mode", prompt)
+        self.assertIn("proximo (tema que va a sonar ahora)", prompt)
+
+    def test_validate_runtime_args_requires_force_archetype_for_track_focus(self) -> None:
+        with self.assertRaises(ArgumentValidationError):
+            validate_runtime_args(
+                argparse.Namespace(
+                    force_archetype=None,
+                    force_track_focus=TrackFocus.CURRENT.value,
+                )
+            )
+
+    def test_validate_runtime_args_rejects_non_story_force_focus(self) -> None:
+        with self.assertRaises(ArgumentValidationError):
+            validate_runtime_args(
+                argparse.Namespace(
+                    force_archetype=Archetype.BACK_SELL.value,
+                    force_track_focus=TrackFocus.CURRENT.value,
+                )
+            )
+
+    def test_validate_runtime_args_accepts_story_force_focus(self) -> None:
+        focus = validate_runtime_args(
+            argparse.Namespace(
+                force_archetype=Archetype.DEEP_DIVE.value,
+                force_track_focus=TrackFocus.NEXT.value,
+            )
+        )
+
+        self.assertEqual(focus, TrackFocus.NEXT)
+
+    def test_validate_runtime_args_accepts_album_spotlight_focus(self) -> None:
+        focus = validate_runtime_args(
+            argparse.Namespace(
+                force_archetype=Archetype.ALBUM_SPOTLIGHT.value,
+                force_track_focus=TrackFocus.CURRENT.value,
+            )
+        )
+
+        self.assertEqual(focus, TrackFocus.CURRENT)
 
     def test_schedule_context_start_intent(self) -> None:
         tz = ZoneInfo("Europe/Zurich")

@@ -4,7 +4,7 @@ This document covers the phase-1 admin API that lets an HTTPS client trigger an 
 
 ## What It Does
 
-The admin API is a thin HTTP wrapper around the existing host-orchestrator CLI. It validates the request, launches the real `neuralcast.cli.host_orchestrator` subprocess with `--force-archetype`, captures stdout/stderr to a per-job log, and stores job state under `admin_http/` so job status survives API restarts.
+The admin API is a thin HTTP wrapper around the existing host-orchestrator CLI. It validates the request, launches the real `neuralcast.cli.host_orchestrator` subprocess with `--force-archetype`, optionally forwards `--force-track-focus current|next` for story-style forced archetypes, captures stdout/stderr to a per-job log, and stores job state under `admin_http/` so job status survives API restarts.
 
 The service binds to localhost by default. Expose it publicly through a reverse proxy such as nginx or caddy, and require HTTPS at the proxy layer.
 
@@ -38,6 +38,17 @@ python -m neuralcast.cli.admin_api --host 127.0.0.1 --port 8787
 ```
 
 If you keep your local environment in `.venv/`, replace `python` with `./.venv/bin/python`.
+
+To force a story archetype against the current or next track directly from the CLI, use:
+
+```bash
+PYTHONPATH=$(pwd)/src \
+python -m neuralcast.cli.host_orchestrator \
+  -s neuralforge \
+  --force-archetype album_spotlight \
+  --force-track-focus next \
+  --dry-run
+```
 
 ## Systemd Usage
 
@@ -160,9 +171,14 @@ admin.your-radio.example {
 {
   "station": "neuralforge",
   "archetype": "deep_dive",
+  "track_focus": "next",
   "dry_run": true
 }
 ```
+
+- `track_focus` is optional.
+- When present, it must be `"current"` or `"next"`.
+- It is only valid for `short_story`, `album_spotlight`, `era_snapshot`, and `deep_dive`.
 
 - Returns HTTP `202 Accepted` immediately:
 
@@ -176,7 +192,7 @@ admin.your-radio.example {
 `GET /admin/jobs/{job_id}`
 
 - Requires `Authorization: Bearer <token>`.
-- Returns the persisted job state including timestamps, exit code, log path, and a short log tail.
+- Returns the persisted job state including timestamps, exit code, optional `track_focus`, log path, and a short log tail.
 
 ## curl Examples
 
@@ -200,7 +216,7 @@ Create a dry-run job:
 curl -sS \
   -H "Authorization: Bearer test-token" \
   -H "Content-Type: application/json" \
-  -d '{"station":"neuralforge","archetype":"deep_dive","dry_run":true}' \
+  -d '{"station":"neuralforge","archetype":"deep_dive","track_focus":"next","dry_run":true}' \
   http://127.0.0.1:8787/admin/force-archetype
 ```
 

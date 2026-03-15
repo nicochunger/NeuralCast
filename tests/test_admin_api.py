@@ -62,16 +62,30 @@ class AdminApiUnitTest(unittest.TestCase):
         request = ForceArchetypeRequest(
             station="neuralforge",
             archetype="deep_dive",
+            track_focus="next",
             dry_run=True,
         )
         self.assertEqual(request.station, "neuralforge")
         self.assertEqual(request.archetype, "deep_dive")
+        self.assertEqual(request.track_focus, "next")
         self.assertTrue(request.dry_run)
 
         with self.assertRaises(ValidationError):
             ForceArchetypeRequest(station="bad-station", archetype="deep_dive")
         with self.assertRaises(ValidationError):
             ForceArchetypeRequest(station="neuralcast", archetype="not-real")
+        album_spotlight_request = ForceArchetypeRequest(
+            station="neuralcast",
+            archetype="album_spotlight",
+            track_focus="current",
+        )
+        self.assertEqual(album_spotlight_request.track_focus, "current")
+        with self.assertRaises(ValidationError):
+            ForceArchetypeRequest(
+                station="neuralcast",
+                archetype="back_sell",
+                track_focus="current",
+            )
 
     def test_supported_allowlists_match_phase_one_contract(self) -> None:
         self.assertEqual(list(SUPPORTED_STATIONS), ["neuralcast", "neuralforge"])
@@ -82,11 +96,13 @@ class AdminApiUnitTest(unittest.TestCase):
         job = self.manager.enqueue_force_archetype(
             station="neuralforge",
             archetype="deep_dive",
+            track_focus="next",
             dry_run=True,
         )
 
         self.assertEqual(job.station, "neuralforge")
         self.assertEqual(job.archetype, "deep_dive")
+        self.assertEqual(job.track_focus, "next")
         self.assertTrue(job.dry_run)
         self.assertEqual(job.status, "running")
         self.assertEqual(job.runner_pid, 4242)
@@ -96,6 +112,7 @@ class AdminApiUnitTest(unittest.TestCase):
         first = self.manager.enqueue_force_archetype(
             station="neuralcast",
             archetype="back_sell",
+            track_focus=None,
             dry_run=False,
         )
 
@@ -103,6 +120,7 @@ class AdminApiUnitTest(unittest.TestCase):
             self.manager.enqueue_force_archetype(
                 station="neuralcast",
                 archetype="deep_dive",
+                track_focus="current",
                 dry_run=True,
             )
 
@@ -113,6 +131,7 @@ class AdminApiUnitTest(unittest.TestCase):
             job_id="20260314T153012Z-neuralforge-deep_dive",
             station="neuralforge",
             archetype="deep_dive",
+            track_focus="current",
             dry_run=False,
             status="succeeded",
             accepted_at="2026-03-14T15:30:12Z",
@@ -133,6 +152,7 @@ class AdminApiUnitTest(unittest.TestCase):
         payload = self.manager.job_status_payload(job.job_id)
         self.assertEqual(payload["exit_code"], 0)
         self.assertEqual(payload["status"], "succeeded")
+        self.assertEqual(payload["track_focus"], "current")
         self.assertIn("last useful line", payload["log_tail"])
         self.assertEqual(payload["log_path"], str(log_path))
 
@@ -146,6 +166,7 @@ class AdminApiUnitTest(unittest.TestCase):
             job_id="20260314T153012Z-neuralcast-back_sell",
             station="neuralcast",
             archetype="back_sell",
+            track_focus=None,
             dry_run=True,
             status="running",
             accepted_at="2026-03-14T15:30:12Z",
@@ -165,12 +186,13 @@ class AdminApiUnitTest(unittest.TestCase):
         argv, env, cwd = build_orchestrator_command(
             station="neuralforge",
             archetype="deep_dive",
+            track_focus="next",
             dry_run=True,
             project_root=self.base_dir,
         )
 
         self.assertEqual(
-            argv[1:7],
+            argv[1:9],
             [
                 "-m",
                 "neuralcast.cli.host_orchestrator",
@@ -178,6 +200,8 @@ class AdminApiUnitTest(unittest.TestCase):
                 "neuralforge",
                 "--force-archetype",
                 "deep_dive",
+                "--force-track-focus",
+                "next",
             ],
         )
         self.assertEqual(argv[-1], "--dry-run")

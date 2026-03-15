@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, PROJECT_ROOT
-from neuralcast.pipelines.host_orchestrator.models import Archetype
+from neuralcast.pipelines.host_orchestrator.models import Archetype, TrackFocus
 
 EXPECTED_SUPPORTED_STATIONS = ("neuralcast", "neuralforge")
 SUPPORTED_STATIONS = tuple(ALLOWED_STATION_SLUGS)
@@ -24,6 +24,7 @@ if SUPPORTED_STATIONS != EXPECTED_SUPPORTED_STATIONS:
     )
 
 SUPPORTED_ARCHETYPES = tuple(archetype.value for archetype in Archetype)
+SUPPORTED_TRACK_FOCUSES = tuple(focus.value for focus in TrackFocus)
 DEFAULT_ADMIN_HTTP_HOST = "127.0.0.1"
 DEFAULT_ADMIN_HTTP_PORT = 8787
 ADMIN_HTTP_ROOT = PROJECT_ROOT / "admin_http"
@@ -59,6 +60,7 @@ class JobRecord:
     job_id: str
     station: str
     archetype: str
+    track_focus: str | None
     dry_run: bool
     status: str
     accepted_at: str
@@ -79,6 +81,7 @@ class JobRecord:
             job_id=str(payload["job_id"]),
             station=str(payload["station"]),
             archetype=str(payload["archetype"]),
+            track_focus=_optional_str(payload.get("track_focus")),
             dry_run=bool(payload["dry_run"]),
             status=str(payload["status"]),
             accepted_at=str(payload["accepted_at"]),
@@ -117,6 +120,7 @@ def build_job_id(station: str, archetype: str, *, now: datetime | None = None) -
 def build_orchestrator_command(
     station: str,
     archetype: str,
+    track_focus: str | None,
     dry_run: bool,
     *,
     project_root: Path = PROJECT_ROOT,
@@ -136,6 +140,8 @@ def build_orchestrator_command(
         "--force-archetype",
         archetype,
     ]
+    if track_focus:
+        argv.extend(["--force-track-focus", track_focus])
     if dry_run:
         argv.append("--dry-run")
 
@@ -296,6 +302,7 @@ class JobManager:
         *,
         station: str,
         archetype: str,
+        track_focus: str | None,
         dry_run: bool,
     ) -> JobRecord:
         """Create and launch a background orchestrator job."""
@@ -312,6 +319,7 @@ class JobManager:
                 job_id=job_id,
                 station=station,
                 archetype=archetype,
+                track_focus=track_focus,
                 dry_run=dry_run,
                 status="running",
                 accepted_at=accepted_at,
@@ -350,6 +358,7 @@ class JobManager:
             "job_id": job.job_id,
             "station": job.station,
             "archetype": job.archetype,
+            "track_focus": job.track_focus,
             "dry_run": job.dry_run,
             "status": job.status,
             "accepted_at": job.accepted_at,

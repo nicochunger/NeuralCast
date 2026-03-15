@@ -7,7 +7,9 @@ import os
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from neuralcast.pipelines.host_orchestrator.models import Archetype, supports_track_focus
 
 from .jobs import (
     JobConflictError,
@@ -15,6 +17,7 @@ from .jobs import (
     JobNotFoundError,
     SUPPORTED_ARCHETYPES,
     SUPPORTED_STATIONS,
+    SUPPORTED_TRACK_FOCUSES,
 )
 
 BEARER_PREFIX = "Bearer "
@@ -34,6 +37,7 @@ class ForceArchetypeRequest(BaseModel):
 
     station: str
     archetype: str
+    track_focus: str | None = None
     dry_run: bool = False
 
     @field_validator("station")
@@ -55,6 +59,27 @@ class ForceArchetypeRequest(BaseModel):
             )
         return value
 
+    @field_validator("track_focus")
+    @classmethod
+    def validate_track_focus(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if value not in SUPPORTED_TRACK_FOCUSES:
+            raise ValueError(
+                "Unsupported track_focus "
+                f"'{value}'. Allowed values: {SUPPORTED_TRACK_FOCUSES}."
+            )
+        return value
+
+    @model_validator(mode="after")
+    def validate_track_focus_for_archetype(self) -> "ForceArchetypeRequest":
+        if self.track_focus and not supports_track_focus(Archetype(self.archetype)):
+            raise ValueError(
+                "track_focus is only supported for short_story, album_spotlight, "
+                "era_snapshot, and deep_dive."
+            )
+        return self
+
 
 class AcceptedJobResponse(BaseModel):
     """Immediate response after a new admin job is accepted."""
@@ -69,6 +94,7 @@ class JobStatusResponse(BaseModel):
     job_id: str
     station: str
     archetype: str
+    track_focus: str | None
     dry_run: bool
     status: str
     accepted_at: str
@@ -147,6 +173,7 @@ def create_app(job_manager: JobManager | None = None) -> FastAPI:
             job = manager.enqueue_force_archetype(
                 station=payload.station,
                 archetype=payload.archetype,
+                track_focus=payload.track_focus,
                 dry_run=payload.dry_run,
             )
         except JobConflictError as exc:
