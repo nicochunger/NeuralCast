@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pathlib
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from mutagen.easyid3 import EasyID3
@@ -203,14 +203,18 @@ def load_playlist(
 
 
 def backfill_songs_from_library(
-    playlist_name: str, songs: List[Song], music_dir: Optional[pathlib.Path]
+    playlist_name: str,
+    songs: List[Song],
+    music_dir: Optional[pathlib.Path],
+    *,
+    log: Callable[[str], None] = print,
 ) -> Tuple[List[Song], bool, int]:
     if not music_dir:
-        print("Warning: STATION_PATH is not set; skipping MP3 file check")
+        log("Warning: STATION_PATH is not set; skipping MP3 file check")
         return songs, False, 0
 
     if not music_dir.exists():
-        print(
+        log(
             f"Warning: Music directory '{music_dir}' does not exist, skipping MP3 file check"
         )
         return songs, False, 0
@@ -230,7 +234,7 @@ def backfill_songs_from_library(
             file_year = audio.get("date", [""])[0] if audio.get("date") else ""
             file_album = audio.get("album", [""])[0] if audio.get("album") else ""
         except Exception as exc:
-            print(f"Warning: Could not read metadata from {mp3_file}: {exc}")
+            log(f"Warning: Could not read metadata from {mp3_file}: {exc}")
             continue
 
         if not file_artist or not file_title:
@@ -254,16 +258,16 @@ def backfill_songs_from_library(
         if mp3_file.name != expected_name:
             try:
                 if target_path.exists():
-                    print(
+                    log(
                         f"Warning: Target exists, cannot rename {mp3_file.name} -> {expected_name}"
                     )
                 else:
                     mp3_file.rename(target_path)
                     mp3_file = target_path
-                    print(f"Renamed file: {target_path.name}")
+                    log(f"Renamed file: {target_path.name}")
                     changes = True
             except Exception as exc:
-                print(f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {exc}")
+                log(f"Warning: Could not rename {mp3_file.name} -> {expected_name}: {exc}")
 
         year_to_use = normalize_year_value(file_year) or "Unknown"
         new_song = Song(
@@ -277,10 +281,10 @@ def backfill_songs_from_library(
         songs_by_key[key] = new_song
         added_from_files += 1
         changes = True
-        print(f"Added from existing file: {file_artist} - {file_title}")
+        log(f"Added from existing file: {file_artist} - {file_title}")
 
     if added_from_files > 0:
-        print(f"Added {added_from_files} song(s) from existing MP3 files")
+        log(f"Added {added_from_files} song(s) from existing MP3 files")
 
     return updated_songs, changes, added_from_files
 
@@ -311,7 +315,11 @@ def replace_song_entry(songs: List[Song], updated_song: Song) -> None:
 
 
 def save_playlist_with_validation(
-    playlist_path: pathlib.Path, songs: List[Song], df: pd.DataFrame
+    playlist_path: pathlib.Path,
+    songs: List[Song],
+    df: pd.DataFrame,
+    *,
+    log: Callable[[str], None] = print,
 ):
     # Update only the standard columns in the DataFrame, keep all others
     # Build a DataFrame from songs for standard columns
@@ -367,17 +375,20 @@ def save_playlist_with_validation(
     # Create new DataFrame with all columns preserved
     new_df = pd.DataFrame(updated_rows, columns=df.columns)
     new_df.to_csv(playlist_path, index=False)
-    print(f"Cleaned and sorted playlist saved to {playlist_path}")
+    log(f"Cleaned and sorted playlist saved to {playlist_path}")
 
 
 def delete_marked_mp3_files(
-    delete_targets: Dict[Tuple[str, str], Song], songs_root: pathlib.Path
+    delete_targets: Dict[Tuple[str, str], Song],
+    songs_root: pathlib.Path,
+    *,
+    log: Callable[[str], None] = print,
 ) -> int:
     if not delete_targets:
         return 0
 
     if songs_root is None or not songs_root.exists():
-        print("Warning: Songs directory does not exist; cannot delete marked MP3 files")
+        log("Warning: Songs directory does not exist; cannot delete marked MP3 files")
         return 0
 
     removed = 0
@@ -399,9 +410,9 @@ def delete_marked_mp3_files(
                     relative_path = target_file.relative_to(songs_root)
                 except ValueError:
                     relative_path = target_file
-                print(f"🗑️ Deleted MP3 due to [DEL]: {relative_path}")
+                log(f"🗑️ Deleted MP3 due to [DEL]: {relative_path}")
             except Exception as exc:
-                print(f"❌ Failed to delete MP3 {target_file}: {exc}")
+                log(f"❌ Failed to delete MP3 {target_file}: {exc}")
 
     return removed
 

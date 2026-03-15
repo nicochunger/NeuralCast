@@ -9,11 +9,13 @@ main.py — AI-assisted local-network radio pipeline
 """
 
 import argparse
+import contextlib
+import io
 import json
 import pathlib
 import unicodedata
 from subprocess import CalledProcessError
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from mutagen.easyid3 import EasyID3
@@ -71,6 +73,59 @@ TTS = False  # turn off if you only want music
 VOICE_NAME = "Adam"  # ElevenLabs voice
 _METADATA_DIRNAME = "metadata"
 _METADATA_FILENAME = "New Releases.metadata.json"
+
+
+class PlaylistLog:
+    def __init__(self, playlist_name: str) -> None:
+        self.playlist_name = playlist_name
+        self._header_printed = False
+
+    def _ensure_header(self) -> None:
+        if not self._header_printed:
+            print(f"\n[{self.playlist_name}]")
+            self._header_printed = True
+
+    def info(self, message: str) -> None:
+        self._ensure_header()
+        print(f"  {message}")
+
+    def change(self, message: str) -> None:
+        self.info(message)
+
+    def warning(self, message: str) -> None:
+        self.info(f"⚠️ {message}")
+
+    def error(self, message: str) -> None:
+        self.info(f"❌ {message}")
+
+
+def _capture_output(func: Callable[[], object]) -> Tuple[object, List[str]]:
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        result = func()
+    return result, [
+        line.rstrip() for line in buffer.getvalue().splitlines() if line.strip()
+    ]
+
+
+def _emit_captured_lines(
+    lines: List[str],
+    *,
+    logger: Callable[[str], None],
+    include_plain: bool = False,
+) -> None:
+    for line in lines:
+        if (
+            include_plain
+            or "⚠️" in line
+            or "❌" in line
+            or "warning" in line.casefold()
+            or "error" in line.casefold()
+            or "failed" in line.casefold()
+            or "deleted" in line.casefold()
+            or "removed" in line.casefold()
+        ):
+            logger(line)
 
 
 def _resolve_metadata_paths(playlists_dir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
@@ -223,7 +278,11 @@ def remove_new_releases_metadata_entries(
     return removed
 
 
-def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
+def _backfill_album_for_missing_song(
+    song: Song,
+    *,
+    log: Callable[[str], None] = print,
+) -> tuple[Song, bool]:
     album_value = (song.album or "").strip()
     year_value = str(song.year).strip() if song.year is not None else ""
     missing_year = not year_value or year_value.casefold() == "unknown"
@@ -231,35 +290,26 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     album_needs_replacement = False
 
     def clear_album_metadata() -> tuple[Song, bool]:
-        print(f"     ↳ Clearing album metadata: {album_value}")
+        log(f"🧹 album metadata cleared: {track_label} ({album_value})")
         return song.model_copy(update={"album": None}), True
 
     def handle_missing_match() -> tuple[Song, bool]:
-        print(f"     ⚠️ No album match found for {track_label}")
+        log(f"⚠️ album lookup found no match for {track_label}")
         if album_needs_replacement:
             return clear_album_metadata()
         return song, False
 
     if album_value:
-        print(f"   • Rechecking album for {track_label}: {album_value}")
-    else:
-        print(f"   • Backfilling album for {track_label} (missing)")
-    if album_value:
         try:
             if verified_album(song.artist, song.title, album_value):
-                print(f"     ✓ Album verified: {album_value}")
                 if not missing_year:
                     return song, False
             else:
                 album_needs_replacement = True
-                print(
-                    f"     ↳ Album could not be confirmed: {album_value}; trying lookup"
-                )
+                log(f"⚠️ album could not be confirmed for {track_label}: {album_value}")
         except Exception as exc:
             album_needs_replacement = True
-            print(
-                f"Warning: Album check failed for {song.artist} - {song.title}: {exc}"
-            )
+            log(f"⚠️ album check failed for {track_label}: {exc}")
 
     try:
         match = guess_album(
@@ -271,7 +321,7 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
             allow_fallback=True,
         )
     except Exception as exc:
-        print(f"Warning: Album lookup failed for {song.artist} - {song.title}: {exc}")
+        log(f"⚠️ album lookup failed for {track_label}: {exc}")
         if album_needs_replacement:
             return clear_album_metadata()
         return song, False
@@ -286,17 +336,16 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     updated_fields = {}
     if not album_value or new_album.casefold() != album_value.casefold():
         updated_fields["album"] = new_album
-        print(
-            f"     ✓ Selected album: {new_album} (source {match.source}, confidence {match.confidence:.2f})"
+        log(
+            f"📝 album updated: {track_label} -> {new_album} "
+            f"(source {match.source}, confidence {match.confidence:.2f})"
         )
-    elif album_value:
-        print(f"     ↳ Album unchanged after lookup: {new_album}")
 
     if missing_year and match.release_date:
         new_year = str(match.release_date.year)
         if new_year and new_year != year_value:
             updated_fields["year"] = new_year
-            print(f"     ✓ Selected year: {new_year} (from release date)")
+            log(f"📝 year updated: {track_label} -> {new_year}")
 
     if not updated_fields:
         return song, False
@@ -305,15 +354,20 @@ def _backfill_album_for_missing_song(song: Song) -> tuple[Song, bool]:
     return updated_song, True
 
 
-def _log_album_validation_result(song: Song, result) -> None:
+def _log_album_validation_result(
+    song: Song,
+    result,
+    *,
+    log: Callable[[str], None] = print,
+) -> None:
     if not result.album:
         return
     if result.album_cleared:
-        print(
-            f"   ↳ Album removed after validation failure: {result.album} ({song.artist} - {song.title})"
+        log(
+            f"🧹 album removed after validation failure: {song.artist} - {song.title} ({result.album})"
         )
         return
-    print(f"   ↳ Album validated: {result.album}")
+    log(f"✅ album validated: {song.artist} - {song.title} ({result.album})")
 
 
 def _save_playlist_state(
@@ -324,6 +378,7 @@ def _save_playlist_state(
     *,
     songs_to_remove: Optional[List[Song]] = None,
     save_validation_updates: bool = False,
+    log: Callable[[str], None] = print,
 ) -> List[Song]:
     songs_to_remove = songs_to_remove or []
     removed_count = 0
@@ -333,11 +388,11 @@ def _save_playlist_state(
         songs = [song for song in songs if song not in songs_to_remove]
         removed_count = original_song_count - len(songs)
         if removed_count > 0:
-            print(f"📝 Removed {removed_count} song(s) from playlist CSV file")
+            log(f"🗑️ playlist rows removed: {removed_count}")
 
     if save_validation_updates or removed_count > 0:
-        save_playlist_with_validation(str(playlist_file), songs, playlist_df)
-        print("📝 Updated playlist CSV file")
+        save_playlist_with_validation(playlist_file, songs, playlist_df, log=log)
+        log("📝 playlist CSV updated")
 
     if removed_count > 0 and playlist_name.casefold() == "new releases":
         remove_new_releases_metadata_entries(playlist_file.parent, songs_to_remove)
@@ -358,11 +413,8 @@ def main(
     STATION_PATH = station_dir / "songs"
     STATION = station_slug
 
-    print(f"Running for station: {station_slug} ({station_dir.name})")
-    if dry_run:
-        print("Mode: DRY-RUN (no downloads; existing MP3s will be re-tagged if needed)")
-    print(f"Playlists path: {PLAYLISTS_PATH}")
-    print(f"Songs path: {STATION_PATH}")
+    mode_label = "dry-run" if dry_run else "apply"
+    print(f"🎛️ [sync] station={station_slug} mode={mode_label}")
 
     playlists_dir = pathlib.Path(PLAYLISTS_PATH)
     if not playlists_dir.exists():
@@ -405,15 +457,19 @@ def main(
             deletion_sources.setdefault(key, set()).add(entry["name"])
 
     if deletion_targets:
-        print(f"\n🛑 Songs marked for deletion via [DEL]: {len(deletion_targets)}")
+        print(f"🗑️ [sync] processing {len(deletion_targets)} [DEL] marker(s)")
         for key, song in deletion_targets.items():
             playlists_list = sorted(deletion_sources.get(key, []))
             playlists_note = ", ".join(playlists_list)
-            print(f"   • {song.artist} - {song.title} (marked in: {playlists_note})")
+            print(f"  📝 delete request: {song.artist} - {song.title} ({playlists_note})")
 
-        deleted_files = delete_marked_mp3_files(deletion_targets, STATION_PATH)
+        deleted_files = delete_marked_mp3_files(
+            deletion_targets,
+            STATION_PATH,
+            log=lambda line: print(f"  {line}"),
+        )
         if deleted_files:
-            print(f"🗑️ Deleted {deleted_files} MP3 file(s) due to [DEL] markers")
+            print(f"🗑️ [sync] deleted {deleted_files} MP3 file(s) due to [DEL] markers")
 
         for entry in playlist_entries:
             songs = entry["songs"]
@@ -441,16 +497,15 @@ def main(
     for entry in playlist_entries:
         playlist_file = entry["file"]
         playlist_name = entry["name"]
-        print(f"\n--------------------------------------------")
-        print(f"Processing playlist: {playlist_name}")
+        playlist_log = PlaylistLog(playlist_name)
 
         songs = entry["songs"]
         playlist_needs_save = entry["needs_save"]
         removed_via_marker = entry.get("removed_via_marker", 0)
 
         if removed_via_marker:
-            print(
-                f"   • Removed {removed_via_marker} song(s) marked with [DEL] from playlist"
+            playlist_log.change(
+                f"🗑️ removed {removed_via_marker} song(s) marked with [DEL] from playlist"
             )
 
         # Create directory for this playlist (needed for MP3 backfill)
@@ -458,14 +513,17 @@ def main(
         music_dir.mkdir(parents=True, exist_ok=True)
 
         songs, library_changed, added_from_files = backfill_songs_from_library(
-            playlist_name, songs, music_dir
+            playlist_name,
+            songs,
+            music_dir,
+            log=playlist_log.change,
         )
         songs, normalized_changed, duplicates_removed = deduplicate_and_sort_songs(
             songs
         )
 
         if duplicates_removed > 0:
-            print(f"Removed {duplicates_removed} duplicate(s) from {playlist_file}")
+            playlist_log.change(f"🧹 removed {duplicates_removed} duplicate row(s)")
 
         # When updating playlist, update the DataFrame, not just the list of songs
         # For example, after deduplication, validation, or removal:
@@ -475,27 +533,22 @@ def main(
         # When saving:
         # save_playlist_with_validation should now take the DataFrame and write all columns
         if playlist_needs_save or library_changed or normalized_changed:
-            save_playlist_with_validation(playlist_file, songs, entry["df"])
+            save_playlist_with_validation(
+                playlist_file,
+                songs,
+                entry["df"],
+                log=playlist_log.change,
+            )
 
         if not songs:
-            print(f"No valid songs found in {playlist_file}")
+            playlist_log.warning("playlist is empty after cleanup")
             entry["songs"] = songs
             all_songs_by_playlist[playlist_name] = []
             continue
 
         entry["songs"] = songs
 
-        print(f"Found {len(songs)} songs in playlist:")
-        print("")
-
         # Separate songs into validated and unvalidated
-        validated_songs = [song for song in songs if song.validated]
-        unvalidated_songs = [song for song in songs if not song.validated]
-
-        print(f"📊 Validation Statistics:")
-        print(f"   Previously validated songs: {len(validated_songs)}")
-        print(f"   Songs needing validation: {len(unvalidated_songs)}")
-
         # Handle forced YouTube overrides before standard download detection
         override_candidates = []
         for song in songs:
@@ -519,26 +572,26 @@ def main(
             url = song.override_url
 
             if not song.artist or not song.title:
-                print(f"⚠️ Override skipped; missing artist/title for URL {url}")
+                playlist_log.warning(f"override skipped; missing artist/title for URL {url}")
                 continue
 
             if not url or not any(
                 host in url.lower() for host in ("youtube.com", "youtu.be")
             ):
-                print(f"⚠️ Override skipped; unsupported URL {url}")
+                playlist_log.warning(f"override skipped; unsupported URL {url}")
                 continue
 
             if song_path is None:
-                print(
-                    f"⚠️ Override skipped; could not determine target path for {song.artist} - {song.title}"
+                playlist_log.warning(
+                    f"override skipped; could not determine target path for {song.artist} - {song.title}"
                 )
                 continue
 
-            print(f"Forced YouTube override: {song.artist} - {song.title} (URL {url})")
+            playlist_log.change(f"🔁 forced YouTube override: {song.artist} - {song.title}")
 
             if dry_run:
-                print(
-                    f"   Would replace {song.artist} - {song.title} via forced override (dry-run)"
+                playlist_log.info(
+                    f"🧪 dry-run: would replace {song.artist} - {song.title} via override"
                 )
                 continue
 
@@ -554,16 +607,26 @@ def main(
                     song_path.rename(backup_path)
                     backup_created = True
 
-                youtube_to_mp3(url, str(song_path), use_search=False)
-                tag_mp3(
-                    str(song_path),
-                    song.artist,
-                    song.title,
-                    song.year,
-                    playlist_name,
-                    song.album,
-                    log_prefix="      ",
+                _, download_lines = _capture_output(
+                    lambda: youtube_to_mp3(url, str(song_path), use_search=False)
                 )
+                _emit_captured_lines(
+                    download_lines,
+                    logger=playlist_log.change,
+                    include_plain=True,
+                )
+                _, tag_lines = _capture_output(
+                    lambda: tag_mp3(
+                        str(song_path),
+                        song.artist,
+                        song.title,
+                        song.year,
+                        playlist_name,
+                        song.album,
+                        log_prefix="      ",
+                    )
+                )
+                _emit_captured_lines(tag_lines, logger=playlist_log.warning)
 
                 if backup_path and backup_path.exists():
                     backup_path.unlink()
@@ -572,15 +635,16 @@ def main(
                 override_updates = True
 
                 replacement_note = (
-                    "Replaced existing file"
+                    "🔁 override replaced existing file"
                     if file_existed
-                    else "Downloaded (new override)"
+                    else "⬇️ override downloaded new file"
                 )
-                print(f"   {replacement_note}")
+                playlist_log.change(f"{replacement_note}: {song.artist} - {song.title}")
 
             except CalledProcessError as exc:
-                print("   Override failed; original retained")
-                print(f"     Reason: {exc}")
+                playlist_log.error(
+                    f"override failed; original retained for {song.artist} - {song.title}: {exc}"
+                )
 
                 if song_path.exists() and backup_created:
                     try:
@@ -592,13 +656,14 @@ def main(
                     try:
                         backup_path.rename(song_path)
                     except Exception as restore_exc:
-                        print(
-                            f"     Warning: failed to restore original file from backup: {restore_exc}"
+                        playlist_log.warning(
+                            f"failed to restore original file from backup: {restore_exc}"
                         )
 
             except Exception as exc:
-                print("   Override failed; original retained")
-                print(f"     Reason: {exc}")
+                playlist_log.error(
+                    f"override failed; original retained for {song.artist} - {song.title}: {exc}"
+                )
 
                 if song_path.exists() and backup_created:
                     try:
@@ -610,12 +675,17 @@ def main(
                     try:
                         backup_path.rename(song_path)
                     except Exception as restore_exc:
-                        print(
-                            f"     Warning: failed to restore original file from backup: {restore_exc}"
+                        playlist_log.warning(
+                            f"failed to restore original file from backup: {restore_exc}"
                         )
 
         if override_updates:
-            save_playlist_with_validation(playlist_file, songs, entry["df"])
+            save_playlist_with_validation(
+                playlist_file,
+                songs,
+                entry["df"],
+                log=playlist_log.change,
+            )
 
         # Check which songs already exist and which need to be downloaded
         existing_songs = []
@@ -644,23 +714,13 @@ def main(
             else:
                 missing_songs.append((song, song_path))
 
-        # Report statistics
         total_songs = len(songs)
         existing_count = len(existing_songs)
         missing_count = len(missing_songs)
 
-        print(f"📊 Download Statistics:")
-        print(f"   Total songs in playlist: {total_songs}")
-        print(f"   Already downloaded: {existing_count}")
-        print(f"   Need to download: {missing_count}")
-        if pending_overrides:
-            print(f"   Pending overrides awaiting retry: {pending_overrides}")
-
         # In dry-run, audit and fix tags on existing files (set Album/others if missing/mismatched)
         if dry_run and existing_songs:
-            print("\n🖊️ DRY-RUN: Auditing existing MP3 tags and album art...")
             refreshed = 0
-            untouched = 0
             for song, song_path in existing_songs:
                 track_label = (
                     f"{song.artist or 'Unknown Artist'} - "
@@ -686,19 +746,21 @@ def main(
                     status_lines.append(
                         f"⚠️ Cannot read tags ({e}); rewriting metadata + album art"
                     )
-                    tag_mp3(
-                        str(song_path),
-                        song.artist,
-                        song.title,
-                        song.year,
-                        playlist_name,
-                        song.album,
-                        log_prefix="      ",
+                    _, tag_lines = _capture_output(
+                        lambda: tag_mp3(
+                            str(song_path),
+                            song.artist,
+                            song.title,
+                            song.year,
+                            playlist_name,
+                            song.album,
+                            log_prefix="      ",
+                        )
                     )
+                    _emit_captured_lines(tag_lines, logger=playlist_log.warning)
                     refreshed += 1
-                    print(f"   • {track_label} ({song_path.name})")
                     for line in status_lines:
-                        print(f"      {line}")
+                        playlist_log.change(f"{track_label}: {line}")
                     continue
 
                 needs = []
@@ -725,27 +787,24 @@ def main(
                 if update_needed:
                     status_lines.append(f"Updating fields: {', '.join(needs)}")
                     status_lines.append("Reapplying album art")
-                    tag_mp3(
-                        str(song_path),
-                        song.artist,
-                        song.title,
-                        song.year,
-                        playlist_name,
-                        song.album,
-                        log_prefix="      ",
+                    _, tag_lines = _capture_output(
+                        lambda: tag_mp3(
+                            str(song_path),
+                            song.artist,
+                            song.title,
+                            song.year,
+                            playlist_name,
+                            song.album,
+                            log_prefix="      ",
+                        )
                     )
+                    _emit_captured_lines(tag_lines, logger=playlist_log.warning)
                     refreshed += 1
-                else:
-                    status_lines.append("✅ Tags already match; no changes needed")
-                    untouched += 1
+                    for line in status_lines:
+                        playlist_log.change(f"{track_label}: {line}")
 
-                print(f"   • {track_label} ({song_path.name})")
-                for line in status_lines:
-                    print(f"      {line}")
-
-            print(
-                f"   Summary: refreshed {refreshed} file(s), {untouched} already up to date."
-            )
+            if refreshed > 0:
+                playlist_log.change(f"🧪 dry-run retag audit would refresh {refreshed} file(s)")
 
         # Validate existing songs (only unvalidated ones)
         songs_to_remove_from_playlist = []
@@ -757,71 +816,59 @@ def main(
             ]
 
             if unvalidated_existing:
-                scope = "[DRY-RUN] " if dry_run else ""
-                print(
-                    f"\n🔍 {scope}Validating {len(unvalidated_existing)} unvalidated existing songs..."
-                )
                 invalid_existing: List[Tuple[Song, pathlib.Path]] = []
 
                 for song, song_path in unvalidated_existing:
                     result = perform_song_validation(song)
-                    _log_album_validation_result(song, result)
+                    _log_album_validation_result(song, result, log=playlist_log.change)
 
                     if result.song:
                         replace_song_entry(songs, result.song)
                         validation_updates = True
-                        print(
-                            f"✓ Validated: {result.song.artist} - {result.song.title}"
+                        playlist_log.change(
+                            f"✅ validated existing track: {result.song.artist} - {result.song.title}"
                         )
                     else:
                         invalid_existing.append((song, song_path))
                         songs_to_remove_from_playlist.append(song)
 
                 if invalid_existing:
-                    print(f"\n❌ Invalid existing songs ({len(invalid_existing)}):")
                     for song, song_path in invalid_existing:
-                        print(
-                            f"   • {song.artist} - {song.title} (file: {song_path.name})"
+                        playlist_log.change(
+                            f"🗑️ removed invalid existing track: {song.artist} - {song.title} ({song_path.name})"
                         )
 
                     # Delete invalid MP3 files
                     for song, song_path in invalid_existing:
                         try:
                             song_path.unlink()
-                            print(f"🗑️ Deleted invalid file: {song_path.name}")
+                            playlist_log.change(f"🗑️ deleted invalid file: {song_path.name}")
                         except Exception as e:
-                            print(f"❌ Failed to delete {song_path.name}: {e}")
-
-                    print(f"   🗑️ Deleted {len(invalid_existing)} invalid MP3 file(s)")
-            else:
-                print(f"\n✅ All existing songs are already validated")
-        else:
-            print(f"\n📁 No existing songs to validate")
+                            playlist_log.error(f"failed to delete {song_path.name}: {e}")
 
         invalid_songs: List[Tuple[Song, pathlib.Path]] = []
         if missing_songs:
-            print("\n🔎 Checking availability for missing songs before album recheck...")
             available_missing: List[Tuple[Song, pathlib.Path]] = []
             for song, song_path in missing_songs:
-                print(f"   • Checking availability: {song.artist} - {song.title}")
                 if verified(song.artist, song.title):
                     available_missing.append((song, song_path))
                 else:
                     invalid_songs.append((song, song_path))
                     songs_to_remove_from_playlist.append(song)
-                    print(f"❌ Not found: {song.artist} - {song.title}")
+                    playlist_log.change(
+                        f"🗑️ removed unavailable track before download: {song.artist} - {song.title}"
+                    )
             missing_songs = available_missing
-            if invalid_songs:
-                print(
-                    f"   🗑️ Removed {len(invalid_songs)} unavailable song(s) before album recheck"
-                )
 
         if missing_songs:
             updated_missing: List[Tuple[Song, pathlib.Path]] = []
             album_backfilled = 0
 
             for song, song_path in missing_songs:
-                updated_song, album_changed = _backfill_album_for_missing_song(song)
+                updated_song, album_changed = _backfill_album_for_missing_song(
+                    song,
+                    log=playlist_log.change,
+                )
                 if album_changed and updated_song.validated:
                     updated_song = updated_song.model_copy(update={"validated": False})
                 if album_changed:
@@ -832,8 +879,8 @@ def main(
 
             missing_songs = updated_missing
             if album_backfilled:
-                print(
-                    f"Updated album metadata for {album_backfilled} song(s) pending download"
+                playlist_log.change(
+                    f"📝 updated album metadata for {album_backfilled} pending download track(s)"
                 )
 
         # Validate missing songs (ensure BOTH previously validated and newly validated get downloaded)
@@ -847,48 +894,33 @@ def main(
         ]
 
         if unvalidated_missing:
-            scope = "[DRY-RUN] " if dry_run else ""
-            print(
-                f"\n🔍 {scope}Validating {len(unvalidated_missing)} songs before download..."
-            )
-
             newly_validated: List[Tuple[Song, pathlib.Path]] = []
 
             for song, song_path in unvalidated_missing:
                 result = perform_song_validation(song)
-                _log_album_validation_result(song, result)
+                _log_album_validation_result(song, result, log=playlist_log.change)
 
                 if result.song:
                     replace_song_entry(songs, result.song)
                     newly_validated.append((result.song, song_path))
                     validation_updates = True
-                    print(
-                        f"✓ Validated for download: {result.song.artist} - {result.song.title}"
+                    playlist_log.change(
+                        f"✅ validated for download: {result.song.artist} - {result.song.title}"
                     )
                 else:
                     invalid_songs.append((song, song_path))
-                    print(f"❌ Invalid/not found: {song.artist} - {song.title}")
+                    playlist_log.change(
+                        f"🗑️ removed invalid/unavailable track before download: {song.artist} - {song.title}"
+                    )
                     songs_to_remove_from_playlist.append(song)
 
             # Combine already validated + newly validated
             valid_songs = pre_validated_missing + newly_validated
-            if pre_validated_missing:
-                print(
-                    f"✓ {len(pre_validated_missing)} already validated song(s) pending download"
-                )
-
             valid_count = len(valid_songs)
-            invalid_count = len(invalid_songs)
-            print(f"   Valid songs to download: {valid_count}")
-            print(f"   Invalid/not found songs: {invalid_count}")
         else:
             # No unvalidated songs; all missing songs are already validated
             valid_songs = pre_validated_missing  # all of them
             valid_count = len(valid_songs)
-            invalid_count = len(invalid_songs)
-            print(
-                f"\n⏭️ No unvalidated missing songs. {valid_count} already validated song(s) pending download."
-            )
 
         # Save validation updates to playlist
         if validation_updates or songs_to_remove_from_playlist:
@@ -899,27 +931,18 @@ def main(
                 entry["df"],
                 songs_to_remove=songs_to_remove_from_playlist,
                 save_validation_updates=validation_updates,
+                log=playlist_log.change,
             )
-
-        if valid_count == 0 and missing_count > 0:
-            print(f"\n❌ No valid songs to download for playlist '{playlist_name}'!")
-            # In DRY-RUN, still continue to summary
-        elif missing_count == 0:
-            print(
-                f"\n🎉 All songs are already downloaded for playlist '{playlist_name}'!"
-            )
-            # continue  # keep existing control flow if present
 
         # Downloads are skipped in dry-run mode
         if dry_run:
-            print(
-                f"\n⬇ [DRY-RUN] Would download {valid_count} song(s): skipping downloads."
-            )
+            if valid_count > 0:
+                playlist_log.info(
+                    f"🧪 dry-run: would download {valid_count} track(s); downloads skipped"
+                )
             downloaded_count = 0
             failed_count = 0
         else:
-            print(f"\n⬇ Starting downloads ({valid_count} valid songs):")
-
             # Process only valid missing songs
             downloaded_count = 0
             failed_count = 0
@@ -930,33 +953,45 @@ def main(
                 title = song.title
                 year = song.year
                 try:
-                    print(f"⬇ [{idx}/{valid_count}] Downloading: {artist} - {title}")
-                    youtube_to_mp3(f"{artist} {title}", str(song_path))
-                    tag_mp3(
-                        str(song_path),
-                        artist,
-                        title,
-                        year,
-                        playlist_name,
-                        song.album,
-                        log_prefix="      ",
+                    playlist_log.change(
+                        f"⬇️ download {idx}/{valid_count}: {artist} - {title}"
                     )
-                    print(f"✓ Downloaded and tagged: {artist} - {title}")
+                    _, download_lines = _capture_output(
+                        lambda: youtube_to_mp3(f"{artist} {title}", str(song_path))
+                    )
+                    _emit_captured_lines(
+                        download_lines,
+                        logger=playlist_log.change,
+                        include_plain=True,
+                    )
+                    _, tag_lines = _capture_output(
+                        lambda: tag_mp3(
+                            str(song_path),
+                            artist,
+                            title,
+                            year,
+                            playlist_name,
+                            song.album,
+                            log_prefix="      ",
+                        )
+                    )
+                    _emit_captured_lines(tag_lines, logger=playlist_log.warning)
+                    playlist_log.change(f"✅ downloaded and tagged: {artist} - {title}")
                     downloaded_count += 1
                 except DownloadNoResultsError as exc:
-                    print(f"✗ No yt-dlp search results for {artist} - {title}: {exc}")
+                    playlist_log.error(f"no yt-dlp search results for {artist} - {title}: {exc}")
                     songs_to_remove_from_playlist.append(song)
                     download_removals.append(song)
                     failed_count += 1
                     continue
                 except DownloadOutputMissingError as exc:
-                    print(
-                        f"✗ Download completed without an MP3 for {artist} - {title}: {exc}"
+                    playlist_log.error(
+                        f"download completed without an MP3 for {artist} - {title}: {exc}"
                     )
                     failed_count += 1
                     continue
                 except CalledProcessError as e:
-                    print(f"✗ Failed to download {artist} - {title}: {e}")
+                    playlist_log.error(f"failed to download {artist} - {title}: {e}")
                     failed_count += 1
                     continue
 
@@ -967,24 +1002,34 @@ def main(
                     songs,
                     entry["df"],
                     songs_to_remove=download_removals,
+                    log=playlist_log.change,
                 )
 
         # Final summary
         total_removed = len(songs_to_remove_from_playlist)
         final_song_count = len(songs)
-
-        print(f"\n📋 Final Summary for '{playlist_name}':")
-        print(f"   Original songs in playlist: {total_songs}")
-        print(f"   Songs removed (invalid): {total_removed}")
-        print(f"   Final songs in playlist: {final_song_count}")
-        print(f"   Successfully downloaded: {downloaded_count}")
-        print(f"   Failed downloads: {failed_count}")
-
-        if failed_count > 0:
-            print(f"   ⚠️ {failed_count} song(s) failed to download")
+        changed_parts: List[str] = []
+        if added_from_files > 0:
+            changed_parts.append(f"library backfill +{added_from_files}")
+        if duplicates_removed > 0:
+            changed_parts.append(f"duplicates removed {duplicates_removed}")
         if total_removed > 0:
-            print(
-                f"   🗑️ {total_removed} invalid song(s) removed from playlist and files deleted"
+            changed_parts.append(f"playlist removals {total_removed}")
+        if downloaded_count > 0:
+            changed_parts.append(f"downloads {downloaded_count}")
+        if failed_count > 0:
+            changed_parts.append(f"download failures {failed_count}")
+        if override_updates:
+            changed_parts.append("override updates")
+        if validation_updates:
+            changed_parts.append("validation updates")
+        if pending_overrides > 0 and not dry_run:
+            changed_parts.append(f"pending overrides {pending_overrides}")
+        if changed_parts:
+            playlist_log.info(
+                "📋 summary: "
+                + ", ".join(changed_parts)
+                + f" | songs {total_songs} -> {final_song_count}"
             )
 
         all_songs_by_playlist[playlist_name] = [
@@ -997,8 +1042,6 @@ def main(
             )
             for song in songs
         ]
-
-        print(f"Finished processing playlist: {playlist_name}")
 
     # Analyze cross-playlist repetition
     # REPLACED prints with log-to-file
@@ -1076,10 +1119,10 @@ def main(
     analysis_log_file = STATION_PATH.parent / "duplicate_analysis.log"
     with open(analysis_log_file, "w", encoding="utf-8") as f:
         f.write("\n".join(analysis_lines) + "\n")
-    print(f"📝 Cross-playlist analysis written to {analysis_log_file}")
+    print(f"📝 [sync] cross-playlist analysis written to {analysis_log_file}")
 
     if remote_sync and remote_sync.enabled:
-        print("\n🌐 Remote media mirror requested: preparing rsync...")
+        print("🌐 [remote-sync] preparing rsync...")
         remote_sync_config = build_remote_sync_config(
             station_slug=station_slug,
             local_songs_root=pathlib.Path(STATION_PATH),
@@ -1096,7 +1139,7 @@ def main(
         )
         mode_label = "preview" if dry_run else "apply"
         print(
-            f"[remote-sync] Running rsync ({mode_label}) from "
+            f"🌐 [remote-sync] Running rsync ({mode_label}) from "
             f"{remote_sync_config.local_songs_root} to "
             f"{remote_sync_config.remote_host}:{remote_sync_config.remote_media_root}/"
         )
@@ -1106,7 +1149,7 @@ def main(
         if remote_result.stderr.strip():
             print(remote_result.stderr.rstrip())
         print(
-            f"[remote-sync] Completed: {remote_result.changed_count} changed item(s), "
+            f"✅ [remote-sync] Completed: {remote_result.changed_count} changed item(s), "
             f"{remote_result.deleted_count} deletion(s)."
         )
 
@@ -1157,7 +1200,6 @@ if __name__ == "__main__":
     add_remote_sync_args(parser)
     args = parser.parse_args()
 
-    list_playlists(args.station)
     main(
         args.station,
         args.dry_run,

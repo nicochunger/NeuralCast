@@ -31,9 +31,8 @@ def run() -> None:
     )
     add_remote_sync_args(parser)
     args = parser.parse_args()
-    from neuralcast.pipelines.playlist_sync import list_playlists, main
+    from neuralcast.pipelines.playlist_sync import main
 
-    list_playlists(args.station)
     main(
         args.station,
         args.dry_run,
