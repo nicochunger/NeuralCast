@@ -24,7 +24,6 @@ SCHEDULE_STATE_FILENAME = "ai_schedule_state.json"
 LOCK_FILENAME = "ai_host_orchestrator.lock"
 ORCHESTRATOR_LOG_FILENAME = "ai_host_orchestrator.log"
 ORCHESTRATOR_SEGMENT_EVENTS_LOG_FILENAME = "ai_host_orchestrator_segments.log"
-ORCHESTRATOR_SCHEDULE_DEBUG_LOG_FILENAME = "ai_host_orchestrator_schedule_debug.log"
 LOCK_STALE_SECONDS = 10 * 60
 
 LEAD_TIME_SECONDS = 90
@@ -52,7 +51,6 @@ SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 
 LOGGER = logging.getLogger("host_orchestrator")
 SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")
-SCHEDULE_DEBUG_LOGGER = logging.getLogger("host_orchestrator.schedule_debug")
 
 
 def lead_time_seconds_for_archetype(archetype: Archetype) -> int:
@@ -94,11 +92,10 @@ def configure_station_file_logging(
     metadata_dir: pathlib.Path,
     *,
     level: int = logging.INFO,
-) -> Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+) -> Tuple[pathlib.Path, pathlib.Path]:
     metadata_dir.mkdir(parents=True, exist_ok=True)
     main_log_path = metadata_dir / ORCHESTRATOR_LOG_FILENAME
     segment_log_path = metadata_dir / ORCHESTRATOR_SEGMENT_EVENTS_LOG_FILENAME
-    schedule_debug_log_path = metadata_dir / ORCHESTRATOR_SCHEDULE_DEBUG_LOG_FILENAME
 
     if not _has_file_handler(LOGGER, main_log_path):
         file_handler = logging.FileHandler(main_log_path, encoding="utf-8")
@@ -123,19 +120,7 @@ def configure_station_file_logging(
     SEGMENT_EVENTS_LOGGER.setLevel(level)
     SEGMENT_EVENTS_LOGGER.propagate = False
 
-    if not _has_file_handler(SCHEDULE_DEBUG_LOGGER, schedule_debug_log_path):
-        debug_handler = logging.FileHandler(schedule_debug_log_path, encoding="utf-8")
-        debug_handler.setFormatter(
-            logging.Formatter(
-                fmt="%(asctime)s | %(name)s | %(levelname)-7s | %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-        )
-        SCHEDULE_DEBUG_LOGGER.addHandler(debug_handler)
-    SCHEDULE_DEBUG_LOGGER.setLevel(logging.DEBUG)
-    SCHEDULE_DEBUG_LOGGER.propagate = False
-
-    return main_log_path, segment_log_path, schedule_debug_log_path
+    return main_log_path, segment_log_path
 
 
 def log_segment_event(
@@ -167,28 +152,6 @@ def log_segment_event(
     if news_topics:
         parts.append(f"news_topics={news_topics}")
     SEGMENT_EVENTS_LOGGER.info(" | ".join(parts))
-
-
-def log_schedule_debug(event: str, **fields: Any) -> None:
-    parts = [f"event={event}"]
-    for key, value in fields.items():
-        parts.append(f"{key}={_format_schedule_debug_value(value)}")
-    SCHEDULE_DEBUG_LOGGER.debug(" | ".join(parts))
-
-
-def _format_schedule_debug_value(value: Any) -> str:
-    if isinstance(value, float):
-        return f"{value:.6f}"
-    if isinstance(value, (list, tuple, set)):
-        return "[" + ", ".join(_format_schedule_debug_value(item) for item in value) + "]"
-    if isinstance(value, dict):
-        items = ", ".join(
-            f"{str(key)}:{_format_schedule_debug_value(item)}" for key, item in value.items()
-        )
-        return "{" + items + "}"
-    text = str(value)
-    return text.replace("\n", "\\n")
-
 
 ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
     Archetype.BACK_SELL: (

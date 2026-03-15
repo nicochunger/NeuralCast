@@ -41,7 +41,6 @@ from .config import (
     WRAPPER_UP_NEXT_TEASE,
     WRAPPER_ULTRA_MINIMAL,
     load_personality_guide,
-    log_schedule_debug,
 )
 from .models import (
     Archetype,
@@ -659,16 +658,7 @@ def _build_mid_block_clause(
                 "aca en bloque libre: pueden caer generos cruzados de todo el catalogo",
                 "seguimos en mezcla libre, sin tematica fija, con catalogo barajado",
             ]
-        chosen = rng.choice(options)
-        log_schedule_debug(
-            "schedule.mid_block_clause.choice",
-            archetype=archetype.value,
-            section_label=schedule_context.section_label,
-            genres=list(schedule_context.genre_labels),
-            options=options,
-            chosen_clause=chosen,
-        )
-        return chosen
+        return rng.choice(options)
 
     if archetype == Archetype.ULTRA_MINIMAL:
         options = [
@@ -676,16 +666,7 @@ def _build_mid_block_clause(
             f"metidos en {section}",
             f"en {section}",
         ]
-        chosen = rng.choice(options)
-        log_schedule_debug(
-            "schedule.mid_block_clause.choice",
-            archetype=archetype.value,
-            section_label=schedule_context.section_label,
-            genres=list(schedule_context.genre_labels),
-            options=options,
-            chosen_clause=chosen,
-        )
-        return chosen
+        return rng.choice(options)
 
     if genres:
         options = [
@@ -699,16 +680,7 @@ def _build_mid_block_clause(
             f"aca en {section}",
             f"metidos en {section}",
         ]
-    chosen = rng.choice(options)
-    log_schedule_debug(
-        "schedule.mid_block_clause.choice",
-        archetype=archetype.value,
-        section_label=schedule_context.section_label,
-        genres=list(schedule_context.genre_labels),
-        options=options,
-        chosen_clause=chosen,
-    )
-    return chosen
+    return rng.choice(options)
 
 
 def ensure_mid_block_reference(
@@ -718,23 +690,9 @@ def ensure_mid_block_reference(
     rng: random.Random,
 ) -> str:
     if schedule_context is None:
-        log_schedule_debug(
-            "schedule.mid_block_reference.skip",
-            reason="no_schedule_context",
-            archetype=archetype.value,
-            script_len=len(script_text or ""),
-        )
         return script_text
 
     if schedule_context.mention_intent != "mid":
-        log_schedule_debug(
-            "schedule.mid_block_reference.skip",
-            reason="mention_intent_not_mid",
-            archetype=archetype.value,
-            mention_intent=schedule_context.mention_intent or "none",
-            section_label=schedule_context.section_label,
-            script_len=len(script_text or ""),
-        )
         return script_text
 
     if archetype not in {
@@ -746,46 +704,19 @@ def ensure_mid_block_reference(
         Archetype.DEEP_DIVE,
         Archetype.ULTRA_MINIMAL,
     }:
-        log_schedule_debug(
-            "schedule.mid_block_reference.skip",
-            reason="archetype_not_supported_for_mid_injection",
-            archetype=archetype.value,
-            section_label=schedule_context.section_label,
-            script_len=len(script_text or ""),
-        )
         return script_text
 
-    log_schedule_debug(
-        "schedule.mid_block_reference.evaluate",
-        archetype=archetype.value,
-        section_label=schedule_context.section_label,
-        mention_intent=schedule_context.mention_intent or "none",
-        script_len=len(script_text or ""),
-        script_preview=(script_text or "").strip()[:180],
-    )
     if _script_has_block_reference(script_text, schedule_context):
         LOGGER.info(
             "[schedule] Mid-block mention already present in generated %s script for '%s'.",
             archetype.value,
             schedule_context.section_label,
         )
-        log_schedule_debug(
-            "schedule.mid_block_reference.result",
-            result="already_present",
-            archetype=archetype.value,
-            section_label=schedule_context.section_label,
-        )
         return script_text
 
     clause = _build_mid_block_clause(schedule_context, archetype, rng)
     text = script_text.strip()
     if not text:
-        log_schedule_debug(
-            "schedule.mid_block_reference.result",
-            result="empty_script_after_strip",
-            archetype=archetype.value,
-            section_label=schedule_context.section_label,
-        )
         return text
 
     if archetype == Archetype.ULTRA_MINIMAL:
@@ -799,16 +730,6 @@ def ensure_mid_block_reference(
         "[schedule] Auto-injected mid-block mention into %s script for '%s'.",
         archetype.value,
         schedule_context.section_label,
-    )
-    log_schedule_debug(
-        "schedule.mid_block_reference.result",
-        result="auto_injected",
-        archetype=archetype.value,
-        section_label=schedule_context.section_label,
-        injected_clause=clause,
-        original_len=len(text),
-        stitched_len=len(stitched),
-        stitched_preview=stitched[:200],
     )
     return stitched
 
@@ -879,17 +800,7 @@ def _build_schedule_genre_clause(
     else:
         options = [f"en esa linea de {genres_text}"]
 
-    chosen = rng.choice(options)
-    log_schedule_debug(
-        "schedule.genre_clause.choice",
-        archetype=archetype.value,
-        mention_intent=mention_intent,
-        section_label=schedule_context.section_label,
-        genres=list(schedule_context.genre_labels),
-        options=options,
-        chosen_clause=chosen,
-    )
-    return chosen
+    return rng.choice(options)
 
 
 def ensure_schedule_genre_reference(
@@ -905,25 +816,10 @@ def ensure_schedule_genre_reference(
         return script_text
 
     if _script_has_genre_reference(script_text, schedule_context):
-        log_schedule_debug(
-            "schedule.genre_reference.result",
-            result="already_present",
-            archetype=archetype.value,
-            mention_intent=schedule_context.mention_intent or "none",
-            section_label=schedule_context.section_label,
-            genres=list(schedule_context.genre_labels),
-        )
         return script_text
 
     clause = _build_schedule_genre_clause(schedule_context, archetype, rng)
     if not clause:
-        log_schedule_debug(
-            "schedule.genre_reference.result",
-            result="no_genres_available",
-            archetype=archetype.value,
-            mention_intent=schedule_context.mention_intent or "none",
-            section_label=schedule_context.section_label,
-        )
         return script_text
 
     text = (script_text or "").strip()
@@ -942,18 +838,6 @@ def ensure_schedule_genre_reference(
         "[schedule] Auto-injected genre reference into %s script for '%s'.",
         archetype.value,
         schedule_context.section_label,
-    )
-    log_schedule_debug(
-        "schedule.genre_reference.result",
-        result="auto_injected",
-        archetype=archetype.value,
-        mention_intent=schedule_context.mention_intent or "none",
-        section_label=schedule_context.section_label,
-        genres=list(schedule_context.genre_labels),
-        injected_clause=clause,
-        original_len=len(text),
-        stitched_len=len(stitched),
-        stitched_preview=stitched[:200],
     )
     return stitched
 

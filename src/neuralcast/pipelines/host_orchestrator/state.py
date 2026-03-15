@@ -32,7 +32,6 @@ from .config import (
     UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE,
     WAIT_RANGE_SONGS,
     WEIGHTED_ARCHETYPES,
-    log_schedule_debug,
 )
 from .models import (
     Archetype,
@@ -458,12 +457,6 @@ def legal_archetypes_for_remaining(
                 and seconds_until_block_change
                 < UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE
             ):
-                log_schedule_debug(
-                    "archetype.legal.skip_up_next_tease_near_block_change",
-                    archetype=archetype.value,
-                    seconds_until_block_change=seconds_until_block_change,
-                    minimum_seconds=UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE,
-                )
                 continue
             legal.append(archetype)
     return legal
@@ -673,17 +666,6 @@ def apply_success_state_update(
                 Archetype.ULTRA_MINIMAL,
             }
         )
-        log_schedule_debug(
-            "schedule.mention_state.update.evaluate",
-            block_key=schedule_context.block_key,
-            section_label=schedule_context.section_label,
-            mention_intent=schedule_context.mention_intent or "none",
-            archetype_used=archetype_used.value,
-            before_entry=before_entry,
-            current_speak_count=current_speak_count,
-            should_record_start_mention=should_record_start_mention,
-            should_record_mid_mention=should_record_mid_mention,
-        )
 
         if should_record_start_mention:
             mention_entry["start"] = True
@@ -695,21 +677,6 @@ def apply_success_state_update(
 
         mention_entry["updated_at"] = ts
         state.schedule_block_mentions[schedule_context.block_key] = mention_entry
-        log_schedule_debug(
-            "schedule.mention_state.update.result",
-            block_key=schedule_context.block_key,
-            section_label=schedule_context.section_label,
-            mention_intent=schedule_context.mention_intent or "none",
-            archetype_used=archetype_used.value,
-            after_entry=dict(mention_entry),
-            total_blocks_tracked=len(state.schedule_block_mentions),
-        )
-    else:
-        log_schedule_debug(
-            "schedule.mention_state.update.skip",
-            reason="no_schedule_context",
-            archetype_used=archetype_used.value,
-        )
 
 
 def update_track_seen_state(

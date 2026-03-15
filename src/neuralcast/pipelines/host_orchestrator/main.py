@@ -39,7 +39,6 @@ from .config import (
     configure_logging,
     lead_time_seconds_for_archetype,
     log_segment_event,
-    log_schedule_debug,
 )
 from .generation import (
     build_tts_instructions,
@@ -195,12 +194,6 @@ def _load_station_runtime(
     generation_station_name = station_name_for_generation(args.station, station_name)
     station_personality = resolve_station_personality(args.station)
     LOGGER.info("[station] Personality profile active: %s", args.station)
-    log_schedule_debug(
-        "cycle.mention_state_pruned",
-        station=args.station,
-        mention_entries=len(schedule_block_mentions),
-        block_keys=list(schedule_block_mentions.keys()),
-    )
 
     schedule_state = load_schedule_state_payload(station_dir)
     if schedule_state is not None:
@@ -317,17 +310,6 @@ def _fetch_queue_context(
         " | ".join(f"{track.artist} - {track.title}" for track in upcoming_tracks),
     )
     schedule_reference_ts = now_ts() + max(0, playback.current_remaining)
-    log_schedule_debug(
-        "schedule.upcoming_break_lookup.start",
-        station=args.station,
-        current_track=f"{playback.current_track.artist} - {playback.current_track.title}",
-        next_track=f"{next_track.artist} - {next_track.title}",
-        current_remaining_seconds=playback.current_remaining,
-        ts_now=now_ts(),
-        ts_break=schedule_reference_ts,
-        mention_entries=len(mention_state),
-        schedule_state_loaded=schedule_state is not None,
-    )
     schedule_context = resolve_schedule_context_for_upcoming_break(
         schedule_state=schedule_state,
         ts_now=now_ts(),
@@ -335,30 +317,12 @@ def _fetch_queue_context(
         mention_state=mention_state,
         next_track=next_track,
     )
-    if schedule_context is None:
-        log_schedule_debug(
-            "schedule.upcoming_break_lookup.result",
-            result="none",
-            reason="no_schedule_context_for_break",
-        )
-    else:
+    if schedule_context is not None:
         LOGGER.info(
             "[schedule] Next-track boundary block='%s' phase=%s mention_intent=%s",
             schedule_context.section_label,
             schedule_context.phase,
             schedule_context.mention_intent or "none",
-        )
-        log_schedule_debug(
-            "schedule.upcoming_break_lookup.result",
-            result="context",
-            block_key=schedule_context.block_key,
-            section_label=schedule_context.section_label,
-            phase=schedule_context.phase,
-            mention_intent=schedule_context.mention_intent or "none",
-            progress_ratio=schedule_context.progress_ratio,
-            start_local_iso=schedule_context.start_local_iso,
-            end_local_iso=schedule_context.end_local_iso,
-            next_section_label=schedule_context.next_section_label or "n/a",
         )
 
     return QueueContext(
@@ -377,32 +341,12 @@ def _resolve_effective_forced_archetype(
         Archetype(args.force_archetype) if args.force_archetype else None
     )
     auto_forced_block_intro = False
-    log_schedule_debug(
-        "schedule.block_intro_force.check",
-        forced_archetype_arg=forced_archetype.value if forced_archetype else "none",
-        schedule_context_present=schedule_context is not None,
-        mention_intent=(
-            schedule_context.mention_intent if schedule_context is not None else "none"
-        ),
-        section_label=schedule_context.section_label if schedule_context else "n/a",
-    )
     if should_force_block_intro(schedule_context, forced_archetype):
         forced_archetype = Archetype.BLOCK_INTRO
         auto_forced_block_intro = True
         LOGGER.info(
             "[schedule] Block start window active for '%s'; forcing block_intro archetype.",
             schedule_context.section_label if schedule_context else "n/d",
-        )
-        log_schedule_debug(
-            "schedule.block_intro_force.result",
-            action="auto_force_block_intro",
-            section_label=schedule_context.section_label if schedule_context else "n/a",
-        )
-    else:
-        log_schedule_debug(
-            "schedule.block_intro_force.result",
-            action="no_auto_force",
-            effective_forced_archetype=forced_archetype.value if forced_archetype else "none",
         )
     return forced_archetype, auto_forced_block_intro
 
@@ -508,22 +452,6 @@ def _build_generation_context(
         selected_archetype.value,
         angle or "none",
         hook,
-    )
-    log_schedule_debug(
-        "generation.archetype_selected",
-        selected_archetype=selected_archetype.value,
-        schedule_mention_intent=(
-            queue_context.schedule_context.mention_intent
-            if queue_context.schedule_context is not None
-            else "none"
-        ),
-        auto_forced_block_intro=auto_forced_block_intro,
-        force_arg=args.force_archetype or "none",
-        section_label=(
-            queue_context.schedule_context.section_label
-            if queue_context.schedule_context
-            else "n/a"
-        ),
     )
     if selected_archetype == Archetype.NEWS:
         LOGGER.info("[news] Archetype selected; topic rolls will be logged in generation.")
@@ -653,9 +581,7 @@ def run(args: argparse.Namespace) -> None:
     cycle_ts = now_ts()
     station_dir, state_path, lock_path = station_state_paths(args.station)
     metadata_dir = station_dir / "metadata"
-    main_log_path, segment_log_path, schedule_debug_log_path = configure_station_file_logging(
-        metadata_dir
-    )
+    main_log_path, segment_log_path = configure_station_file_logging(metadata_dir)
     lock = StationLock(lock_path)
     if not lock.acquire():
         return
@@ -666,17 +592,9 @@ def run(args: argparse.Namespace) -> None:
         args.dry_run,
     )
     LOGGER.info(
-        "[log] File logs active | main=%s | segments=%s | schedule_debug=%s",
+        "[log] File logs active | main=%s | segments=%s",
         main_log_path,
         segment_log_path,
-        schedule_debug_log_path,
-    )
-    log_schedule_debug(
-        "cycle.logging_configured",
-        station=args.station,
-        main_log=str(main_log_path),
-        segment_log=str(segment_log_path),
-        schedule_debug_log=str(schedule_debug_log_path),
     )
 
     state = load_state(state_path, cycle_ts, rng)
