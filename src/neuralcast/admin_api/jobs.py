@@ -4,19 +4,25 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, PROJECT_ROOT
 from neuralcast.pipelines.host_orchestrator.models import (
     Archetype,
     TrackFocus,
     supports_track_focus,
+)
+from neuralcast.pipelines.schedule_generator.generation import (
+    SCHEDULE_SEED_MODE_FRESH,
+    SCHEDULE_SEED_MODE_STABLE_WEEK,
+    SUPPORTED_SCHEDULE_SEED_MODES,
 )
 
 EXPECTED_SUPPORTED_STATIONS = ("neuralcast", "neuralforge")
@@ -40,6 +46,15 @@ SUPPORTED_JOB_OPERATIONS = (
 )
 DEFAULT_ADMIN_HTTP_HOST = "127.0.0.1"
 DEFAULT_ADMIN_HTTP_PORT = 8787
+DEFAULT_ADMIN_SCHEDULE_SEED_MODE = SCHEDULE_SEED_MODE_FRESH
+SUPPORTED_SCHEDULE_TUNING_FIELDS = (
+    "open_ratio_min",
+    "open_ratio_max",
+    "min_open_slots",
+    "max_open_slots",
+    "min_block_minutes",
+    "max_block_minutes",
+)
 ADMIN_HTTP_ROOT = PROJECT_ROOT / "admin_http"
 ADMIN_HTTP_JOBS_DIR = ADMIN_HTTP_ROOT / "jobs"
 ADMIN_HTTP_LOGS_DIR = ADMIN_HTTP_ROOT / "logs"
@@ -81,6 +96,7 @@ class JobRecord:
     started_at: str | None
     finished_at: str | None
     exit_code: int | None
+    schedule_options: dict[str, object] | None
     log_path: str
     runner_pid: int | None = None
     orchestrator_pid: int | None = None
@@ -103,6 +119,7 @@ class JobRecord:
             started_at=_optional_str(payload.get("started_at")),
             finished_at=_optional_str(payload.get("finished_at")),
             exit_code=_optional_int(payload.get("exit_code")),
+            schedule_options=_optional_mapping(payload.get("schedule_options")),
             log_path=str(payload["log_path"]),
             runner_pid=_optional_int(payload.get("runner_pid")),
             orchestrator_pid=_optional_int(payload.get("orchestrator_pid")),
@@ -173,6 +190,16 @@ def build_schedule_generator_command(
     station: str,
     dry_run: bool,
     *,
+    force_apply: bool = False,
+    week_start_date: str | None = None,
+    seed_mode: str = SCHEDULE_SEED_MODE_STABLE_WEEK,
+    seed_salt: str | None = None,
+    open_ratio_min: float | None = None,
+    open_ratio_max: float | None = None,
+    min_open_slots: int | None = None,
+    max_open_slots: int | None = None,
+    min_block_minutes: int | None = None,
+    max_block_minutes: int | None = None,
     project_root: Path = PROJECT_ROOT,
 ) -> tuple[list[str], dict[str, str], Path]:
     """Return the argv, environment, and cwd for the real schedule-generator CLI."""
@@ -190,6 +217,26 @@ def build_schedule_generator_command(
     ]
     if dry_run:
         argv.append("--dry-run")
+    if force_apply:
+        argv.append("--force-apply")
+    if week_start_date:
+        argv.extend(["--week-start-date", week_start_date])
+    if seed_mode:
+        argv.extend(["--seed-mode", seed_mode])
+    if seed_salt:
+        argv.extend(["--seed-salt", seed_salt])
+    if open_ratio_min is not None:
+        argv.extend(["--open-ratio-min", str(open_ratio_min)])
+    if open_ratio_max is not None:
+        argv.extend(["--open-ratio-max", str(open_ratio_max)])
+    if min_open_slots is not None:
+        argv.extend(["--min-open-slots", str(min_open_slots)])
+    if max_open_slots is not None:
+        argv.extend(["--max-open-slots", str(max_open_slots)])
+    if min_block_minutes is not None:
+        argv.extend(["--min-block-minutes", str(min_block_minutes)])
+    if max_block_minutes is not None:
+        argv.extend(["--max-block-minutes", str(max_block_minutes)])
 
     env = os.environ.copy()
     src_path = str((project_root / "src").resolve())
@@ -221,9 +268,22 @@ def build_job_command(
         )
 
     if job.operation == JOB_OPERATION_SCHEDULE_GENERATOR:
+        schedule_options = job.schedule_options or {}
         return build_schedule_generator_command(
             station=job.station,
             dry_run=job.dry_run,
+            force_apply=bool(schedule_options.get("force_apply", False)),
+            week_start_date=_optional_str(schedule_options.get("week_start_date")),
+            seed_mode=str(
+                schedule_options.get("seed_mode", SCHEDULE_SEED_MODE_STABLE_WEEK)
+            ),
+            seed_salt=_optional_str(schedule_options.get("seed_salt")),
+            open_ratio_min=_optional_float(schedule_options.get("open_ratio_min")),
+            open_ratio_max=_optional_float(schedule_options.get("open_ratio_max")),
+            min_open_slots=_optional_int(schedule_options.get("min_open_slots")),
+            max_open_slots=_optional_int(schedule_options.get("max_open_slots")),
+            min_block_minutes=_optional_int(schedule_options.get("min_block_minutes")),
+            max_block_minutes=_optional_int(schedule_options.get("max_block_minutes")),
             project_root=project_root,
         )
 
@@ -391,6 +451,11 @@ class JobManager:
                 JOB_OPERATION_SCHEDULE_GENERATOR: {
                     "dry_run_supported": True,
                     "track_focus_supported": False,
+                    "force_apply_supported": True,
+                    "week_start_date_supported": True,
+                    "supported_seed_modes": list(SUPPORTED_SCHEDULE_SEED_MODES),
+                    "default_seed_mode": DEFAULT_ADMIN_SCHEDULE_SEED_MODE,
+                    "supported_tuning_fields": list(SUPPORTED_SCHEDULE_TUNING_FIELDS),
                 },
             },
         }
@@ -419,6 +484,16 @@ class JobManager:
         *,
         station: str,
         dry_run: bool,
+        force_apply: bool = False,
+        week_start_date: str | None = None,
+        seed_mode: str = DEFAULT_ADMIN_SCHEDULE_SEED_MODE,
+        seed_salt: str | None = None,
+        open_ratio_min: float | None = None,
+        open_ratio_max: float | None = None,
+        min_open_slots: int | None = None,
+        max_open_slots: int | None = None,
+        min_block_minutes: int | None = None,
+        max_block_minutes: int | None = None,
     ) -> JobRecord:
         """Create and launch a background schedule-generator job."""
 
@@ -429,6 +504,18 @@ class JobManager:
             archetype=None,
             track_focus=None,
             dry_run=dry_run,
+            schedule_options=_normalize_schedule_options(
+                force_apply=force_apply,
+                week_start_date=week_start_date,
+                seed_mode=seed_mode,
+                seed_salt=seed_salt,
+                open_ratio_min=open_ratio_min,
+                open_ratio_max=open_ratio_max,
+                min_open_slots=min_open_slots,
+                max_open_slots=max_open_slots,
+                min_block_minutes=min_block_minutes,
+                max_block_minutes=max_block_minutes,
+            ),
         )
 
     def _enqueue_job(
@@ -440,6 +527,7 @@ class JobManager:
         archetype: str | None,
         track_focus: str | None,
         dry_run: bool,
+        schedule_options: dict[str, object] | None = None,
     ) -> JobRecord:
         """Create and launch one background admin job."""
 
@@ -463,6 +551,7 @@ class JobManager:
                 started_at=None,
                 finished_at=None,
                 exit_code=None,
+                schedule_options=schedule_options,
                 log_path=str(self.log_path(job_id)),
             )
             job_path = self.job_path(job_id)
@@ -498,6 +587,7 @@ class JobManager:
             "archetype": job.archetype,
             "track_focus": job.track_focus,
             "dry_run": job.dry_run,
+            "schedule_options": job.schedule_options,
             "status": job.status,
             "accepted_at": job.accepted_at,
             "started_at": job.started_at,
@@ -561,3 +651,63 @@ def _optional_str_list(value: object) -> list[str] | None:
     if value is None:
         return None
     return [str(item) for item in value]
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+def _optional_mapping(value: object) -> dict[str, object] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        return None
+    return {str(key): item for key, item in value.items()}
+
+
+def _normalize_schedule_options(
+    *,
+    force_apply: bool,
+    week_start_date: str | None,
+    seed_mode: str,
+    seed_salt: str | None,
+    open_ratio_min: float | None,
+    open_ratio_max: float | None,
+    min_open_slots: int | None,
+    max_open_slots: int | None,
+    min_block_minutes: int | None,
+    max_block_minutes: int | None,
+) -> dict[str, object]:
+    normalized_seed_mode = str(seed_mode or DEFAULT_ADMIN_SCHEDULE_SEED_MODE).strip().lower()
+    normalized_seed_salt = str(seed_salt).strip() if seed_salt is not None else None
+    if normalized_seed_salt == "":
+        normalized_seed_salt = None
+    if (
+        normalized_seed_mode == SCHEDULE_SEED_MODE_FRESH
+        and normalized_seed_salt is None
+    ):
+        normalized_seed_salt = secrets.token_hex(8)
+
+    options: dict[str, object] = {
+        "force_apply": bool(force_apply),
+        "seed_mode": normalized_seed_mode,
+    }
+    if week_start_date:
+        options["week_start_date"] = week_start_date
+    if normalized_seed_salt is not None:
+        options["seed_salt"] = normalized_seed_salt
+    if open_ratio_min is not None:
+        options["open_ratio_min"] = float(open_ratio_min)
+    if open_ratio_max is not None:
+        options["open_ratio_max"] = float(open_ratio_max)
+    if min_open_slots is not None:
+        options["min_open_slots"] = int(min_open_slots)
+    if max_open_slots is not None:
+        options["max_open_slots"] = int(max_open_slots)
+    if min_block_minutes is not None:
+        options["min_block_minutes"] = int(min_block_minutes)
+    if max_block_minutes is not None:
+        options["max_block_minutes"] = int(max_block_minutes)
+    return options

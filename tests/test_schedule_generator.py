@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime as dt
 import unittest
+from unittest import mock
 
 import neuralcast.pipelines.schedule_generator.generation as schedule_generation  # noqa: E402
 from neuralcast.pipelines.schedule_generator import (  # noqa: E402
@@ -307,6 +308,82 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
     def test_build_arg_parser_defaults_max_block_minutes_to_ninety(self) -> None:
         args = build_arg_parser().parse_args(["--base-url", "https://example.test"])
         self.assertEqual(args.max_block_minutes, 90)
+        self.assertEqual(args.seed_mode, schedule_generation.SCHEDULE_SEED_MODE_STABLE_WEEK)
+
+    def test_resolve_schedule_seed_custom_mode_uses_supplied_salt(self) -> None:
+        resolved_seed, seed_mode, seed_salt = schedule_generation.resolve_schedule_seed(
+            station_slug="neuralcast",
+            week_start=dt.date(2026, 2, 16),
+            timezone_name="UTC",
+            playlists=[self.playlist_a, self.playlist_b],
+            open_ratio_min=0.20,
+            open_ratio_max=0.40,
+            min_open_slots=2,
+            max_open_slots=4,
+            min_block_minutes=60,
+            max_block_minutes=180,
+            seed_mode=schedule_generation.SCHEDULE_SEED_MODE_CUSTOM,
+            seed_salt="reroll-a",
+        )
+
+        self.assertEqual(seed_mode, schedule_generation.SCHEDULE_SEED_MODE_CUSTOM)
+        self.assertEqual(seed_salt, "reroll-a")
+        self.assertIsInstance(resolved_seed, int)
+
+        second_seed, _second_mode, _second_salt = schedule_generation.resolve_schedule_seed(
+            station_slug="neuralcast",
+            week_start=dt.date(2026, 2, 16),
+            timezone_name="UTC",
+            playlists=[self.playlist_a, self.playlist_b],
+            open_ratio_min=0.20,
+            open_ratio_max=0.40,
+            min_open_slots=2,
+            max_open_slots=4,
+            min_block_minutes=60,
+            max_block_minutes=180,
+            seed_mode=schedule_generation.SCHEDULE_SEED_MODE_CUSTOM,
+            seed_salt="reroll-b",
+        )
+        self.assertNotEqual(resolved_seed, second_seed)
+
+    def test_build_weekly_plan_with_code_records_generated_fresh_seed_salt(self) -> None:
+        week_start = dt.date(2026, 2, 16)
+        playlists = [
+            StationPlaylist(
+                id=str(index),
+                name=f"Playlist {index}",
+                is_enabled=True,
+                weight=1.0,
+                schedule_items=[],
+                raw={},
+            )
+            for index in range(1, 13)
+        ]
+        with mock.patch.object(
+            schedule_generation.secrets,
+            "token_hex",
+            return_value="fresh-seed-01",
+        ):
+            plan = schedule_generation.build_weekly_plan_with_code(
+                station_slug="neuralcast",
+                station_name="NeuralCast",
+                timezone_name="UTC",
+                week_start=week_start,
+                week_end=week_start + dt.timedelta(days=6),
+                playlists=playlists,
+                open_ratio_min=0.20,
+                open_ratio_max=0.40,
+                min_open_slots=2,
+                max_open_slots=4,
+                min_block_minutes=60,
+                max_block_minutes=180,
+                seed_mode=schedule_generation.SCHEDULE_SEED_MODE_FRESH,
+            )
+
+        self.assertEqual(plan.seed_mode, schedule_generation.SCHEDULE_SEED_MODE_FRESH)
+        self.assertEqual(plan.seed_salt, "fresh-seed-01")
+        self.assertIsInstance(plan.resolved_seed, int)
+        self.assertTrue(plan.daily_template)
 
     def test_validate_daily_template_rejects_playlist_in_unscheduled_window(self) -> None:
         raw_blocks = [

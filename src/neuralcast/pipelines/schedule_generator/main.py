@@ -38,6 +38,8 @@ from .config import (
     load_dotenv,
 )
 from .generation import (
+    DEFAULT_SCHEDULE_SEED_MODE,
+    SUPPORTED_SCHEDULE_SEED_MODES,
     build_weekly_plan_with_code,
     build_weekly_plan_with_llm,
 )
@@ -106,6 +108,12 @@ def run(args: argparse.Namespace) -> None:
 
     if args.min_block_minutes > args.max_block_minutes:
         raise ValueError("min-block-minutes cannot exceed max-block-minutes.")
+    if args.seed_mode == "stable_week" and args.seed_salt:
+        raise ValueError(
+            "seed_salt is only supported when --seed-mode is 'fresh' or 'custom'."
+        )
+    if args.seed_mode == "custom" and not args.seed_salt:
+        raise ValueError("seed_salt is required when --seed-mode custom is used.")
 
     if not args.dry_run:
         current_project_root = str(PROJECT_ROOT.resolve())
@@ -166,6 +174,8 @@ def run(args: argparse.Namespace) -> None:
         max_open_slots=max_open_slots,
         min_block_minutes=args.min_block_minutes,
         max_block_minutes=args.max_block_minutes,
+        seed_mode=args.seed_mode,
+        seed_salt=args.seed_salt,
     )
 
     summarize_plan(plan)
@@ -238,6 +248,23 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--force-apply",
         action="store_true",
         help="Apply even when plan hash matches saved state.",
+    )
+    parser.add_argument(
+        "--seed-mode",
+        choices=SUPPORTED_SCHEDULE_SEED_MODES,
+        default=DEFAULT_SCHEDULE_SEED_MODE,
+        help=(
+            "Seed policy for schedule generation: %(choices)s. "
+            "stable_week reproduces the same plan for the same inputs; "
+            "fresh rerolls; custom uses --seed-salt."
+        ),
+    )
+    parser.add_argument(
+        "--seed-salt",
+        help=(
+            "Optional reroll key mixed into the schedule seed. "
+            "Required when --seed-mode custom is used."
+        ),
     )
     parser.add_argument(
         "--verify-tls",

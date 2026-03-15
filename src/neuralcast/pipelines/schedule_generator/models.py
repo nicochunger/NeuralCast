@@ -92,6 +92,9 @@ class WeeklySchedulePlan:
     week_start_local_date: str
     week_end_local_date: str
     generated_at_utc: str
+    seed_mode: str
+    seed_salt: Optional[str]
+    resolved_seed: int
     open_ratio_min: float
     open_ratio_max: float
     daily_template: List[DailyTemplateBlock]
@@ -108,6 +111,9 @@ class WeeklySchedulePlan:
             "week_start_local_date": self.week_start_local_date,
             "week_end_local_date": self.week_end_local_date,
             "generated_at_utc": self.generated_at_utc,
+            "seed_mode": self.seed_mode,
+            "seed_salt": self.seed_salt,
+            "resolved_seed": self.resolved_seed,
             "open_ratio_min": self.open_ratio_min,
             "open_ratio_max": self.open_ratio_max,
             "daily_template": [block.to_dict() for block in self.daily_template],

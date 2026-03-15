@@ -6,6 +6,7 @@ import datetime as dt
 import hashlib
 import math
 import random
+import secrets
 from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
@@ -24,6 +25,16 @@ from .template import (
     validate_daily_template,
     expand_daily_template_to_week,
 )
+
+SCHEDULE_SEED_MODE_STABLE_WEEK = "stable_week"
+SCHEDULE_SEED_MODE_FRESH = "fresh"
+SCHEDULE_SEED_MODE_CUSTOM = "custom"
+SUPPORTED_SCHEDULE_SEED_MODES = (
+    SCHEDULE_SEED_MODE_STABLE_WEEK,
+    SCHEDULE_SEED_MODE_FRESH,
+    SCHEDULE_SEED_MODE_CUSTOM,
+)
+DEFAULT_SCHEDULE_SEED_MODE = SCHEDULE_SEED_MODE_STABLE_WEEK
 
 
 @dataclass(frozen=True)
@@ -74,6 +85,75 @@ def _stable_seed(
     )
     digest = hashlib.sha256(payload.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big")
+
+
+def _mix_seed(base_seed: int, seed_salt: str) -> int:
+    digest = hashlib.sha256(f"{base_seed}|{seed_salt}".encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+def resolve_schedule_seed(
+    *,
+    station_slug: str,
+    week_start: dt.date,
+    timezone_name: str,
+    playlists: Sequence[StationPlaylist],
+    open_ratio_min: float,
+    open_ratio_max: float,
+    min_open_slots: int,
+    max_open_slots: int,
+    min_block_minutes: int,
+    max_block_minutes: int,
+    seed_mode: str = DEFAULT_SCHEDULE_SEED_MODE,
+    seed_salt: Optional[str] = None,
+) -> Tuple[int, str, Optional[str]]:
+    normalized_seed_mode = str(seed_mode or DEFAULT_SCHEDULE_SEED_MODE).strip().lower()
+    if normalized_seed_mode not in SUPPORTED_SCHEDULE_SEED_MODES:
+        raise ValueError(
+            "Unsupported seed_mode "
+            f"'{seed_mode}'. Allowed values: {SUPPORTED_SCHEDULE_SEED_MODES}."
+        )
+
+    normalized_seed_salt = str(seed_salt).strip() if seed_salt is not None else None
+    if normalized_seed_salt == "":
+        normalized_seed_salt = None
+
+    if (
+        normalized_seed_mode == SCHEDULE_SEED_MODE_STABLE_WEEK
+        and normalized_seed_salt is not None
+    ):
+        raise ValueError(
+            "seed_salt is only supported for seed_mode 'fresh' or 'custom'."
+        )
+
+    if (
+        normalized_seed_mode == SCHEDULE_SEED_MODE_CUSTOM
+        and normalized_seed_salt is None
+    ):
+        raise ValueError("seed_salt is required when seed_mode='custom'.")
+
+    base_seed = _stable_seed(
+        station_slug=station_slug,
+        week_start=week_start,
+        timezone_name=timezone_name,
+        playlists=playlists,
+        open_ratio_min=open_ratio_min,
+        open_ratio_max=open_ratio_max,
+        min_open_slots=min_open_slots,
+        max_open_slots=max_open_slots,
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+    )
+
+    if normalized_seed_mode == SCHEDULE_SEED_MODE_STABLE_WEEK:
+        return base_seed, normalized_seed_mode, None
+
+    resolved_seed_salt = normalized_seed_salt or secrets.token_hex(8)
+    return (
+        _mix_seed(base_seed, resolved_seed_salt),
+        normalized_seed_mode,
+        resolved_seed_salt,
+    )
 
 
 def _candidate_durations(
@@ -738,6 +818,8 @@ def build_weekly_plan_with_code(
     min_block_minutes: int,
     max_block_minutes: int,
     model: Optional[str] = None,  # Ignored; kept for import compatibility.
+    seed_mode: str = DEFAULT_SCHEDULE_SEED_MODE,
+    seed_salt: Optional[str] = None,
 ) -> WeeklySchedulePlan:
     _ = model
 
@@ -746,7 +828,7 @@ def build_weekly_plan_with_code(
     if not playlist_by_id:
         raise RuntimeError("No enabled playlists available for schedule generation.")
 
-    seed = _stable_seed(
+    seed, normalized_seed_mode, resolved_seed_salt = resolve_schedule_seed(
         station_slug=station_slug,
         week_start=week_start,
         timezone_name=timezone_name,
@@ -757,6 +839,8 @@ def build_weekly_plan_with_code(
         max_open_slots=max_open_slots,
         min_block_minutes=min_block_minutes,
         max_block_minutes=max_block_minutes,
+        seed_mode=seed_mode,
+        seed_salt=seed_salt,
     )
 
     last_error: Optional[Exception] = None
@@ -801,10 +885,16 @@ def build_weekly_plan_with_code(
                     "prog+instrumental, power+sinfonico, folk rock+folk metal, "
                     "prog+neo clasico, sinfonico+fantasy, folk+celtic, classic+nwobhm)."
                 )
+            if normalized_seed_mode == SCHEDULE_SEED_MODE_STABLE_WEEK:
+                seed_note = "estable por semana"
+            elif normalized_seed_mode == SCHEDULE_SEED_MODE_CUSTOM:
+                seed_note = f"reproducible con semilla personalizada '{resolved_seed_salt}'"
+            else:
+                seed_note = f"rerolleada con clave '{resolved_seed_salt}'"
             rationale = (
                 "Plan semanal generado por codigo (sin LLM), con bloques variables, "
                 "slots abiertos distribuidos a lo largo del dia y seleccion pseudoaleatoria "
-                "estable por semana, sin repetir playlists en bloques programados."
+                f"{seed_note}, sin repetir playlists en bloques programados."
                 f"{combo_note}"
             )
             return WeeklySchedulePlan(
@@ -814,6 +904,9 @@ def build_weekly_plan_with_code(
                 week_start_local_date=week_start.isoformat(),
                 week_end_local_date=week_end.isoformat(),
                 generated_at_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+                seed_mode=normalized_seed_mode,
+                seed_salt=resolved_seed_salt,
+                resolved_seed=seed,
                 open_ratio_min=open_ratio_min,
                 open_ratio_max=open_ratio_max,
                 daily_template=daily_template,
@@ -872,7 +965,7 @@ def build_weekly_plan_with_code(
             rationale = (
                 "Plan semanal generado por codigo (sin LLM) en modo de respaldo, "
                 "sin combinaciones curadas, con slots abiertos distribuidos durante el dia "
-                "y sin repetir playlists en bloques programados."
+                f"y sin repetir playlists en bloques programados. Seed mode={normalized_seed_mode}"
             )
             if fallback_error is not None:
                 rationale = f"{rationale} Error previo: {fallback_error}"
@@ -884,6 +977,9 @@ def build_weekly_plan_with_code(
                 week_start_local_date=week_start.isoformat(),
                 week_end_local_date=week_end.isoformat(),
                 generated_at_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+                seed_mode=normalized_seed_mode,
+                seed_salt=resolved_seed_salt,
+                resolved_seed=seed,
                 open_ratio_min=open_ratio_min,
                 open_ratio_max=open_ratio_max,
                 daily_template=daily_template,
@@ -920,6 +1016,8 @@ def build_weekly_plan_with_llm(
     *,
     min_open_slots: int = DEFAULT_MIN_OPEN_SLOTS,
     max_open_slots: int = DEFAULT_MAX_OPEN_SLOTS,
+    seed_mode: str = DEFAULT_SCHEDULE_SEED_MODE,
+    seed_salt: Optional[str] = None,
 ) -> WeeklySchedulePlan:
     """Compatibility wrapper retained for existing imports."""
     return build_weekly_plan_with_code(
@@ -936,4 +1034,6 @@ def build_weekly_plan_with_llm(
         min_block_minutes=min_block_minutes,
         max_block_minutes=max_block_minutes,
         model=model,
+        seed_mode=seed_mode,
+        seed_salt=seed_salt,
     )

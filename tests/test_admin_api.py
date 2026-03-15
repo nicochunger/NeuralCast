@@ -18,13 +18,16 @@ from neuralcast.admin_api.app import (
     require_admin_token,
 )
 from neuralcast.admin_api.jobs import (
+    DEFAULT_ADMIN_SCHEDULE_SEED_MODE,
     JOB_OPERATION_FORCE_ARCHETYPE,
     JOB_OPERATION_SCHEDULE_GENERATOR,
     JobConflictError,
     JobManager,
     JobRecord,
     SUPPORTED_ARCHETYPES,
+    SUPPORTED_SCHEDULE_SEED_MODES,
     SUPPORTED_STATIONS,
+    SUPPORTED_SCHEDULE_TUNING_FIELDS,
     SUPPORTED_TRACK_FOCUS_ARCHETYPES,
     build_force_archetype_command,
     build_schedule_generator_command,
@@ -159,12 +162,33 @@ class AdminApiUnitTest(unittest.TestCase):
         request = ScheduleGeneratorRequest(
             station="neuralforge",
             dry_run=True,
+            force_apply=True,
+            seed_mode="custom",
+            seed_salt="reroll-a",
+            week_start_date="2026-03-16",
+            open_ratio_min=0.2,
+            open_ratio_max=0.5,
+            min_open_slots=1,
+            max_open_slots=3,
+            min_block_minutes=60,
+            max_block_minutes=180,
         )
         self.assertEqual(request.station, "neuralforge")
         self.assertTrue(request.dry_run)
+        self.assertTrue(request.force_apply)
+        self.assertEqual(request.seed_mode, "custom")
+        self.assertEqual(request.seed_salt, "reroll-a")
 
         with self.assertRaises(ValidationError):
             ScheduleGeneratorRequest(station="bad-station")
+        with self.assertRaises(ValidationError):
+            ScheduleGeneratorRequest(station="neuralforge", seed_mode="custom")
+        with self.assertRaises(ValidationError):
+            ScheduleGeneratorRequest(
+                station="neuralforge",
+                seed_mode="stable_week",
+                seed_salt="not-allowed",
+            )
 
     def test_supported_allowlists_match_phase_two_contract(self) -> None:
         self.assertEqual(list(SUPPORTED_STATIONS), ["neuralcast", "neuralforge"])
@@ -182,6 +206,29 @@ class AdminApiUnitTest(unittest.TestCase):
             capabilities["operations"][JOB_OPERATION_SCHEDULE_GENERATOR][
                 "dry_run_supported"
             ]
+        )
+        self.assertTrue(
+            capabilities["operations"][JOB_OPERATION_SCHEDULE_GENERATOR][
+                "force_apply_supported"
+            ]
+        )
+        self.assertEqual(
+            capabilities["operations"][JOB_OPERATION_SCHEDULE_GENERATOR][
+                "default_seed_mode"
+            ],
+            DEFAULT_ADMIN_SCHEDULE_SEED_MODE,
+        )
+        self.assertEqual(
+            capabilities["operations"][JOB_OPERATION_SCHEDULE_GENERATOR][
+                "supported_seed_modes"
+            ],
+            list(SUPPORTED_SCHEDULE_SEED_MODES),
+        )
+        self.assertEqual(
+            capabilities["operations"][JOB_OPERATION_SCHEDULE_GENERATOR][
+                "supported_tuning_fields"
+            ],
+            list(SUPPORTED_SCHEDULE_TUNING_FIELDS),
         )
 
     def test_station_service_now_playing_uses_existing_transport_parsing(self) -> None:
@@ -221,6 +268,11 @@ class AdminApiUnitTest(unittest.TestCase):
         job = self.manager.enqueue_schedule_generator(
             station="neuralforge",
             dry_run=True,
+            force_apply=True,
+            seed_mode="fresh",
+            week_start_date="2026-03-16",
+            open_ratio_min=0.2,
+            open_ratio_max=0.5,
         )
 
         self.assertEqual(job.operation, JOB_OPERATION_SCHEDULE_GENERATOR)
@@ -230,6 +282,10 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertTrue(job.dry_run)
         self.assertEqual(job.status, "running")
         self.assertEqual(job.runner_pid, 4242)
+        self.assertEqual(job.schedule_options["seed_mode"], "fresh")
+        self.assertEqual(job.schedule_options["week_start_date"], "2026-03-16")
+        self.assertTrue(job.schedule_options["force_apply"])
+        self.assertIn("seed_salt", job.schedule_options)
 
     def test_enqueue_job_rejects_second_running_job_for_station(self) -> None:
         first = self.manager.enqueue_force_archetype(
@@ -260,6 +316,7 @@ class AdminApiUnitTest(unittest.TestCase):
             started_at="2026-03-14T15:30:13Z",
             finished_at="2026-03-14T15:30:25Z",
             exit_code=0,
+            schedule_options=None,
             log_path=str(self.manager.log_path("20260314T153012Z-neuralforge-deep_dive")),
             runner_pid=4242,
             orchestrator_pid=5252,
@@ -278,6 +335,7 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertEqual(payload["track_focus"], "current")
         self.assertIn("last useful line", payload["log_tail"])
         self.assertEqual(payload["log_path"], str(log_path))
+        self.assertIsNone(payload["schedule_options"])
 
     def test_backward_compatible_job_load_defaults_operation(self) -> None:
         legacy_path = self.manager.job_path("20260314T153012Z-neuralforge-deep_dive")
@@ -294,6 +352,7 @@ class AdminApiUnitTest(unittest.TestCase):
                     "started_at": None,
                     "finished_at": None,
                     "exit_code": None,
+                    "schedule_options": None,
                     "log_path": str(
                         self.manager.log_path("20260314T153012Z-neuralforge-deep_dive")
                     ),
@@ -330,6 +389,7 @@ class AdminApiUnitTest(unittest.TestCase):
             started_at="2026-03-14T15:30:13Z",
             finished_at=None,
             exit_code=None,
+            schedule_options={"seed_mode": "fresh", "seed_salt": "reroll-a"},
             log_path=str(stale_manager.log_path("20260314T153012Z-neuralcast-schedule_generator")),
             runner_pid=5151,
         )
@@ -371,6 +431,16 @@ class AdminApiUnitTest(unittest.TestCase):
         argv, env, cwd = build_schedule_generator_command(
             station="neuralforge",
             dry_run=True,
+            force_apply=True,
+            week_start_date="2026-03-16",
+            seed_mode="fresh",
+            seed_salt="reroll-a",
+            open_ratio_min=0.2,
+            open_ratio_max=0.5,
+            min_open_slots=1,
+            max_open_slots=3,
+            min_block_minutes=60,
+            max_block_minutes=180,
             project_root=self.base_dir,
         )
 
@@ -383,7 +453,18 @@ class AdminApiUnitTest(unittest.TestCase):
                 "neuralforge",
             ],
         )
-        self.assertEqual(argv[-1], "--dry-run")
+        self.assertIn("--dry-run", argv)
+        self.assertIn("--force-apply", argv)
+        self.assertIn("--week-start-date", argv)
+        self.assertIn("2026-03-16", argv)
+        self.assertIn("--seed-mode", argv)
+        self.assertIn("fresh", argv)
+        self.assertIn("--seed-salt", argv)
+        self.assertIn("reroll-a", argv)
+        self.assertIn("--open-ratio-min", argv)
+        self.assertIn("0.2", argv)
+        self.assertIn("--max-block-minutes", argv)
+        self.assertIn("180", argv)
         self.assertEqual(cwd, self.base_dir)
         self.assertTrue(
             env["PYTHONPATH"].startswith(str((self.base_dir / "src").resolve()))

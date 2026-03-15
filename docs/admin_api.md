@@ -172,6 +172,7 @@ admin.your-radio.example {
 
 - Requires `Authorization: Bearer <token>`.
 - Returns the supported stations, archetypes, `track_focus` values, which archetypes support `track_focus`, and the currently supported write operations.
+- The `schedule_generator` capability entry also advertises advanced scheduler controls so an admin client can discover reroll and tuning support without hardcoding them.
 
 Example response:
 
@@ -193,7 +194,19 @@ Example response:
     },
     "schedule_generator": {
       "dry_run_supported": true,
-      "track_focus_supported": false
+      "track_focus_supported": false,
+      "force_apply_supported": true,
+      "week_start_date_supported": true,
+      "supported_seed_modes": ["stable_week", "fresh", "custom"],
+      "default_seed_mode": "fresh",
+      "supported_tuning_fields": [
+        "open_ratio_min",
+        "open_ratio_max",
+        "min_open_slots",
+        "max_open_slots",
+        "min_block_minutes",
+        "max_block_minutes"
+      ]
     }
   }
 }
@@ -282,14 +295,42 @@ Example response:
 
 - Requires `Authorization: Bearer <token>`.
 - Launches the real `neuralcast.cli.schedule_generator` module as an async job.
+- Admin API calls default to `seed_mode="fresh"` so an interactive trigger generates a new plan unless you explicitly ask for `stable_week`.
 - Request body:
 
 ```json
 {
   "station": "neuralforge",
-  "dry_run": true
+  "dry_run": true,
+  "seed_mode": "fresh",
+  "force_apply": false,
+  "week_start_date": "2026-03-16",
+  "open_ratio_min": 0.2,
+  "open_ratio_max": 0.45,
+  "min_open_slots": 1,
+  "max_open_slots": 4,
+  "min_block_minutes": 60,
+  "max_block_minutes": 180
 }
 ```
+
+- Supported scheduler fields:
+  - `dry_run`
+  - `force_apply`
+  - `week_start_date`
+  - `seed_mode`
+  - `seed_salt`
+  - `open_ratio_min`
+  - `open_ratio_max`
+  - `min_open_slots`
+  - `max_open_slots`
+  - `min_block_minutes`
+  - `max_block_minutes`
+
+- Seed behavior:
+  - `stable_week`: deterministic for the same station/week/configuration
+  - `fresh`: rerolls a new plan; the server resolves and persists a fresh `seed_salt`
+  - `custom`: deterministic reroll keyed by caller-provided `seed_salt`
 
 - Returns HTTP `202 Accepted` immediately:
 
@@ -303,7 +344,7 @@ Example response:
 `GET /admin/jobs/{job_id}`
 
 - Requires `Authorization: Bearer <token>`.
-- Returns the persisted job state including `operation`, timestamps, exit code, optional `archetype`, optional `track_focus`, log path, and a short log tail.
+- Returns the persisted job state including `operation`, timestamps, exit code, optional `archetype`, optional `track_focus`, optional `schedule_options`, log path, and a short log tail.
 
 ## curl Examples
 
@@ -361,7 +402,17 @@ Create a schedule-generator dry-run job:
 curl -sS \
   -H "Authorization: Bearer test-token" \
   -H "Content-Type: application/json" \
-  -d '{"station":"neuralforge","dry_run":true}' \
+  -d '{"station":"neuralforge","dry_run":true,"seed_mode":"fresh","open_ratio_min":0.2,"open_ratio_max":0.45}' \
+  http://127.0.0.1:8787/admin/run-schedule-generator
+```
+
+Create a deterministic custom reroll:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer test-token" \
+  -H "Content-Type: application/json" \
+  -d '{"station":"neuralforge","dry_run":true,"seed_mode":"custom","seed_salt":"reroll-a"}' \
   http://127.0.0.1:8787/admin/run-schedule-generator
 ```
 
