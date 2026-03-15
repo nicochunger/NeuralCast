@@ -7,6 +7,7 @@ import json
 import random
 import re
 import unicodedata
+from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
@@ -63,6 +64,16 @@ from .state import (
 )
 from .utils import now_ts, run_with_retries
 from neuralcast.services.ai_client import get_gemini_client
+
+
+@dataclass(frozen=True)
+class ArchetypePromptVariants:
+    short_story_focus: Optional[str] = None
+    album_spotlight_focus: Optional[str] = None
+    era_snapshot_lane: Optional[str] = None
+    era_snapshot_focus: Optional[str] = None
+    deep_dive_lane: Optional[str] = None
+    deep_dive_focus: Optional[str] = None
 
 
 def format_shared_input(
@@ -1358,38 +1369,13 @@ def fallback_to_ultra_minimal(
     return fallback_script, None, fallback_arch
 
 
-def generate_archetype_script(
+def _resolve_prompt_variants(
     archetype: Archetype,
-    station_name: str,
-    personality: StationPersonality,
-    current_track: QueueTrack,
-    next_track: QueueTrack,
-    upcoming_tracks: Sequence[QueueTrack],
+    forced_track_focus: Optional[TrackFocus],
     current_meta: TrackMetadata,
     next_meta: TrackMetadata,
-    angle: Optional[str],
-    hook: str,
-    banned_list: Sequence[str],
-    schedule_context: Optional[ScheduleContext],
-    state: OrchestratorState,
     rng: random.Random,
-    forced_mode: bool,
-    forced_track_focus: Optional[TrackFocus] = None,
-    allow_ultra_minimal_fallback: bool = True,
-) -> Tuple[str, Optional[NewsSegment], Archetype]:
-    """Generate script and optional structured metadata.
-
-    Returns: (script, news_segment, archetype_used)
-    """
-
-    temperature, top_p = sample_generation_settings(archetype, rng)
-    system_prompt = build_system_prompt(station_name, personality)
-    short_story_focus: Optional[str] = None
-    album_spotlight_focus: Optional[str] = None
-    era_snapshot_lane: Optional[str] = None
-    era_snapshot_focus: Optional[str] = None
-    deep_dive_lane: Optional[str] = None
-    deep_dive_focus: Optional[str] = None
+) -> ArchetypePromptVariants:
     if archetype == Archetype.SHORT_STORY:
         if forced_track_focus is not None:
             short_story_focus = forced_track_focus.value
@@ -1397,6 +1383,8 @@ def generate_archetype_script(
         else:
             short_story_focus = "current" if rng.random() < 0.5 else "next"
             LOGGER.info("[short_story] Focus mode selected: %s", short_story_focus)
+        return ArchetypePromptVariants(short_story_focus=short_story_focus)
+
     if archetype == Archetype.ALBUM_SPOTLIGHT:
         if forced_track_focus is not None:
             album_spotlight_focus = forced_track_focus.value
@@ -1414,6 +1402,8 @@ def generate_archetype_script(
                 "[album_spotlight] Focus mode selected: %s",
                 album_spotlight_focus,
             )
+        return ArchetypePromptVariants(album_spotlight_focus=album_spotlight_focus)
+
     if archetype == Archetype.ERA_SNAPSHOT:
         if forced_track_focus is not None:
             era_snapshot_focus = forced_track_focus.value
@@ -1423,6 +1413,11 @@ def generate_archetype_script(
             LOGGER.info("[era_snapshot] Focus mode selected: %s", era_snapshot_focus)
         era_snapshot_lane = select_era_snapshot_lane(rng)
         LOGGER.info("[era_snapshot] Story lane selected: %s", era_snapshot_lane)
+        return ArchetypePromptVariants(
+            era_snapshot_lane=era_snapshot_lane,
+            era_snapshot_focus=era_snapshot_focus,
+        )
+
     if archetype == Archetype.DEEP_DIVE:
         if forced_track_focus is not None:
             deep_dive_focus = forced_track_focus.value
@@ -1440,7 +1435,30 @@ def generate_archetype_script(
             ]
         )
         LOGGER.info("[deep_dive] Story lane selected: %s", deep_dive_lane)
-    prompt_kwargs = {
+        return ArchetypePromptVariants(
+            deep_dive_lane=deep_dive_lane,
+            deep_dive_focus=deep_dive_focus,
+        )
+
+    return ArchetypePromptVariants()
+
+
+def _build_prompt_kwargs(
+    station_name: str,
+    personality: StationPersonality,
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+    upcoming_tracks: Sequence[QueueTrack],
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    angle: Optional[str],
+    hook: str,
+    banned_list: Sequence[str],
+    schedule_context: Optional[ScheduleContext],
+    state: OrchestratorState,
+    variants: ArchetypePromptVariants,
+) -> Dict[str, Any]:
+    return {
         "station_name": station_name,
         "personality": personality,
         "current": current_track,
@@ -1453,175 +1471,163 @@ def generate_archetype_script(
         "banned_list": banned_list,
         "recent_scripts": state.recent_scripts,
         "schedule_context": schedule_context,
-        "short_story_focus": short_story_focus,
-        "album_spotlight_focus": album_spotlight_focus,
-        "era_snapshot_lane": era_snapshot_lane,
-        "era_snapshot_focus": era_snapshot_focus,
-        "deep_dive_lane": deep_dive_lane,
-        "deep_dive_focus": deep_dive_focus,
+        "short_story_focus": variants.short_story_focus,
+        "album_spotlight_focus": variants.album_spotlight_focus,
+        "era_snapshot_lane": variants.era_snapshot_lane,
+        "era_snapshot_focus": variants.era_snapshot_focus,
+        "deep_dive_lane": variants.deep_dive_lane,
+        "deep_dive_focus": variants.deep_dive_focus,
     }
 
-    def generate_with_retries(
-        prompt: str,
-        label: str,
-        with_search: bool,
-        temperature_override: Optional[float] = None,
-        top_p_override: Optional[float] = None,
-    ) -> str:
-        call_temperature = (
-            temperature if temperature_override is None else temperature_override
-        )
-        call_top_p = top_p if top_p_override is None else top_p_override
-        return run_with_retries(
-            label=label,
-            func=lambda: gemini_generate_text(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                temperature=call_temperature,
-                top_p=call_top_p,
-                with_search=with_search,
-            ),
-        )
 
-    def fallback() -> Tuple[str, None, Archetype]:
-        return fallback_to_ultra_minimal(
-            station_name=station_name,
-            personality=personality,
-            current_track=current_track,
-            next_track=next_track,
-            upcoming_tracks=upcoming_tracks,
-            current_meta=current_meta,
-            next_meta=next_meta,
-            banned_list=banned_list,
-            schedule_context=schedule_context,
-            state=state,
-            rng=rng,
+def _generate_standard_archetype_script(
+    *,
+    archetype: Archetype,
+    prompt_kwargs: Mapping[str, Any],
+    angle: Optional[str],
+    schedule_context: Optional[ScheduleContext],
+    rng: random.Random,
+    allow_ultra_minimal_fallback: bool,
+    generate_with_retries,
+    fallback,
+    terminal_ultra_minimal_fallback,
+) -> Tuple[str, None, Archetype]:
+    prompt = build_prompt(archetype=archetype, **prompt_kwargs)
+    generated = generate_with_retries(
+        prompt=prompt,
+        label=f"Gemini generation ({archetype.value})",
+        with_search=should_enable_search(archetype, angle),
+    )
+    if generated.strip() == "NO_SCRIPT":
+        LOGGER.info(
+            "[%s] Gemini returned NO_SCRIPT; falling back to ultra_minimal.",
+            archetype.value,
         )
+        if archetype == Archetype.ULTRA_MINIMAL or not allow_ultra_minimal_fallback:
+            return terminal_ultra_minimal_fallback()
+        return fallback()
 
-    def terminal_ultra_minimal_fallback() -> Tuple[str, None, Archetype]:
-        LOGGER.warning(
-            "[ultra_minimal] Gemini did not produce a usable script; using deterministic local fallback."
+    cleaned = _postprocess_schedule_script(
+        script_text=generated,
+        archetype=archetype,
+        schedule_context=schedule_context,
+        rng=rng,
+    )
+    if not cleaned.strip() or cleaned.strip() == "NO_SCRIPT":
+        LOGGER.info(
+            "[%s] Empty/invalid script after cleanup; falling back to ultra_minimal.",
+            archetype.value,
         )
-        return (
-            build_local_ultra_minimal_script(
-                current_track=current_track,
-                next_track=next_track,
-                schedule_context=schedule_context,
-                rng=rng,
-            ),
-            None,
-            Archetype.ULTRA_MINIMAL,
-        )
+        if archetype == Archetype.ULTRA_MINIMAL or not allow_ultra_minimal_fallback:
+            return terminal_ultra_minimal_fallback()
+        return fallback()
 
-    if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
-        prompt = build_prompt(archetype=archetype, **prompt_kwargs)
+    return cleaned, None, archetype
+
+
+def _generate_concert_check_script(
+    *,
+    station_name: str,
+    personality: StationPersonality,
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+    schedule_context: Optional[ScheduleContext],
+    prompt_kwargs: Mapping[str, Any],
+    temperature: float,
+    top_p: float,
+    rng: random.Random,
+    generate_with_retries,
+    fallback,
+) -> Tuple[str, None, Archetype]:
+    generation_attempts = 2
+    for generation_attempt in range(generation_attempts):
+        prompt = build_prompt(archetype=Archetype.CONCERT_CHECK, **prompt_kwargs)
         generated = generate_with_retries(
             prompt=prompt,
-            label=f"Gemini generation ({archetype.value})",
-            with_search=should_enable_search(archetype, angle),
+            label="Gemini generation (concert_check)",
+            with_search=True,
         )
-        if generated.strip() == "NO_SCRIPT":
-            LOGGER.info(
-                "[%s] Gemini returned NO_SCRIPT; falling back to ultra_minimal.",
-                archetype.value,
-            )
-            if archetype == Archetype.ULTRA_MINIMAL or not allow_ultra_minimal_fallback:
-                return terminal_ultra_minimal_fallback()
-            return fallback()
-        cleaned = _postprocess_schedule_script(
-            script_text=generated,
-            archetype=archetype,
-            schedule_context=schedule_context,
-            rng=rng,
-        )
-        if not cleaned.strip() or cleaned.strip() == "NO_SCRIPT":
-            LOGGER.info(
-                "[%s] Empty/invalid script after cleanup; falling back to ultra_minimal.",
-                archetype.value,
-            )
-            if archetype == Archetype.ULTRA_MINIMAL or not allow_ultra_minimal_fallback:
-                return terminal_ultra_minimal_fallback()
-            return fallback()
-        return cleaned, None, archetype
 
-    if archetype == Archetype.CONCERT_CHECK:
-        generation_attempts = 2
-        for generation_attempt in range(generation_attempts):
-            prompt = build_prompt(archetype=Archetype.CONCERT_CHECK, **prompt_kwargs)
-            generated = generate_with_retries(
-                prompt=prompt,
-                label="Gemini generation (concert_check)",
-                with_search=True,
+        segment, reason = parse_concert_output(generated)
+        if reason == "NO_SCRIPT":
+            LOGGER.info(
+                "[concert_check] No qualifying concerts found; falling back to ultra_minimal."
             )
+            return fallback()
 
-            segment, reason = parse_concert_output(generated)
-            if reason == "NO_SCRIPT":
-                LOGGER.info(
-                    "[concert_check] No qualifying concerts found; falling back to ultra_minimal."
+        if segment is None:
+            LOGGER.warning(
+                "[concert_check] Parse failed (%s); attempting one repair pass.",
+                reason,
+            )
+            repaired = run_with_retries(
+                label="Concert format repair",
+                func=lambda: attempt_concert_repair(
+                    generated,
+                    temperature=temperature,
+                    top_p=top_p,
+                    station_name=station_name,
+                    personality=personality,
+                ),
+            )
+            segment, reason = parse_concert_output(repaired)
+            if segment is None:
+                LOGGER.warning(
+                    "[concert_check] Output remained invalid after repair (%s).",
+                    reason,
+                )
+                if generation_attempt < generation_attempts - 1:
+                    continue
+                LOGGER.warning(
+                    "[concert_check] Exhausted retries; falling back to ultra_minimal."
                 )
                 return fallback()
 
-            if segment is None:
-                LOGGER.warning(
-                    "[concert_check] Parse failed (%s); attempting one repair pass.",
-                    reason,
-                )
-                repaired = run_with_retries(
-                    label="Concert format repair",
-                    func=lambda: attempt_concert_repair(
-                        generated,
-                        temperature=temperature,
-                        top_p=top_p,
-                        station_name=station_name,
-                        personality=personality,
-                    ),
-                )
-                segment, reason = parse_concert_output(repaired)
-                if segment is None:
-                    LOGGER.warning(
-                        "[concert_check] Output remained invalid after repair (%s).",
-                        reason,
-                    )
-                    if generation_attempt < generation_attempts - 1:
-                        continue
-                    LOGGER.warning(
-                        "[concert_check] Exhausted retries; falling back to ultra_minimal."
-                    )
-                    return fallback()
-
-            assert segment is not None
-            ok, validation_reason = validate_concert_segment(
-                segment=segment,
-                current_track=current_track,
-                next_track=next_track,
+        assert segment is not None
+        ok, validation_reason = validate_concert_segment(
+            segment=segment,
+            current_track=current_track,
+            next_track=next_track,
+        )
+        if ok:
+            return (
+                _postprocess_schedule_script(
+                    script_text=segment.script,
+                    archetype=Archetype.CONCERT_CHECK,
+                    schedule_context=schedule_context,
+                    rng=rng,
+                ),
+                None,
+                Archetype.CONCERT_CHECK,
             )
-            if ok:
-                return (
-                    _postprocess_schedule_script(
-                        script_text=segment.script,
-                        archetype=Archetype.CONCERT_CHECK,
-                        schedule_context=schedule_context,
-                        rng=rng,
-                    ),
-                    None,
-                    Archetype.CONCERT_CHECK,
-                )
-
-            LOGGER.warning(
-                "[concert_check] Validation failed (%s/%s): %s",
-                generation_attempt + 1,
-                generation_attempts,
-                validation_reason,
-            )
-            if generation_attempt < generation_attempts - 1:
-                continue
 
         LOGGER.warning(
-            "[concert_check] Exhausted retries; falling back to ultra_minimal."
+            "[concert_check] Validation failed (%s/%s): %s",
+            generation_attempt + 1,
+            generation_attempts,
+            validation_reason,
         )
-        return fallback()
+        if generation_attempt < generation_attempts - 1:
+            continue
 
-    # News mode with validation, repair, and topic retries.
+    LOGGER.warning("[concert_check] Exhausted retries; falling back to ultra_minimal.")
+    return fallback()
+
+
+def _generate_news_script(
+    *,
+    station_name: str,
+    personality: StationPersonality,
+    schedule_context: Optional[ScheduleContext],
+    state: OrchestratorState,
+    prompt_kwargs: Mapping[str, Any],
+    temperature: float,
+    top_p: float,
+    forced_mode: bool,
+    rng: random.Random,
+    generate_with_retries,
+    fallback,
+) -> Tuple[str, Optional[NewsSegment], Archetype]:
     story_count = rng.randint(1, 2)
     topic_attempts = 3
     conservative_news_temperature = min(0.65, temperature)
@@ -1664,8 +1670,6 @@ def generate_archetype_script(
                 topics,
                 generated[:500],
             )
-            # NEWS is a strict grounded + structured task; high-variance sampling can cause
-            # spurious NO_SCRIPT decisions even when fresh headlines exist.
             if temperature > conservative_news_temperature or top_p < conservative_news_top_p:
                 LOGGER.info(
                     "[news] Retrying same topic with conservative settings temp=%.2f top_p=%.2f.",
@@ -1757,7 +1761,149 @@ def generate_archetype_script(
                 "Forced news archetype failed freshness/dedup requirements after topic retries."
             )
 
-    LOGGER.warning(
-        "[news] Exhausted topic retries; falling back to ultra_minimal."
-    )
+    LOGGER.warning("[news] Exhausted topic retries; falling back to ultra_minimal.")
     return fallback()
+
+
+def generate_archetype_script(
+    archetype: Archetype,
+    station_name: str,
+    personality: StationPersonality,
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+    upcoming_tracks: Sequence[QueueTrack],
+    current_meta: TrackMetadata,
+    next_meta: TrackMetadata,
+    angle: Optional[str],
+    hook: str,
+    banned_list: Sequence[str],
+    schedule_context: Optional[ScheduleContext],
+    state: OrchestratorState,
+    rng: random.Random,
+    forced_mode: bool,
+    forced_track_focus: Optional[TrackFocus] = None,
+    allow_ultra_minimal_fallback: bool = True,
+) -> Tuple[str, Optional[NewsSegment], Archetype]:
+    """Generate script and optional structured metadata.
+
+    Returns: (script, news_segment, archetype_used)
+    """
+
+    temperature, top_p = sample_generation_settings(archetype, rng)
+    system_prompt = build_system_prompt(station_name, personality)
+    variants = _resolve_prompt_variants(
+        archetype=archetype,
+        forced_track_focus=forced_track_focus,
+        current_meta=current_meta,
+        next_meta=next_meta,
+        rng=rng,
+    )
+    prompt_kwargs = _build_prompt_kwargs(
+        station_name=station_name,
+        personality=personality,
+        current_track=current_track,
+        next_track=next_track,
+        upcoming_tracks=upcoming_tracks,
+        current_meta=current_meta,
+        next_meta=next_meta,
+        angle=angle,
+        hook=hook,
+        banned_list=banned_list,
+        schedule_context=schedule_context,
+        state=state,
+        variants=variants,
+    )
+
+    def generate_with_retries(
+        prompt: str,
+        label: str,
+        with_search: bool,
+        temperature_override: Optional[float] = None,
+        top_p_override: Optional[float] = None,
+    ) -> str:
+        call_temperature = (
+            temperature if temperature_override is None else temperature_override
+        )
+        call_top_p = top_p if top_p_override is None else top_p_override
+        return run_with_retries(
+            label=label,
+            func=lambda: gemini_generate_text(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=call_temperature,
+                top_p=call_top_p,
+                with_search=with_search,
+            ),
+        )
+
+    def fallback() -> Tuple[str, None, Archetype]:
+        return fallback_to_ultra_minimal(
+            station_name=station_name,
+            personality=personality,
+            current_track=current_track,
+            next_track=next_track,
+            upcoming_tracks=upcoming_tracks,
+            current_meta=current_meta,
+            next_meta=next_meta,
+            banned_list=banned_list,
+            schedule_context=schedule_context,
+            state=state,
+            rng=rng,
+        )
+
+    def terminal_ultra_minimal_fallback() -> Tuple[str, None, Archetype]:
+        LOGGER.warning(
+            "[ultra_minimal] Gemini did not produce a usable script; using deterministic local fallback."
+        )
+        return (
+            build_local_ultra_minimal_script(
+                current_track=current_track,
+                next_track=next_track,
+                schedule_context=schedule_context,
+                rng=rng,
+            ),
+            None,
+            Archetype.ULTRA_MINIMAL,
+        )
+
+    if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
+        return _generate_standard_archetype_script(
+            archetype=archetype,
+            prompt_kwargs=prompt_kwargs,
+            angle=angle,
+            schedule_context=schedule_context,
+            rng=rng,
+            allow_ultra_minimal_fallback=allow_ultra_minimal_fallback,
+            generate_with_retries=generate_with_retries,
+            fallback=fallback,
+            terminal_ultra_minimal_fallback=terminal_ultra_minimal_fallback,
+        )
+
+    if archetype == Archetype.CONCERT_CHECK:
+        return _generate_concert_check_script(
+            station_name=station_name,
+            personality=personality,
+            current_track=current_track,
+            next_track=next_track,
+            schedule_context=schedule_context,
+            prompt_kwargs=prompt_kwargs,
+            temperature=temperature,
+            top_p=top_p,
+            rng=rng,
+            generate_with_retries=generate_with_retries,
+            fallback=fallback,
+        )
+
+    return _generate_news_script(
+        station_name=station_name,
+        personality=personality,
+        schedule_context=schedule_context,
+        state=state,
+        prompt_kwargs=prompt_kwargs,
+        temperature=temperature,
+        top_p=top_p,
+        forced_mode=forced_mode,
+        rng=rng,
+        generate_with_retries=generate_with_retries,
+        fallback=fallback,
+    )
