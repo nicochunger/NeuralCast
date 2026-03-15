@@ -1292,6 +1292,37 @@ def select_era_snapshot_lane(rng: random.Random) -> str:
     )
 
 
+def build_local_ultra_minimal_script(
+    current_track: QueueTrack,
+    next_track: QueueTrack,
+    schedule_context: Optional[ScheduleContext],
+    rng: random.Random,
+) -> str:
+    current_artist = str(current_track.artist or "").strip()
+    current_title = str(current_track.title or "").strip()
+    next_artist = str(next_track.artist or "").strip()
+    next_title = str(next_track.title or "").strip()
+
+    options: List[str] = []
+    if current_title and next_artist and next_title:
+        options.extend(
+            [
+                f"Recien sono {current_title}; ahora sigue {next_artist} con {next_title}.",
+                f"Venimos de {current_artist} con {current_title}; ahora entra {next_artist} con {next_title}.",
+            ]
+        )
+    if next_artist and next_title:
+        options.append(f"Ahora sigue {next_artist} con {next_title}.")
+
+    fallback_script = rng.choice(options) if options else "Seguimos con musica."
+    return _postprocess_schedule_script(
+        script_text=fallback_script,
+        archetype=Archetype.ULTRA_MINIMAL,
+        schedule_context=schedule_context,
+        rng=rng,
+    )
+
+
 def fallback_to_ultra_minimal(
     station_name: str,
     personality: StationPersonality,
@@ -1322,6 +1353,7 @@ def fallback_to_ultra_minimal(
         state=state,
         rng=rng,
         forced_mode=False,
+        allow_ultra_minimal_fallback=False,
     )
     return fallback_script, None, fallback_arch
 
@@ -1343,6 +1375,7 @@ def generate_archetype_script(
     rng: random.Random,
     forced_mode: bool,
     forced_track_focus: Optional[TrackFocus] = None,
+    allow_ultra_minimal_fallback: bool = True,
 ) -> Tuple[str, Optional[NewsSegment], Archetype]:
     """Generate script and optional structured metadata.
 
@@ -1465,6 +1498,21 @@ def generate_archetype_script(
             rng=rng,
         )
 
+    def terminal_ultra_minimal_fallback() -> Tuple[str, None, Archetype]:
+        LOGGER.warning(
+            "[ultra_minimal] Gemini did not produce a usable script; using deterministic local fallback."
+        )
+        return (
+            build_local_ultra_minimal_script(
+                current_track=current_track,
+                next_track=next_track,
+                schedule_context=schedule_context,
+                rng=rng,
+            ),
+            None,
+            Archetype.ULTRA_MINIMAL,
+        )
+
     if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
         prompt = build_prompt(archetype=archetype, **prompt_kwargs)
         generated = generate_with_retries(
@@ -1477,6 +1525,8 @@ def generate_archetype_script(
                 "[%s] Gemini returned NO_SCRIPT; falling back to ultra_minimal.",
                 archetype.value,
             )
+            if archetype == Archetype.ULTRA_MINIMAL or not allow_ultra_minimal_fallback:
+                return terminal_ultra_minimal_fallback()
             return fallback()
         cleaned = _postprocess_schedule_script(
             script_text=generated,
@@ -1489,6 +1539,8 @@ def generate_archetype_script(
                 "[%s] Empty/invalid script after cleanup; falling back to ultra_minimal.",
                 archetype.value,
             )
+            if archetype == Archetype.ULTRA_MINIMAL or not allow_ultra_minimal_fallback:
+                return terminal_ultra_minimal_fallback()
             return fallback()
         return cleaned, None, archetype
 

@@ -32,6 +32,9 @@ from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
     TrackMetadata,
 )
 from neuralcast.pipelines.host_orchestrator.main import (  # noqa: E402
+    PlaybackContext,
+    QueueContext,
+    _select_archetype,
     ArgumentValidationError,
     validate_runtime_args,
 )
@@ -470,6 +473,40 @@ META (JSON):
         self.assertEqual(archetype_used, Archetype.ULTRA_MINIMAL)
         self.assertIn("proximo tema", script.lower())
 
+    def test_generate_ultra_minimal_uses_local_fallback_when_gemini_returns_no_script(
+        self,
+    ) -> None:
+        rng = __import__("random").Random(26)
+        state = default_state(time.time(), __import__("random").Random(27))
+        personality = resolve_station_personality("neuralforge")
+
+        with patch(
+            "neuralcast.pipelines.host_orchestrator.generation.gemini_generate_text",
+            return_value="NO_SCRIPT",
+        ) as mock_generate:
+            script, _, archetype_used = generate_archetype_script(
+                archetype=Archetype.ULTRA_MINIMAL,
+                station_name="NeuralForge",
+                personality=personality,
+                current_track=self._queue_track("Opeth", "The Drapery Falls"),
+                next_track=self._queue_track("Agalloch", "Not Unlike the Waves"),
+                upcoming_tracks=[],
+                current_meta=self._track_meta(album="Blackwater Park"),
+                next_meta=self._track_meta(album="The Mantle"),
+                angle=None,
+                hook="puente minimo",
+                banned_list=[],
+                schedule_context=None,
+                state=state,
+                rng=rng,
+                forced_mode=False,
+            )
+
+        mock_generate.assert_called_once()
+        self.assertEqual(archetype_used, Archetype.ULTRA_MINIMAL)
+        self.assertNotEqual(script.strip(), "NO_SCRIPT")
+        self.assertIn("Agalloch", script)
+
     def test_generate_short_story_uses_forced_track_focus(self) -> None:
         rng = __import__("random").Random(22)
         state = default_state(time.time(), __import__("random").Random(23))
@@ -541,6 +578,66 @@ META (JSON):
         )
 
         self.assertEqual(focus, TrackFocus.CURRENT)
+
+    def test_select_archetype_skips_forced_mode_without_required_lead_time(self) -> None:
+        rng = __import__("random").Random(31)
+        state = default_state(time.time(), __import__("random").Random(32))
+        playback = PlaybackContext(
+            current_track=self._queue_track("Opeth", "The Leper Affinity"),
+            current_remaining=5,
+            current_key="opeth|the leper affinity",
+            listener_count=10,
+        )
+        queue_context = QueueContext(
+            upcoming_tracks=[self._queue_track("Agalloch", "Falling Snow")],
+            next_track=self._queue_track("Agalloch", "Falling Snow"),
+            schedule_context=None,
+            schedule_reference_ts=time.time() + 5,
+        )
+
+        selected = _select_archetype(
+            args=argparse.Namespace(force_archetype=Archetype.DEEP_DIVE.value),
+            state=state,
+            playback=playback,
+            queue_context=queue_context,
+            forced_archetype=Archetype.DEEP_DIVE,
+            auto_forced_block_intro=False,
+            forced_track_focus=None,
+            rng=rng,
+        )
+
+        self.assertIsNone(selected)
+
+    def test_select_archetype_returns_forced_archetype_when_lead_time_is_sufficient(
+        self,
+    ) -> None:
+        rng = __import__("random").Random(33)
+        state = default_state(time.time(), __import__("random").Random(34))
+        playback = PlaybackContext(
+            current_track=self._queue_track("Opeth", "The Leper Affinity"),
+            current_remaining=600,
+            current_key="opeth|the leper affinity",
+            listener_count=10,
+        )
+        queue_context = QueueContext(
+            upcoming_tracks=[self._queue_track("Agalloch", "Falling Snow")],
+            next_track=self._queue_track("Agalloch", "Falling Snow"),
+            schedule_context=None,
+            schedule_reference_ts=time.time() + 600,
+        )
+
+        selected = _select_archetype(
+            args=argparse.Namespace(force_archetype=Archetype.BACK_SELL.value),
+            state=state,
+            playback=playback,
+            queue_context=queue_context,
+            forced_archetype=Archetype.BACK_SELL,
+            auto_forced_block_intro=False,
+            forced_track_focus=TrackFocus.NEXT,
+            rng=rng,
+        )
+
+        self.assertEqual(selected, Archetype.BACK_SELL)
 
     def test_schedule_context_start_intent(self) -> None:
         tz = ZoneInfo("Europe/Zurich")
