@@ -6,12 +6,13 @@ import hmac
 import os
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from neuralcast.pipelines.host_orchestrator.models import Archetype, supports_track_focus
 
 from .jobs import (
+    JOB_OPERATION_SCHEDULE_GENERATOR,
     JobConflictError,
     JobManager,
     JobNotFoundError,
@@ -19,6 +20,7 @@ from .jobs import (
     SUPPORTED_STATIONS,
     SUPPORTED_TRACK_FOCUSES,
 )
+from .stations import AdminStationService, StationServiceConfigError
 
 BEARER_PREFIX = "Bearer "
 
@@ -28,6 +30,23 @@ class OptionsResponse(BaseModel):
 
     stations: list[str]
     archetypes: list[str]
+
+
+class OperationCapabilityResponse(BaseModel):
+    """Response model for one supported admin operation."""
+
+    dry_run_supported: bool
+    track_focus_supported: bool
+
+
+class CapabilitiesResponse(BaseModel):
+    """Response model for `/admin/capabilities`."""
+
+    stations: list[str]
+    archetypes: list[str]
+    track_focus_values: list[str]
+    track_focus_archetypes: list[str]
+    operations: dict[str, OperationCapabilityResponse]
 
 
 class ForceArchetypeRequest(BaseModel):
@@ -81,6 +100,24 @@ class ForceArchetypeRequest(BaseModel):
         return self
 
 
+class ScheduleGeneratorRequest(BaseModel):
+    """Validated request body for `POST /admin/run-schedule-generator`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    station: str
+    dry_run: bool = False
+
+    @field_validator("station")
+    @classmethod
+    def validate_station(cls, value: str) -> str:
+        if value not in SUPPORTED_STATIONS:
+            raise ValueError(
+                f"Unsupported station '{value}'. Allowed values: {SUPPORTED_STATIONS}."
+            )
+        return value
+
+
 class AcceptedJobResponse(BaseModel):
     """Immediate response after a new admin job is accepted."""
 
@@ -92,8 +129,9 @@ class JobStatusResponse(BaseModel):
     """External response model for persisted admin job status."""
 
     job_id: str
+    operation: str
     station: str
-    archetype: str
+    archetype: str | None
     track_focus: str | None
     dry_run: bool
     status: str
@@ -103,6 +141,33 @@ class JobStatusResponse(BaseModel):
     exit_code: int | None
     log_path: str
     log_tail: str
+
+
+class TrackResponse(BaseModel):
+    """Serialized queue-track payload used by station read endpoints."""
+
+    queue_id: str
+    song_id: str | None
+    artist: str
+    title: str
+    duration_seconds: int | None
+
+
+class NowPlayingResponse(BaseModel):
+    """Response model for `/admin/stations/{station}/now-playing`."""
+
+    station: str
+    current_track: TrackResponse
+    remaining_seconds: int | None
+    listener_count: int | None
+
+
+class QueueResponse(BaseModel):
+    """Response model for `/admin/stations/{station}/queue`."""
+
+    station: str
+    items: list[TrackResponse]
+    next_track: TrackResponse | None
 
 
 def require_admin_token(
@@ -139,11 +204,21 @@ def get_job_manager(request: Request) -> JobManager:
     return request.app.state.job_manager
 
 
-def create_app(job_manager: JobManager | None = None) -> FastAPI:
+def get_station_service(request: Request) -> AdminStationService:
+    """Read the shared station service from the FastAPI app state."""
+
+    return request.app.state.station_service
+
+
+def create_app(
+    job_manager: JobManager | None = None,
+    station_service: AdminStationService | None = None,
+) -> FastAPI:
     """Create the FastAPI application for the admin HTTP service."""
 
-    app = FastAPI(title="NeuralCast Admin API", version="0.1.0")
+    app = FastAPI(title="NeuralCast Admin API", version="0.2.0")
     app.state.job_manager = job_manager or JobManager()
+    app.state.station_service = station_service or AdminStationService()
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -158,6 +233,75 @@ def create_app(job_manager: JobManager | None = None) -> FastAPI:
         manager: JobManager = Depends(get_job_manager),
     ) -> OptionsResponse:
         return OptionsResponse(**manager.options())
+
+    @app.get(
+        "/admin/capabilities",
+        response_model=CapabilitiesResponse,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def admin_capabilities(
+        manager: JobManager = Depends(get_job_manager),
+    ) -> CapabilitiesResponse:
+        return CapabilitiesResponse(**manager.capabilities())
+
+    @app.get(
+        "/admin/stations/{station}/now-playing",
+        response_model=NowPlayingResponse,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def station_now_playing(
+        station: str,
+        service: AdminStationService = Depends(get_station_service),
+    ) -> NowPlayingResponse:
+        try:
+            payload = service.now_playing(station)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
+        except StationServiceConfigError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to fetch now-playing state: {exc}",
+            ) from exc
+
+        return NowPlayingResponse(**payload)
+
+    @app.get(
+        "/admin/stations/{station}/queue",
+        response_model=QueueResponse,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def station_queue(
+        station: str,
+        limit: int = Query(default=4, ge=1, le=10),
+        service: AdminStationService = Depends(get_station_service),
+    ) -> QueueResponse:
+        try:
+            payload = service.queue(station, limit=limit)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
+        except StationServiceConfigError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to fetch queue state: {exc}",
+            ) from exc
+
+        return QueueResponse(**payload)
 
     @app.post(
         "/admin/force-archetype",
@@ -183,6 +327,34 @@ def create_app(job_manager: JobManager | None = None) -> FastAPI:
                     "message": str(exc),
                     "job_id": exc.job_id,
                     "station": exc.station,
+                },
+            ) from exc
+
+        return AcceptedJobResponse(job_id=job.job_id)
+
+    @app.post(
+        "/admin/run-schedule-generator",
+        response_model=AcceptedJobResponse,
+        status_code=status.HTTP_202_ACCEPTED,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def run_schedule_generator(
+        payload: ScheduleGeneratorRequest,
+        manager: JobManager = Depends(get_job_manager),
+    ) -> AcceptedJobResponse:
+        try:
+            job = manager.enqueue_schedule_generator(
+                station=payload.station,
+                dry_run=payload.dry_run,
+            )
+        except JobConflictError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": str(exc),
+                    "job_id": exc.job_id,
+                    "station": exc.station,
+                    "operation": JOB_OPERATION_SCHEDULE_GENERATOR,
                 },
             ) from exc
 

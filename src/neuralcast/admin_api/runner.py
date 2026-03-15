@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .jobs import (
     append_job_log,
-    build_orchestrator_command,
+    build_job_command,
     load_job_record,
     save_job_record,
     utc_now_iso,
@@ -29,12 +29,7 @@ def run_job(job_file: Path) -> int:
         job.status = "running"
         save_job_record(job_file, job)
 
-        argv, env, cwd = build_orchestrator_command(
-            station=job.station,
-            archetype=job.archetype,
-            track_focus=job.track_focus,
-            dry_run=job.dry_run,
-        )
+        argv, env, cwd = build_job_command(job)
         append_job_log(log_path, f"[admin-api] job accepted at {job.accepted_at}")
         append_job_log(
             log_path,

@@ -1,10 +1,16 @@
 # NeuralCast Admin HTTP API
 
-This document covers the phase-1 admin API that lets an HTTPS client trigger an immediate forced host-orchestrator run without SSH.
+This document covers the current admin API that lets an HTTPS client inspect live station state and trigger selected NeuralCast jobs without SSH.
 
 ## What It Does
 
-The admin API is a thin HTTP wrapper around the existing host-orchestrator CLI. It validates the request, launches the real `neuralcast.cli.host_orchestrator` subprocess with `--force-archetype`, optionally forwards `--force-track-focus current|next` for story-style forced archetypes, captures stdout/stderr to a per-job log, and stores job state under `admin_http/` so job status survives API restarts.
+The admin API is a thin HTTP wrapper around existing repo logic. It:
+
+- validates authenticated requests
+- returns the supported stations/archetypes/capabilities from repo truth
+- reads live now-playing and queue state through the existing AzuraCast transport helpers
+- launches the real `neuralcast.cli.host_orchestrator` and `neuralcast.cli.schedule_generator` subprocesses
+- captures stdout/stderr to a per-job log and stores disk-backed job state under `admin_http/` so job status survives API restarts
 
 The service binds to localhost by default. Expose it publicly through a reverse proxy such as nginx or caddy, and require HTTPS at the proxy layer.
 
@@ -162,6 +168,89 @@ admin.your-radio.example {
 - Requires `Authorization: Bearer <token>`.
 - Returns the supported stations and all real host-orchestrator archetypes.
 
+`GET /admin/capabilities`
+
+- Requires `Authorization: Bearer <token>`.
+- Returns the supported stations, archetypes, `track_focus` values, which archetypes support `track_focus`, and the currently supported write operations.
+
+Example response:
+
+```json
+{
+  "stations": ["neuralcast", "neuralforge"],
+  "archetypes": ["back_sell", "album_spotlight", "deep_dive"],
+  "track_focus_values": ["current", "next"],
+  "track_focus_archetypes": [
+    "short_story",
+    "album_spotlight",
+    "era_snapshot",
+    "deep_dive"
+  ],
+  "operations": {
+    "force_archetype": {
+      "dry_run_supported": true,
+      "track_focus_supported": true
+    },
+    "schedule_generator": {
+      "dry_run_supported": true,
+      "track_focus_supported": false
+    }
+  }
+}
+```
+
+`GET /admin/stations/{station}/now-playing`
+
+- Requires `Authorization: Bearer <token>`.
+- Returns the current track, remaining seconds, and current listener count for `neuralcast` or `neuralforge`.
+
+Example response:
+
+```json
+{
+  "station": "neuralforge",
+  "current_track": {
+    "queue_id": "12345",
+    "song_id": "6789",
+    "artist": "Boards of Canada",
+    "title": "Dayvan Cowboy",
+    "duration_seconds": 319
+  },
+  "remaining_seconds": 41,
+  "listener_count": 3
+}
+```
+
+`GET /admin/stations/{station}/queue?limit=4`
+
+- Requires `Authorization: Bearer <token>`.
+- Returns the upcoming queue for `neuralcast` or `neuralforge`.
+- `limit` is optional and currently accepts `1` through `10`.
+
+Example response:
+
+```json
+{
+  "station": "neuralforge",
+  "items": [
+    {
+      "queue_id": "23456",
+      "song_id": "1357",
+      "artist": "Tycho",
+      "title": "A Walk",
+      "duration_seconds": 291
+    }
+  ],
+  "next_track": {
+    "queue_id": "23456",
+    "song_id": "1357",
+    "artist": "Tycho",
+    "title": "A Walk",
+    "duration_seconds": 291
+  }
+}
+```
+
 `POST /admin/force-archetype`
 
 - Requires `Authorization: Bearer <token>`.
@@ -189,10 +278,32 @@ admin.your-radio.example {
 }
 ```
 
+`POST /admin/run-schedule-generator`
+
+- Requires `Authorization: Bearer <token>`.
+- Launches the real `neuralcast.cli.schedule_generator` module as an async job.
+- Request body:
+
+```json
+{
+  "station": "neuralforge",
+  "dry_run": true
+}
+```
+
+- Returns HTTP `202 Accepted` immediately:
+
+```json
+{
+  "job_id": "20260315T090000Z-neuralforge-schedule_generator",
+  "status": "accepted"
+}
+```
+
 `GET /admin/jobs/{job_id}`
 
 - Requires `Authorization: Bearer <token>`.
-- Returns the persisted job state including timestamps, exit code, optional `track_focus`, log path, and a short log tail.
+- Returns the persisted job state including `operation`, timestamps, exit code, optional `archetype`, optional `track_focus`, log path, and a short log tail.
 
 ## curl Examples
 
@@ -210,6 +321,30 @@ curl -sS \
   http://127.0.0.1:8787/admin/options
 ```
 
+Capabilities:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer test-token" \
+  http://127.0.0.1:8787/admin/capabilities
+```
+
+Now playing:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer test-token" \
+  http://127.0.0.1:8787/admin/stations/neuralforge/now-playing
+```
+
+Queue:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer test-token" \
+  "http://127.0.0.1:8787/admin/stations/neuralforge/queue?limit=3"
+```
+
 Create a dry-run job:
 
 ```bash
@@ -218,6 +353,16 @@ curl -sS \
   -H "Content-Type: application/json" \
   -d '{"station":"neuralforge","archetype":"deep_dive","track_focus":"next","dry_run":true}' \
   http://127.0.0.1:8787/admin/force-archetype
+```
+
+Create a schedule-generator dry-run job:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer test-token" \
+  -H "Content-Type: application/json" \
+  -d '{"station":"neuralforge","dry_run":true}' \
+  http://127.0.0.1:8787/admin/run-schedule-generator
 ```
 
 Poll a job:

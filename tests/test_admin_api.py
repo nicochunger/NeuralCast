@@ -1,7 +1,8 @@
-"""Tests for the NeuralCast admin API models, auth, and job manager."""
+"""Tests for the NeuralCast admin API models, station helper, and job manager."""
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -12,18 +13,75 @@ from pydantic import ValidationError
 
 from neuralcast.admin_api.app import (
     ForceArchetypeRequest,
+    ScheduleGeneratorRequest,
     create_app,
     require_admin_token,
 )
 from neuralcast.admin_api.jobs import (
+    JOB_OPERATION_FORCE_ARCHETYPE,
+    JOB_OPERATION_SCHEDULE_GENERATOR,
     JobConflictError,
     JobManager,
     JobRecord,
     SUPPORTED_ARCHETYPES,
     SUPPORTED_STATIONS,
-    build_orchestrator_command,
+    SUPPORTED_TRACK_FOCUS_ARCHETYPES,
+    build_force_archetype_command,
+    build_schedule_generator_command,
     save_job_record,
 )
+from neuralcast.admin_api.stations import AdminStationService
+
+
+class FakeAzuraCastClient:
+    def __init__(self) -> None:
+        self.now_playing_payload = {
+            "listeners": {"current": 7},
+            "now_playing": {
+                "remaining": 142,
+                "song": {
+                    "id": 11,
+                    "artist": "Amorphis",
+                    "title": "Black Winter Day",
+                    "length": 244,
+                },
+            },
+        }
+        self.queue_payload = [
+            {
+                "id": "queue-1",
+                "duration": 244,
+                "song": {
+                    "id": 11,
+                    "artist": "Amorphis",
+                    "title": "Black Winter Day",
+                },
+            },
+            {
+                "id": "queue-2",
+                "duration": 215,
+                "song": {
+                    "id": 12,
+                    "artist": "Sentenced",
+                    "title": "Noose",
+                },
+            },
+            {
+                "id": "queue-3",
+                "duration": 300,
+                "song": {
+                    "id": 13,
+                    "artist": "Opeth",
+                    "title": "The Moor",
+                },
+            },
+        ]
+
+    def get_now_playing(self, _station: str) -> dict[str, object]:
+        return self.now_playing_payload
+
+    def get_upcoming_queue(self, _station: str) -> list[dict[str, object]]:
+        return self.queue_payload
 
 
 class AdminApiUnitTest(unittest.TestCase):
@@ -36,15 +94,25 @@ class AdminApiUnitTest(unittest.TestCase):
             runner_launcher=lambda _job_path: 4242,
             process_checker=lambda _pid: True,
         )
+        self.station_service = AdminStationService(
+            client_factory=lambda: FakeAzuraCastClient()
+        )
         os.environ["NEURALCAST_ADMIN_HTTP_TOKEN"] = "test-token"
         self.addCleanup(os.environ.pop, "NEURALCAST_ADMIN_HTTP_TOKEN", None)
 
     def test_create_app_registers_expected_routes(self) -> None:
-        app = create_app(job_manager=self.manager)
+        app = create_app(
+            job_manager=self.manager,
+            station_service=self.station_service,
+        )
         paths = {route.path for route in app.routes}
         self.assertIn("/healthz", paths)
         self.assertIn("/admin/options", paths)
+        self.assertIn("/admin/capabilities", paths)
+        self.assertIn("/admin/stations/{station}/now-playing", paths)
+        self.assertIn("/admin/stations/{station}/queue", paths)
         self.assertIn("/admin/force-archetype", paths)
+        self.assertIn("/admin/run-schedule-generator", paths)
         self.assertIn("/admin/jobs/{job_id}", paths)
 
     def test_require_admin_token_accepts_and_rejects_expected_values(self) -> None:
@@ -87,10 +155,50 @@ class AdminApiUnitTest(unittest.TestCase):
                 track_focus="current",
             )
 
-    def test_supported_allowlists_match_phase_one_contract(self) -> None:
+    def test_schedule_generator_request_validation_uses_supported_values(self) -> None:
+        request = ScheduleGeneratorRequest(
+            station="neuralforge",
+            dry_run=True,
+        )
+        self.assertEqual(request.station, "neuralforge")
+        self.assertTrue(request.dry_run)
+
+        with self.assertRaises(ValidationError):
+            ScheduleGeneratorRequest(station="bad-station")
+
+    def test_supported_allowlists_match_phase_two_contract(self) -> None:
         self.assertEqual(list(SUPPORTED_STATIONS), ["neuralcast", "neuralforge"])
         self.assertIn("deep_dive", SUPPORTED_ARCHETYPES)
-        self.assertIn("back_sell", SUPPORTED_ARCHETYPES)
+        self.assertIn("album_spotlight", SUPPORTED_TRACK_FOCUS_ARCHETYPES)
+        self.assertIn("short_story", SUPPORTED_TRACK_FOCUS_ARCHETYPES)
+
+    def test_capabilities_payload_includes_schedule_generator(self) -> None:
+        capabilities = self.manager.capabilities()
+        self.assertEqual(capabilities["stations"], ["neuralcast", "neuralforge"])
+        self.assertIn("deep_dive", capabilities["archetypes"])
+        self.assertIn("album_spotlight", capabilities["track_focus_archetypes"])
+        self.assertIn(JOB_OPERATION_SCHEDULE_GENERATOR, capabilities["operations"])
+        self.assertTrue(
+            capabilities["operations"][JOB_OPERATION_SCHEDULE_GENERATOR][
+                "dry_run_supported"
+            ]
+        )
+
+    def test_station_service_now_playing_uses_existing_transport_parsing(self) -> None:
+        payload = self.station_service.now_playing("neuralforge")
+        self.assertEqual(payload["station"], "neuralforge")
+        self.assertEqual(payload["current_track"]["artist"], "Amorphis")
+        self.assertEqual(payload["current_track"]["title"], "Black Winter Day")
+        self.assertEqual(payload["remaining_seconds"], 142)
+        self.assertEqual(payload["listener_count"], 7)
+
+    def test_station_service_queue_filters_out_current_track(self) -> None:
+        payload = self.station_service.queue("neuralforge", limit=2)
+        self.assertEqual(payload["station"], "neuralforge")
+        self.assertEqual(payload["next_track"]["artist"], "Sentenced")
+        self.assertEqual(len(payload["items"]), 2)
+        self.assertEqual(payload["items"][0]["title"], "Noose")
+        self.assertEqual(payload["items"][1]["title"], "The Moor")
 
     def test_enqueue_force_archetype_persists_job(self) -> None:
         job = self.manager.enqueue_force_archetype(
@@ -100,6 +208,7 @@ class AdminApiUnitTest(unittest.TestCase):
             dry_run=True,
         )
 
+        self.assertEqual(job.operation, JOB_OPERATION_FORCE_ARCHETYPE)
         self.assertEqual(job.station, "neuralforge")
         self.assertEqual(job.archetype, "deep_dive")
         self.assertEqual(job.track_focus, "next")
@@ -108,7 +217,21 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertEqual(job.runner_pid, 4242)
         self.assertTrue(self.manager.job_path(job.job_id).exists())
 
-    def test_enqueue_force_archetype_rejects_second_running_job_for_station(self) -> None:
+    def test_enqueue_schedule_generator_persists_job(self) -> None:
+        job = self.manager.enqueue_schedule_generator(
+            station="neuralforge",
+            dry_run=True,
+        )
+
+        self.assertEqual(job.operation, JOB_OPERATION_SCHEDULE_GENERATOR)
+        self.assertEqual(job.station, "neuralforge")
+        self.assertIsNone(job.archetype)
+        self.assertIsNone(job.track_focus)
+        self.assertTrue(job.dry_run)
+        self.assertEqual(job.status, "running")
+        self.assertEqual(job.runner_pid, 4242)
+
+    def test_enqueue_job_rejects_second_running_job_for_station(self) -> None:
         first = self.manager.enqueue_force_archetype(
             station="neuralcast",
             archetype="back_sell",
@@ -117,18 +240,17 @@ class AdminApiUnitTest(unittest.TestCase):
         )
 
         with self.assertRaises(JobConflictError) as exc:
-            self.manager.enqueue_force_archetype(
+            self.manager.enqueue_schedule_generator(
                 station="neuralcast",
-                archetype="deep_dive",
-                track_focus="current",
                 dry_run=True,
             )
 
         self.assertEqual(exc.exception.job_id, first.job_id)
 
-    def test_job_status_payload_returns_log_tail(self) -> None:
+    def test_job_status_payload_returns_log_tail_and_operation(self) -> None:
         job = JobRecord(
             job_id="20260314T153012Z-neuralforge-deep_dive",
+            operation=JOB_OPERATION_FORCE_ARCHETYPE,
             station="neuralforge",
             archetype="deep_dive",
             track_focus="current",
@@ -150,11 +272,45 @@ class AdminApiUnitTest(unittest.TestCase):
         )
 
         payload = self.manager.job_status_payload(job.job_id)
+        self.assertEqual(payload["operation"], JOB_OPERATION_FORCE_ARCHETYPE)
         self.assertEqual(payload["exit_code"], 0)
         self.assertEqual(payload["status"], "succeeded")
         self.assertEqual(payload["track_focus"], "current")
         self.assertIn("last useful line", payload["log_tail"])
         self.assertEqual(payload["log_path"], str(log_path))
+
+    def test_backward_compatible_job_load_defaults_operation(self) -> None:
+        legacy_path = self.manager.job_path("20260314T153012Z-neuralforge-deep_dive")
+        legacy_path.write_text(
+            json.dumps(
+                {
+                    "job_id": "20260314T153012Z-neuralforge-deep_dive",
+                    "station": "neuralforge",
+                    "archetype": "deep_dive",
+                    "track_focus": "next",
+                    "dry_run": True,
+                    "status": "running",
+                    "accepted_at": "2026-03-14T15:30:12Z",
+                    "started_at": None,
+                    "finished_at": None,
+                    "exit_code": None,
+                    "log_path": str(
+                        self.manager.log_path("20260314T153012Z-neuralforge-deep_dive")
+                    ),
+                    "runner_pid": 5151,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        legacy_manager = JobManager(
+            base_dir=self.base_dir,
+            runner_launcher=lambda _job_path: 4242,
+            process_checker=lambda _pid: True,
+        )
+        job = legacy_manager.get_job("20260314T153012Z-neuralforge-deep_dive")
+        self.assertEqual(job.operation, JOB_OPERATION_FORCE_ARCHETYPE)
+        self.assertEqual(job.archetype, "deep_dive")
 
     def test_stale_running_job_is_marked_failed(self) -> None:
         stale_manager = JobManager(
@@ -163,9 +319,10 @@ class AdminApiUnitTest(unittest.TestCase):
             process_checker=lambda _pid: False,
         )
         stale_job = JobRecord(
-            job_id="20260314T153012Z-neuralcast-back_sell",
+            job_id="20260314T153012Z-neuralcast-schedule_generator",
+            operation=JOB_OPERATION_SCHEDULE_GENERATOR,
             station="neuralcast",
-            archetype="back_sell",
+            archetype=None,
             track_focus=None,
             dry_run=True,
             status="running",
@@ -173,7 +330,7 @@ class AdminApiUnitTest(unittest.TestCase):
             started_at="2026-03-14T15:30:13Z",
             finished_at=None,
             exit_code=None,
-            log_path=str(stale_manager.log_path("20260314T153012Z-neuralcast-back_sell")),
+            log_path=str(stale_manager.log_path("20260314T153012Z-neuralcast-schedule_generator")),
             runner_pid=5151,
         )
         save_job_record(stale_manager.job_path(stale_job.job_id), stale_job)
@@ -182,8 +339,8 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertEqual(refreshed.status, "failed")
         self.assertIsNotNone(refreshed.finished_at)
 
-    def test_build_orchestrator_command_uses_existing_cli_shape(self) -> None:
-        argv, env, cwd = build_orchestrator_command(
+    def test_build_force_archetype_command_uses_existing_cli_shape(self) -> None:
+        argv, env, cwd = build_force_archetype_command(
             station="neuralforge",
             archetype="deep_dive",
             track_focus="next",
@@ -202,6 +359,28 @@ class AdminApiUnitTest(unittest.TestCase):
                 "deep_dive",
                 "--force-track-focus",
                 "next",
+            ],
+        )
+        self.assertEqual(argv[-1], "--dry-run")
+        self.assertEqual(cwd, self.base_dir)
+        self.assertTrue(
+            env["PYTHONPATH"].startswith(str((self.base_dir / "src").resolve()))
+        )
+
+    def test_build_schedule_generator_command_uses_existing_cli_shape(self) -> None:
+        argv, env, cwd = build_schedule_generator_command(
+            station="neuralforge",
+            dry_run=True,
+            project_root=self.base_dir,
+        )
+
+        self.assertEqual(
+            argv[1:5],
+            [
+                "-m",
+                "neuralcast.cli.schedule_generator",
+                "-s",
+                "neuralforge",
             ],
         )
         self.assertEqual(argv[-1], "--dry-run")

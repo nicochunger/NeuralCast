@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import Callable
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, PROJECT_ROOT
-from neuralcast.pipelines.host_orchestrator.models import Archetype, TrackFocus
+from neuralcast.pipelines.host_orchestrator.models import (
+    Archetype,
+    TrackFocus,
+    supports_track_focus,
+)
 
 EXPECTED_SUPPORTED_STATIONS = ("neuralcast", "neuralforge")
 SUPPORTED_STATIONS = tuple(ALLOWED_STATION_SLUGS)
@@ -25,6 +29,15 @@ if SUPPORTED_STATIONS != EXPECTED_SUPPORTED_STATIONS:
 
 SUPPORTED_ARCHETYPES = tuple(archetype.value for archetype in Archetype)
 SUPPORTED_TRACK_FOCUSES = tuple(focus.value for focus in TrackFocus)
+SUPPORTED_TRACK_FOCUS_ARCHETYPES = tuple(
+    archetype.value for archetype in Archetype if supports_track_focus(archetype)
+)
+JOB_OPERATION_FORCE_ARCHETYPE = "force_archetype"
+JOB_OPERATION_SCHEDULE_GENERATOR = "schedule_generator"
+SUPPORTED_JOB_OPERATIONS = (
+    JOB_OPERATION_FORCE_ARCHETYPE,
+    JOB_OPERATION_SCHEDULE_GENERATOR,
+)
 DEFAULT_ADMIN_HTTP_HOST = "127.0.0.1"
 DEFAULT_ADMIN_HTTP_PORT = 8787
 ADMIN_HTTP_ROOT = PROJECT_ROOT / "admin_http"
@@ -58,8 +71,9 @@ class JobRecord:
     """Persisted state for one admin-triggered orchestrator run."""
 
     job_id: str
+    operation: str
     station: str
-    archetype: str
+    archetype: str | None
     track_focus: str | None
     dry_run: bool
     status: str
@@ -79,8 +93,9 @@ class JobRecord:
     def from_dict(cls, payload: dict[str, object]) -> "JobRecord":
         return cls(
             job_id=str(payload["job_id"]),
+            operation=str(payload.get("operation") or JOB_OPERATION_FORCE_ARCHETYPE),
             station=str(payload["station"]),
-            archetype=str(payload["archetype"]),
+            archetype=_optional_str(payload.get("archetype")),
             track_focus=_optional_str(payload.get("track_focus")),
             dry_run=bool(payload["dry_run"]),
             status=str(payload["status"]),
@@ -110,14 +125,14 @@ def utc_now_iso() -> str:
     )
 
 
-def build_job_id(station: str, archetype: str, *, now: datetime | None = None) -> str:
+def build_job_id(station: str, label: str, *, now: datetime | None = None) -> str:
     """Build a stable, human-readable job identifier."""
 
     timestamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
-    return f"{timestamp}-{station}-{archetype}"
+    return f"{timestamp}-{station}-{label}"
 
 
-def build_orchestrator_command(
+def build_force_archetype_command(
     station: str,
     archetype: str,
     track_focus: str | None,
@@ -152,6 +167,69 @@ def build_orchestrator_command(
         f"{src_path}:{current_pythonpath}" if current_pythonpath else src_path
     )
     return argv, env, project_root
+
+
+def build_schedule_generator_command(
+    station: str,
+    dry_run: bool,
+    *,
+    project_root: Path = PROJECT_ROOT,
+) -> tuple[list[str], dict[str, str], Path]:
+    """Return the argv, environment, and cwd for the real schedule-generator CLI."""
+
+    python_executable = project_root / "venv" / "bin" / "python"
+    if not python_executable.exists():
+        python_executable = Path(sys.executable)
+
+    argv = [
+        str(python_executable),
+        "-m",
+        "neuralcast.cli.schedule_generator",
+        "-s",
+        station,
+    ]
+    if dry_run:
+        argv.append("--dry-run")
+
+    env = os.environ.copy()
+    src_path = str((project_root / "src").resolve())
+    current_pythonpath = env.get("PYTHONPATH", "").strip()
+    env["PYTHONPATH"] = (
+        f"{src_path}:{current_pythonpath}" if current_pythonpath else src_path
+    )
+    return argv, env, project_root
+
+
+def build_job_command(
+    job: JobRecord,
+    *,
+    project_root: Path = PROJECT_ROOT,
+) -> tuple[list[str], dict[str, str], Path]:
+    """Return the argv, environment, and cwd for one persisted admin job."""
+
+    if job.operation == JOB_OPERATION_FORCE_ARCHETYPE:
+        if not job.archetype:
+            raise RuntimeError(
+                f"Admin job '{job.job_id}' is missing an archetype for force_archetype."
+            )
+        return build_force_archetype_command(
+            station=job.station,
+            archetype=job.archetype,
+            track_focus=job.track_focus,
+            dry_run=job.dry_run,
+            project_root=project_root,
+        )
+
+    if job.operation == JOB_OPERATION_SCHEDULE_GENERATOR:
+        return build_schedule_generator_command(
+            station=job.station,
+            dry_run=job.dry_run,
+            project_root=project_root,
+        )
+
+    raise RuntimeError(
+        f"Admin job '{job.job_id}' has unsupported operation '{job.operation}'."
+    )
 
 
 def read_log_tail(
@@ -297,6 +375,26 @@ class JobManager:
             "archetypes": list(SUPPORTED_ARCHETYPES),
         }
 
+    def capabilities(self) -> dict[str, object]:
+        """Return the richer admin API capability payload."""
+
+        return {
+            "stations": list(SUPPORTED_STATIONS),
+            "archetypes": list(SUPPORTED_ARCHETYPES),
+            "track_focus_values": list(SUPPORTED_TRACK_FOCUSES),
+            "track_focus_archetypes": list(SUPPORTED_TRACK_FOCUS_ARCHETYPES),
+            "operations": {
+                JOB_OPERATION_FORCE_ARCHETYPE: {
+                    "dry_run_supported": True,
+                    "track_focus_supported": True,
+                },
+                JOB_OPERATION_SCHEDULE_GENERATOR: {
+                    "dry_run_supported": True,
+                    "track_focus_supported": False,
+                },
+            },
+        }
+
     def enqueue_force_archetype(
         self,
         *,
@@ -307,6 +405,44 @@ class JobManager:
     ) -> JobRecord:
         """Create and launch a background orchestrator job."""
 
+        return self._enqueue_job(
+            operation=JOB_OPERATION_FORCE_ARCHETYPE,
+            station=station,
+            label=archetype,
+            archetype=archetype,
+            track_focus=track_focus,
+            dry_run=dry_run,
+        )
+
+    def enqueue_schedule_generator(
+        self,
+        *,
+        station: str,
+        dry_run: bool,
+    ) -> JobRecord:
+        """Create and launch a background schedule-generator job."""
+
+        return self._enqueue_job(
+            operation=JOB_OPERATION_SCHEDULE_GENERATOR,
+            station=station,
+            label=JOB_OPERATION_SCHEDULE_GENERATOR,
+            archetype=None,
+            track_focus=None,
+            dry_run=dry_run,
+        )
+
+    def _enqueue_job(
+        self,
+        *,
+        operation: str,
+        station: str,
+        label: str,
+        archetype: str | None,
+        track_focus: str | None,
+        dry_run: bool,
+    ) -> JobRecord:
+        """Create and launch one background admin job."""
+
         with self._lock:
             self._refresh_running_jobs()
             active_job = self._running_job_for_station(station)
@@ -314,9 +450,10 @@ class JobManager:
                 raise JobConflictError(station, active_job.job_id)
 
             accepted_at = utc_now_iso()
-            job_id = self._next_job_id(station, archetype)
+            job_id = self._next_job_id(station, label)
             job = JobRecord(
                 job_id=job_id,
+                operation=operation,
                 station=station,
                 archetype=archetype,
                 track_focus=track_focus,
@@ -356,6 +493,7 @@ class JobManager:
         job = self.get_job(job_id)
         return {
             "job_id": job.job_id,
+            "operation": job.operation,
             "station": job.station,
             "archetype": job.archetype,
             "track_focus": job.track_focus,
@@ -394,8 +532,8 @@ class JobManager:
         save_job_record(self.job_path(job.job_id), job)
         return job
 
-    def _next_job_id(self, station: str, archetype: str) -> str:
-        base_job_id = build_job_id(station, archetype)
+    def _next_job_id(self, station: str, label: str) -> str:
+        base_job_id = build_job_id(station, label)
         if not self.job_path(base_job_id).exists():
             return base_job_id
 
