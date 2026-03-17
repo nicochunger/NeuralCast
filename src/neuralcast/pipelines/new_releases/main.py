@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -22,6 +21,14 @@ from tqdm import tqdm
 import unicodedata
 
 from neuralcast.metadata.album_lookup import guess_album
+from neuralcast.metadata.storage import (
+    load_station_entry_mapping,
+    load_station_json_dict,
+    metadata_key,
+    normalize_metadata_component,
+    save_station_entry_mapping,
+    save_station_json_dict,
+)
 from neuralcast.config import (
     ALLOWED_STATION_SLUGS,
     DEFAULT_STATION_SLUG,
@@ -72,16 +79,14 @@ def log_debug(message: str) -> None:
 set_debug_mode(False)
 
 
-_METADATA_DIRNAME = "metadata"
 _METADATA_FILENAME = "New Releases.metadata.json"
 _ARTIST_CACHE_FILENAME = "ArtistIDs.json"
 _KNOWN_TRACK_SAMPLE_SIZE = 8
 
 
 def _normalize_artist_key(name: str) -> str:
-    normalized = unicodedata.normalize("NFKC", name or "")
-    collapsed = re.sub(r"\s+", " ", normalized).strip()
-    return collapsed.casefold()
+    collapsed = re.sub(r"\s+", " ", name or "").strip()
+    return normalize_metadata_component(collapsed)
 
 
 @dataclass
@@ -108,48 +113,15 @@ class ArtistIDCache:
             self.dirty = True
 
 
-def _metadata_dir(playlists_dir: Path) -> Path:
-    return playlists_dir.parent / _METADATA_DIRNAME
-
-
-def _metadata_path(playlists_dir: Path) -> Path:
-    return _metadata_dir(playlists_dir) / _METADATA_FILENAME
-
-
-def _artist_cache_path(playlists_dir: Path) -> Path:
-    return _metadata_dir(playlists_dir) / _ARTIST_CACHE_FILENAME
-
-
-def _legacy_metadata_file(playlists_dir: Path, filename: str) -> Path:
-    return playlists_dir / filename
-
-
-def _resolve_metadata_file(playlists_dir: Path, filename: str) -> Path:
-    new_path = _metadata_dir(playlists_dir) / filename
-    if new_path.exists():
-        return new_path
-    legacy_path = _legacy_metadata_file(playlists_dir, filename)
-    if legacy_path.exists():
-        log_info(
-            f"Using legacy metadata path {legacy_path} for {filename}. "
-            f"It will be migrated to {_METADATA_DIRNAME}/ on next write."
-        )
-        return legacy_path
-    return new_path
-
-
 def load_artist_id_cache(playlists_dir: Path) -> ArtistIDCache:
-    path = _resolve_metadata_file(playlists_dir, _ARTIST_CACHE_FILENAME)
-    if not path.exists():
-        return ArtistIDCache(entries={})
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            data = json.load(handle)
-    except Exception as exc:  # noqa: BLE001
-        log_warning(f"Failed reading artist cache {path}: {exc}")
-        return ArtistIDCache(entries={})
-    if not isinstance(data, dict):
-        log_warning(f"Unexpected artist cache structure in {path}")
+    data, _resolved = load_station_json_dict(
+        playlists_dir,
+        _ARTIST_CACHE_FILENAME,
+        log_warning=log_warning,
+        log_info=log_info,
+        warning_label="artist cache",
+    )
+    if not data:
         return ArtistIDCache(entries={})
     entries: dict[str, str] = {}
     for key, value in data.items():
@@ -162,11 +134,7 @@ def load_artist_id_cache(playlists_dir: Path) -> ArtistIDCache:
 def save_artist_id_cache(playlists_dir: Path, cache: ArtistIDCache) -> None:
     if not cache.dirty:
         return
-    path = _artist_cache_path(playlists_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(cache.entries, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    path = save_station_json_dict(playlists_dir, _ARTIST_CACHE_FILENAME, cache.entries)
     log_success(f"Cached {len(cache.entries)} artist IDs → {path}")
 
 
@@ -638,37 +606,24 @@ def _normalize_audio_label(*parts: str) -> str:
 
 
 def _normalize_metadata_component(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value or "")
-    return normalized.strip().casefold()
+    return normalize_metadata_component(value)
 
 
 def _metadata_key(artist: str, title: str, album: str, year: int) -> str:
-    return "|".join(
-        (
-            _normalize_metadata_component(artist),
-            _normalize_metadata_component(title),
-            _normalize_metadata_component(album),
-            str(year),
-        )
-    )
+    return metadata_key(artist, title, album, year)
 
 
 def _load_metadata_entries(playlists_dir: Path) -> dict[str, dict]:
-    path = _resolve_metadata_file(playlists_dir, _METADATA_FILENAME)
-    if not path.exists():
-        return {}
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            raw = json.load(handle)
-    except Exception as exc:  # noqa: BLE001
-        log_warning(f"Failed reading metadata file {path}: {exc}")
-        return {}
-    if isinstance(raw, dict):
-        entries = raw.get("entries", raw)
-        if isinstance(entries, dict):
-            return entries
-    log_warning(f"Unexpected metadata structure in {path}")
-    return {}
+    entries, _resolved = load_station_entry_mapping(
+        playlists_dir,
+        _METADATA_FILENAME,
+        log_warning=log_warning,
+        log_info=log_info,
+        warning_label="metadata file",
+    )
+    return {
+        key: value for key, value in entries.items() if isinstance(key, str) and isinstance(value, dict)
+    }
 
 
 def _save_metadata_entries(
@@ -690,12 +645,7 @@ def _save_metadata_entries(
             "Popularity": item.popularity if item.popularity is not None else "",
             "Validated": item.validated,
         }
-    payload = {"entries": entries}
-    path = _metadata_path(playlists_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    path = save_station_entry_mapping(playlists_dir, _METADATA_FILENAME, entries)
     log_success(f"Stored metadata for {len(entries)} tracks → {path}")
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import musicbrainzngs
 import os
 import re
@@ -25,9 +24,16 @@ from neuralcast.config import (
     DEFAULT_STATION_SLUG,
     station_dir_from_slug,
 )
+from neuralcast.metadata.storage import (
+    load_station_entry_mapping,
+    load_station_json_dict,
+    metadata_key,
+    normalize_metadata_component,
+    save_station_entry_mapping,
+    save_station_json_dict,
+)
 
 _DEBUG_ENABLED = False
-_METADATA_DIRNAME = "metadata"
 _PLAYLIST_FILENAME = "New Releases Deezer.csv"
 _METADATA_FILENAME = "New Releases Deezer.metadata.json"
 _ARTIST_CACHE_FILENAME = "DeezerArtistIDs.json"
@@ -94,7 +100,7 @@ set_debug_mode(False)
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value or "")
     collapsed = re.sub(r"\s+", " ", normalized).strip()
-    return collapsed.casefold()
+    return normalize_metadata_component(collapsed)
 
 
 def _normalize_audio_label(*parts: str) -> str:
@@ -110,19 +116,11 @@ def _normalize_musicbrainz_label(value: str) -> str:
 
 
 def _normalize_metadata_component(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value or "")
-    return normalized.strip().casefold()
+    return normalize_metadata_component(value)
 
 
 def _metadata_key(artist: str, title: str, album: str, year: int) -> str:
-    return "|".join(
-        (
-            _normalize_metadata_component(artist),
-            _normalize_metadata_component(title),
-            _normalize_metadata_component(album),
-            str(year),
-        )
-    )
+    return metadata_key(artist, title, album, year)
 
 
 def _ratio(a: str, b: str) -> float:
@@ -172,30 +170,14 @@ class ArtistRelease:
     validated: bool = False
 
 
-def _metadata_dir(playlists_dir: Path) -> Path:
-    return playlists_dir.parent / _METADATA_DIRNAME
-
-
-def _metadata_path(playlists_dir: Path) -> Path:
-    return _metadata_dir(playlists_dir) / _METADATA_FILENAME
-
-
-def _artist_cache_path(playlists_dir: Path) -> Path:
-    return _metadata_dir(playlists_dir) / _ARTIST_CACHE_FILENAME
-
-
 def load_artist_id_cache(playlists_dir: Path) -> ArtistIDCache:
-    path = _artist_cache_path(playlists_dir)
-    if not path.exists():
-        return ArtistIDCache(entries={})
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except Exception as exc:  # noqa: BLE001
-        log_warning(f"Failed reading Deezer artist cache {path}: {exc}")
-        return ArtistIDCache(entries={})
-    if not isinstance(payload, dict):
-        log_warning(f"Unexpected Deezer artist cache structure in {path}")
+    payload, _resolved = load_station_json_dict(
+        playlists_dir,
+        _ARTIST_CACHE_FILENAME,
+        log_warning=log_warning,
+        warning_label="Deezer artist cache",
+    )
+    if not payload:
         return ArtistIDCache(entries={})
     entries: dict[str, str] = {}
     for key, value in payload.items():
@@ -212,11 +194,7 @@ def save_artist_id_cache(
     if dry_run:
         log_info("Dry run: not writing Deezer artist cache")
         return
-    path = _artist_cache_path(playlists_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(cache.entries, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    path = save_station_json_dict(playlists_dir, _ARTIST_CACHE_FILENAME, cache.entries)
     log_success(f"Cached {len(cache.entries)} Deezer artist IDs → {path}")
 
 
@@ -763,21 +741,16 @@ def _coerce_bool(value: object) -> bool:
 
 
 def _load_metadata_entries(playlists_dir: Path) -> dict[str, dict]:
-    path = _metadata_path(playlists_dir)
-    if not path.exists():
-        return {}
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            raw = json.load(handle)
-    except Exception as exc:  # noqa: BLE001
-        log_warning(f"Failed reading Deezer metadata file {path}: {exc}")
-        return {}
-    if isinstance(raw, dict):
-        entries = raw.get("entries", raw)
-        if isinstance(entries, dict):
-            return entries
-    log_warning(f"Unexpected Deezer metadata structure in {path}")
-    return {}
+    entries, _resolved = load_station_entry_mapping(
+        playlists_dir,
+        _METADATA_FILENAME,
+        log_warning=log_warning,
+        warning_label="Deezer metadata file",
+        legacy_fallback=False,
+    )
+    return {
+        key: value for key, value in entries.items() if isinstance(key, str) and isinstance(value, dict)
+    }
 
 
 def _save_metadata_entries(
@@ -797,12 +770,7 @@ def _save_metadata_entries(
             "Rank": item.rank if item.rank is not None else "",
             "Validated": item.validated,
         }
-    payload = {"entries": entries}
-    path = _metadata_path(playlists_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    path = save_station_entry_mapping(playlists_dir, _METADATA_FILENAME, entries)
     log_success(f"Stored metadata for {len(entries)} Deezer tracks → {path}")
 
 

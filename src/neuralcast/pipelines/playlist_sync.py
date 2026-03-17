@@ -11,9 +11,7 @@ main.py — AI-assisted local-network radio pipeline
 import argparse
 import contextlib
 import io
-import json
 import pathlib
-import unicodedata
 from subprocess import CalledProcessError
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -32,6 +30,12 @@ from neuralcast.audio.download import (
     youtube_to_mp3,
 )
 from neuralcast.metadata.album_lookup import guess_album
+from neuralcast.metadata.storage import (
+    load_station_entry_mapping,
+    metadata_key,
+    normalize_metadata_component,
+    save_station_entry_mapping,
+)
 from neuralcast.models import Song
 from neuralcast.playlists.utils import (
     backfill_songs_from_library,
@@ -71,7 +75,6 @@ STATION = "neuralforge"
 
 TTS = False  # turn off if you only want music
 VOICE_NAME = "Adam"  # ElevenLabs voice
-_METADATA_DIRNAME = "metadata"
 _METADATA_FILENAME = "New Releases.metadata.json"
 
 
@@ -128,57 +131,27 @@ def _emit_captured_lines(
             logger(line)
 
 
-def _resolve_metadata_paths(playlists_dir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
-    """Return (read_path, write_path) for the New Releases metadata file with legacy fallback."""
-    metadata_dir = playlists_dir.parent / _METADATA_DIRNAME
-    preferred_path = metadata_dir / _METADATA_FILENAME
-    legacy_path = playlists_dir / _METADATA_FILENAME
-    if preferred_path.exists():
-        return preferred_path, preferred_path
-    if legacy_path.exists():
-        print(
-            f"ℹ️ Using legacy metadata path {legacy_path} for New Releases; "
-            f"it will migrate to {preferred_path} on next write."
-        )
-        return legacy_path, preferred_path
-    return preferred_path, preferred_path
-
-
 def remove_new_releases_metadata_entries(
     playlists_dir: pathlib.Path, songs_to_remove: List[Song]
 ) -> int:
-    read_path, write_path = _resolve_metadata_paths(playlists_dir)
-    metadata_path = read_path if read_path.exists() else write_path
     if not songs_to_remove:
         return 0
+    entries, resolved = load_station_entry_mapping(
+        playlists_dir,
+        _METADATA_FILENAME,
+        log_warning=lambda message: print(f"⚠️ {message}"),
+        log_info=lambda message: print(f"ℹ️ {message}"),
+        warning_label="metadata file",
+    )
+    metadata_path = resolved.read_path if resolved.read_path.exists() else resolved.write_path
     if not metadata_path.exists():
         print(
             f"⚠️ Metadata file not found at {metadata_path}; skipping metadata cleanup for New Releases"
         )
         return 0
 
-    try:
-        with read_path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except Exception as exc:  # noqa: BLE001
-        print(f"⚠️ Failed to parse JSON from metadata file {metadata_path}: {exc}")
-        return 0
-
-    if isinstance(payload, dict) and isinstance(payload.get("entries"), dict):
-        entries = payload["entries"]
-        wrapped = True
-    elif isinstance(payload, dict):
-        entries = payload
-        wrapped = False
-    else:
-        print(
-            f"⚠️ Unexpected metadata structure in {metadata_path}; skipping removal of New Releases entries"
-        )
-        return 0
-
     def normalize_component(value: Optional[str]) -> str:
-        normalized = unicodedata.normalize("NFKC", value or "")
-        return normalized.strip().casefold()
+        return normalize_metadata_component(value)
 
     def normalize_year(value: Optional[str]) -> str:
         if value is None:
@@ -197,8 +170,11 @@ def remove_new_releases_metadata_entries(
         album_component = normalize_component(song.album) if song.album else ""
         year_component = normalize_year(song.year)
 
-        primary_key = "|".join(
-            (artist_component, title_component, album_component, year_component)
+        primary_key = metadata_key(
+            artist_component,
+            title_component,
+            album_component,
+            year_component,
         )
         if primary_key in entries:
             return [primary_key]
@@ -249,12 +225,12 @@ def remove_new_releases_metadata_entries(
         print(f"🗑️ Removed metadata entry for {song.artist} - {song.title} ({song_year})")
 
     if removed > 0:
-        output_payload = {"entries": entries} if wrapped else entries
         try:
-            write_path.parent.mkdir(parents=True, exist_ok=True)
-            with write_path.open("w", encoding="utf-8") as handle:
-                json.dump(output_payload, handle, indent=2, sort_keys=True)
-                handle.write("\n")
+            write_path = save_station_entry_mapping(
+                playlists_dir,
+                _METADATA_FILENAME,
+                entries,
+            )
             print(
                 f"🗂️ Updated metadata file: {write_path.name} (removed {removed} entr{'y' if removed == 1 else 'ies'})"
             )
