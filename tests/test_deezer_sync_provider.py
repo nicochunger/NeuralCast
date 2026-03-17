@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from neuralcast.metadata import album_lookup
 from neuralcast.models import Song
-from neuralcast.pipelines import playlist_sync
+from neuralcast.pipelines import station_sync
 from neuralcast.services import validation
 
 
@@ -145,7 +145,7 @@ class DeezerSyncProviderTest(unittest.TestCase):
         self.assertEqual(match.source, "itunes")
         self.assertEqual(match.album, "Prequelle")
 
-    def test_playlist_sync_requests_deezer_first_album_backfill(self) -> None:
+    def test_station_sync_requests_deezer_first_album_backfill(self) -> None:
         song = Song(
             artist="Ghost",
             title="Rats",
@@ -166,10 +166,10 @@ class DeezerSyncProviderTest(unittest.TestCase):
             artist_score=1.0,
         )
         with (
-            patch.object(playlist_sync, "verified_album", return_value=False),
-            patch.object(playlist_sync, "guess_album", return_value=deezer_match) as guess_album_mock,
+            patch.object(station_sync, "verified_album", return_value=False),
+            patch.object(station_sync, "guess_album", return_value=deezer_match) as guess_album_mock,
         ):
-            updated_song, changed = playlist_sync._backfill_album_for_missing_song(song)
+            updated_song, changed = station_sync.DefaultTrackResolver().backfill_album(song)
 
         self.assertTrue(changed)
         self.assertEqual(updated_song.album, "Prequelle")
@@ -185,7 +185,7 @@ class DeezerSyncProviderTest(unittest.TestCase):
             },
         )
 
-    def test_playlist_sync_clears_unverified_album_when_no_replacement_is_found(self) -> None:
+    def test_station_sync_clears_unverified_album_when_no_replacement_is_found(self) -> None:
         song = Song(
             artist="Ghost",
             title="Rats",
@@ -195,10 +195,10 @@ class DeezerSyncProviderTest(unittest.TestCase):
         )
 
         with (
-            patch.object(playlist_sync, "verified_album", return_value=False),
-            patch.object(playlist_sync, "guess_album", return_value=None),
+            patch.object(station_sync, "verified_album", return_value=False),
+            patch.object(station_sync, "guess_album", return_value=None),
         ):
-            updated_song, changed = playlist_sync._backfill_album_for_missing_song(song)
+            updated_song, changed = station_sync.DefaultTrackResolver().backfill_album(song)
 
         self.assertTrue(changed)
         self.assertIsNone(updated_song.album)
