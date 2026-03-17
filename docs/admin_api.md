@@ -148,6 +148,34 @@ If the VPS firewall uses UFW with default-deny incoming rules, also allow the Az
 ufw allow in on br-<azuracast-network-id> from 172.18.0.0/16 to any port 8787 proto tcp
 ```
 
+Because AzuraCast updates can recreate the Docker network and change the bridge name, the repo now includes an automated repair step for this firewall rule:
+
+- Script: `/root/radio_host_orchestrator/deployment/repair_admin_api_bridge_after_azuracast_update.sh`
+- Cron template: `/root/radio_host_orchestrator/deployment/cron/neuralcast-admin-api-post-azuracast-update`
+
+Install the cron file on the VPS:
+
+```bash
+sudo cp /root/radio_host_orchestrator/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
+sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
+sudo systemctl reload cron
+```
+
+It runs every Monday at `04:45` Europe/Paris time, after the existing AzuraCast `04:00` update window, and it:
+
+- discovers the current `azuracast_default` bridge
+- removes stale old UFW bridge rules for port `8787`
+- ensures the current bridge can reach the admin API
+- verifies backend health from inside the AzuraCast web container
+- verifies proxied `healthz` plus authenticated `/admin-http/admin/capabilities`
+- verifies the public `https://neuralcast.duckdns.org/admin-http/healthz` endpoint
+
+Cron output is written to:
+
+```text
+/var/log/neuralcast-admin-api-bridge-repair.log
+```
+
 ### Caddy
 
 ```caddy
