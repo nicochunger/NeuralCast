@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for the standalone Deezer New Releases pipeline."""
+"""Unit tests for the New Releases pipeline."""
 
 from __future__ import annotations
 
@@ -13,12 +13,10 @@ from unittest.mock import patch
 
 import pandas as pd
 
-deezer_new_releases = importlib.import_module(
-    "neuralcast.pipelines.new_releases_deezer.main"
-)
+new_releases = importlib.import_module("neuralcast.pipelines.new_releases.main")
 
 
-class DeezerNewReleasesTest(unittest.TestCase):
+class NewReleasesTest(unittest.TestCase):
     @staticmethod
     def _fake_response(payload: dict, status_code: int = 200):
         class _Response:
@@ -42,14 +40,11 @@ class DeezerNewReleasesTest(unittest.TestCase):
             pd.DataFrame([{"Artist": "Keep", "Title": "Song"}]).to_csv(
                 playlists_dir / "Main.csv", index=False
             )
-            pd.DataFrame([{"Artist": "Skip Spotify", "Title": "Song"}]).to_csv(
+            pd.DataFrame([{"Artist": "Skip New Releases", "Title": "Song"}]).to_csv(
                 playlists_dir / "New Releases.csv", index=False
             )
-            pd.DataFrame([{"Artist": "Skip Deezer", "Title": "Song"}]).to_csv(
-                playlists_dir / "New Releases Deezer.csv", index=False
-            )
 
-            artists, artist_tracks, artist_map = deezer_new_releases.load_station_artists(
+            artists, artist_tracks, artist_map = new_releases.load_station_artists(
                 playlists_dir
             )
 
@@ -60,12 +55,12 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 ["Main.csv"],
             )
 
-    @patch.object(deezer_new_releases, "fetch_recent_releases")
+    @patch.object(new_releases, "fetch_recent_releases")
     def test_build_new_releases_ranks_using_single_then_rank_then_date(
         self, fetch_recent_releases
     ) -> None:
         fetch_recent_releases.return_value = [
-            deezer_new_releases.ArtistRelease(
+            new_releases.ArtistRelease(
                 artist="Ghost",
                 title="Album Cut",
                 album="Album",
@@ -76,7 +71,7 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 is_single=False,
                 album_type="album",
             ),
-            deezer_new_releases.ArtistRelease(
+            new_releases.ArtistRelease(
                 artist="Ghost",
                 title="Single Cut",
                 album="Single",
@@ -89,7 +84,7 @@ class DeezerNewReleasesTest(unittest.TestCase):
             ),
         ]
 
-        releases = deezer_new_releases.build_new_releases(
+        releases = new_releases.build_new_releases(
             ["Ghost"],
             days=120,
             per_artist=1,
@@ -105,12 +100,12 @@ class DeezerNewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_skips_unreadable_tracks(self) -> None:
         with (
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_resolve_artist",
                 return_value={"id": "13208305", "name": "Atavistia"},
             ),
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -124,7 +119,7 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -146,12 +141,12 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_is_probable_old_catalog_release",
                 return_value=False,
             ),
         ):
-            releases = deezer_new_releases.fetch_recent_releases(
+            releases = new_releases.fetch_recent_releases(
                 "Atavistia",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Timeless Despair"},
@@ -162,21 +157,19 @@ class DeezerNewReleasesTest(unittest.TestCase):
         self.assertEqual(releases[0].track_id, "3785083802")
 
     def test_is_alt_or_reissue_treats_mix_as_alternate_version(self) -> None:
-        self.assertTrue(
-            deezer_new_releases._is_alt_or_reissue("Mama Kin (2024 Mix)", "")
-        )
+        self.assertTrue(new_releases._is_alt_or_reissue("Mama Kin (2024 Mix)", ""))
 
     def test_is_probable_old_catalog_release_uses_musicbrainz_dates(self) -> None:
-        deezer_new_releases._MB_RELEASE_CACHE.clear()
+        new_releases._MB_RELEASE_CACHE.clear()
         with patch.object(
-            deezer_new_releases,
+            new_releases,
             "_musicbrainz_earliest_release_date",
             side_effect=[
                 datetime(1996, 9, 1, tzinfo=UTC),
                 None,
             ],
         ):
-            result = deezer_new_releases._is_probable_old_catalog_release(
+            result = new_releases._is_probable_old_catalog_release(
                 "Aerosmith",
                 "Institutional Man",
                 "Angry Machines",
@@ -186,9 +179,9 @@ class DeezerNewReleasesTest(unittest.TestCase):
         self.assertTrue(result)
 
     def test_musicbrainz_earliest_release_date_ignores_other_artists(self) -> None:
-        deezer_new_releases._MB_RELEASE_CACHE.clear()
+        new_releases._MB_RELEASE_CACHE.clear()
         with patch.object(
-            deezer_new_releases.musicbrainzngs,
+            new_releases.musicbrainzngs,
             "search_releases",
             return_value={
                 "release-list": [
@@ -205,7 +198,7 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 ]
             },
         ):
-            result = deezer_new_releases._musicbrainz_earliest_release_date(
+            result = new_releases._musicbrainz_earliest_release_date(
                 "Atavistia", "Old Gods Awaken", entity="release"
             )
 
@@ -214,12 +207,12 @@ class DeezerNewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_skips_musicbrainz_old_catalog_release(self) -> None:
         with (
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_resolve_artist",
                 return_value={"id": "123", "name": "Aerosmith"},
             ),
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -233,7 +226,7 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -247,12 +240,12 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_is_probable_old_catalog_release",
                 return_value=True,
             ),
         ):
-            releases = deezer_new_releases.fetch_recent_releases(
+            releases = new_releases.fetch_recent_releases(
                 "Aerosmith",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Dream On"},
@@ -261,22 +254,20 @@ class DeezerNewReleasesTest(unittest.TestCase):
         self.assertEqual(releases, [])
 
     def test_resolve_artist_uses_cached_artist_without_track_verification(self) -> None:
-        cache = deezer_new_releases.ArtistIDCache(entries={}, dirty=False)
+        cache = new_releases.ArtistIDCache(entries={}, dirty=False)
         cache.set("Ghost", "8506054")
 
         with (
             patch.object(
-                deezer_new_releases,
+                new_releases,
                 "_fetch_artist_by_id",
                 return_value={"id": "8506054", "name": "Ghost"},
             ) as fetch_artist,
-            patch.object(deezer_new_releases, "_artist_has_known_track") as has_track,
-            patch.object(deezer_new_releases, "_best_artist_match") as best_match,
-            patch.object(
-                deezer_new_releases, "_search_artist_using_known_tracks"
-            ) as search_known,
+            patch.object(new_releases, "_artist_has_known_track") as has_track,
+            patch.object(new_releases, "_best_artist_match") as best_match,
+            patch.object(new_releases, "_search_artist_using_known_tracks") as search_known,
         ):
-            artist = deezer_new_releases._resolve_artist(
+            artist = new_releases._resolve_artist(
                 "Ghost", {"Rats", "Square Hammer"}, cache
             )
 
@@ -297,18 +288,16 @@ class DeezerNewReleasesTest(unittest.TestCase):
         success_payload = {"data": [{"id": 1}]}
         with (
             patch.object(
-                deezer_new_releases.SESSION,
+                new_releases.SESSION,
                 "get",
                 side_effect=[
                     self._fake_response(quota_payload),
                     self._fake_response(success_payload),
                 ],
             ) as session_get,
-            patch.object(deezer_new_releases.time, "sleep") as sleep_mock,
+            patch.object(new_releases.time, "sleep") as sleep_mock,
         ):
-            payload = deezer_new_releases._deezer_get(
-                "/search/artist", params={"q": "Ghost"}
-            )
+            payload = new_releases._deezer_get("/search/artist", params={"q": "Ghost"})
 
         self.assertEqual(payload, success_payload)
         self.assertEqual(session_get.call_count, 2)
@@ -319,7 +308,7 @@ class DeezerNewReleasesTest(unittest.TestCase):
             station_dir = Path(tmpdir)
             playlists_dir = station_dir / "playlists"
             playlists_dir.mkdir(parents=True)
-            release = deezer_new_releases.ArtistRelease(
+            release = new_releases.ArtistRelease(
                 artist="Ghost",
                 title="Peacefield",
                 album="Skeletá",
@@ -332,19 +321,20 @@ class DeezerNewReleasesTest(unittest.TestCase):
                 validated=False,
             )
 
-            deezer_new_releases.save_new_releases(
-                playlists_dir, [release], dry_run=False
-            )
+            new_releases.save_new_releases(playlists_dir, [release], dry_run=False)
 
-            csv_path = playlists_dir / "New Releases Deezer.csv"
-            metadata_path = station_dir / "metadata" / "New Releases Deezer.metadata.json"
-            spotify_csv_path = playlists_dir / "New Releases.csv"
+            csv_path = playlists_dir / "New Releases.csv"
+            metadata_path = station_dir / "metadata" / "New Releases.metadata.json"
+            legacy_csv_path = playlists_dir / "New Releases Deezer.csv"
             self.assertTrue(csv_path.exists())
             self.assertTrue(metadata_path.exists())
-            self.assertFalse(spotify_csv_path.exists())
+            self.assertFalse(legacy_csv_path.exists())
 
             df = pd.read_csv(csv_path, dtype=str).fillna("")
-            self.assertEqual(list(df.columns), ["Artist", "Title", "Album", "Year", "Validated"])
+            self.assertEqual(
+                list(df.columns),
+                ["Artist", "Title", "Album", "Year", "Validated"],
+            )
             self.assertEqual(df.iloc[0]["Validated"], "False")
 
             payload = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -358,14 +348,12 @@ class DeezerNewReleasesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             playlists_dir = Path(tmpdir) / "playlists"
             playlists_dir.mkdir(parents=True)
-            cache = deezer_new_releases.ArtistIDCache(entries={}, dirty=False)
+            cache = new_releases.ArtistIDCache(entries={}, dirty=False)
             cache.set("Ghost", "8506054")
 
-            deezer_new_releases.save_artist_id_cache(
-                playlists_dir, cache, dry_run=True
-            )
+            new_releases.save_artist_id_cache(playlists_dir, cache, dry_run=True)
 
-            cache_path = Path(tmpdir) / "metadata" / "DeezerArtistIDs.json"
+            cache_path = Path(tmpdir) / "metadata" / "ArtistIDs.json"
             self.assertFalse(cache_path.exists())
 
 
