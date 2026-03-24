@@ -303,6 +303,152 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(session_get.call_count, 2)
         self.assertTrue(sleep_mock.called)
 
+    def test_resolve_destination_playlist_prefers_exact_title_match(self) -> None:
+        release = new_releases.ArtistRelease(
+            artist="Ghost",
+            title="Peacefield",
+            album="Skeleta",
+            year=2025,
+            release_date=datetime(2025, 4, 25, tzinfo=UTC),
+            track_id="123",
+        )
+        path_a = Path("/tmp/A.csv")
+        path_b = Path("/tmp/B.csv")
+        artist_playlist_map = {
+            "Ghost": {
+                path_a: {"Rats"},
+                path_b: {"Peacefield"},
+            }
+        }
+
+        destination = new_releases._resolve_destination_playlist(
+            release, artist_playlist_map
+        )
+
+        self.assertEqual(destination, path_b)
+
+    def test_move_outdated_releases_appends_to_genre_playlist_and_moves_audio(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            station_dir = Path(tmpdir)
+            playlists_dir = station_dir / "playlists"
+            audio_root = station_dir / "songs"
+            source_dir = audio_root / "New Releases"
+            destination_dir = audio_root / "Gothic Metal"
+            playlists_dir.mkdir(parents=True)
+            source_dir.mkdir(parents=True)
+            destination_dir.mkdir(parents=True)
+
+            destination_csv = playlists_dir / "Gothic Metal.csv"
+            pd.DataFrame(
+                [
+                    {
+                        "Artist": "Ghost",
+                        "Title": "Rats",
+                        "Album": "Prequelle",
+                        "Year": "2018",
+                        "Validated": True,
+                    }
+                ]
+            ).to_csv(destination_csv, index=False)
+
+            audio_path = source_dir / "Ghost - Peacefield.mp3"
+            audio_path.write_bytes(b"fake mp3")
+
+            release = new_releases.ArtistRelease(
+                artist="Ghost",
+                title="Peacefield",
+                album="Skeleta",
+                year=2025,
+                release_date=datetime(2025, 1, 1, tzinfo=UTC),
+                track_id="123",
+                album_type="album",
+                is_single=False,
+                validated=False,
+            )
+            artist_playlist_map = {
+                "Ghost": {
+                    destination_csv: {"Peacefield", "Rats"},
+                }
+            }
+
+            with patch.object(new_releases, "_promote_release_album", return_value=False):
+                new_releases.move_outdated_releases(
+                    [release],
+                    artist_playlist_map,
+                    audio_root,
+                    "New Releases",
+                    dry_run=False,
+                )
+
+            moved_audio = destination_dir / "Ghost - Peacefield.mp3"
+            self.assertFalse(audio_path.exists())
+            self.assertTrue(moved_audio.exists())
+
+            df = pd.read_csv(destination_csv, dtype=str).fillna("")
+            self.assertEqual(list(df["Title"]), ["Rats", "Peacefield"])
+
+    def test_main_moves_outdated_releases_before_saving_new_releases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            station_dir = Path(tmpdir) / "Station"
+            playlists_dir = station_dir / "playlists"
+            songs_dir = station_dir / "songs"
+            playlists_dir.mkdir(parents=True)
+            songs_dir.mkdir()
+
+            old_release = new_releases.ArtistRelease(
+                artist="Ghost",
+                title="Peacefield",
+                album="Skeleta",
+                year=2025,
+                release_date=datetime(2025, 1, 1, tzinfo=UTC),
+                track_id="123",
+            )
+            artist_playlist_map = {
+                "Ghost": {playlists_dir / "Gothic Metal.csv": {"Peacefield"}}
+            }
+            cache = new_releases.ArtistIDCache(entries={}, dirty=False)
+
+            with (
+                patch.object(
+                    new_releases,
+                    "_resolve_station_paths",
+                    return_value=(station_dir, playlists_dir),
+                ),
+                patch.object(
+                    new_releases,
+                    "load_station_artists",
+                    return_value=(["Ghost"], {"Ghost": {"Peacefield"}}, artist_playlist_map),
+                ),
+                patch.object(
+                    new_releases,
+                    "load_artist_id_cache",
+                    return_value=cache,
+                ),
+                patch.object(
+                    new_releases,
+                    "load_existing_new_releases",
+                    return_value=[old_release],
+                ),
+                patch.object(new_releases, "build_new_releases", return_value=[]),
+                patch.object(new_releases, "save_artist_id_cache"),
+                patch.object(new_releases, "move_outdated_releases") as move_outdated,
+                patch.object(new_releases, "save_new_releases"),
+                patch.object(
+                    new_releases.sys,
+                    "argv",
+                    ["update_new_releases.py", "-s", "neuralforge", "--dry-run"],
+                ),
+            ):
+                new_releases.main()
+
+            move_outdated.assert_called_once_with(
+                [old_release],
+                artist_playlist_map,
+                songs_dir,
+                "New Releases",
+                dry_run=True,
+            )
+
     def test_save_new_releases_writes_isolated_files_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             station_dir = Path(tmpdir)

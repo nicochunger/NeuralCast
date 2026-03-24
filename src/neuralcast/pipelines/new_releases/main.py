@@ -24,6 +24,7 @@ from neuralcast.config import (
     DEFAULT_STATION_SLUG,
     station_dir_from_slug,
 )
+from neuralcast.metadata.album_lookup import guess_album
 from neuralcast.metadata.storage import (
     load_station_entry_mapping,
     load_station_json_dict,
@@ -853,6 +854,206 @@ def partition_releases_by_cutoff(
     return valid, expired
 
 
+def _resolve_destination_playlist(
+    release: ArtistRelease, artist_playlist_map: dict[str, dict[Path, set[str]]]
+) -> Optional[Path]:
+    candidates = artist_playlist_map.get(release.artist)
+    if not candidates:
+        return None
+    title_key = release.title.casefold()
+    for path, titles in candidates.items():
+        if any((title or "").casefold() == title_key for title in titles):
+            return path
+    return sorted(candidates.keys())[0]
+
+
+def _append_release_to_playlist(
+    csv_path: Path, release: ArtistRelease, dry_run: bool
+) -> None:
+    action = (
+        f"Dry run: would append '{release.artist} - {release.title}' to {csv_path.name}"
+        if dry_run
+        else f"Appending '{release.artist} - {release.title}' to {csv_path.name}"
+    )
+    log_info(action)
+    if dry_run:
+        return
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as exc:  # noqa: BLE001
+        log_error(f"Failed reading {csv_path}: {exc}")
+        return
+    if {"Artist", "Title"}.issubset(df.columns):
+        duplicate = (
+            df["Artist"].fillna("").str.strip().str.casefold()
+            == release.artist.casefold()
+        ) & (
+            df["Title"].fillna("").str.strip().str.casefold()
+            == release.title.casefold()
+        )
+        if duplicate.any():
+            log_debug(
+                f"Track already present in {csv_path.name}: {release.artist} - {release.title}"
+            )
+            return
+    row: dict[str, object] = {}
+    for column in df.columns:
+        match column:
+            case "Artist":
+                row[column] = release.artist
+            case "Title":
+                row[column] = release.title
+            case "Year":
+                row[column] = str(release.year)
+            case "Album":
+                row[column] = release.album
+            case "Validated":
+                row[column] = release.validated
+            case _:
+                row[column] = ""
+    if "Artist" not in row:
+        row["Artist"] = release.artist
+    if "Title" not in row:
+        row["Title"] = release.title
+    appended = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    appended.to_csv(csv_path, index=False)
+    log_debug(f"Appended '{release.title}' to {csv_path.name}")
+
+
+def _promote_release_album(release: ArtistRelease) -> bool:
+    """Update release.album to the studio album when a confident match exists."""
+
+    current_album = (release.album or "").strip()
+    current_type = (release.album_type or "").strip().casefold()
+    should_attempt = release.is_single or not current_album or current_type != "album"
+    if not should_attempt:
+        return False
+
+    try:
+        match = guess_album(
+            release.artist,
+            release.title,
+            prefer_spotify=False,
+            prefer_deezer=True,
+            min_confidence=0.55,
+            allow_fallback=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log_warning(f"Album lookup failed for {release.artist} - {release.title}: {exc}")
+        return False
+
+    if not match:
+        return False
+
+    new_album = (match.album or "").strip()
+    if not new_album:
+        return False
+
+    new_type = (match.album_type or "").strip().casefold()
+    if new_type != "album":
+        return False
+
+    normalized_current = current_album.casefold()
+    normalized_new = new_album.casefold()
+    album_changed = normalized_current != normalized_new
+    type_changed = current_type != "album"
+
+    if not album_changed and not type_changed and not release.is_single:
+        return False
+
+    previous_label = current_album or "single"
+    release.album = new_album
+    release.album_type = match.album_type or "album"
+    release.is_single = False
+    if match.release_date:
+        release.year = match.release_date.year
+    if match.track_id:
+        release.track_id = match.track_id
+
+    log_info(
+        f"Updated album metadata for {release.artist} - {release.title}: {previous_label} -> {new_album}"
+    )
+    return True
+
+
+def _move_track_audio(
+    audio_root: Optional[Path],
+    source_dir_name: str,
+    destination_dir_name: str,
+    release: ArtistRelease,
+    dry_run: bool,
+) -> None:
+    if not audio_root:
+        return
+    src_dir = audio_root / source_dir_name
+    if not src_dir.exists():
+        log_debug(f"Audio source directory missing: {src_dir}")
+        return
+    dest_dir = audio_root / destination_dir_name
+    if dry_run:
+        log_info(
+            f"Dry run: would move audio for '{release.artist} - {release.title}'"
+            f" from {src_dir} to {dest_dir}"
+        )
+        return
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    log_info(
+        f"Moving audio for '{release.artist} - {release.title}' from {src_dir} to {dest_dir}"
+    )
+    target_key = _normalize_audio_label(release.artist, release.title)
+    for candidate in src_dir.iterdir():
+        if not candidate.is_file():
+            continue
+        if candidate.suffix.lower() not in {".mp3", ".flac", ".wav"}:
+            continue
+        candidate_key = _normalize_audio_label(candidate.stem)
+        if candidate_key == target_key or target_key in candidate_key:
+            dest_path = dest_dir / candidate.name
+            candidate.replace(dest_path)
+            log_info(f"Moved {candidate.name} to {dest_dir}")
+            return
+    log_warning(
+        f"No audio found for {release.artist} - {release.title} in {src_dir}; nothing moved"
+    )
+
+
+def move_outdated_releases(
+    releases: list[ArtistRelease],
+    artist_playlist_map: dict[str, dict[Path, set[str]]],
+    audio_root: Optional[Path],
+    new_releases_dir_name: str,
+    dry_run: bool,
+) -> None:
+    if not releases:
+        return
+    migrations: list[tuple[ArtistRelease, Path]] = []
+    for release in releases:
+        destination = _resolve_destination_playlist(release, artist_playlist_map)
+        if not destination:
+            log_warning(f"No destination playlist for {release.artist} - {release.title}")
+            continue
+        _promote_release_album(release)
+        migrations.append((release, destination))
+        _append_release_to_playlist(destination, release, dry_run=dry_run)
+        _move_track_audio(
+            audio_root,
+            new_releases_dir_name,
+            destination.stem,
+            release,
+            dry_run=dry_run,
+        )
+    if not migrations:
+        return
+    action_phrase = (
+        "Dry run: would move the following tracks to permanent playlists"
+        if dry_run
+        else "Moved the following tracks to permanent playlists"
+    )
+    log_info(action_phrase)
+    for release, destination in migrations:
+        log_info(f"  • {release.artist} – {release.title} → {destination.name}")
+
+
 def build_new_releases(
     artists: Iterable[str],
     days: int,
@@ -1021,8 +1222,12 @@ def main() -> None:
     if not playlists_dir.exists():
         raise SystemExit(f"Playlists directory not found: {playlists_dir}")
 
-    artists, artist_tracks, _artist_playlist_map = load_station_artists(playlists_dir)
+    artists, artist_tracks, artist_playlist_map = load_station_artists(playlists_dir)
     artist_cache = load_artist_id_cache(playlists_dir)
+    audio_root = station_dir / "songs"
+    if not audio_root.exists():
+        log_debug(f"Audio root not found; skipping audio moves: {audio_root}")
+        audio_root = None
     cutoff = datetime.now(UTC) - timedelta(days=args.days)
 
     existing_releases = load_existing_new_releases(playlists_dir)
@@ -1061,7 +1266,13 @@ def main() -> None:
             seen_ids_final.add(release.track_id)
 
     if outdated_existing:
-        log_info(f"Skipped {len(outdated_existing)} aged tracks outside the window")
+        move_outdated_releases(
+            outdated_existing,
+            artist_playlist_map,
+            audio_root,
+            "New Releases",
+            dry_run=args.dry_run,
+        )
 
     if final_releases:
         log_info(f"Collected {len(final_releases)} recent tracks")
