@@ -252,104 +252,288 @@ def _build_random_duration_partition(
     )
 
 
-def _choose_open_indices_anywhere(
+def _duration_step(values: Sequence[int]) -> int:
+    normalized = [abs(int(value)) for value in values if int(value) != 0]
+    if not normalized:
+        return 1
+    for step in (30, 15, 5, 1):
+        if all(value % step == 0 for value in normalized):
+            return step
+    return 1
+
+
+def _build_partition_with_specs(
     *,
-    block_minutes: Sequence[int],
+    total_minutes: int,
+    specs: Sequence[Tuple[int, int, int, int]],
+    rng: random.Random,
+) -> List[int]:
+    if total_minutes < 0:
+        raise ScheduleValidationError("Partition total_minutes must be non-negative.")
+    if not specs:
+        if total_minutes == 0:
+            return []
+        raise ScheduleValidationError("Partition specs are required for non-zero totals.")
+
+    minima = [minimum for minimum, _maximum, _preferred, _jitter in specs]
+    maxima = [maximum for _minimum, maximum, _preferred, _jitter in specs]
+    if any(minimum > maximum for minimum, maximum in zip(minima, maxima)):
+        raise ScheduleValidationError("Partition spec minimum cannot exceed maximum.")
+
+    minimum_total = sum(minima)
+    maximum_total = sum(maxima)
+    if total_minutes < minimum_total or total_minutes > maximum_total:
+        raise ScheduleValidationError(
+            f"Unable to partition {total_minutes} minutes within bounds "
+            f"[{minimum_total}, {maximum_total}]."
+        )
+
+    step = _duration_step(
+        [total_minutes] + [value for spec in specs for value in spec[:3]]
+    )
+    targets: List[int] = []
+    candidate_lists: List[List[int]] = []
+    for minimum, maximum, preferred, jitter in specs:
+        target = max(minimum, min(maximum, preferred))
+        if jitter > 0:
+            jitter_units = max(0, jitter // step)
+            if jitter_units > 0:
+                target += rng.randint(-jitter_units, jitter_units) * step
+                target = max(minimum, min(maximum, target))
+
+        targets.append(target)
+        values = set(range(minimum, maximum + 1, step))
+        values.update({minimum, maximum, target, preferred})
+        candidate_lists.append(
+            sorted(
+                (value for value in values if minimum <= value <= maximum),
+                key=lambda value, target_value=target, preferred_value=preferred: (
+                    abs(value - target_value),
+                    abs(value - preferred_value),
+                    value,
+                ),
+            )
+        )
+
+    suffix_min = [0] * (len(specs) + 1)
+    suffix_max = [0] * (len(specs) + 1)
+    for index in range(len(specs) - 1, -1, -1):
+        suffix_min[index] = suffix_min[index + 1] + minima[index]
+        suffix_max[index] = suffix_max[index + 1] + maxima[index]
+
+    chosen: List[int] = []
+
+    def backtrack(index: int, remaining: int) -> bool:
+        if index == len(specs):
+            return remaining == 0
+
+        min_remaining = suffix_min[index + 1]
+        max_remaining = suffix_max[index + 1]
+        for value in candidate_lists[index]:
+            next_remaining = remaining - value
+            if next_remaining < min_remaining or next_remaining > max_remaining:
+                continue
+            chosen.append(value)
+            if backtrack(index + 1, next_remaining):
+                return True
+            chosen.pop()
+        return False
+
+    if not backtrack(0, total_minutes):
+        raise ScheduleValidationError(
+            f"Unable to build exact partition for {total_minutes} minutes."
+        )
+    return list(chosen)
+
+
+def _choose_open_layout(
+    *,
     open_ratio_min: float,
     open_ratio_max: float,
     min_open_slots: int,
     max_open_slots: int,
+    min_block_minutes: int,
+    max_block_minutes: int,
+    playlist_capacity: int,
     rng: random.Random,
-) -> List[int]:
-    count = len(block_minutes)
-    if count == 0:
-        return []
-
-    total_minutes = sum(block_minutes)
+) -> Tuple[int, int, int]:
+    total_minutes = 24 * 60
     min_open_minutes = math.ceil(open_ratio_min * total_minutes)
     max_open_minutes = math.floor(open_ratio_max * total_minutes)
-    if max_open_minutes <= 0:
-        return []
-
-    slot_min = max(0, int(min_open_slots))
-    slot_max = min(int(max_open_slots), count - 1)  # keep at least one playlist block
-    if slot_min > slot_max:
+    max_open_slots_feasible = min(int(max_open_slots), max(1, playlist_capacity - 1))
+    min_open_slots_feasible = max(1, int(min_open_slots))
+    if min_open_slots_feasible > max_open_slots_feasible:
         raise ScheduleValidationError(
             f"No feasible open-slot count in bounds [{min_open_slots}, {max_open_slots}] "
-            f"for {count} blocks (must keep at least one playlist block)."
+            f"with playlist capacity {playlist_capacity}."
         )
 
-    target_open_minutes = ((open_ratio_min + open_ratio_max) / 2.0) * total_minutes
-    target_open_slots = (slot_min + slot_max) / 2.0
+    preferred_ratio = (open_ratio_min + open_ratio_max) / 2.0
+    layout_candidates: List[Tuple[float, float, int, int, int]] = []
 
-    def score_indices(indices: set[int]) -> Tuple[float, float, int]:
-        open_minutes = sum(block_minutes[index] for index in indices)
-        transitions = 0
-        prev_open = False
-        for idx in range(count):
-            current_open = idx in indices
-            if idx > 0 and current_open != prev_open:
-                transitions += 1
-            prev_open = current_open
-        return (
-            abs(open_minutes - target_open_minutes),
-            abs(len(indices) - target_open_slots),
-            -transitions,
-        )
-
-    if count <= 18:
-        best_score: Optional[Tuple[float, float, int]] = None
-        best_indices: Optional[List[int]] = None
-        for mask in range(1 << count):
-            open_count = mask.bit_count()
-            if open_count < slot_min or open_count > slot_max:
-                continue
-            if open_count == count:
-                continue
-
-            open_minutes = 0
-            for idx, duration in enumerate(block_minutes):
-                if mask & (1 << idx):
-                    open_minutes += duration
-            if open_minutes < min_open_minutes or open_minutes > max_open_minutes:
-                continue
-
-            indices_set = {idx for idx in range(count) if mask & (1 << idx)}
-            current_score = score_indices(indices_set)
-            if best_score is None or current_score < best_score:
-                best_score = current_score
-                best_indices = sorted(indices_set)
-
-        if best_indices is None:
-            raise ScheduleValidationError(
-                "Unable to place open slots within ratio/count constraints across the day."
-            )
-        return best_indices
-
-    best_score = None
-    best_indices = None
-    attempts = 4000
-    for _ in range(attempts):
-        open_count = rng.randint(slot_min, slot_max)
-        if open_count <= 0:
-            indices_set: set[int] = set()
-        else:
-            indices_set = set(rng.sample(range(count), k=open_count))
-
-        open_minutes = sum(block_minutes[index] for index in indices_set)
-        if open_minutes < min_open_minutes or open_minutes > max_open_minutes:
+    for open_count in range(min_open_slots_feasible, max_open_slots_feasible + 1):
+        open_total_min = max(min_open_minutes, open_count * min_block_minutes)
+        open_total_max = min(max_open_minutes, open_count * max_block_minutes)
+        if open_total_min > open_total_max:
             continue
 
-        current_score = score_indices(indices_set)
-        if best_score is None or current_score < best_score:
-            best_score = current_score
-            best_indices = sorted(indices_set)
-
-    if best_indices is None:
-        raise ScheduleValidationError(
-            "Unable to place open slots within ratio/count constraints across the day."
+        step = _duration_step(
+            [open_total_min, open_total_max, min_block_minutes, max_block_minutes]
         )
-    return best_indices
+        open_total_candidates = list(
+            range(open_total_max, open_total_min - 1, -step)
+        )
+        if open_total_min not in open_total_candidates:
+            open_total_candidates.append(open_total_min)
+
+        for open_total in open_total_candidates:
+            remaining_minutes = total_minutes - open_total
+            gap_count = open_count + 1
+            open_average = open_total / open_count
+            playlist_min_blocks = max(
+                gap_count,
+                math.ceil(remaining_minutes / max_block_minutes),
+                math.floor(remaining_minutes / open_average) + 1,
+            )
+            playlist_max_blocks = min(
+                playlist_capacity,
+                remaining_minutes // min_block_minutes,
+            )
+            if playlist_min_blocks > playlist_max_blocks:
+                continue
+
+            playlist_step_target = max(
+                min_block_minutes,
+                min(max_block_minutes, int(open_average) - step),
+            )
+            playlist_block_count = max(
+                playlist_min_blocks,
+                math.ceil(remaining_minutes / playlist_step_target),
+            )
+            playlist_block_count = min(playlist_block_count, playlist_max_blocks)
+            if playlist_block_count < playlist_min_blocks:
+                continue
+
+            playlist_average = remaining_minutes / playlist_block_count
+            duration_advantage = open_average - playlist_average
+            ratio_distance = abs((open_total / total_minutes) - preferred_ratio)
+            layout_candidates.append(
+                (
+                    -duration_advantage,
+                    ratio_distance,
+                    open_count,
+                    open_total,
+                    playlist_block_count,
+                )
+            )
+
+    if not layout_candidates:
+        raise ScheduleValidationError(
+            "Unable to choose an open-layout configuration that keeps open blocks "
+            "longer on average than playlist blocks."
+        )
+
+    layout_candidates.sort(key=lambda item: (item[0], item[1], -item[2], -item[3], item[4]))
+    shortlist = layout_candidates[: min(4, len(layout_candidates))]
+    _advantage_score, _ratio_score, open_count, open_total, playlist_block_count = rng.choice(
+        shortlist
+    )
+    return open_count, open_total, playlist_block_count
+
+
+def _distribute_playlist_blocks_across_gaps(
+    *,
+    gap_count: int,
+    playlist_block_count: int,
+    rng: random.Random,
+) -> List[int]:
+    if gap_count <= 0:
+        raise ScheduleValidationError("gap_count must be positive.")
+    if playlist_block_count < gap_count:
+        raise ScheduleValidationError(
+            "playlist_block_count must allow at least one playlist block per gap."
+        )
+
+    distribution = [1] * gap_count
+    remaining = playlist_block_count - gap_count
+    indices = list(range(gap_count))
+    rng.shuffle(indices)
+    while remaining > 0:
+        for index in indices:
+            if remaining <= 0:
+                break
+            distribution[index] += 1
+            remaining -= 1
+        rng.shuffle(indices)
+    return distribution
+
+
+def _build_playlist_gap_durations(
+    *,
+    total_minutes: int,
+    blocks_per_gap: Sequence[int],
+    min_block_minutes: int,
+    max_block_minutes: int,
+    rng: random.Random,
+) -> List[int]:
+    gap_count = len(blocks_per_gap)
+    if gap_count == 0:
+        return []
+
+    preferred_gap = total_minutes // gap_count
+    jitter = min(45, max(0, preferred_gap // 6))
+    specs = [
+        (
+            block_count * min_block_minutes,
+            block_count * max_block_minutes,
+            max(
+                block_count * min_block_minutes,
+                min(block_count * max_block_minutes, preferred_gap),
+            ),
+            jitter,
+        )
+        for block_count in blocks_per_gap
+    ]
+    return _build_partition_with_specs(
+        total_minutes=total_minutes,
+        specs=specs,
+        rng=rng,
+    )
+
+
+def _build_gap_playlist_partitions(
+    *,
+    gap_minutes: int,
+    block_count: int,
+    min_block_minutes: int,
+    max_block_minutes: int,
+    open_average_minutes: float,
+    rng: random.Random,
+) -> List[int]:
+    if block_count <= 0:
+        if gap_minutes == 0:
+            return []
+        raise ScheduleValidationError("Gap playlist partition requires block_count > 0.")
+
+    duration_step = _duration_step(
+        [gap_minutes, min_block_minutes, max_block_minutes, int(open_average_minutes)]
+    )
+    preferred_playlist = gap_minutes // block_count
+    preferred_playlist = min(
+        preferred_playlist,
+        max(min_block_minutes, int(open_average_minutes) - duration_step),
+    )
+    preferred_playlist = max(min_block_minutes, min(max_block_minutes, preferred_playlist))
+    jitter = min(30, max(0, preferred_playlist // 6))
+    specs = [
+        (min_block_minutes, max_block_minutes, preferred_playlist, jitter)
+        for _ in range(block_count)
+    ]
+    return _build_partition_with_specs(
+        total_minutes=gap_minutes,
+        specs=specs,
+        rng=rng,
+    )
 
 
 def _build_randomized_scaffold(
@@ -360,25 +544,49 @@ def _build_randomized_scaffold(
     max_open_slots: int,
     min_block_minutes: int,
     max_block_minutes: int,
+    playlist_capacity: int,
     rng: random.Random,
 ) -> List[Dict[str, object]]:
-    block_durations = _build_random_duration_partition(
+    open_count, open_total_minutes, playlist_block_count = _choose_open_layout(
+        open_ratio_min=open_ratio_min,
+        open_ratio_max=open_ratio_max,
+        min_open_slots=min_open_slots,
+        max_open_slots=max_open_slots,
         min_block_minutes=min_block_minutes,
         max_block_minutes=max_block_minutes,
-        total_minutes=24 * 60,
+        playlist_capacity=playlist_capacity,
+        rng=rng,
+    )
+    gap_count = open_count + 1
+    blocks_per_gap = _distribute_playlist_blocks_across_gaps(
+        gap_count=gap_count,
+        playlist_block_count=playlist_block_count,
+        rng=rng,
+    )
+    playlist_total_minutes = (24 * 60) - open_total_minutes
+    gap_durations = _build_playlist_gap_durations(
+        total_minutes=playlist_total_minutes,
+        blocks_per_gap=blocks_per_gap,
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
         rng=rng,
     )
 
-    open_indices = set(
-        _choose_open_indices_anywhere(
-            block_minutes=block_durations,
-            open_ratio_min=open_ratio_min,
-            open_ratio_max=open_ratio_max,
-            min_open_slots=min_open_slots,
-            max_open_slots=max_open_slots,
-            rng=rng,
-        )
+    open_preferred = max(
+        min_block_minutes,
+        min(max_block_minutes, open_total_minutes // open_count),
     )
+    open_jitter = min(30, max(0, open_preferred // 6))
+    open_specs = [
+        (min_block_minutes, max_block_minutes, open_preferred, open_jitter)
+        for _ in range(open_count)
+    ]
+    open_durations = _build_partition_with_specs(
+        total_minutes=open_total_minutes,
+        specs=open_specs,
+        rng=rng,
+    )
+    open_average_minutes = open_total_minutes / open_count
 
     open_labels = [
         ("Bloque libre", ["sin tematica"]),
@@ -389,12 +597,34 @@ def _build_randomized_scaffold(
 
     raw_blocks: List[Dict[str, object]] = []
     start_minute = 0
-    for block_index, duration in enumerate(block_durations):
-        end_minute = start_minute + duration
-        start_time = format_hhmm(start_minute)
-        end_time = format_hhmm(end_minute)
+    for gap_index, gap_duration in enumerate(gap_durations):
+        playlist_durations = _build_gap_playlist_partitions(
+            gap_minutes=gap_duration,
+            block_count=blocks_per_gap[gap_index],
+            min_block_minutes=min_block_minutes,
+            max_block_minutes=max_block_minutes,
+            open_average_minutes=open_average_minutes,
+            rng=rng,
+        )
+        for duration in playlist_durations:
+            end_minute = start_minute + duration
+            raw_blocks.append(
+                {
+                    "start_time_local": format_hhmm(start_minute),
+                    "end_time_local": format_hhmm(end_minute),
+                    "mode": "playlist",
+                    "section_label": "",
+                    "genre_labels": [],
+                    "_duration_minutes": duration,
+                }
+            )
+            start_minute = end_minute
 
-        if block_index in open_indices:
+        if gap_index < open_count:
+            duration = open_durations[gap_index]
+            end_minute = start_minute + duration
+            start_time = format_hhmm(start_minute)
+            end_time = format_hhmm(end_minute)
             section_label, genre_labels = rng.choice(open_labels)
             raw_blocks.append(
                 {
@@ -406,19 +636,7 @@ def _build_randomized_scaffold(
                     "_duration_minutes": duration,
                 }
             )
-        else:
-            raw_blocks.append(
-                {
-                    "start_time_local": start_time,
-                    "end_time_local": end_time,
-                    "mode": "playlist",
-                    "section_label": "",
-                    "genre_labels": [],
-                    "_duration_minutes": duration,
-                }
-            )
-
-        start_minute = end_minute
+            start_minute = end_minute
 
     return raw_blocks
 
@@ -854,6 +1072,7 @@ def build_weekly_plan_with_code(
                 max_open_slots=max_open_slots,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
+                playlist_capacity=len(enabled_playlists),
                 rng=rng,
             )
             _assign_playlists_to_scaffold(
@@ -893,7 +1112,7 @@ def build_weekly_plan_with_code(
                 seed_note = f"rerolleada con clave '{resolved_seed_salt}'"
             rationale = (
                 "Plan semanal generado por codigo (sin LLM), con bloques variables, "
-                "slots abiertos distribuidos a lo largo del dia y seleccion pseudoaleatoria "
+                "ventanas abiertas largas repartidas durante el dia y seleccion pseudoaleatoria "
                 f"{seed_note}, sin repetir playlists en bloques programados."
                 f"{combo_note}"
             )
@@ -937,6 +1156,7 @@ def build_weekly_plan_with_code(
                 max_open_slots=max_open_slots,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
+                playlist_capacity=len(enabled_playlists),
                 rng=rng,
             )
             _assign_playlists_to_scaffold(
@@ -964,7 +1184,7 @@ def build_weekly_plan_with_code(
             )
             rationale = (
                 "Plan semanal generado por codigo (sin LLM) en modo de respaldo, "
-                "sin combinaciones curadas, con slots abiertos distribuidos durante el dia "
+                "sin combinaciones curadas, con ventanas abiertas largas repartidas durante el dia "
                 f"y sin repetir playlists en bloques programados. Seed mode={normalized_seed_mode}"
             )
             if fallback_error is not None:

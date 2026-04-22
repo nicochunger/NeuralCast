@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import random
 import unittest
 from unittest import mock
 
@@ -384,6 +385,58 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertEqual(plan.seed_salt, "fresh-seed-01")
         self.assertIsInstance(plan.resolved_seed, int)
         self.assertTrue(plan.daily_template)
+
+    def test_randomized_scaffold_spreads_open_blocks_and_keeps_them_longer(self) -> None:
+        raw_blocks = schedule_generation._build_randomized_scaffold(
+            open_ratio_min=0.20,
+            open_ratio_max=0.40,
+            min_open_slots=3,
+            max_open_slots=6,
+            min_block_minutes=30,
+            max_block_minutes=90,
+            playlist_capacity=12,
+            rng=random.Random(7),
+        )
+
+        open_durations = [
+            int(block["_duration_minutes"])
+            for block in raw_blocks
+            if block["mode"] == "open"
+        ]
+        playlist_durations = [
+            int(block["_duration_minutes"])
+            for block in raw_blocks
+            if block["mode"] == "playlist"
+        ]
+
+        self.assertTrue(open_durations)
+        self.assertTrue(playlist_durations)
+        self.assertGreater(
+            sum(open_durations) / len(open_durations),
+            sum(playlist_durations) / len(playlist_durations),
+        )
+
+        cursor = 0
+        open_centers = []
+        for block in raw_blocks:
+            duration = int(block["_duration_minutes"])
+            if block["mode"] == "open":
+                open_centers.append(cursor + (duration / 2.0))
+            cursor += duration
+
+        self.assertEqual(cursor, 24 * 60)
+        self.assertGreaterEqual(len(open_centers), 3)
+        ideal_centers = [
+            ((index + 0.5) * (24 * 60) / len(open_centers))
+            for index in range(len(open_centers))
+        ]
+        for actual, ideal in zip(open_centers, ideal_centers):
+            self.assertLess(abs(actual - ideal), 180)
+
+        for previous, current in zip(raw_blocks, raw_blocks[1:]):
+            self.assertFalse(
+                previous["mode"] == "open" and current["mode"] == "open"
+            )
 
     def test_validate_daily_template_rejects_playlist_in_unscheduled_window(self) -> None:
         raw_blocks = [
