@@ -15,7 +15,10 @@ from .models import Archetype, QueueTrack, StoryAssets, TrackMetadata
 from .schedule import resolve_station_metadata_file
 from .transport import AzuraCastClient
 from .utils import normalize_component, track_key
-from neuralcast.services.ai_client import synthesize_speech
+from neuralcast.services.ai_client import (
+    DEFAULT_GEMINI_TTS_MODEL,
+    synthesize_speech,
+)
 
 try:
     from neuralcast.playlists.utils import sanitize_filename_component
@@ -151,7 +154,7 @@ def ensure_story_assets(
         text=script_text,
         outfile=str(audio_path),
         instructions=tts_instructions,
-        gemini_model="gemini-2.5-flash-preview-tts",
+        gemini_model=DEFAULT_GEMINI_TTS_MODEL,
     )
 
     apply_replaygain(audio_path)

@@ -30,6 +30,9 @@ _GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
 _DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
 _DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
+DEFAULT_GEMINI_TTS_MODEL = os.getenv(
+    "GEMINI_TTS_MODEL", "gemini-3.1-flash-tts-preview"
+)
 
 
 def get_openai_client() -> openai.OpenAI:
@@ -197,7 +200,7 @@ def _write_pcm_audio_file(
 def gemini_speech(
     text: str,
     outfile: str,
-    model: str = "gemini-2.5-flash-preview-tts",
+    model: str = DEFAULT_GEMINI_TTS_MODEL,
     voice: str = "Enceladus",
     instructions: Optional[str] = None,
 ):
@@ -254,7 +257,7 @@ def synthesize_speech(
     instructions: Optional[str] = None,
     openai_model: str = "gpt-4o-mini-tts",
     openai_voice: str = "ash",
-    gemini_model: str = "gemini-2.5-flash-preview-tts",
+    gemini_model: str = DEFAULT_GEMINI_TTS_MODEL,
     gemini_voice: str = "Enceladus",
 ):
     resolved_provider = (provider or _DEFAULT_TTS_PROVIDER).strip().lower()
@@ -299,6 +302,7 @@ def tts(text: str, outfile: str):
 
 
 __all__ = [
+    "DEFAULT_GEMINI_TTS_MODEL",
     "get_openai_client",
     "openai_text_completion",
     "openai_speech",
