@@ -253,7 +253,7 @@ class NewReleasesTest(unittest.TestCase):
 
         self.assertEqual(releases, [])
 
-    def test_resolve_artist_uses_cached_artist_without_track_verification(self) -> None:
+    def test_resolve_artist_uses_unambiguous_cached_artist_without_track_verification(self) -> None:
         cache = new_releases.ArtistIDCache(entries={}, dirty=False)
         cache.set("Ghost", "8506054")
 
@@ -263,6 +263,7 @@ class NewReleasesTest(unittest.TestCase):
                 "_fetch_artist_by_id",
                 return_value={"id": "8506054", "name": "Ghost"},
             ) as fetch_artist,
+            patch.object(new_releases, "_exact_artist_matches", return_value=[]),
             patch.object(new_releases, "_artist_has_known_track") as has_track,
             patch.object(new_releases, "_best_artist_match") as best_match,
             patch.object(new_releases, "_search_artist_using_known_tracks") as search_known,
@@ -274,6 +275,152 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(artist, {"id": "8506054", "name": "Ghost"})
         fetch_artist.assert_called_once_with("8506054")
         has_track.assert_not_called()
+        best_match.assert_not_called()
+        search_known.assert_not_called()
+
+    def test_artist_has_known_track_requires_candidate_artist_id(self) -> None:
+        with patch.object(
+            new_releases,
+            "_deezer_get",
+            return_value={
+                "data": [
+                    {
+                        "title": "On and On",
+                        "artist": {"id": "wrong", "name": "Raven"},
+                    }
+                ]
+            },
+        ):
+            result = new_releases._artist_has_known_track(
+                "59914", "Raven", {"On and On"}
+            )
+
+        self.assertFalse(result)
+
+    def test_best_artist_match_uses_known_track_id_for_duplicate_names(self) -> None:
+        exact_matches = [
+            {"id": "wrong", "name": "Raven"},
+            {"id": "59914", "name": "Raven"},
+        ]
+
+        def has_known_track(
+            artist_id: str, artist_name: str, known_titles: set[str]
+        ) -> bool:
+            return artist_id == "59914"
+
+        with (
+            patch.object(
+                new_releases, "_exact_artist_matches", return_value=exact_matches
+            ),
+            patch.object(
+                new_releases,
+                "_artist_has_known_track",
+                side_effect=has_known_track,
+            ),
+        ):
+            artist = new_releases._best_artist_match("Raven", {"On and On"})
+
+        self.assertEqual(artist, {"id": "59914", "name": "Raven"})
+
+    def test_best_artist_match_skips_when_known_tracks_do_not_match(self) -> None:
+        with (
+            patch.object(
+                new_releases,
+                "_exact_artist_matches",
+                return_value=[{"id": "wrong", "name": "Legend"}],
+            ),
+            patch.object(new_releases, "_artist_has_known_track", return_value=False),
+        ):
+            artist = new_releases._best_artist_match(
+                "Legend", {"Death in the Nursery"}
+            )
+
+        self.assertIsNone(artist)
+
+    def test_exact_artist_matches_are_accent_insensitive(self) -> None:
+        with patch.object(
+            new_releases,
+            "_deezer_get",
+            return_value={
+                "data": [
+                    {"id": "108315", "name": "Týr"},
+                    {"id": "78901512", "name": "TYR"},
+                    {"id": "other", "name": "Tyra"},
+                ]
+            },
+        ):
+            matches = new_releases._exact_artist_matches("Tyr")
+
+        self.assertEqual(
+            matches,
+            [
+                {"id": "108315", "name": "Týr"},
+                {"id": "78901512", "name": "TYR"},
+            ],
+        )
+
+    def test_resolve_artist_revalidates_ambiguous_cached_artist(self) -> None:
+        cache = new_releases.ArtistIDCache(entries={"raven": "wrong"}, dirty=False)
+
+        with (
+            patch.object(
+                new_releases,
+                "_fetch_artist_by_id",
+                return_value={"id": "wrong", "name": "Raven"},
+            ),
+            patch.object(
+                new_releases,
+                "_exact_artist_matches",
+                return_value=[
+                    {"id": "wrong", "name": "Raven"},
+                    {"id": "59914", "name": "Raven"},
+                ],
+            ),
+            patch.object(new_releases, "_artist_has_known_track", return_value=False),
+            patch.object(
+                new_releases,
+                "_best_artist_match",
+                return_value={"id": "59914", "name": "Raven"},
+            ) as best_match,
+            patch.object(
+                new_releases, "_search_artist_using_known_tracks"
+            ) as search_known,
+        ):
+            artist = new_releases._resolve_artist("Raven", {"On and On"}, cache)
+
+        self.assertEqual(artist, {"id": "59914", "name": "Raven"})
+        self.assertEqual(cache.get("Raven"), "59914")
+        best_match.assert_called_once_with("Raven", {"On and On"})
+        search_known.assert_not_called()
+
+    def test_resolve_artist_accepts_cached_alias_when_known_tracks_match(self) -> None:
+        cache = new_releases.ArtistIDCache(entries={"rhapsody": "12061"}, dirty=False)
+
+        with (
+            patch.object(
+                new_releases,
+                "_fetch_artist_by_id",
+                return_value={"id": "12061", "name": "Rhapsody of Fire"},
+            ),
+            patch.object(new_releases, "_artist_has_known_track", return_value=True),
+            patch.object(
+                new_releases,
+                "_exact_artist_matches",
+                return_value=[
+                    {"id": "20", "name": "Rhapsody"},
+                    {"id": "290802041", "name": "Rhapsody"},
+                ],
+            ),
+            patch.object(new_releases, "_best_artist_match") as best_match,
+            patch.object(
+                new_releases, "_search_artist_using_known_tracks"
+            ) as search_known,
+        ):
+            artist = new_releases._resolve_artist(
+                "Rhapsody", {"Emerald Sword"}, cache
+            )
+
+        self.assertEqual(artist, {"id": "12061", "name": "Rhapsody of Fire"})
         best_match.assert_not_called()
         search_known.assert_not_called()
 

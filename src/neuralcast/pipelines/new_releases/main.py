@@ -101,6 +101,17 @@ def _normalize_text(value: str) -> str:
     return normalize_metadata_component(collapsed)
 
 
+def _normalize_artist_match_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    stripped = "".join(char for char in normalized if not unicodedata.combining(char))
+    collapsed = re.sub(r"\s+", " ", stripped).strip()
+    return normalize_metadata_component(collapsed)
+
+
+def _artist_names_match(a: str, b: str) -> bool:
+    return _normalize_artist_match_key(a) == _normalize_artist_match_key(b)
+
+
 def _normalize_audio_label(*parts: str) -> str:
     text = " ".join(part or "" for part in parts)
     normalized = unicodedata.normalize("NFKD", text)
@@ -359,7 +370,12 @@ def _track_matches_artist(track: dict, artist_id: str, artist_name: str) -> bool
     artist = track.get("artist") if isinstance(track.get("artist"), dict) else {}
     if str(artist.get("id") or "") == str(artist_id):
         return True
-    return _normalize_text(str(artist.get("name") or "")) == _normalize_text(artist_name)
+    return _artist_names_match(str(artist.get("name") or ""), artist_name)
+
+
+def _track_matches_artist_id(track: dict, artist_id: str) -> bool:
+    artist = track.get("artist") if isinstance(track.get("artist"), dict) else {}
+    return bool(artist_id) and str(artist.get("id") or "") == str(artist_id)
 
 
 def _is_track_currently_available(track: dict) -> bool:
@@ -386,7 +402,7 @@ def _artist_has_known_track(
             for track in payload.get("data", []):
                 if not isinstance(track, dict):
                     continue
-                if not _track_matches_artist(track, artist_id, artist_name):
+                if not _track_matches_artist_id(track, artist_id):
                     continue
                 if _close_enough(str(track.get("title") or ""), title):
                     return True
@@ -398,7 +414,7 @@ def _search_artist_using_known_tracks(
 ) -> Optional[dict]:
     if not known_titles:
         return None
-    target = _normalize_text(artist_name)
+    artist_match_key = _normalize_artist_match_key(artist_name)
     for title in sorted(title for title in known_titles if title)[:_KNOWN_TRACK_SAMPLE_SIZE]:
         for query in (f'artist:"{artist_name}" track:"{title}"', f"{artist_name} {title}"):
             payload = _deezer_get("/search/track", params={"q": query, "limit": 5})
@@ -409,7 +425,7 @@ def _search_artist_using_known_tracks(
                     continue
                 artist = track.get("artist") if isinstance(track.get("artist"), dict) else {}
                 artist_label = str(artist.get("name") or "")
-                if _normalize_text(artist_label) != target:
+                if _normalize_artist_match_key(artist_label) != artist_match_key:
                     continue
                 if not _close_enough(str(track.get("title") or ""), title):
                     continue
@@ -426,21 +442,34 @@ def _search_artist_using_known_tracks(
 def _best_artist_match(
     artist_name: str, known_titles: Optional[set[str]] = None
 ) -> Optional[dict]:
-    payload = _deezer_get("/search/artist", params={"q": artist_name, "limit": 10})
-    if not payload:
-        return None
-    items = [item for item in payload.get("data", []) if isinstance(item, dict)]
-    target = _normalize_text(artist_name)
-    exact_matches = [item for item in items if _normalize_text(str(item.get("name") or "")) == target]
+    exact_matches = _exact_artist_matches(artist_name)
     if not exact_matches:
         return None
-    if len(exact_matches) == 1 or not known_titles:
+    if not known_titles:
         return exact_matches[0]
     for candidate in exact_matches:
         candidate_id = str(candidate.get("id") or "").strip()
-        if candidate_id and _artist_has_known_track(candidate_id, artist_name, known_titles):
+        if candidate_id and _artist_has_known_track(
+            candidate_id, artist_name, known_titles
+        ):
             return candidate
-    return exact_matches[0]
+    log_warning(
+        f"Deezer artist '{artist_name}' has no exact known-track match; skipping"
+    )
+    return None
+
+
+def _exact_artist_matches(artist_name: str) -> list[dict]:
+    payload = _deezer_get("/search/artist", params={"q": artist_name, "limit": 10})
+    if not payload:
+        return []
+    items = [item for item in payload.get("data", []) if isinstance(item, dict)]
+    target = _normalize_artist_match_key(artist_name)
+    return [
+        item
+        for item in items
+        if _normalize_artist_match_key(str(item.get("name") or "")) == target
+    ]
 
 
 def _resolve_artist(
@@ -451,13 +480,34 @@ def _resolve_artist(
         artist = _fetch_artist_by_id(cached_id)
         if artist:
             artist_label = str(artist.get("name") or "")
-            if _close_enough(artist_label, artist_name, minimum=0.9):
-                log_debug(f"Resolved Deezer artist '{artist_name}' from cache")
-                return artist
-            log_warning(
-                f"Cached Deezer artist ID mismatch for '{artist_name}', refreshing lookup"
+            name_matches = _artist_names_match(artist_label, artist_name) or _close_enough(
+                artist_label, artist_name, minimum=0.9
             )
-            cache.remove(artist_name)
+            cached_matches_known = False
+            if not name_matches and known_titles:
+                cached_matches_known = _artist_has_known_track(
+                    cached_id, artist_name, known_titles
+                )
+            if name_matches or cached_matches_known:
+                exact_matches = _exact_artist_matches(artist_name) if known_titles else []
+                if len(exact_matches) > 1 and not cached_matches_known:
+                    cached_matches_known = _artist_has_known_track(
+                        cached_id, artist_name, known_titles
+                    )
+                if len(exact_matches) > 1 and not cached_matches_known:
+                    log_warning(
+                        f"Cached Deezer artist ID for ambiguous '{artist_name}' "
+                        "does not match known tracks; refreshing lookup"
+                    )
+                    cache.remove(artist_name)
+                else:
+                    log_debug(f"Resolved Deezer artist '{artist_name}' from cache")
+                    return artist
+            else:
+                log_warning(
+                    f"Cached Deezer artist ID mismatch for '{artist_name}', refreshing lookup"
+                )
+                cache.remove(artist_name)
         else:
             cache.remove(artist_name)
 
