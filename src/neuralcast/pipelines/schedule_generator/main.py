@@ -34,6 +34,8 @@ from .config import (
     DEFAULT_OPEN_RATIO_MAX,
     DEFAULT_OPEN_RATIO_MIN,
     LOGGER,
+    NEURALCAST_DEFAULT_OPEN_RATIO_MAX,
+    NEURALCAST_DEFAULT_OPEN_RATIO_MIN,
     configure_logging,
     load_dotenv,
 )
@@ -96,6 +98,13 @@ def run(args: argparse.Namespace) -> None:
 
     open_ratio_min = float(args.open_ratio_min)
     open_ratio_max = float(args.open_ratio_max)
+    if (
+        str(args.station).strip().lower() == "neuralcast"
+        and open_ratio_min == DEFAULT_OPEN_RATIO_MIN
+        and open_ratio_max == DEFAULT_OPEN_RATIO_MAX
+    ):
+        open_ratio_min = NEURALCAST_DEFAULT_OPEN_RATIO_MIN
+        open_ratio_max = NEURALCAST_DEFAULT_OPEN_RATIO_MAX
     if not (0.0 <= open_ratio_min <= open_ratio_max <= 1.0):
         raise ValueError("Open-slot ratio bounds must satisfy 0 <= min <= max <= 1.")
 

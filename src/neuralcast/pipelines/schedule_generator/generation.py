@@ -9,7 +9,7 @@ import random
 import secrets
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from .config import (
     DEFAULT_MAX_OPEN_SLOTS,
@@ -22,6 +22,7 @@ from .models import ScheduleValidationError, StationPlaylist, WeeklySchedulePlan
 from .template import (
     build_duration_partition,
     build_plan_hash,
+    choose_open_block_indices,
     format_hhmm,
     validate_daily_template,
     expand_daily_template_to_week,
@@ -57,6 +58,10 @@ NEURALFORGE_MELODIC_DEATH_KEY = _name_key("Melodic Death Metal")
 
 def _is_neuralforge(station_slug: str) -> bool:
     return station_slug.strip().lower() == "neuralforge"
+
+
+def _is_neuralcast(station_slug: str) -> bool:
+    return station_slug.strip().lower() == "neuralcast"
 
 
 def _ceil_to_grid(value: int, grid_minutes: int = SCHEDULE_TIME_GRID_MINUTES) -> int:
@@ -669,6 +674,239 @@ def _build_randomized_scaffold(
     return raw_blocks
 
 
+def _playlist_search_text(playlist: StationPlaylist) -> str:
+    return _name_key(playlist.name).replace("-", " ")
+
+
+def _find_neuralcast_reserved_playlists(
+    playlists: Sequence[StationPlaylist],
+    predicate: Callable[[StationPlaylist], bool],
+    description: str,
+) -> List[StationPlaylist]:
+    matches = [
+        playlist for playlist in playlists if playlist.is_enabled and predicate(playlist)
+    ]
+    if not matches:
+        raise ScheduleValidationError(
+            f"NeuralCast reserved schedule requires an enabled {description} playlist."
+        )
+    return matches
+
+
+def _neuralcast_reggae_playlists(
+    playlists: Sequence[StationPlaylist],
+) -> List[StationPlaylist]:
+    return _find_neuralcast_reserved_playlists(
+        playlists,
+        lambda playlist: "reggae" in _playlist_search_text(playlist),
+        "reggae",
+    )
+
+
+def _neuralcast_evening_playlists(
+    playlists: Sequence[StationPlaylist],
+) -> List[StationPlaylist]:
+    aspen = _find_neuralcast_reserved_playlists(
+        playlists,
+        lambda playlist: _name_key(playlist.name) == "aspen vibes",
+        "Aspen Vibes",
+    )[0]
+    singer_songwriter = _find_neuralcast_reserved_playlists(
+        playlists,
+        lambda playlist: "singer songwriter" in _playlist_search_text(playlist),
+        "singer-songwriter",
+    )
+    singer_songwriter.sort(
+        key=lambda playlist: (
+            "scheduled" in _playlist_search_text(playlist),
+            _playlist_search_text(playlist),
+        )
+    )
+    return [aspen, singer_songwriter[0]]
+
+
+def _reserved_playlist_blocks(
+    *,
+    start_minute: int,
+    end_minute: int,
+    playlists: Sequence[StationPlaylist],
+    min_block_minutes: int,
+    max_block_minutes: int,
+) -> List[Dict[str, object]]:
+    if not playlists:
+        raise ScheduleValidationError("Reserved windows require at least one playlist.")
+
+    durations = build_duration_partition(
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+        total_minutes=end_minute - start_minute,
+        target_block_minutes=75,
+    )
+    blocks: List[Dict[str, object]] = []
+    cursor = start_minute
+    for index, duration in enumerate(durations):
+        playlist = playlists[index % len(playlists)]
+        block_end = cursor + duration
+        blocks.append(
+            {
+                "start_time_local": format_hhmm(cursor),
+                "end_time_local": format_hhmm(block_end),
+                "mode": "playlist",
+                "playlist_id": playlist.id,
+                "playlist_name": playlist.name,
+                "section_label": playlist.name,
+                "genre_labels": [playlist.name],
+                "_duration_minutes": duration,
+                "_reserved_playlist": True,
+            }
+        )
+        cursor = block_end
+    return blocks
+
+
+def _build_neuralcast_reserved_scaffold(
+    *,
+    playlists: Sequence[StationPlaylist],
+    open_ratio_min: float,
+    open_ratio_max: float,
+    min_block_minutes: int,
+    max_block_minutes: int,
+    rng: random.Random,
+) -> List[Dict[str, object]]:
+    reserved_windows = [
+        (7 * 60, 9 * 60, _neuralcast_reggae_playlists(playlists)),
+        ((19 * 60) + 30, 22 * 60, _neuralcast_evening_playlists(playlists)),
+    ]
+
+    raw_blocks: List[Dict[str, object]] = []
+    cursor = 0
+    for start_minute, end_minute, reserved_playlists in reserved_windows:
+        if cursor < start_minute:
+            for duration in _build_random_duration_partition(
+                min_block_minutes=min_block_minutes,
+                max_block_minutes=max_block_minutes,
+                total_minutes=start_minute - cursor,
+                rng=rng,
+            ):
+                block_end = cursor + duration
+                raw_blocks.append(
+                    {
+                        "start_time_local": format_hhmm(cursor),
+                        "end_time_local": format_hhmm(block_end),
+                        "mode": "playlist",
+                        "section_label": "",
+                        "genre_labels": [],
+                        "_duration_minutes": duration,
+                    }
+                )
+                cursor = block_end
+
+        raw_blocks.extend(
+            _reserved_playlist_blocks(
+                start_minute=start_minute,
+                end_minute=end_minute,
+                playlists=reserved_playlists,
+                min_block_minutes=min_block_minutes,
+                max_block_minutes=max_block_minutes,
+            )
+        )
+        cursor = end_minute
+
+    if cursor < 24 * 60:
+        for duration in _build_random_duration_partition(
+            min_block_minutes=min_block_minutes,
+            max_block_minutes=max_block_minutes,
+            total_minutes=(24 * 60) - cursor,
+            rng=rng,
+        ):
+            block_end = cursor + duration
+            raw_blocks.append(
+                {
+                    "start_time_local": format_hhmm(cursor),
+                    "end_time_local": format_hhmm(block_end),
+                    "mode": "playlist",
+                    "section_label": "",
+                    "genre_labels": [],
+                    "_duration_minutes": duration,
+                }
+            )
+            cursor = block_end
+
+    open_labels = [
+        ("Bloque libre", ["sin tematica"]),
+        ("Sin tematica", ["mix variado"]),
+        ("Cruce libre", ["sin tematica"]),
+        ("Mezcla libre", ["catalogo completo"]),
+    ]
+    open_candidate_indices = [
+        index
+        for index, block in enumerate(raw_blocks)
+        if not bool(block.get("_reserved_playlist"))
+    ]
+    outside_minutes = sum(
+        int(raw_blocks[index]["_duration_minutes"]) for index in open_candidate_indices
+    )
+    min_open_minutes = math.ceil(open_ratio_min * (24 * 60))
+    max_open_minutes = math.floor(open_ratio_max * (24 * 60))
+    if outside_minutes <= 0 or min_open_minutes > outside_minutes:
+        raise ScheduleValidationError(
+            "NeuralCast reserved windows leave insufficient time for open rotation."
+        )
+
+    open_indices = choose_open_block_indices(
+        block_minutes=[
+            int(raw_blocks[index]["_duration_minutes"]) for index in open_candidate_indices
+        ],
+        open_ratio_min=min_open_minutes / outside_minutes,
+        open_ratio_max=min(1.0, max_open_minutes / outside_minutes),
+    )
+    for relative_index in open_indices:
+        block = raw_blocks[open_candidate_indices[relative_index]]
+        section_label, genre_labels = rng.choice(open_labels)
+        block["mode"] = "open"
+        block["section_label"] = section_label
+        block["genre_labels"] = list(genre_labels)
+        block.pop("playlist_id", None)
+        block.pop("playlist_name", None)
+
+    return raw_blocks
+
+
+def _build_station_scaffold(
+    *,
+    station_slug: str,
+    playlists: Sequence[StationPlaylist],
+    open_ratio_min: float,
+    open_ratio_max: float,
+    min_open_slots: int,
+    max_open_slots: int,
+    min_block_minutes: int,
+    max_block_minutes: int,
+    playlist_capacity: int,
+    rng: random.Random,
+) -> List[Dict[str, object]]:
+    if _is_neuralcast(station_slug):
+        return _build_neuralcast_reserved_scaffold(
+            playlists=playlists,
+            open_ratio_min=open_ratio_min,
+            open_ratio_max=open_ratio_max,
+            min_block_minutes=min_block_minutes,
+            max_block_minutes=max_block_minutes,
+            rng=rng,
+        )
+
+    return _build_randomized_scaffold(
+        open_ratio_min=open_ratio_min,
+        open_ratio_max=open_ratio_max,
+        min_open_slots=min_open_slots,
+        max_open_slots=max_open_slots,
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
+        playlist_capacity=playlist_capacity,
+        rng=rng,
+    )
+
+
 def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, ...]]]:
     if not _is_neuralforge(station_slug):
         return {}
@@ -996,6 +1234,18 @@ def _assign_playlists_to_scaffold(
             continue
 
         duration_minutes = int(block.get("_duration_minutes") or 0)
+        if block.get("playlist_id") and block.get("playlist_name"):
+            playlist_ids = [str(block["playlist_id"])]
+            if isinstance(block.get("playlist_ids"), list):
+                playlist_ids = [str(value) for value in block["playlist_ids"]]
+            previous_playlist_ids = set(playlist_ids)
+            previous_signatures.append(tuple(playlist_ids))
+            assigned_playlist_blocks += 1
+            for playlist_id in playlist_ids:
+                usage_counts[playlist_id] += 1
+                usage_minutes[playlist_id] += duration_minutes
+            continue
+
         remaining_blocks_including_current = playlist_block_count - assigned_playlist_blocks
         remaining_assignment_capacity = sum(
             max(0, repeat_limits[playlist.id] - usage_counts[playlist.id])
@@ -1102,6 +1352,7 @@ def _assign_playlists_to_scaffold(
 
     for block in raw_blocks:
         block.pop("_duration_minutes", None)
+        block.pop("_reserved_playlist", None)
 
 
 def build_weekly_plan_with_code(
@@ -1147,7 +1398,9 @@ def build_weekly_plan_with_code(
     for attempt in range(1, 9):
         rng = random.Random(seed + (attempt * 1009))
         try:
-            raw_blocks = _build_randomized_scaffold(
+            raw_blocks = _build_station_scaffold(
+                station_slug=station_slug,
+                playlists=enabled_playlists,
                 open_ratio_min=open_ratio_min,
                 open_ratio_max=open_ratio_max,
                 min_open_slots=min_open_slots,
@@ -1231,7 +1484,9 @@ def build_weekly_plan_with_code(
     for attempt in range(1, 25):
         rng = random.Random(seed + 100_000 + (attempt * 3137))
         try:
-            raw_blocks = _build_randomized_scaffold(
+            raw_blocks = _build_station_scaffold(
+                station_slug=station_slug,
+                playlists=enabled_playlists,
                 open_ratio_min=open_ratio_min,
                 open_ratio_max=open_ratio_max,
                 min_open_slots=min_open_slots,

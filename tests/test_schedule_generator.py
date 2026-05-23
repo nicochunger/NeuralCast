@@ -50,6 +50,33 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         minutes = (int(hour_text) * 60) + int(minute_text)
         self.assertEqual(minutes % 15, 0, value)
 
+    def neuralcast_reserved_playlists(self) -> list[StationPlaylist]:
+        names = [
+            "Reggae Argentino",
+            "Aspen Vibes",
+            "Acoustic Singer-Songwriter",
+            "Classic Rock",
+            "Indie Vibes",
+            "Latin Pop",
+            "Rock Nacional",
+            "Movie and TV Soundtracks",
+            "International Heritage",
+            "The Modern Frontier",
+            "Global Mid-Century Foundations",
+            "Romanticismo Argentino",
+        ]
+        return [
+            StationPlaylist(
+                id=str(index),
+                name=name,
+                is_enabled=True,
+                weight=1.0,
+                schedule_items=[],
+                raw={},
+            )
+            for index, name in enumerate(names, start=1)
+        ]
+
     def test_validate_daily_template_accepts_full_day_with_open_slots(self) -> None:
         raw_blocks = [
             {
@@ -372,7 +399,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             return_value="fresh-seed-01",
         ):
             plan = schedule_generation.build_weekly_plan_with_code(
-                station_slug="neuralcast",
+                station_slug="teststation",
                 station_name="NeuralCast",
                 timezone_name="UTC",
                 week_start=week_start,
@@ -462,7 +489,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         ]
 
         plan = schedule_generation.build_weekly_plan_with_code(
-            station_slug="neuralcast",
+            station_slug="teststation",
             station_name="NeuralCast",
             timezone_name="UTC",
             week_start=week_start,
@@ -483,6 +510,57 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             self.assertEqual(block.start_minute % 15, 0, block.start_time_local)
             self.assertEqual(block.end_minute % 15, 0, block.end_time_local)
             self.assertEqual((block.end_minute - block.start_minute) % 15, 0)
+
+    def test_neuralcast_reserves_morning_and_evening_playlist_windows(self) -> None:
+        week_start = dt.date(2026, 2, 16)
+        plan = schedule_generation.build_weekly_plan_with_code(
+            station_slug="neuralcast",
+            station_name="NeuralCast",
+            timezone_name="UTC",
+            week_start=week_start,
+            week_end=week_start + dt.timedelta(days=6),
+            playlists=self.neuralcast_reserved_playlists(),
+            open_ratio_min=0.30,
+            open_ratio_max=0.45,
+            min_open_slots=3,
+            max_open_slots=6,
+            min_block_minutes=30,
+            max_block_minutes=90,
+            seed_mode=schedule_generation.SCHEDULE_SEED_MODE_CUSTOM,
+            seed_salt="reserved-neuralcast",
+        )
+
+        morning_blocks = [
+            block
+            for block in plan.daily_template
+            if block.start_minute >= 7 * 60 and block.end_minute <= 9 * 60
+        ]
+        evening_blocks = [
+            block
+            for block in plan.daily_template
+            if block.start_minute >= (19 * 60) + 30 and block.end_minute <= 22 * 60
+        ]
+        self.assertEqual(morning_blocks[0].start_time_local, "07:00")
+        self.assertEqual(morning_blocks[-1].end_time_local, "09:00")
+        self.assertEqual(evening_blocks[0].start_time_local, "19:30")
+        self.assertEqual(evening_blocks[-1].end_time_local, "22:00")
+
+        for block in morning_blocks:
+            self.assertEqual(block.mode, "playlist")
+            self.assertIn("reggae", block.playlist_name.lower())
+        for block in evening_blocks:
+            self.assertEqual(block.mode, "playlist")
+            self.assertIn(
+                block.playlist_name,
+                {"Aspen Vibes", "Acoustic Singer-Songwriter"},
+            )
+
+        open_minutes = sum(
+            block.end_minute - block.start_minute
+            for block in plan.daily_template
+            if block.mode == "open"
+        )
+        self.assertGreaterEqual(open_minutes / (24 * 60), 0.30)
 
     def test_validate_daily_template_rejects_playlist_in_unscheduled_window(self) -> None:
         raw_blocks = [
