@@ -16,6 +16,7 @@ from .config import (
     DEFAULT_MIN_OPEN_SLOTS,
     DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
     LOGGER,
+    SCHEDULE_TIME_GRID_MINUTES,
 )
 from .models import ScheduleValidationError, StationPlaylist, WeeklySchedulePlan
 from .template import (
@@ -49,6 +50,29 @@ class AssignmentCandidate:
 
 def _name_key(value: str) -> str:
     return " ".join(str(value or "").strip().lower().split())
+
+
+NEURALFORGE_MELODIC_DEATH_KEY = _name_key("Melodic Death Metal")
+
+
+def _is_neuralforge(station_slug: str) -> bool:
+    return station_slug.strip().lower() == "neuralforge"
+
+
+def _ceil_to_grid(value: int, grid_minutes: int = SCHEDULE_TIME_GRID_MINUTES) -> int:
+    return ((int(value) + grid_minutes - 1) // grid_minutes) * grid_minutes
+
+
+def _floor_to_grid(value: int, grid_minutes: int = SCHEDULE_TIME_GRID_MINUTES) -> int:
+    return (int(value) // grid_minutes) * grid_minutes
+
+
+def _duration_grid_range(minimum: int, maximum: int) -> List[int]:
+    first = _ceil_to_grid(minimum)
+    last = _floor_to_grid(maximum)
+    if first > last:
+        return []
+    return list(range(first, last + 1, SCHEDULE_TIME_GRID_MINUTES))
 
 
 def _stable_seed(
@@ -162,21 +186,14 @@ def _candidate_durations(
     target_minutes: int,
 ) -> List[int]:
     preferred = max(min_block_minutes, min(max_block_minutes, target_minutes))
-    values = {
-        value
-        for value in range(min_block_minutes, max_block_minutes + 1)
-        if value % 30 == 0
-    }
-    values.update(
-        {
-            min_block_minutes,
-            max_block_minutes,
-            preferred,
-            max(min_block_minutes, min(max_block_minutes, preferred - 30)),
-            max(min_block_minutes, min(max_block_minutes, preferred + 30)),
-        }
+    values = _duration_grid_range(min_block_minutes, max_block_minutes)
+    return sorted(
+        values,
+        key=lambda value: (
+            abs(value - preferred),
+            value,
+        ),
     )
-    return sorted(value for value in values if min_block_minutes <= value <= max_block_minutes)
 
 
 def _build_random_duration_partition(
@@ -255,7 +272,9 @@ def _build_random_duration_partition(
 def _duration_step(values: Sequence[int]) -> int:
     normalized = [abs(int(value)) for value in values if int(value) != 0]
     if not normalized:
-        return 1
+        return SCHEDULE_TIME_GRID_MINUTES
+    if all(value % SCHEDULE_TIME_GRID_MINUTES == 0 for value in normalized):
+        return SCHEDULE_TIME_GRID_MINUTES
     for step in (30, 15, 5, 1):
         if all(value % step == 0 for value in normalized):
             return step
@@ -270,49 +289,57 @@ def _build_partition_with_specs(
 ) -> List[int]:
     if total_minutes < 0:
         raise ScheduleValidationError("Partition total_minutes must be non-negative.")
+    if total_minutes % SCHEDULE_TIME_GRID_MINUTES != 0:
+        raise ScheduleValidationError(
+            f"Partition total_minutes must align to {SCHEDULE_TIME_GRID_MINUTES} minutes."
+        )
     if not specs:
         if total_minutes == 0:
             return []
         raise ScheduleValidationError("Partition specs are required for non-zero totals.")
 
-    minima = [minimum for minimum, _maximum, _preferred, _jitter in specs]
-    maxima = [maximum for _minimum, maximum, _preferred, _jitter in specs]
-    if any(minimum > maximum for minimum, maximum in zip(minima, maxima)):
+    raw_minima = [minimum for minimum, _maximum, _preferred, _jitter in specs]
+    raw_maxima = [maximum for _minimum, maximum, _preferred, _jitter in specs]
+    if any(minimum > maximum for minimum, maximum in zip(raw_minima, raw_maxima)):
         raise ScheduleValidationError("Partition spec minimum cannot exceed maximum.")
 
-    minimum_total = sum(minima)
-    maximum_total = sum(maxima)
-    if total_minutes < minimum_total or total_minutes > maximum_total:
-        raise ScheduleValidationError(
-            f"Unable to partition {total_minutes} minutes within bounds "
-            f"[{minimum_total}, {maximum_total}]."
-        )
-
-    step = _duration_step(
-        [total_minutes] + [value for spec in specs for value in spec[:3]]
-    )
-    targets: List[int] = []
     candidate_lists: List[List[int]] = []
     for minimum, maximum, preferred, jitter in specs:
+        candidates = _duration_grid_range(minimum, maximum)
+        if not candidates:
+            raise ScheduleValidationError(
+                "Partition spec has no quarter-hour-aligned duration candidates."
+            )
+
         target = max(minimum, min(maximum, preferred))
         if jitter > 0:
-            jitter_units = max(0, jitter // step)
+            jitter_units = max(0, jitter // SCHEDULE_TIME_GRID_MINUTES)
             if jitter_units > 0:
-                target += rng.randint(-jitter_units, jitter_units) * step
+                target += (
+                    rng.randint(-jitter_units, jitter_units)
+                    * SCHEDULE_TIME_GRID_MINUTES
+                )
                 target = max(minimum, min(maximum, target))
 
-        targets.append(target)
-        values = set(range(minimum, maximum + 1, step))
-        values.update({minimum, maximum, target, preferred})
         candidate_lists.append(
             sorted(
-                (value for value in values if minimum <= value <= maximum),
+                candidates,
                 key=lambda value, target_value=target, preferred_value=preferred: (
                     abs(value - target_value),
                     abs(value - preferred_value),
                     value,
                 ),
             )
+        )
+
+    minima = [min(candidates) for candidates in candidate_lists]
+    maxima = [max(candidates) for candidates in candidate_lists]
+    minimum_total = sum(minima)
+    maximum_total = sum(maxima)
+    if total_minutes < minimum_total or total_minutes > maximum_total:
+        raise ScheduleValidationError(
+            f"Unable to partition {total_minutes} minutes within bounds "
+            f"[{minimum_total}, {maximum_total}]."
         )
 
     suffix_min = [0] * (len(specs) + 1)
@@ -377,14 +404,15 @@ def _choose_open_layout(
         if open_total_min > open_total_max:
             continue
 
-        step = _duration_step(
-            [open_total_min, open_total_max, min_block_minutes, max_block_minutes]
-        )
+        open_total_min_aligned = _ceil_to_grid(open_total_min)
+        open_total_max_aligned = _floor_to_grid(open_total_max)
+        if open_total_min_aligned > open_total_max_aligned:
+            continue
+
+        step = SCHEDULE_TIME_GRID_MINUTES
         open_total_candidates = list(
-            range(open_total_max, open_total_min - 1, -step)
+            range(open_total_max_aligned, open_total_min_aligned - 1, -step)
         )
-        if open_total_min not in open_total_candidates:
-            open_total_candidates.append(open_total_min)
 
         for open_total in open_total_candidates:
             remaining_minutes = total_minutes - open_total
@@ -642,7 +670,7 @@ def _build_randomized_scaffold(
 
 
 def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, ...]]]:
-    if station_slug.strip().lower() != "neuralforge":
+    if not _is_neuralforge(station_slug):
         return {}
 
     return {
@@ -795,6 +823,39 @@ def _combo_probability_for_duration(duration_minutes: int) -> float:
     return 0.62
 
 
+def _playlist_daily_repeat_limit(playlist: StationPlaylist, station_slug: str) -> int:
+    if (
+        _is_neuralforge(station_slug)
+        and _name_key(playlist.name) == NEURALFORGE_MELODIC_DEATH_KEY
+    ):
+        return 2
+    return 1
+
+
+def _candidate_long_block_multiplier(
+    candidate: AssignmentCandidate,
+    station_slug: str,
+    duration_minutes: int,
+) -> float:
+    if not _is_neuralforge(station_slug):
+        return 1.0
+    if not any(
+        _name_key(playlist_name) == NEURALFORGE_MELODIC_DEATH_KEY
+        for playlist_name in candidate.playlist_names
+    ):
+        return 1.0
+
+    if duration_minutes < 45:
+        return 0.80
+    if duration_minutes < 60:
+        return 1.05
+    if duration_minutes < 75:
+        return 1.45
+    if duration_minutes < 90:
+        return 1.85
+    return 2.30
+
+
 def _weighted_choice(
     rng: random.Random,
     candidates: Sequence[AssignmentCandidate],
@@ -815,6 +876,7 @@ def _weighted_choice(
 def _candidate_selection_weight(
     *,
     candidate: AssignmentCandidate,
+    station_slug: str,
     duration_minutes: int,
     usage_counts: Counter[str],
     usage_minutes: Counter[str],
@@ -837,6 +899,12 @@ def _candidate_selection_weight(
     else:
         if duration_minutes >= 180:
             weight *= 1.10
+
+    weight *= _candidate_long_block_multiplier(
+        candidate=candidate,
+        station_slug=station_slug,
+        duration_minutes=duration_minutes,
+    )
 
     candidate_id_set = set(candidate.playlist_ids)
     if previous_playlist_ids and (candidate_id_set & previous_playlist_ids):
@@ -872,12 +940,17 @@ def _assign_playlists_to_scaffold(
 
     label_map = _station_label_map(station_slug)
     playlist_by_name_key = {_name_key(item.name): item for item in enabled_playlists}
+    repeat_limits = {
+        playlist.id: _playlist_daily_repeat_limit(playlist, station_slug)
+        for playlist in enabled_playlists
+    }
+    total_assignment_capacity = sum(repeat_limits.values())
     solo_candidates = [
         _solo_candidate(item, station_slug, label_map) for item in enabled_playlists
     ]
     combo_candidates = (
         _neuralforge_combo_presets(playlist_by_name_key)
-        if allow_combo_presets and station_slug.strip().lower() == "neuralforge"
+        if allow_combo_presets and _is_neuralforge(station_slug)
         else []
     )
 
@@ -893,14 +966,14 @@ def _assign_playlists_to_scaffold(
         raise ScheduleValidationError(
             "Template cannot be fully open; at least one playlist block is required."
         )
-    if playlist_block_count > len(enabled_playlists):
+    if playlist_block_count > total_assignment_capacity:
         raise ScheduleValidationError(
             f"Template contains {playlist_block_count} playlist blocks but only "
-            f"{len(enabled_playlists)} enabled playlists are available for no-repeat scheduling."
+            f"{total_assignment_capacity} playlist assignment slots are available."
         )
 
     forced_combo_block_indices: set[int] = set()
-    combo_slack = len(enabled_playlists) - playlist_block_count
+    combo_slack = total_assignment_capacity - playlist_block_count
     if combo_candidates and combo_slack > 0:
         long_enough = [item for item in playlist_blocks_with_durations if item[1] >= 90]
         if long_enough:
@@ -914,7 +987,6 @@ def _assign_playlists_to_scaffold(
 
     usage_counts: Counter[str] = Counter()
     usage_minutes: Counter[str] = Counter()
-    used_playlist_ids: set[str] = set()
     previous_playlist_ids: set[str] = set()
     previous_signatures: List[Tuple[str, ...]] = []
     assigned_playlist_blocks = 0
@@ -925,13 +997,16 @@ def _assign_playlists_to_scaffold(
 
         duration_minutes = int(block.get("_duration_minutes") or 0)
         remaining_blocks_including_current = playlist_block_count - assigned_playlist_blocks
-        remaining_unused_playlists = len(enabled_playlists) - len(used_playlist_ids)
-        if remaining_blocks_including_current > remaining_unused_playlists:
+        remaining_assignment_capacity = sum(
+            max(0, repeat_limits[playlist.id] - usage_counts[playlist.id])
+            for playlist in enabled_playlists
+        )
+        if remaining_blocks_including_current > remaining_assignment_capacity:
             raise ScheduleValidationError(
-                "Insufficient unused playlists remaining to avoid repeats in playlist blocks."
+                "Insufficient playlist assignment capacity remaining for playlist blocks."
             )
 
-        extra_playlist_budget = remaining_unused_playlists - remaining_blocks_including_current
+        extra_playlist_budget = remaining_assignment_capacity - remaining_blocks_including_current
         force_combo = block_index in forced_combo_block_indices and extra_playlist_budget > 0
         allow_combos = bool(combo_candidates) and extra_playlist_budget > 0 and (
             force_combo or (rng.random() < _combo_probability_for_duration(duration_minutes))
@@ -949,11 +1024,14 @@ def _assign_playlists_to_scaffold(
         candidate_pool = [
             candidate
             for candidate in candidate_pool
-            if not (set(candidate.playlist_ids) & used_playlist_ids)
+            if all(
+                usage_counts[playlist_id] < repeat_limits.get(playlist_id, 1)
+                for playlist_id in candidate.playlist_ids
+            )
         ]
         if not candidate_pool:
             raise ScheduleValidationError(
-                "No valid playlist candidates remain without reusing a playlist."
+                "No valid playlist candidates remain within daily repeat limits."
             )
 
         no_adjacent_overlap_pool = [
@@ -965,28 +1043,33 @@ def _assign_playlists_to_scaffold(
             candidate_pool = no_adjacent_overlap_pool
 
         if force_combo:
-            combo_only_pool = [candidate for candidate in candidate_pool if candidate.kind == "combo"]
+            combo_only_pool = [
+                candidate for candidate in candidate_pool if candidate.kind == "combo"
+            ]
             if combo_only_pool:
                 candidate_pool = combo_only_pool
 
-        # Choosing a combo spends >1 unique playlist. Keep enough unused playlists
-        # available so every remaining playlist block can still get a unique assignment.
+        # Choosing a combo spends more assignment capacity. Keep enough capacity
+        # available so every remaining playlist block can still be filled.
         remaining_future_blocks = remaining_blocks_including_current - 1
         feasible_pool = [
             candidate
             for candidate in candidate_pool
-            if (remaining_unused_playlists - len(candidate.playlist_ids)) >= remaining_future_blocks
+            if (remaining_assignment_capacity - len(candidate.playlist_ids))
+            >= remaining_future_blocks
         ]
         if feasible_pool:
             candidate_pool = feasible_pool
         else:
             raise ScheduleValidationError(
-                "No feasible candidates remain while preserving no-repeat scheduling across remaining blocks."
+                "No feasible candidates remain while preserving repeat limits "
+                "across remaining blocks."
             )
 
         weights = [
             _candidate_selection_weight(
                 candidate=candidate,
+                station_slug=station_slug,
                 duration_minutes=duration_minutes,
                 usage_counts=usage_counts,
                 usage_minutes=usage_minutes,
@@ -1012,7 +1095,6 @@ def _assign_playlists_to_scaffold(
 
         previous_playlist_ids = set(chosen.playlist_ids)
         previous_signatures.append(tuple(chosen.playlist_ids))
-        used_playlist_ids.update(chosen.playlist_ids)
         assigned_playlist_blocks += 1
         for playlist_id in chosen.playlist_ids:
             usage_counts[playlist_id] += 1
@@ -1113,7 +1195,7 @@ def build_weekly_plan_with_code(
             rationale = (
                 "Plan semanal generado por codigo (sin LLM), con bloques variables, "
                 "ventanas abiertas largas repartidas durante el dia y seleccion pseudoaleatoria "
-                f"{seed_note}, sin repetir playlists en bloques programados."
+                f"{seed_note}, respetando limites diarios de repeticion por playlist."
                 f"{combo_note}"
             )
             return WeeklySchedulePlan(
@@ -1185,7 +1267,8 @@ def build_weekly_plan_with_code(
             rationale = (
                 "Plan semanal generado por codigo (sin LLM) en modo de respaldo, "
                 "sin combinaciones curadas, con ventanas abiertas largas repartidas durante el dia "
-                f"y sin repetir playlists en bloques programados. Seed mode={normalized_seed_mode}"
+                "y respetando limites diarios de repeticion por playlist. "
+                f"Seed mode={normalized_seed_mode}"
             )
             if fallback_error is not None:
                 rationale = f"{rationale} Error previo: {fallback_error}"
@@ -1217,7 +1300,7 @@ def build_weekly_plan_with_code(
 
     raise RuntimeError(
         "Unable to generate weekly schedule with current constraints "
-        f"(no-repeat playlist blocks, open slot bounds, duration bounds): {fallback_error}"
+        f"(repeat limits, open slot bounds, duration bounds): {fallback_error}"
     )
 
 

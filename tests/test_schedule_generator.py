@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as dt
 import random
 import unittest
+from collections import Counter
 from unittest import mock
 
 import neuralcast.pipelines.schedule_generator.generation as schedule_generation  # noqa: E402
@@ -43,6 +44,11 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             self.playlist_a.id: self.playlist_a,
             self.playlist_b.id: self.playlist_b,
         }
+
+    def assertQuarterHourBoundary(self, value: str) -> None:
+        hour_text, minute_text = value.split(":", 1)
+        minutes = (int(hour_text) * 60) + int(minute_text)
+        self.assertEqual(minutes % 15, 0, value)
 
     def test_validate_daily_template_accepts_full_day_with_open_slots(self) -> None:
         raw_blocks = [
@@ -419,7 +425,10 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         cursor = 0
         open_centers = []
         for block in raw_blocks:
+            self.assertQuarterHourBoundary(str(block["start_time_local"]))
+            self.assertQuarterHourBoundary(str(block["end_time_local"]))
             duration = int(block["_duration_minutes"])
+            self.assertEqual(duration % 15, 0)
             if block["mode"] == "open":
                 open_centers.append(cursor + (duration / 2.0))
             cursor += duration
@@ -437,6 +446,43 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             self.assertFalse(
                 previous["mode"] == "open" and current["mode"] == "open"
             )
+
+    def test_build_weekly_plan_with_code_uses_quarter_hour_boundaries(self) -> None:
+        week_start = dt.date(2026, 2, 16)
+        playlists = [
+            StationPlaylist(
+                id=str(index),
+                name=f"Playlist {index}",
+                is_enabled=True,
+                weight=1.0,
+                schedule_items=[],
+                raw={},
+            )
+            for index in range(1, 13)
+        ]
+
+        plan = schedule_generation.build_weekly_plan_with_code(
+            station_slug="neuralcast",
+            station_name="NeuralCast",
+            timezone_name="UTC",
+            week_start=week_start,
+            week_end=week_start + dt.timedelta(days=6),
+            playlists=playlists,
+            open_ratio_min=0.20,
+            open_ratio_max=0.40,
+            min_open_slots=3,
+            max_open_slots=6,
+            min_block_minutes=30,
+            max_block_minutes=90,
+            seed_mode=schedule_generation.SCHEDULE_SEED_MODE_CUSTOM,
+            seed_salt="quarter-hour",
+        )
+
+        self.assertTrue(plan.daily_template)
+        for block in plan.daily_template:
+            self.assertEqual(block.start_minute % 15, 0, block.start_time_local)
+            self.assertEqual(block.end_minute % 15, 0, block.end_time_local)
+            self.assertEqual((block.end_minute - block.start_minute) % 15, 0)
 
     def test_validate_daily_template_rejects_playlist_in_unscheduled_window(self) -> None:
         raw_blocks = [
@@ -531,6 +577,136 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
                 for combo in combos
             )
         )
+
+    def test_neuralforge_melodic_death_can_repeat_once_per_day(self) -> None:
+        melodic = StationPlaylist(
+            id="21",
+            name="Melodic Death Metal",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        prog = StationPlaylist(
+            id="22",
+            name="Prog Metal",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        symphonic = StationPlaylist(
+            id="23",
+            name="Symphonic Metal",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        raw_blocks = [
+            {
+                "start_time_local": "00:00",
+                "end_time_local": "01:30",
+                "mode": "playlist",
+                "_duration_minutes": 90,
+            },
+            {
+                "start_time_local": "01:30",
+                "end_time_local": "02:30",
+                "mode": "playlist",
+                "_duration_minutes": 60,
+            },
+            {
+                "start_time_local": "02:30",
+                "end_time_local": "04:00",
+                "mode": "playlist",
+                "_duration_minutes": 90,
+            },
+            {
+                "start_time_local": "04:00",
+                "end_time_local": "05:00",
+                "mode": "playlist",
+                "_duration_minutes": 60,
+            },
+        ]
+
+        schedule_generation._assign_playlists_to_scaffold(
+            station_slug="neuralforge",
+            playlists=[melodic, prog, symphonic],
+            raw_blocks=raw_blocks,
+            rng=random.Random(9),
+            allow_combo_presets=False,
+        )
+
+        playlist_names = [str(block["playlist_name"]) for block in raw_blocks]
+        self.assertEqual(playlist_names.count("Melodic Death Metal"), 2)
+
+    def test_non_neuralforge_playlist_repeat_limit_stays_one(self) -> None:
+        playlists = [
+            StationPlaylist(
+                id=str(index),
+                name=f"Playlist {index}",
+                is_enabled=True,
+                weight=1.0,
+                schedule_items=[],
+                raw={},
+            )
+            for index in range(1, 4)
+        ]
+        raw_blocks = [
+            {
+                "start_time_local": f"0{index}:00",
+                "end_time_local": f"0{index}:30",
+                "mode": "playlist",
+                "_duration_minutes": 30,
+            }
+            for index in range(4)
+        ]
+
+        with self.assertRaises(ValueError):
+            schedule_generation._assign_playlists_to_scaffold(
+                station_slug="neuralcast",
+                playlists=playlists,
+                raw_blocks=raw_blocks,
+                rng=random.Random(9),
+                allow_combo_presets=False,
+            )
+
+    def test_neuralforge_melodic_death_weight_prefers_long_blocks(self) -> None:
+        melodic = StationPlaylist(
+            id="21",
+            name="Melodic Death Metal",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        candidate = schedule_generation._solo_candidate(
+            melodic,
+            "neuralforge",
+            schedule_generation._station_label_map("neuralforge"),
+        )
+
+        short_weight = schedule_generation._candidate_selection_weight(
+            candidate=candidate,
+            station_slug="neuralforge",
+            duration_minutes=30,
+            usage_counts=Counter(),
+            usage_minutes=Counter(),
+            previous_playlist_ids=set(),
+            previous_signatures=[],
+        )
+        long_weight = schedule_generation._candidate_selection_weight(
+            candidate=candidate,
+            station_slug="neuralforge",
+            duration_minutes=90,
+            usage_counts=Counter(),
+            usage_minutes=Counter(),
+            previous_playlist_ids=set(),
+            previous_signatures=[],
+        )
+
+        self.assertGreater(long_weight, short_weight * 2)
 
 
 if __name__ == "__main__":

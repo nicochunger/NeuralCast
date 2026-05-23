@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from .config import (
     DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
     LOGGER,
+    SCHEDULE_TIME_GRID_MINUTES,
     UNSCHEDULED_WINDOW_END_MINUTE,
     UNSCHEDULED_WINDOW_START_MINUTE,
     UNSCHEDULED_WINDOW_TOTAL_MINUTES,
@@ -357,12 +358,16 @@ def build_duration_partition(
         )
 
     preferred = max(min_block_minutes, min(max_block_minutes, target_block_minutes))
-    candidate_set = {
-        value
-        for value in range(min_block_minutes, max_block_minutes + 1)
-        if value % 30 == 0
-    }
-    candidate_set.update({min_block_minutes, max_block_minutes, preferred})
+    first_candidate = (
+        (min_block_minutes + SCHEDULE_TIME_GRID_MINUTES - 1)
+        // SCHEDULE_TIME_GRID_MINUTES
+    ) * SCHEDULE_TIME_GRID_MINUTES
+    last_candidate = (
+        max_block_minutes // SCHEDULE_TIME_GRID_MINUTES
+    ) * SCHEDULE_TIME_GRID_MINUTES
+    candidate_set = set(
+        range(first_candidate, last_candidate + 1, SCHEDULE_TIME_GRID_MINUTES)
+    )
     candidates = sorted(
         [value for value in candidate_set if min_block_minutes <= value <= max_block_minutes],
         key=lambda value: (abs(value - preferred), -value),
