@@ -53,6 +53,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
     def neuralcast_reserved_playlists(self) -> list[StationPlaylist]:
         names = [
             "Reggae Argentino",
+            "Reggae Rock",
             "Aspen Vibes",
             "Acoustic Singer-Songwriter",
             "Classic Rock",
@@ -540,20 +541,25 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             for block in plan.daily_template
             if block.start_minute >= (19 * 60) + 30 and block.end_minute <= 22 * 60
         ]
-        self.assertEqual(morning_blocks[0].start_time_local, "07:00")
-        self.assertEqual(morning_blocks[-1].end_time_local, "09:00")
-        self.assertEqual(evening_blocks[0].start_time_local, "19:30")
-        self.assertEqual(evening_blocks[-1].end_time_local, "22:00")
+        self.assertEqual(len(morning_blocks), 1)
+        self.assertEqual(len(evening_blocks), 1)
+        morning_block = morning_blocks[0]
+        evening_block = evening_blocks[0]
+        self.assertEqual(morning_block.start_time_local, "07:00")
+        self.assertEqual(morning_block.end_time_local, "09:00")
+        self.assertEqual(evening_block.start_time_local, "19:30")
+        self.assertEqual(evening_block.end_time_local, "22:00")
 
-        for block in morning_blocks:
-            self.assertEqual(block.mode, "playlist")
-            self.assertIn("reggae", block.playlist_name.lower())
-        for block in evening_blocks:
-            self.assertEqual(block.mode, "playlist")
-            self.assertIn(
-                block.playlist_name,
-                {"Aspen Vibes", "Acoustic Singer-Songwriter"},
-            )
+        self.assertEqual(morning_block.mode, "playlist")
+        self.assertEqual(
+            set(morning_block.playlist_names),
+            {"Reggae Argentino", "Reggae Rock"},
+        )
+        self.assertEqual(evening_block.mode, "playlist")
+        self.assertEqual(
+            set(evening_block.playlist_names),
+            {"Aspen Vibes", "Acoustic Singer-Songwriter"},
+        )
 
         open_minutes = sum(
             block.end_minute - block.start_minute

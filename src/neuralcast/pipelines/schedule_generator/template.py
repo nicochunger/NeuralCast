@@ -120,7 +120,10 @@ def validate_daily_template(
             )
 
         duration_minutes = end_minute - start_minute
-        if duration_minutes < min_block_minutes or duration_minutes > max_block_minutes:
+        is_reserved_playlist = bool(entry.get("_reserved_playlist"))
+        if duration_minutes < min_block_minutes or (
+            duration_minutes > max_block_minutes and not is_reserved_playlist
+        ):
             raise ScheduleValidationError(
                 f"Block duration {duration_minutes} is outside allowed range "
                 f"[{min_block_minutes}, {max_block_minutes}] for {start_time}-{end_time}."

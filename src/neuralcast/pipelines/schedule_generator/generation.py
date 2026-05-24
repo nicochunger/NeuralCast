@@ -706,23 +706,17 @@ def _neuralcast_reggae_playlists(
 def _neuralcast_evening_playlists(
     playlists: Sequence[StationPlaylist],
 ) -> List[StationPlaylist]:
-    aspen = _find_neuralcast_reserved_playlists(
+    aspen_playlists = _find_neuralcast_reserved_playlists(
         playlists,
         lambda playlist: _name_key(playlist.name) == "aspen vibes",
         "Aspen Vibes",
-    )[0]
-    singer_songwriter = _find_neuralcast_reserved_playlists(
+    )
+    singer_songwriter_playlists = _find_neuralcast_reserved_playlists(
         playlists,
         lambda playlist: "singer songwriter" in _playlist_search_text(playlist),
         "singer-songwriter",
     )
-    singer_songwriter.sort(
-        key=lambda playlist: (
-            "scheduled" in _playlist_search_text(playlist),
-            _playlist_search_text(playlist),
-        )
-    )
-    return [aspen, singer_songwriter[0]]
+    return [*aspen_playlists, *singer_songwriter_playlists]
 
 
 def _reserved_playlist_blocks(
@@ -730,38 +724,27 @@ def _reserved_playlist_blocks(
     start_minute: int,
     end_minute: int,
     playlists: Sequence[StationPlaylist],
-    min_block_minutes: int,
-    max_block_minutes: int,
 ) -> List[Dict[str, object]]:
     if not playlists:
         raise ScheduleValidationError("Reserved windows require at least one playlist.")
 
-    durations = build_duration_partition(
-        min_block_minutes=min_block_minutes,
-        max_block_minutes=max_block_minutes,
-        total_minutes=end_minute - start_minute,
-        target_block_minutes=75,
-    )
-    blocks: List[Dict[str, object]] = []
-    cursor = start_minute
-    for index, duration in enumerate(durations):
-        playlist = playlists[index % len(playlists)]
-        block_end = cursor + duration
-        blocks.append(
-            {
-                "start_time_local": format_hhmm(cursor),
-                "end_time_local": format_hhmm(block_end),
-                "mode": "playlist",
-                "playlist_id": playlist.id,
-                "playlist_name": playlist.name,
-                "section_label": playlist.name,
-                "genre_labels": [playlist.name],
-                "_duration_minutes": duration,
-                "_reserved_playlist": True,
-            }
-        )
-        cursor = block_end
-    return blocks
+    playlist_ids = [playlist.id for playlist in playlists]
+    playlist_names = [playlist.name for playlist in playlists]
+    return [
+        {
+            "start_time_local": format_hhmm(start_minute),
+            "end_time_local": format_hhmm(end_minute),
+            "mode": "playlist",
+            "playlist_ids": playlist_ids,
+            "playlist_names": playlist_names,
+            "playlist_id": playlist_ids[0],
+            "playlist_name": playlist_names[0],
+            "section_label": " + ".join(playlist_names),
+            "genre_labels": playlist_names,
+            "_duration_minutes": end_minute - start_minute,
+            "_reserved_playlist": True,
+        }
+    ]
 
 
 def _build_neuralcast_reserved_scaffold(
@@ -806,8 +789,6 @@ def _build_neuralcast_reserved_scaffold(
                 start_minute=start_minute,
                 end_minute=end_minute,
                 playlists=reserved_playlists,
-                min_block_minutes=min_block_minutes,
-                max_block_minutes=max_block_minutes,
             )
         )
         cursor = end_minute
@@ -1352,7 +1333,6 @@ def _assign_playlists_to_scaffold(
 
     for block in raw_blocks:
         block.pop("_duration_minutes", None)
-        block.pop("_reserved_playlist", None)
 
 
 def build_weekly_plan_with_code(
