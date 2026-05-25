@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
+from neuralcast.audio.download import DownloadNoResultsError
 from neuralcast.metadata.storage import metadata_key
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
+from neuralcast.pipelines.media_sync import RemoteSyncRequest, RemoteSyncResult
 
 
 def test_remove_new_releases_metadata_entries_removes_matching_keys(tmp_path) -> None:
@@ -30,3 +34,211 @@ def test_remove_new_releases_metadata_entries_removes_matching_keys(tmp_path) ->
     payload = json.loads(metadata_path.read_text(encoding="utf-8"))
     assert removed == 1
     assert sorted(payload["entries"]) == [keep_key]
+
+
+def test_default_media_library_apply_override_rejects_bad_inputs(tmp_path, capsys) -> None:
+    library = station_sync.DefaultMediaLibrary()
+    log = station_sync.PlaylistLog("Playlist")
+
+    assert not library.apply_override(
+        Song(artist="", title="Song", year="2026", override_url="https://youtu.be/x"),
+        tmp_path / "song.mp3",
+        "Playlist",
+        dry_run=False,
+        log=log,
+    )
+    assert not library.apply_override(
+        Song(artist="Artist", title="Song", year="2026", override_url="https://example.com/x"),
+        tmp_path / "song.mp3",
+        "Playlist",
+        dry_run=False,
+        log=log,
+    )
+    assert not library.apply_override(
+        Song(artist="Artist", title="Song", year="2026", override_url="https://youtu.be/x"),
+        None,
+        "Playlist",
+        dry_run=False,
+        log=log,
+    )
+
+    output = capsys.readouterr().out
+    assert "missing artist/title" in output
+    assert "unsupported URL" in output
+    assert "could not determine target path" in output
+
+
+def test_default_media_library_apply_override_dry_run_does_not_download(tmp_path, monkeypatch) -> None:
+    library = station_sync.DefaultMediaLibrary()
+    song_path = tmp_path / "Artist - Song.mp3"
+    song = Song(
+        artist="Artist",
+        title="Song",
+        year="2026",
+        override_url="https://youtu.be/x",
+    )
+    monkeypatch.setattr(
+        station_sync,
+        "youtube_to_mp3",
+        lambda *_args, **_kwargs: pytest.fail("download should not run in dry-run"),
+    )
+
+    changed = library.apply_override(
+        song,
+        song_path,
+        "Playlist",
+        dry_run=True,
+        log=station_sync.PlaylistLog("Playlist"),
+    )
+
+    assert changed is False
+    assert song.override_url == "https://youtu.be/x"
+
+
+def test_default_media_library_apply_override_restores_backup_on_failure(tmp_path, monkeypatch) -> None:
+    library = station_sync.DefaultMediaLibrary()
+    song_path = tmp_path / "Artist - Song.mp3"
+    song_path.write_bytes(b"original")
+    song = Song(
+        artist="Artist",
+        title="Song",
+        year="2026",
+        override_url="https://youtu.be/x",
+    )
+
+    def failing_download(*_args, **_kwargs) -> None:
+        song_path.write_bytes(b"partial")
+        raise DownloadNoResultsError("not found")
+
+    monkeypatch.setattr(station_sync, "youtube_to_mp3", failing_download)
+
+    changed = library.apply_override(
+        song,
+        song_path,
+        "Playlist",
+        dry_run=False,
+        log=station_sync.PlaylistLog("Playlist"),
+    )
+
+    assert changed is False
+    assert song_path.read_bytes() == b"original"
+    assert not song_path.with_suffix(".mp3.bak").exists()
+
+
+def test_default_media_library_audit_existing_tags_refreshes_mismatches(tmp_path, monkeypatch) -> None:
+    library = station_sync.DefaultMediaLibrary()
+    song_path = tmp_path / "Artist - Song.mp3"
+    song_path.write_bytes(b"mp3")
+    tagged: list[tuple[str, str, str, str, str, str | None]] = []
+
+    class FakeEasyID3(dict):
+        def __init__(self, _path: str) -> None:
+            super().__init__(
+                artist=["Wrong"],
+                title=["Song"],
+                date=["2020"],
+                genre=["Old"],
+                album=["Old Album"],
+            )
+
+    monkeypatch.setattr(station_sync, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(
+        station_sync,
+        "tag_mp3",
+        lambda path, artist, title, year, genre, album, log_prefix="": tagged.append(
+            (path, artist, title, year, genre, album)
+        ),
+    )
+
+    refreshed = library.audit_existing_tags(
+        [(Song(artist="Artist", title="Song", year="2026", album="Album"), song_path)],
+        "Playlist",
+        log=station_sync.PlaylistLog("Playlist"),
+    )
+
+    assert refreshed == 1
+    assert tagged == [(str(song_path), "Artist", "Song", "2026", "Playlist", "Album")]
+
+
+def test_station_sync_helpers_classify_actions_and_write_duplicate_analysis(tmp_path) -> None:
+    service = station_sync.StationSync(station_dir_resolver=lambda _slug: tmp_path)
+    music_dir = tmp_path / "songs"
+    music_dir.mkdir()
+    existing = music_dir / "Artist - Existing.mp3"
+    existing.write_bytes(b"mp3")
+    songs = [
+        Song(artist="Artist", title="Existing", year="2020"),
+        Song(artist="Artist", title="Missing", year="2021"),
+        Song(artist="Artist", title="Override", year="2022", override_url="https://youtu.be/x"),
+    ]
+
+    actions = service._build_playlist_actions(songs, music_dir)
+    candidates = service._override_candidates(songs, music_dir)
+    analysis_path = service._write_duplicate_analysis(
+        tmp_path / "duplicate_analysis.log",
+        {
+            "A": [songs[0], songs[1]],
+            "B": [Song(artist="Artist", title="Existing", year="2020")],
+        },
+    )
+
+    assert [item.song.title for item in actions.existing_songs] == ["Existing"]
+    assert [item.song.title for item in actions.missing_songs] == ["Missing"]
+    assert actions.pending_overrides == 1
+    assert candidates[0][1] == music_dir / "Artist - Override.mp3"
+    assert "Songs appearing in multiple playlists" in analysis_path.read_text(encoding="utf-8")
+
+
+def test_station_sync_run_handles_missing_playlist_dir(tmp_path) -> None:
+    service = station_sync.StationSync(station_dir_resolver=lambda _slug: tmp_path / "Station")
+
+    report = service.run(
+        station_sync.SyncRequest(
+            station_slug="missing",
+            dry_run=True,
+            remote_sync=RemoteSyncRequest(enabled=False),
+        )
+    )
+
+    assert report.playlist_reports == []
+    assert report.duplicate_analysis_log == tmp_path / "Station" / "duplicate_analysis.log"
+
+
+def test_station_sync_remote_sync_runs_when_enabled(tmp_path, monkeypatch) -> None:
+    station_dir = tmp_path / "Station"
+    songs_root = station_dir / "songs"
+    songs_root.mkdir(parents=True)
+    service = station_sync.StationSync(station_dir_resolver=lambda _slug: station_dir)
+    fake_result = RemoteSyncResult(
+        command=("rsync",),
+        changed_count=2,
+        deleted_count=1,
+        stdout="changed\n",
+        stderr="",
+        dry_run=True,
+    )
+    monkeypatch.setattr(
+        station_sync,
+        "build_remote_sync_config",
+        lambda **kwargs: type(
+            "Config",
+            (),
+            {
+                "local_songs_root": kwargs["local_songs_root"],
+                "remote_host": "host",
+                "remote_media_root": "/media",
+            },
+        )(),
+    )
+    monkeypatch.setattr(station_sync, "run_remote_sync", lambda _config: fake_result)
+
+    result = service._run_remote_sync(
+        request=station_sync.SyncRequest(
+            station_slug="neuralforge",
+            dry_run=True,
+            remote_sync=RemoteSyncRequest(enabled=True),
+        ),
+        songs_root=songs_root,
+    )
+
+    assert result == fake_result

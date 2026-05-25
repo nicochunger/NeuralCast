@@ -6,6 +6,8 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
+
 from neuralcast.metadata import album_lookup
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
@@ -207,3 +209,152 @@ class DeezerSyncProviderTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.fixture(autouse=True)
+def clear_validation_caches() -> None:
+    validation.deezer_ok.cache_clear()
+    validation.mb_ok.cache_clear()
+    validation.itunes_ok.cache_clear()
+    validation.verified.cache_clear()
+    validation.deezer_album_ok.cache_clear()
+    validation.mb_album_ok.cache_clear()
+    validation.itunes_album_ok.cache_clear()
+    validation.verified_album.cache_clear()
+
+
+def test_track_matching_accepts_title_short_and_rejects_wrong_artist() -> None:
+    assert validation._track_matches(
+        {"title_short": "Rats", "artist": {"name": "Ghost"}},
+        "Ghost",
+        "Rats",
+    )
+    assert not validation._track_matches(
+        {"title": "Rats", "artist": {"name": "Gojira"}},
+        "Ghost",
+        "Rats",
+    )
+
+
+def test_deezer_ok_rejects_blank_values_and_search_errors(monkeypatch) -> None:
+    assert validation.deezer_ok("", "Rats") is False
+
+    monkeypatch.setattr(
+        validation,
+        "search_tracks",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("offline")),
+    )
+
+    assert validation.deezer_ok("Ghost", "Rats") is False
+
+
+def test_musicbrainz_and_itunes_helpers_handle_empty_failed_and_matching_payloads(monkeypatch) -> None:
+    assert validation.mb_ok("", "Rats") is False
+    assert validation.itunes_ok("Ghost", "") is False
+
+    monkeypatch.setattr(validation, "_musicbrainz_search", lambda *_args, **_kwargs: None)
+    assert validation.mb_ok("Ghost", "Rats") is False
+
+    validation.mb_ok.cache_clear()
+    monkeypatch.setattr(
+        validation,
+        "_musicbrainz_search",
+        lambda *_args, **_kwargs: {"recording-count": 1},
+    )
+    assert validation.mb_ok("Ghost", "Rats") is True
+
+    monkeypatch.setattr(validation, "_itunes_lookup", lambda _term: {"resultCount": 0})
+    assert validation.itunes_ok("Ghost", "Rats") is False
+
+    validation.itunes_ok.cache_clear()
+    monkeypatch.setattr(
+        validation,
+        "_itunes_lookup",
+        lambda _term: {
+            "resultCount": 1,
+            "results": [{"artistName": "Ghost", "trackName": "Rats"}],
+        },
+    )
+    assert validation.itunes_ok("Ghost", "Rats") is True
+
+
+def test_verified_short_circuits_across_providers(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        validation,
+        "deezer_ok",
+        lambda *_args: calls.append("deezer") or False,
+    )
+    monkeypatch.setattr(
+        validation,
+        "mb_ok",
+        lambda *_args: calls.append("mb") or True,
+    )
+    monkeypatch.setattr(
+        validation,
+        "itunes_ok",
+        lambda *_args: calls.append("itunes") or True,
+    )
+
+    assert validation.verified("Ghost", "Rats") is True
+    assert calls == ["deezer", "mb"]
+
+
+def test_album_helpers_report_missing_inputs_and_provider_details(monkeypatch) -> None:
+    assert validation.verified_album("Ghost", "", "Prequelle") is False
+    assert validation.verified_album("Ghost", "", "Prequelle", verbose=True) == {
+        "deezer": False,
+        "musicbrainz": False,
+        "itunes": False,
+        "any": False,
+    }
+
+    monkeypatch.setattr(validation, "deezer_album_ok", lambda *_args: False)
+    monkeypatch.setattr(validation, "mb_album_ok", lambda *_args: False)
+    monkeypatch.setattr(validation, "itunes_album_ok", lambda *_args: True)
+
+    assert validation.verified_album("Ghost", "Rats", "Prequelle") is True
+    assert validation.verified_album("Ghost", "Rats", "Prequelle", verbose=True) == {
+        "deezer": False,
+        "musicbrainz": False,
+        "itunes": True,
+        "any": True,
+    }
+
+
+def test_deezer_album_ok_requires_matching_track_and_album(monkeypatch) -> None:
+    monkeypatch.setattr(
+        validation,
+        "search_tracks",
+        lambda *_args, **_kwargs: [
+            {
+                "title": "Rats",
+                "artist": {"name": "Ghost"},
+                "album": {"title": "Meliora"},
+            },
+            {
+                "title": "Rats",
+                "artist": {"name": "Ghost"},
+                "album": {"title": "Prequelle"},
+            },
+        ],
+    )
+
+    assert validation.deezer_album_ok("Ghost", "Rats", "Prequelle") is True
+
+
+def test_perform_song_validation_rejects_unverified_song_and_keeps_confirmed_album(monkeypatch) -> None:
+    song = Song(artist="Ghost", title="Rats", album="Prequelle", year="2018")
+    monkeypatch.setattr(validation, "verified", lambda *_args: False)
+
+    assert validation.perform_song_validation(song).song is None
+
+    monkeypatch.setattr(validation, "verified", lambda *_args: True)
+    monkeypatch.setattr(validation, "verified_album", lambda *_args: True)
+
+    result = validation.perform_song_validation(song)
+
+    assert result.song is not None
+    assert result.song.validated is True
+    assert result.song.album == "Prequelle"
+    assert result.album == "Prequelle"

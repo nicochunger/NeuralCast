@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from io import BytesIO
 
+import pytest
+import requests
 from PIL import Image
 
 from neuralcast.audio import album_art
@@ -100,3 +102,109 @@ def test_normalize_cover_art_preserves_meaningful_alpha_as_png() -> None:
     assert mime_type == "image/png"
     with Image.open(BytesIO(normalized)) as image:
         assert image.mode in {"RGBA", "P"}
+
+
+def test_download_cover_art_selects_best_image_and_caches(monkeypatch) -> None:
+    album_art._COVER_ART_CACHE.clear()
+    image_data = _image_bytes(mode="RGB", fmt="JPEG", size=(10, 10))
+    calls = {"metadata": 0, "download": 0}
+
+    def fake_image_list(_release_id: str) -> dict:
+        calls["metadata"] += 1
+        return {
+            "images": [
+                {
+                    "id": "2",
+                    "approved": False,
+                    "front": True,
+                    "image": "https://example.test/bad.jpg",
+                },
+                {
+                    "id": "1",
+                    "approved": True,
+                    "types": ["Front"],
+                    "thumbnails": {"large": "https://example.test/good.jpg"},
+                },
+            ]
+        }
+
+    class FakeResponse:
+        headers = {"Content-Type": "image/jpeg"}
+        content = image_data
+
+        def raise_for_status(self) -> None:
+            return None
+
+    def fake_get(url: str, **_kwargs) -> FakeResponse:
+        calls["download"] += 1
+        assert url == "https://example.test/good.jpg"
+        return FakeResponse()
+
+    monkeypatch.setattr(album_art.musicbrainzngs, "get_image_list", fake_image_list)
+    monkeypatch.setattr(album_art.requests, "get", fake_get)
+
+    first = album_art._download_cover_art("release-1")
+    second = album_art._download_cover_art("release-1")
+
+    assert first == second
+    assert first[1] == "image/jpeg"
+    assert calls == {"metadata": 1, "download": 1}
+
+
+def test_download_cover_art_falls_back_to_direct_archive_url(monkeypatch) -> None:
+    album_art._COVER_ART_CACHE.clear()
+    image_data = _image_bytes(mode="RGB", fmt="JPEG", size=(10, 10))
+
+    class FakeResponse:
+        headers = {}
+        content = image_data
+
+        def raise_for_status(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        album_art.musicbrainzngs,
+        "get_image_list",
+        lambda _release_id: {"images": []},
+    )
+    monkeypatch.setattr(
+        album_art.requests,
+        "get",
+        lambda url, **_kwargs: FakeResponse()
+        if url == "https://coverartarchive.org/release/release-2/front"
+        else pytest.fail(f"unexpected url {url}"),
+    )
+
+    _data, mime_type, art_url = album_art._download_cover_art("release-2")
+
+    assert mime_type == "image/jpeg"
+    assert art_url == "https://coverartarchive.org/release/release-2/front"
+
+
+def test_embed_local_cover_art_handles_missing_and_success(tmp_path, monkeypatch) -> None:
+    mp3_path = tmp_path / "song.mp3"
+    image_path = tmp_path / "cover.png"
+    mp3_path.write_bytes(b"mp3")
+    image_path.write_bytes(_image_bytes(mode="RGB", fmt="PNG", size=(10, 10)))
+    embedded: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        album_art,
+        "_embed_image",
+        lambda path, _data, mime_type: embedded.append((path, mime_type)),
+    )
+
+    assert album_art.embed_local_cover_art(mp3_path, tmp_path / "missing.png") is False
+    assert album_art.embed_local_cover_art(mp3_path, image_path) is True
+    assert embedded == [(str(mp3_path), "image/png")]
+
+
+def test_embed_from_release_id_returns_false_on_request_error(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        album_art,
+        "_download_cover_art",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            requests.exceptions.RequestException("offline")
+        ),
+    )
+
+    assert album_art.embed_from_release_id(str(tmp_path / "song.mp3"), "release-1") is False
