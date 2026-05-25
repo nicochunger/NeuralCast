@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-cov",
     "httpx",
 ]
 
@@ -43,3 +44,21 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-q",
+    "--import-mode=importlib",
+    "-m",
+    "not integration and not live",
+]
+markers = [
+    "unit: fast isolated unit tests",
+    "boundary: offline tests that exercise multiple internal modules",
+    "integration: tests that may use external services or installed system tools",
+    "live: tests that require live credentials or mutate external systems",
+    "slow: tests that are intentionally slower than normal unit tests",
+    "requires_credentials: tests that require locally configured secrets",
+    "allow_external_calls: opt out of the unit-test network/subprocess guard",
+]

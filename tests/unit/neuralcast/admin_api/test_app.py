@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from neuralcast.admin_api.app import (
@@ -117,6 +118,114 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertIn("/admin/force-archetype", paths)
         self.assertIn("/admin/run-schedule-generator", paths)
         self.assertIn("/admin/jobs/{job_id}", paths)
+
+    def test_http_endpoints_enforce_auth_and_return_station_payloads(self) -> None:
+        client = TestClient(
+            create_app(
+                job_manager=self.manager,
+                station_service=self.station_service,
+            )
+        )
+
+        unauthenticated = client.get("/admin/options")
+        self.assertEqual(unauthenticated.status_code, 401)
+
+        headers = {"Authorization": "Bearer test-token"}
+        options = client.get("/admin/options", headers=headers)
+        self.assertEqual(options.status_code, 200)
+        self.assertEqual(options.json()["stations"], ["neuralcast", "neuralforge"])
+
+        now_playing = client.get(
+            "/admin/stations/neuralforge/now-playing",
+            headers=headers,
+        )
+        self.assertEqual(now_playing.status_code, 200)
+        self.assertEqual(
+            now_playing.json()["current_track"]["title"],
+            "Black Winter Day",
+        )
+
+        queue = client.get(
+            "/admin/stations/neuralforge/queue?limit=1",
+            headers=headers,
+        )
+        self.assertEqual(queue.status_code, 200)
+        self.assertEqual(queue.json()["next_track"]["title"], "Noose")
+        self.assertEqual(len(queue.json()["items"]), 1)
+
+    def test_http_force_archetype_job_lifecycle_and_conflict(self) -> None:
+        client = TestClient(
+            create_app(
+                job_manager=self.manager,
+                station_service=self.station_service,
+            )
+        )
+        headers = {"Authorization": "Bearer test-token"}
+
+        accepted = client.post(
+            "/admin/force-archetype",
+            headers=headers,
+            json={
+                "station": "neuralforge",
+                "archetype": "deep_dive",
+                "track_focus": "next",
+                "dry_run": True,
+            },
+        )
+        self.assertEqual(accepted.status_code, 202)
+        job_id = accepted.json()["job_id"]
+
+        conflict = client.post(
+            "/admin/run-schedule-generator",
+            headers=headers,
+            json={"station": "neuralforge", "dry_run": True},
+        )
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.json()["detail"]["job_id"], job_id)
+
+        status_payload = client.get(f"/admin/jobs/{job_id}", headers=headers)
+        self.assertEqual(status_payload.status_code, 200)
+        self.assertEqual(
+            status_payload.json()["operation"],
+            JOB_OPERATION_FORCE_ARCHETYPE,
+        )
+
+        missing = client.get("/admin/jobs/not-real", headers=headers)
+        self.assertEqual(missing.status_code, 404)
+
+    def test_http_schedule_generator_accepts_tuning_payload(self) -> None:
+        client = TestClient(
+            create_app(
+                job_manager=self.manager,
+                station_service=self.station_service,
+            )
+        )
+        headers = {"Authorization": "Bearer test-token"}
+
+        accepted = client.post(
+            "/admin/run-schedule-generator",
+            headers=headers,
+            json={
+                "station": "neuralcast",
+                "dry_run": True,
+                "force_apply": True,
+                "seed_mode": "custom",
+                "seed_salt": "reroll-a",
+                "week_start_date": "2026-03-16",
+                "open_ratio_min": 0.3,
+                "open_ratio_max": 0.45,
+            },
+        )
+
+        self.assertEqual(accepted.status_code, 202)
+        status_payload = client.get(
+            f"/admin/jobs/{accepted.json()['job_id']}",
+            headers=headers,
+        )
+        self.assertEqual(status_payload.status_code, 200)
+        payload = status_payload.json()
+        self.assertEqual(payload["operation"], JOB_OPERATION_SCHEDULE_GENERATOR)
+        self.assertEqual(payload["schedule_options"]["seed_mode"], "custom")
 
     def test_require_admin_token_accepts_and_rejects_expected_values(self) -> None:
         require_admin_token("Bearer test-token")

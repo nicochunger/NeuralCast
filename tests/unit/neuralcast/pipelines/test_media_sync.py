@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ from neuralcast.pipelines.media_sync import (
     RemoteSyncConfig,
     build_remote_sync_config,
     build_rsync_command,
+    run_remote_sync,
 )
 
 
@@ -85,6 +87,43 @@ class MediaSyncConfigTest(unittest.TestCase):
             "neuralvps:/custom/neuralcast/media/",
         )
         self.assertTrue(command[-2].endswith("/songs/"))
+
+    def test_run_remote_sync_counts_changed_and_deleted_items(self) -> None:
+        tmpdir, config = self._build_config("neuralcast")
+        self.addCleanup(tmpdir.cleanup)
+
+        def fake_run(cmd, **kwargs):
+            if cmd[:1] == ["ssh"]:
+                return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+            return subprocess.CompletedProcess(
+                cmd,
+                returncode=0,
+                stdout=">f+++++++++ Playlist/song.mp3\n*deleting Old/song.mp3\nsent 1 bytes\n",
+                stderr="",
+            )
+
+        with patch("neuralcast.pipelines.media_sync.subprocess.run", side_effect=fake_run):
+            result = run_remote_sync(config)
+
+        self.assertEqual(result.changed_count, 2)
+        self.assertEqual(result.deleted_count, 1)
+        self.assertTrue(result.dry_run)
+
+    def test_run_remote_sync_raises_when_preflight_fails(self) -> None:
+        tmpdir, config = self._build_config("neuralforge")
+        self.addCleanup(tmpdir.cleanup)
+
+        with patch(
+            "neuralcast.pipelines.media_sync.subprocess.run",
+            return_value=subprocess.CompletedProcess(
+                ["ssh"],
+                returncode=1,
+                stdout="",
+                stderr="missing",
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Remote media root"):
+                run_remote_sync(config)
 
 
 if __name__ == "__main__":
