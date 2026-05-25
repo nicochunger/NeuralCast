@@ -14,6 +14,16 @@ from .models import Archetype, StationPersonality
 
 STORY_ROOT = ASSETS_ROOT / "stories"
 STORY_OUTPUT_DIR = STORY_ROOT / "snippets"
+NEURALCAST_AI_SNIPPET_COVER_PATH = (
+    ASSETS_ROOT / "images" / "generated" / "neuralcast_ai_snippets_cover.png"
+)
+NEURALFORGE_AI_SNIPPET_COVER_PATH = (
+    ASSETS_ROOT / "images" / "generated" / "neuralforge_ai_snippets_cover.png"
+)
+AI_SNIPPET_COVER_PATH_BY_STATION = {
+    "neuralcast": NEURALCAST_AI_SNIPPET_COVER_PATH,
+    "neuralforge": NEURALFORGE_AI_SNIPPET_COVER_PATH,
+}
 PROMPTS_DIR = STORY_ROOT / "prompts"
 TTS_INSTRUCTIONS_PATH = PROMPTS_DIR / "tts_instructions.md"
 PERSONALITY_GUIDE_PATH = PROMPTS_DIR / "personality.md"

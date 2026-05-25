@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+from neuralcast.pipelines.host_orchestrator import assets as story_assets  # noqa: E402
 from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
     build_prompt,
     build_system_prompt,
@@ -52,6 +55,90 @@ from neuralcast.pipelines.host_orchestrator.state import (  # noqa: E402
     migrate_state,
     should_speak_now,
 )
+
+
+class StoryAssetTest(unittest.TestCase):
+    @staticmethod
+    def _queue_track() -> QueueTrack:
+        return QueueTrack(
+            queue_id="test-track",
+            song_id=None,
+            artist="Test Artist",
+            title="Test Title",
+            duration=240,
+        )
+
+    def test_neuralforge_story_assets_embed_station_cover_art(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "snippets"
+
+            def _fake_speech(**kwargs: object) -> None:
+                Path(str(kwargs["outfile"])).write_bytes(b"fake mp3")
+
+            with patch.object(story_assets, "STORY_OUTPUT_DIR", output_dir), patch.object(
+                story_assets, "synthesize_speech", side_effect=_fake_speech
+            ), patch.object(story_assets, "apply_replaygain"), patch.object(
+                story_assets, "embed_local_cover_art", return_value=True
+            ) as embed_cover:
+                result = story_assets.ensure_story_assets(
+                    "neuralforge",
+                    self._queue_track(),
+                    Archetype.SHORT_STORY,
+                    "Script text",
+                    "TTS instructions",
+                )
+
+            embed_cover.assert_called_once_with(
+                result.audio_path,
+                story_assets.AI_SNIPPET_COVER_PATH_BY_STATION["neuralforge"],
+            )
+
+    def test_neuralcast_story_assets_embed_station_cover_art(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "snippets"
+
+            def _fake_speech(**kwargs: object) -> None:
+                Path(str(kwargs["outfile"])).write_bytes(b"fake mp3")
+
+            with patch.object(story_assets, "STORY_OUTPUT_DIR", output_dir), patch.object(
+                story_assets, "synthesize_speech", side_effect=_fake_speech
+            ), patch.object(story_assets, "apply_replaygain"), patch.object(
+                story_assets, "embed_local_cover_art", return_value=True
+            ) as embed_cover:
+                result = story_assets.ensure_story_assets(
+                    "neuralcast",
+                    self._queue_track(),
+                    Archetype.SHORT_STORY,
+                    "Script text",
+                    "TTS instructions",
+                )
+
+            embed_cover.assert_called_once_with(
+                result.audio_path,
+                story_assets.AI_SNIPPET_COVER_PATH_BY_STATION["neuralcast"],
+            )
+
+    def test_unmapped_station_story_assets_skip_station_cover_art(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "snippets"
+
+            def _fake_speech(**kwargs: object) -> None:
+                Path(str(kwargs["outfile"])).write_bytes(b"fake mp3")
+
+            with patch.object(story_assets, "STORY_OUTPUT_DIR", output_dir), patch.object(
+                story_assets, "synthesize_speech", side_effect=_fake_speech
+            ), patch.object(story_assets, "apply_replaygain"), patch.object(
+                story_assets, "embed_local_cover_art", return_value=True
+            ) as embed_cover:
+                story_assets.ensure_story_assets(
+                    "unknown",
+                    self._queue_track(),
+                    Archetype.SHORT_STORY,
+                    "Script text",
+                    "TTS instructions",
+                )
+
+            embed_cover.assert_not_called()
 
 
 class OrchestratorHelpersTest(unittest.TestCase):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import mimetypes
 import os
 import re
 import tempfile
@@ -731,6 +732,49 @@ def _embed_image(mp3_path: str, image_data: bytes, mime_type: str):
     audio.delall("APIC")
     audio.add(APIC(encoding=3, mime=mime_type, type=3, desc="Cover", data=image_data))
     audio.save(mp3_path)
+
+
+def embed_local_cover_art(
+    mp3_path: str | Path,
+    image_path: str | Path,
+    *,
+    log_prefix: str = "",
+) -> bool:
+    """Normalize and embed a local image file as front cover art."""
+    mp3_path = Path(mp3_path)
+    image_path = Path(image_path)
+    friendly_name = mp3_path.name or str(mp3_path)
+
+    if not image_path.exists():
+        _log_line(
+            f"Local cover art not found: {image_path}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
+        return False
+
+    try:
+        image_data = image_path.read_bytes()
+        mime_type = mimetypes.guess_type(str(image_path))[0] or "image/jpeg"
+        image_data, mime_type = _normalize_cover_art(
+            image_data,
+            mime_type,
+            log_prefix=log_prefix,
+        )
+        _embed_image(str(mp3_path), image_data, mime_type)
+        _log_line(
+            f"Embedded local artwork '{image_path.name}' into '{friendly_name}'",
+            icon="🎨",
+            prefix=log_prefix,
+        )
+        return True
+    except Exception as exc:
+        _log_line(
+            f"Failed to embed local cover art '{image_path}': {exc}",
+            icon="⚠️",
+            prefix=log_prefix,
+        )
+        return False
 
 
 def embed_from_release_id(

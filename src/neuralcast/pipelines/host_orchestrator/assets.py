@@ -10,11 +10,12 @@ import re
 import subprocess
 from typing import Any, Dict, Mapping
 
-from .config import LOGGER, STORY_OUTPUT_DIR
+from .config import AI_SNIPPET_COVER_PATH_BY_STATION, LOGGER, STORY_OUTPUT_DIR
 from .models import Archetype, QueueTrack, StoryAssets, TrackMetadata
 from .schedule import resolve_station_metadata_file
 from .transport import AzuraCastClient
 from .utils import normalize_component, track_key
+from neuralcast.audio.album_art import embed_local_cover_art
 from neuralcast.services.ai_client import (
     DEFAULT_GEMINI_TTS_MODEL,
     synthesize_speech,
@@ -156,6 +157,10 @@ def ensure_story_assets(
         instructions=tts_instructions,
         gemini_model=DEFAULT_GEMINI_TTS_MODEL,
     )
+
+    cover_path = AI_SNIPPET_COVER_PATH_BY_STATION.get(station_slug.casefold())
+    if cover_path is not None:
+        embed_local_cover_art(audio_path, cover_path)
 
     apply_replaygain(audio_path)
 
