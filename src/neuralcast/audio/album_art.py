@@ -731,7 +731,7 @@ def _embed_image(mp3_path: str, image_data: bytes, mime_type: str):
         audio = ID3()
     audio.delall("APIC")
     audio.add(APIC(encoding=3, mime=mime_type, type=3, desc="Cover", data=image_data))
-    audio.save(mp3_path)
+    audio.save(mp3_path, v2_version=3)
 
 
 def embed_local_cover_art(

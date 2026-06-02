@@ -158,11 +158,11 @@ def ensure_story_assets(
         gemini_model=DEFAULT_GEMINI_TTS_MODEL,
     )
 
+    apply_replaygain(audio_path)
+
     cover_path = AI_SNIPPET_COVER_PATH_BY_STATION.get(station_slug.casefold())
     if cover_path is not None:
         embed_local_cover_art(audio_path, cover_path)
-
-    apply_replaygain(audio_path)
 
     return StoryAssets(
         text_path=text_path,

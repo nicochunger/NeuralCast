@@ -1,5 +1,7 @@
 google-genai
+musicbrainzngs
 openai
+pillow
 python-dotenv
 requests
 fastapi

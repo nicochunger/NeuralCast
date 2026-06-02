@@ -7,6 +7,7 @@ from io import BytesIO
 import pytest
 import requests
 from PIL import Image
+from mutagen.id3 import ID3
 
 from neuralcast.audio import album_art
 
@@ -196,6 +197,22 @@ def test_embed_local_cover_art_handles_missing_and_success(tmp_path, monkeypatch
     assert album_art.embed_local_cover_art(mp3_path, tmp_path / "missing.png") is False
     assert album_art.embed_local_cover_art(mp3_path, image_path) is True
     assert embedded == [(str(mp3_path), "image/png")]
+
+
+def test_embed_image_saves_front_cover_as_id3v23(tmp_path) -> None:
+    mp3_path = tmp_path / "song.mp3"
+    mp3_path.write_bytes(b"mp3")
+
+    album_art._embed_image(
+        str(mp3_path), _image_bytes(mode="RGB", fmt="JPEG"), "image/jpeg"
+    )
+
+    tags = ID3(mp3_path)
+    apics = tags.getall("APIC")
+    assert tags.version == (2, 3, 0)
+    assert len(apics) == 1
+    assert apics[0].mime == "image/jpeg"
+    assert int(apics[0].type) == 3
 
 
 def test_embed_from_release_id_returns_false_on_request_error(monkeypatch, tmp_path) -> None:
