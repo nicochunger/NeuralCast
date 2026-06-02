@@ -490,7 +490,7 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
             "NeuralCast TTS profile: "
             "acento rioplatense natural, calido y sereno. "
             "Energia contenida, madura y confiable; sin euforia, sin apuro y sin sobreactuar. "
-            "Ritmo pausado pero vivo, con respiracion clara y una presencia levemente nostalgica. "
+            "Ritmo pausado pero vivo, con respiracion clara, voz abierta y presencia levemente nostalgica. "
             "Debe sonar como locutor real compartiendo una cancion con calma, criterio y cercania, nunca como voz corporativa."
         ),
     ),
@@ -513,7 +513,8 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
             "NeuralForge TTS profile: "
             "acento rioplatense natural, cercano y seguro. "
             "Energia alta pero controlada; arriba, con actitud, sin gritar ni sobreactuar. "
-            "Marcar pausas cortas y respiracion real para que cada idea salga clara y decible. "
+            "La energia debe sentirse despierta y presente, con ataque claro en las palabras, sin sonar gritado ni teatral. "
+            "Marcar pausas cortas y respiracion real para que cada idea salga clara, abierta y decible. "
             "Si una linea se siente demasiado prolija o escrita, bajarle rigidez y volverla mas conversada. "
             "Debe sonar como host real de radio de metal hablando al aire, no como locutor corporativo ni personaje caricaturesco."
         ),

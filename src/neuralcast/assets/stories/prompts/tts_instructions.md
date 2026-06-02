@@ -10,6 +10,11 @@ La voz transmite naturalidad y criterio, sin impostar profundidad ni buscar efec
 Debe sentirse como una conversacion real en radio, presente y clara, sin rigidez ni lectura solemne.
 Aunque el texto tenga estilo, la entrega siempre debe sonar dicha, no escrita.
 
+La voz debe sonar abierta y frontal, con proyeccion natural de boca, no encerrada en la garganta ni nasal.
+Articular consonantes con claridad relajada: diccion humana pero limpia, sin comerse finales ni cerrar demasiado las vocales.
+Evitar un timbre oscuro, tapado, pastoso o como hablado con la boca cerrada.
+Mantener calidez y naturalidad, pero con mas presencia, aire y definicion en la voz.
+
 La diccion es clara pero no perfecta: se permiten pequenas inflexiones naturales, como las que aparecen cuando uno habla sin apuro.
 Nada suena ensayado.
 Si ayuda a la naturalidad, dejar micro-hesitaciones o muletillas muy suaves de forma ocasional; nunca en cadena.
