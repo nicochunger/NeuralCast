@@ -340,9 +340,10 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertEqual(azuracast_time_for_api("07:30"), 730)
         self.assertEqual(azuracast_time_for_api("24:00"), 2359)
 
-    def test_build_arg_parser_defaults_max_block_minutes_to_ninety(self) -> None:
+    def test_build_arg_parser_defers_block_duration_defaults_to_runtime(self) -> None:
         args = build_arg_parser().parse_args(["--base-url", "https://example.test"])
-        self.assertEqual(args.max_block_minutes, 90)
+        self.assertIsNone(args.min_block_minutes)
+        self.assertIsNone(args.max_block_minutes)
         self.assertEqual(args.seed_mode, schedule_generation.SCHEDULE_SEED_MODE_STABLE_WEEK)
 
     def test_resolve_schedule_seed_custom_mode_uses_supplied_salt(self) -> None:
@@ -791,6 +792,83 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         )
 
         self.assertGreater(long_weight, short_weight * 2)
+
+    def test_neuralcast_niche_playlist_weight_is_downweighted(self) -> None:
+        mainstream = StationPlaylist(
+            id="31",
+            name="Classic Rock",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        niche = StationPlaylist(
+            id="32",
+            name="Tango",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        label_map = schedule_generation._station_label_map("neuralcast")
+        mainstream_candidate = schedule_generation._solo_candidate(
+            mainstream,
+            "neuralcast",
+            label_map,
+        )
+        niche_candidate = schedule_generation._solo_candidate(
+            niche,
+            "neuralcast",
+            label_map,
+        )
+
+        mainstream_weight = schedule_generation._candidate_selection_weight(
+            candidate=mainstream_candidate,
+            station_slug="neuralcast",
+            duration_minutes=60,
+            usage_counts=Counter(),
+            usage_minutes=Counter(),
+            previous_playlist_ids=set(),
+            previous_signatures=[],
+        )
+        niche_weight = schedule_generation._candidate_selection_weight(
+            candidate=niche_candidate,
+            station_slug="neuralcast",
+            duration_minutes=60,
+            usage_counts=Counter(),
+            usage_minutes=Counter(),
+            previous_playlist_ids=set(),
+            previous_signatures=[],
+        )
+
+        self.assertAlmostEqual(niche_weight, mainstream_weight * 0.35)
+
+    def test_neuralcast_niche_weight_does_not_affect_neuralforge(self) -> None:
+        tango = StationPlaylist(
+            id="32",
+            name="Tango",
+            is_enabled=True,
+            weight=1.0,
+            schedule_items=[],
+            raw={},
+        )
+        candidate = schedule_generation._solo_candidate(
+            tango,
+            "neuralforge",
+            schedule_generation._station_label_map("neuralforge"),
+        )
+
+        weight = schedule_generation._candidate_selection_weight(
+            candidate=candidate,
+            station_slug="neuralforge",
+            duration_minutes=60,
+            usage_counts=Counter(),
+            usage_minutes=Counter(),
+            previous_playlist_ids=set(),
+            previous_signatures=[],
+        )
+
+        self.assertEqual(weight, 1.0)
 
 
 if __name__ == "__main__":

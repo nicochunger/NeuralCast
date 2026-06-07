@@ -47,6 +47,8 @@ DEFAULT_MIN_OPEN_SLOTS = 3
 DEFAULT_MAX_OPEN_SLOTS = 6
 DEFAULT_MIN_BLOCK_MINUTES = 30
 DEFAULT_MAX_BLOCK_MINUTES = 90
+NEURALCAST_DEFAULT_MIN_BLOCK_MINUTES = 30
+NEURALCAST_DEFAULT_MAX_BLOCK_MINUTES = 75
 DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES = 120
 SCHEDULE_TIME_GRID_MINUTES = 15
 UNSCHEDULED_WINDOW_START_MINUTE = 22 * 60
@@ -56,6 +58,21 @@ UNSCHEDULED_WINDOW_TOTAL_MINUTES = (
 )
 
 FALLBACK_TIMEZONE = "Europe/Zurich"
+
+NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS = {
+    "folklore argentino and chamame": 0.35,
+    "irish folk": 0.35,
+    "tango": 0.35,
+    "bossa nova": 0.35,
+    "symphonic classics": 0.35,
+    "global mid-century foundations": 0.35,
+    "international heritage": 0.35,
+    "movie and tv soundtracks": 0.35,
+    "cumbia villera": 0.60,
+    "neo-prog": 0.60,
+    "eclectic discovery": 0.60,
+    "the modern frontier": 0.60,
+}
 
 
 def configure_logging(level: int = logging.INFO) -> None:

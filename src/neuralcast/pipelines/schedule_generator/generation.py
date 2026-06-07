@@ -16,6 +16,7 @@ from .config import (
     DEFAULT_MIN_OPEN_SLOTS,
     DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
     LOGGER,
+    NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS,
     SCHEDULE_TIME_GRID_MINUTES,
 )
 from .models import ScheduleValidationError, StationPlaylist, WeeklySchedulePlan
@@ -1075,6 +1076,22 @@ def _candidate_long_block_multiplier(
     return 2.30
 
 
+def _candidate_station_preference_multiplier(
+    candidate: AssignmentCandidate,
+    station_slug: str,
+) -> float:
+    if not _is_neuralcast(station_slug):
+        return 1.0
+
+    multiplier = 1.0
+    for playlist_name in candidate.playlist_names:
+        multiplier *= NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS.get(
+            _name_key(playlist_name),
+            1.0,
+        )
+    return multiplier
+
+
 def _weighted_choice(
     rng: random.Random,
     candidates: Sequence[AssignmentCandidate],
@@ -1123,6 +1140,10 @@ def _candidate_selection_weight(
         candidate=candidate,
         station_slug=station_slug,
         duration_minutes=duration_minutes,
+    )
+    weight *= _candidate_station_preference_multiplier(
+        candidate=candidate,
+        station_slug=station_slug,
     )
 
     candidate_id_set = set(candidate.playlist_ids)

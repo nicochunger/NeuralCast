@@ -34,6 +34,8 @@ from .config import (
     DEFAULT_OPEN_RATIO_MAX,
     DEFAULT_OPEN_RATIO_MIN,
     LOGGER,
+    NEURALCAST_DEFAULT_MAX_BLOCK_MINUTES,
+    NEURALCAST_DEFAULT_MIN_BLOCK_MINUTES,
     NEURALCAST_DEFAULT_OPEN_RATIO_MAX,
     NEURALCAST_DEFAULT_OPEN_RATIO_MIN,
     configure_logging,
@@ -83,6 +85,25 @@ from .template import (
 VPS_SCHEDULER_PROJECT_ROOT = "/root/radio_host_orchestrator"
 
 
+def _resolve_block_duration_bounds(args: argparse.Namespace) -> tuple[int, int]:
+    min_block_minutes = (
+        DEFAULT_MIN_BLOCK_MINUTES
+        if args.min_block_minutes is None
+        else int(args.min_block_minutes)
+    )
+    max_block_minutes = (
+        DEFAULT_MAX_BLOCK_MINUTES
+        if args.max_block_minutes is None
+        else int(args.max_block_minutes)
+    )
+    if str(args.station).strip().lower() == "neuralcast":
+        if args.min_block_minutes is None:
+            min_block_minutes = NEURALCAST_DEFAULT_MIN_BLOCK_MINUTES
+        if args.max_block_minutes is None:
+            max_block_minutes = NEURALCAST_DEFAULT_MAX_BLOCK_MINUTES
+    return min_block_minutes, max_block_minutes
+
+
 def run(args: argparse.Namespace) -> None:
     configure_logging()
 
@@ -115,7 +136,8 @@ def run(args: argparse.Namespace) -> None:
     if min_open_slots > max_open_slots:
         raise ValueError("min-open-slots cannot exceed max-open-slots.")
 
-    if args.min_block_minutes > args.max_block_minutes:
+    min_block_minutes, max_block_minutes = _resolve_block_duration_bounds(args)
+    if min_block_minutes > max_block_minutes:
         raise ValueError("min-block-minutes cannot exceed max-block-minutes.")
     if args.seed_mode == "stable_week" and args.seed_salt:
         raise ValueError(
@@ -181,8 +203,8 @@ def run(args: argparse.Namespace) -> None:
         open_ratio_max=open_ratio_max,
         min_open_slots=min_open_slots,
         max_open_slots=max_open_slots,
-        min_block_minutes=args.min_block_minutes,
-        max_block_minutes=args.max_block_minutes,
+        min_block_minutes=min_block_minutes,
+        max_block_minutes=max_block_minutes,
         seed_mode=args.seed_mode,
         seed_salt=args.seed_salt,
     )
@@ -314,14 +336,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--min-block-minutes",
         type=int,
-        default=DEFAULT_MIN_BLOCK_MINUTES,
-        help="Minimum allowed block duration in minutes (default: %(default)s).",
+        default=None,
+        help=(
+            "Minimum allowed block duration in minutes "
+            f"(default: {DEFAULT_MIN_BLOCK_MINUTES}; NeuralCast default: "
+            f"{NEURALCAST_DEFAULT_MIN_BLOCK_MINUTES})."
+        ),
     )
     parser.add_argument(
         "--max-block-minutes",
         type=int,
-        default=DEFAULT_MAX_BLOCK_MINUTES,
-        help="Maximum allowed block duration in minutes (default: %(default)s).",
+        default=None,
+        help=(
+            "Maximum allowed block duration in minutes "
+            f"(default: {DEFAULT_MAX_BLOCK_MINUTES}; NeuralCast default: "
+            f"{NEURALCAST_DEFAULT_MAX_BLOCK_MINUTES})."
+        ),
     )
     return parser
 
