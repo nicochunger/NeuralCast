@@ -35,6 +35,7 @@ from .assets import (
 from .config import (
     LEAD_TIME_SECONDS,
     LOGGER,
+    cadence_settings_for_station,
     configure_station_file_logging,
     configure_logging,
     lead_time_seconds_for_archetype,
@@ -524,6 +525,7 @@ def _publish_segment(
         script_text=script_text,
         schedule_context=queue_context.schedule_context,
         rng=rng,
+        cadence_settings=cadence_settings_for_station(args.station),
     )
 
     expected_play_at_utc = iso_utc(success_ts + max(0, playback.current_remaining))
@@ -597,13 +599,18 @@ def run(args: argparse.Namespace) -> None:
         segment_log_path,
     )
 
-    state = load_state(state_path, cycle_ts, rng)
+    cadence_settings = cadence_settings_for_station(args.station)
+    state = load_state(state_path, cycle_ts, rng, cadence_settings)
     LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
     LOGGER.info(
-        "[cadence] State snapshot | songs_since_last_spoken=%s | songs_until_next_speak=%s | next_deadline=%s",
+        "[cadence] State snapshot | songs_since_last_spoken=%s | songs_until_next_speak=%s | next_deadline=%s | wait_range=%s-%s | deadline_minutes=%s | cooldown_multiplier=%.2f",
         state.songs_since_last_spoken,
         state.songs_until_next_speak,
         iso_utc(state.next_speak_deadline_ts),
+        cadence_settings.wait_range_songs[0],
+        cadence_settings.wait_range_songs[1],
+        cadence_settings.speak_deadline_minutes,
+        cadence_settings.cooldown_multiplier,
     )
 
     try:

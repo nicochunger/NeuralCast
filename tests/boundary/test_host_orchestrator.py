@@ -58,7 +58,7 @@ def test_host_orchestrator_run_dry_run_generates_assets_without_publish(tmp_path
     monkeypatch.setattr(
         host_main,
         "load_state",
-        lambda _path, ts, rng: default_state(ts, rng),
+        lambda _path, ts, rng, _cadence_settings=None: default_state(ts, rng),
     )
     monkeypatch.setattr(
         host_main,

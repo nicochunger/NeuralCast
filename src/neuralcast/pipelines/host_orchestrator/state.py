@@ -17,6 +17,7 @@ from .config import (
     ANGLE_OPTIONS,
     BANNED_OPENERS,
     COOLDOWN_SECONDS,
+    DEFAULT_CADENCE_SETTINGS,
     HOOKS_BY_ARCHETYPE,
     HOOK_FREE_OPEN_PROB_BY_ARCHETYPE,
     lead_time_seconds_for_archetype,
@@ -26,12 +27,12 @@ from .config import (
     NEWS_DUPLICATE_WINDOW_DAYS,
     OVERUSED_STYLE_CLICHES,
     RECENT_SCRIPT_MEMORY_SIZE,
-    SPEAK_DEADLINE_MINUTES,
     STATE_VERSION,
+    StationCadenceSettings,
     TEMPERATURE_TOP_P_RANGES,
     UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE,
-    WAIT_RANGE_SONGS,
     WEIGHTED_ARCHETYPES,
+    cooldown_seconds_for_archetype,
 )
 from .models import (
     Archetype,
@@ -159,15 +160,26 @@ class StationLock:
         self.acquired = False
 
 
-def default_state(ts: float, rng: random.Random) -> OrchestratorState:
+def _coerce_cadence_settings(
+    cadence_settings: Optional[StationCadenceSettings],
+) -> StationCadenceSettings:
+    return cadence_settings or DEFAULT_CADENCE_SETTINGS
+
+
+def default_state(
+    ts: float,
+    rng: random.Random,
+    cadence_settings: Optional[StationCadenceSettings] = None,
+) -> OrchestratorState:
+    settings = _coerce_cadence_settings(cadence_settings)
     cooldown_until = {arch.value: 0.0 for arch in COOLDOWN_SECONDS}
     return OrchestratorState(
         state_version=STATE_VERSION,
         last_seen_track_key=None,
         last_seen_ts=None,
         songs_since_last_spoken=0,
-        songs_until_next_speak=rng.randint(*WAIT_RANGE_SONGS),
-        next_speak_deadline_ts=ts + SPEAK_DEADLINE_MINUTES * 60,
+        songs_until_next_speak=rng.randint(*settings.wait_range_songs),
+        next_speak_deadline_ts=ts + settings.speak_deadline_minutes * 60,
         last_spoken_track_key=None,
         last_spoken_ts=None,
         last_spoken_expected_end_ts=None,
@@ -182,9 +194,13 @@ def default_state(ts: float, rng: random.Random) -> OrchestratorState:
 
 
 def migrate_state(
-    raw: Mapping[str, Any], ts: float, rng: random.Random
+    raw: Mapping[str, Any],
+    ts: float,
+    rng: random.Random,
+    cadence_settings: Optional[StationCadenceSettings] = None,
 ) -> OrchestratorState:
-    state = default_state(ts, rng)
+    settings = _coerce_cadence_settings(cadence_settings)
+    state = default_state(ts, rng, settings)
 
     def _as_float(value: Any) -> Optional[float]:
         if value is None:
@@ -210,9 +226,9 @@ def migrate_state(
         0, _as_int(raw.get("songs_since_last_spoken"), state.songs_since_last_spoken)
     )
     state.songs_until_next_speak = min(
-        WAIT_RANGE_SONGS[1],
+        settings.wait_range_songs[1],
         max(
-            WAIT_RANGE_SONGS[0],
+            settings.wait_range_songs[0],
             _as_int(raw.get("songs_until_next_speak"), state.songs_until_next_speak),
         ),
     )
@@ -366,10 +382,13 @@ def migrate_state(
 
 
 def load_state(
-    state_path: pathlib.Path, ts: float, rng: random.Random
+    state_path: pathlib.Path,
+    ts: float,
+    rng: random.Random,
+    cadence_settings: Optional[StationCadenceSettings] = None,
 ) -> OrchestratorState:
     if not state_path.exists():
-        return default_state(ts, rng)
+        return default_state(ts, rng, cadence_settings)
 
     try:
         raw = json.loads(state_path.read_text(encoding="utf-8"))
@@ -385,9 +404,14 @@ def load_state(
             "[state] Invalid JSON in state file; moved to %s and reinitialized.",
             corrupt_path,
         )
-        return default_state(ts, rng)
+        return default_state(ts, rng, cadence_settings)
 
-    return migrate_state(raw if isinstance(raw, Mapping) else {}, ts, rng)
+    return migrate_state(
+        raw if isinstance(raw, Mapping) else {},
+        ts,
+        rng,
+        cadence_settings,
+    )
 
 
 def save_state_atomic(state_path: pathlib.Path, state: OrchestratorState) -> None:
@@ -600,7 +624,9 @@ def apply_success_state_update(
     script_text: str,
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
+    cadence_settings: Optional[StationCadenceSettings] = None,
 ) -> None:
+    settings = _coerce_cadence_settings(cadence_settings)
     previous_songs_since = state.songs_since_last_spoken
     previous_songs_until = state.songs_until_next_speak
     state.last_spoken_track_key = current_track_key
@@ -608,8 +634,8 @@ def apply_success_state_update(
     state.last_spoken_expected_end_ts = ts + max(0, current_remaining or 0)
 
     state.songs_since_last_spoken = 0
-    state.songs_until_next_speak = rng.randint(*WAIT_RANGE_SONGS)
-    state.next_speak_deadline_ts = ts + SPEAK_DEADLINE_MINUTES * 60
+    state.songs_until_next_speak = rng.randint(*settings.wait_range_songs)
+    state.next_speak_deadline_ts = ts + settings.speak_deadline_minutes * 60
     LOGGER.info(
         "[cadence] Reset after successful segment | previous_progress=%s/%s songs | next_wait_roll=%s songs | next_deadline=%s",
         previous_songs_since,
@@ -619,7 +645,7 @@ def apply_success_state_update(
     )
 
     if archetype_used in COOLDOWN_SECONDS:
-        cooldown = COOLDOWN_SECONDS[archetype_used]
+        cooldown = cooldown_seconds_for_archetype(archetype_used, settings)
         state.cooldown_until[archetype_used.value] = ts + cooldown
 
     state.recent_archetypes = [archetype_used.value]

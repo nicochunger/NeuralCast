@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import pathlib
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -43,6 +44,9 @@ ARCHETYPE_LEAD_TIME_SECONDS: Dict[Archetype, int] = {
 }
 SPEAK_DEADLINE_MINUTES = 45
 WAIT_RANGE_SONGS = (2, 5)
+NEURALCAST_WAIT_RANGE_SONGS = (5, 10)
+NEURALCAST_SPEAK_DEADLINE_MINUTES = 90
+NEURALCAST_COOLDOWN_MULTIPLIER = 2.0
 NEWS_MAX_AGE_HOURS = 7 * 24
 NEWS_PREFERRED_MAX_AGE_HOURS = 72
 NEWS_DUPLICATE_WINDOW_DAYS = 7
@@ -61,6 +65,42 @@ SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 
 LOGGER = logging.getLogger("host_orchestrator")
 SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")
+
+
+@dataclass(frozen=True)
+class StationCadenceSettings:
+    wait_range_songs: Tuple[int, int]
+    speak_deadline_minutes: int
+    cooldown_multiplier: float = 1.0
+
+
+DEFAULT_CADENCE_SETTINGS = StationCadenceSettings(
+    wait_range_songs=WAIT_RANGE_SONGS,
+    speak_deadline_minutes=SPEAK_DEADLINE_MINUTES,
+)
+STATION_CADENCE_SETTINGS: Dict[str, StationCadenceSettings] = {
+    "neuralcast": StationCadenceSettings(
+        wait_range_songs=NEURALCAST_WAIT_RANGE_SONGS,
+        speak_deadline_minutes=NEURALCAST_SPEAK_DEADLINE_MINUTES,
+        cooldown_multiplier=NEURALCAST_COOLDOWN_MULTIPLIER,
+    ),
+}
+
+
+def cadence_settings_for_station(station_slug: str) -> StationCadenceSettings:
+    return STATION_CADENCE_SETTINGS.get(
+        str(station_slug or "").strip().lower(),
+        DEFAULT_CADENCE_SETTINGS,
+    )
+
+
+def cooldown_seconds_for_archetype(
+    archetype: Archetype,
+    cadence_settings: Optional[StationCadenceSettings] = None,
+) -> int:
+    base_cooldown = int(COOLDOWN_SECONDS[archetype])
+    settings = cadence_settings or DEFAULT_CADENCE_SETTINGS
+    return max(0, int(round(base_cooldown * settings.cooldown_multiplier)))
 
 
 def lead_time_seconds_for_archetype(archetype: Archetype) -> int:
