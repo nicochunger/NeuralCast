@@ -7,7 +7,7 @@ import pathlib
 import re
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from neuralcast.config import ASSETS_ROOT
@@ -74,15 +74,32 @@ class StationCadenceSettings:
     cooldown_multiplier: float = 1.0
 
 
+@dataclass(frozen=True)
+class StationArchetypeSettings:
+    disabled_archetypes: FrozenSet[Archetype] = frozenset()
+
+
 DEFAULT_CADENCE_SETTINGS = StationCadenceSettings(
     wait_range_songs=WAIT_RANGE_SONGS,
     speak_deadline_minutes=SPEAK_DEADLINE_MINUTES,
 )
+DEFAULT_ARCHETYPE_SETTINGS = StationArchetypeSettings()
 STATION_CADENCE_SETTINGS: Dict[str, StationCadenceSettings] = {
     "neuralcast": StationCadenceSettings(
         wait_range_songs=NEURALCAST_WAIT_RANGE_SONGS,
         speak_deadline_minutes=NEURALCAST_SPEAK_DEADLINE_MINUTES,
         cooldown_multiplier=NEURALCAST_COOLDOWN_MULTIPLIER,
+    ),
+}
+STATION_ARCHETYPE_SETTINGS: Dict[str, StationArchetypeSettings] = {
+    "neuralcast": StationArchetypeSettings(
+        disabled_archetypes=frozenset(
+            {
+                Archetype.DEEP_DIVE,
+                Archetype.ERA_SNAPSHOT,
+                Archetype.CONCERT_CHECK,
+            }
+        )
     ),
 }
 
@@ -91,6 +108,13 @@ def cadence_settings_for_station(station_slug: str) -> StationCadenceSettings:
     return STATION_CADENCE_SETTINGS.get(
         str(station_slug or "").strip().lower(),
         DEFAULT_CADENCE_SETTINGS,
+    )
+
+
+def archetype_settings_for_station(station_slug: str) -> StationArchetypeSettings:
+    return STATION_ARCHETYPE_SETTINGS.get(
+        str(station_slug or "").strip().lower(),
+        DEFAULT_ARCHETYPE_SETTINGS,
     )
 
 

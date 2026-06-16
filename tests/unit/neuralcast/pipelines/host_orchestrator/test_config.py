@@ -31,6 +31,19 @@ def test_cadence_settings_for_station_slows_neuralcast_down() -> None:
     )
 
 
+def test_archetype_settings_for_station_disable_neuralcast_specific_archetypes() -> None:
+    settings = config.archetype_settings_for_station("neuralcast")
+
+    assert settings.disabled_archetypes == frozenset(
+        {
+            Archetype.DEEP_DIVE,
+            Archetype.ERA_SNAPSHOT,
+            Archetype.CONCERT_CHECK,
+        }
+    )
+    assert config.archetype_settings_for_station("neuralforge").disabled_archetypes == frozenset()
+
+
 def test_get_prompt_template_substitutes_template_variables(monkeypatch) -> None:
     monkeypatch.setattr(config, "load_prompt_templates", lambda: {"test": "Hello {name}"})
 

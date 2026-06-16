@@ -299,6 +299,26 @@ class OrchestratorHelpersTest(unittest.TestCase):
 
         self.assertIn(Archetype.ERA_SNAPSHOT, legal)
 
+    def test_legal_archetypes_for_remaining_respects_disabled_archetypes(self) -> None:
+        state = default_state(time.time(), __import__("random").Random(17))
+
+        legal = legal_archetypes_for_remaining(
+            state,
+            time.time(),
+            current_remaining=240,
+            disabled_archetypes=[
+                Archetype.DEEP_DIVE,
+                Archetype.ERA_SNAPSHOT,
+                Archetype.CONCERT_CHECK,
+            ],
+        )
+
+        self.assertIn(Archetype.BACK_SELL, legal)
+        self.assertIn(Archetype.NEWS, legal)
+        self.assertNotIn(Archetype.DEEP_DIVE, legal)
+        self.assertNotIn(Archetype.ERA_SNAPSHOT, legal)
+        self.assertNotIn(Archetype.CONCERT_CHECK, legal)
+
     def test_legal_archetypes_for_remaining_excludes_up_next_tease_within_20_minutes_of_block_change(self) -> None:
         state = default_state(time.time(), __import__("random").Random(5))
 

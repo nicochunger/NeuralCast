@@ -457,8 +457,10 @@ def legal_archetypes_for_remaining(
     ts: float,
     current_remaining: Optional[int],
     seconds_until_block_change: Optional[float] = None,
+    disabled_archetypes: Optional[Sequence[Archetype]] = None,
 ) -> List[Archetype]:
     legal: List[Archetype] = []
+    disabled = set(disabled_archetypes or ())
     for archetype in (
         Archetype.BACK_SELL,
         Archetype.UP_NEXT_TEASE,
@@ -469,6 +471,8 @@ def legal_archetypes_for_remaining(
         Archetype.NEWS,
         Archetype.CONCERT_CHECK,
     ):
+        if archetype in disabled:
+            continue
         cooldown_until = float(state.cooldown_until.get(archetype.value, 0.0))
         if ts >= cooldown_until:
             if current_remaining is not None and (

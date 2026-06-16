@@ -35,6 +35,7 @@ from .assets import (
 from .config import (
     LEAD_TIME_SECONDS,
     LOGGER,
+    archetype_settings_for_station,
     cadence_settings_for_station,
     configure_station_file_logging,
     configure_logging,
@@ -406,6 +407,9 @@ def _select_archetype(
         now_ts(),
         current_remaining=playback.current_remaining,
         seconds_until_block_change=seconds_until_block_change,
+        disabled_archetypes=archetype_settings_for_station(
+            args.station
+        ).disabled_archetypes,
     )
     if legal:
         selected_archetype = choose_weighted_archetype(legal, state, rng)
