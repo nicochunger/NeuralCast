@@ -70,7 +70,3 @@ The music metadata pipeline depends on `yt-dlp`, `ffmpeg`, `mp3gain`, and MusicB
 
 ## Story Snippet Automation
 `inject_host_segment.py` ties together AzuraCast queue polling, Gemini story generation, deterministic style selection with `src/neuralcast/assets/stories/style_history.json`, TTS synthesis via `src/neuralcast/services/ai_client.py`, and media uploads back to the station. The script reads prompt assets under `src/neuralcast/assets/stories/prompts/` (including `personality.md`, wrappers, and `tts_instructions.md`), writes assets under `src/neuralcast/assets/stories/snippets/<station>/<date>/`, cleans up stale items with `--keep-local-days` / `--keep-remote-days`, and pushes the final MP3 into AzuraCast’s `AI Stories/` folder before queuing it through the telnet `interrupting_requests.push` command. Keep the style history file checked in so the variant-avoidance logic works across runs, and document any changes to prompts or AzuraCast credentials in your PR.
-
-## ExecPlans
- 
-When writing complex features or significant refactors, use an ExecPlan (as described in .agent/PLANS.md) from design to implementation.

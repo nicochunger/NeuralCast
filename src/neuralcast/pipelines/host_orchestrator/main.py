@@ -8,7 +8,7 @@ import random
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Literal, Mapping, Sequence
 
 # Support direct execution via `python src/neuralcast/pipelines/host_orchestrator/main.py`.
 if __package__ in (None, ""):
@@ -53,6 +53,7 @@ from .models import (
     QueueTrack,
     ScheduleContext,
     StationPersonality,
+    StoryAssets,
     TrackFocus,
     TrackMetadata,
     supports_track_focus,
@@ -140,6 +141,39 @@ class GenerationContext:
     forced_news_mode: bool
 
 
+@dataclass(frozen=True)
+class HostCycleRequest:
+    station: str
+    base_url: str
+    dry_run: bool = False
+    min_listeners: int = 1
+    force_archetype: Archetype | None = None
+    force_track_focus: TrackFocus | None = None
+    verify_tls: bool = False
+    keep_local_days: int = 3
+    keep_remote_days: int = 7
+
+
+@dataclass(frozen=True)
+class HostCycleResult:
+    status: Literal["skipped", "generated", "published"]
+    reason: str | None
+    station: str
+    current_track: QueueTrack | None = None
+    next_track: QueueTrack | None = None
+    selected_archetype: Archetype | None = None
+    used_archetype: Archetype | None = None
+    assets: StoryAssets | None = None
+    queued_request_id: str | None = None
+    expected_play_at_utc: str | None = None
+
+
+@dataclass(frozen=True)
+class PublishResult:
+    queued_request_id: str | None
+    expected_play_at_utc: str
+
+
 def validate_runtime_args(args: argparse.Namespace) -> TrackFocus | None:
     """Validate cross-argument constraints and return any forced track focus."""
 
@@ -178,12 +212,9 @@ def _load_station_runtime(
     api_key: str,
     station_dir: pathlib.Path,
     schedule_block_mentions: Mapping[str, Mapping[str, Any]],
+    client_factory: Callable[[str, str, bool], AzuraCastClient] = AzuraCastClient,
 ) -> StationRuntime:
-    client = AzuraCastClient(
-        base_url=args.base_url.rstrip("/"),
-        api_key=api_key,
-        verify_tls=args.verify_tls,
-    )
+    client = client_factory(args.base_url.rstrip("/"), api_key, args.verify_tls)
 
     stations = run_with_retries("Fetch stations", client.get_stations)
     station_payload = choose_station_payload(stations, args.station)
@@ -484,7 +515,7 @@ def _publish_segment(
     assets,
     state,
     rng: random.Random,
-) -> None:
+) -> PublishResult:
     upload_response = run_with_retries(
         "Upload media",
         lambda: runtime.client.upload_media(
@@ -568,168 +599,308 @@ def _publish_segment(
 
     cleanup_local_stories(args.station, args.keep_local_days)
     cleanup_remote_stories(runtime.client, args.station, args.keep_remote_days)
+    return PublishResult(
+        queued_request_id=request_id,
+        expected_play_at_utc=expected_play_at_utc,
+    )
+
+
+@dataclass(frozen=True)
+class HostRuntimeDependencies:
+    """Coarse side-effect boundaries for one host-orchestrator cycle."""
+
+    load_required_api_key: Callable[[], str] = _load_required_api_key
+    configure_logging: Callable[[], None] = configure_logging
+    create_client: Callable[[str, str, bool], AzuraCastClient] = (
+        lambda base_url, api_key, verify_tls: AzuraCastClient(
+            base_url=base_url,
+            api_key=api_key,
+            verify_tls=verify_tls,
+        )
+    )
+    station_state_paths: Callable[
+        [str], tuple[pathlib.Path, pathlib.Path, pathlib.Path]
+    ] = station_state_paths
+    configure_station_file_logging: Callable[
+        [pathlib.Path], tuple[pathlib.Path, pathlib.Path]
+    ] = configure_station_file_logging
+    create_lock: Callable[[pathlib.Path], StationLock] = StationLock
+    load_state: Callable[..., Any] = load_state
+    save_state: Callable[[pathlib.Path, Any], None] = save_state_atomic
+    make_rng: Callable[[], random.Random] = random.Random
+    now: Callable[[], float] = now_ts
+    generate_script: Callable[..., tuple[str, Any, Archetype]] = generate_archetype_script
+    create_story_assets: Callable[..., StoryAssets] = ensure_story_assets
+    publish_segment: Callable[..., PublishResult] = _publish_segment
+
+
+def _args_from_cycle_request(request: HostCycleRequest) -> argparse.Namespace:
+    return argparse.Namespace(
+        station=request.station,
+        base_url=request.base_url,
+        dry_run=request.dry_run,
+        min_listeners=request.min_listeners,
+        force_archetype=(
+            request.force_archetype.value if request.force_archetype else None
+        ),
+        force_track_focus=(
+            request.force_track_focus.value if request.force_track_focus else None
+        ),
+        verify_tls=request.verify_tls,
+        keep_local_days=request.keep_local_days,
+        keep_remote_days=request.keep_remote_days,
+    )
+
+
+def _cycle_request_from_args(args: argparse.Namespace) -> HostCycleRequest:
+    return HostCycleRequest(
+        station=args.station,
+        base_url=args.base_url,
+        dry_run=args.dry_run,
+        min_listeners=args.min_listeners,
+        force_archetype=(
+            Archetype(args.force_archetype) if args.force_archetype else None
+        ),
+        force_track_focus=(
+            TrackFocus(args.force_track_focus) if args.force_track_focus else None
+        ),
+        verify_tls=args.verify_tls,
+        keep_local_days=args.keep_local_days,
+        keep_remote_days=args.keep_remote_days,
+    )
+
+
+class HostOrchestratorRuntime:
+    def __init__(
+        self,
+        dependencies: HostRuntimeDependencies | None = None,
+    ) -> None:
+        self.dependencies = dependencies or HostRuntimeDependencies()
+
+    def run_cycle(self, request: HostCycleRequest) -> HostCycleResult:
+        deps = self.dependencies
+        args = _args_from_cycle_request(request)
+        deps.configure_logging()
+        forced_track_focus = validate_runtime_args(args)
+        LOGGER.info("%s", "=" * 84)
+        LOGGER.info(
+            "[cycle] Invocation received | station=%s | dry_run=%s | force_archetype=%s | force_track_focus=%s",
+            args.station,
+            args.dry_run,
+            args.force_archetype or "none",
+            forced_track_focus.value if forced_track_focus is not None else "none",
+        )
+
+        api_key = deps.load_required_api_key()
+        rng = deps.make_rng()
+        cycle_ts = deps.now()
+        station_dir, state_path, lock_path = deps.station_state_paths(args.station)
+        metadata_dir = station_dir / "metadata"
+        main_log_path, segment_log_path = deps.configure_station_file_logging(
+            metadata_dir
+        )
+        lock = deps.create_lock(lock_path)
+        if not lock.acquire():
+            return HostCycleResult(
+                status="skipped",
+                reason="lock active",
+                station=args.station,
+            )
+
+        state = None
+        try:
+            LOGGER.info(
+                "[cycle] Starting orchestrator cycle | station=%s | dry_run=%s",
+                args.station,
+                args.dry_run,
+            )
+            LOGGER.info(
+                "[log] File logs active | main=%s | segments=%s",
+                main_log_path,
+                segment_log_path,
+            )
+
+            cadence_settings = cadence_settings_for_station(args.station)
+            state = deps.load_state(state_path, cycle_ts, rng, cadence_settings)
+            LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
+            LOGGER.info(
+                "[cadence] State snapshot | songs_since_last_spoken=%s | songs_until_next_speak=%s | next_deadline=%s | wait_range=%s-%s | deadline_minutes=%s | cooldown_multiplier=%.2f",
+                state.songs_since_last_spoken,
+                state.songs_until_next_speak,
+                iso_utc(state.next_speak_deadline_ts),
+                cadence_settings.wait_range_songs[0],
+                cadence_settings.wait_range_songs[1],
+                cadence_settings.speak_deadline_minutes,
+                cadence_settings.cooldown_multiplier,
+            )
+
+            state.schedule_block_mentions = prune_schedule_block_mentions(
+                state.schedule_block_mentions, deps.now()
+            )
+            runtime = _load_station_runtime(
+                args=args,
+                api_key=api_key,
+                station_dir=station_dir,
+                schedule_block_mentions=state.schedule_block_mentions,
+                client_factory=deps.create_client,
+            )
+            playback = _fetch_playback_context(args, runtime.client, state)
+            if playback is None:
+                return HostCycleResult(
+                    status="skipped",
+                    reason="playback unavailable",
+                    station=args.station,
+                )
+
+            queue_context = _fetch_queue_context(
+                args=args,
+                client=runtime.client,
+                playback=playback,
+                schedule_state=runtime.schedule_state,
+                mention_state=state.schedule_block_mentions,
+            )
+            if queue_context is None:
+                return HostCycleResult(
+                    status="skipped",
+                    reason="queue unavailable",
+                    station=args.station,
+                    current_track=playback.current_track,
+                )
+
+            (
+                forced_archetype,
+                auto_forced_block_intro,
+            ) = _resolve_effective_forced_archetype(
+                args=args,
+                schedule_context=queue_context.schedule_context,
+            )
+            selected_archetype = _select_archetype(
+                args=args,
+                state=state,
+                playback=playback,
+                queue_context=queue_context,
+                forced_archetype=forced_archetype,
+                auto_forced_block_intro=auto_forced_block_intro,
+                forced_track_focus=forced_track_focus,
+                rng=rng,
+            )
+            if selected_archetype is None:
+                return HostCycleResult(
+                    status="skipped",
+                    reason="archetype gate closed",
+                    station=args.station,
+                    current_track=playback.current_track,
+                    next_track=queue_context.next_track,
+                )
+
+            generation_context = _build_generation_context(
+                args=args,
+                runtime=runtime,
+                playback=playback,
+                queue_context=queue_context,
+                state=state,
+                selected_archetype=selected_archetype,
+                forced_archetype=forced_archetype,
+                auto_forced_block_intro=auto_forced_block_intro,
+                rng=rng,
+            )
+
+            script_text, news_segment, archetype_used = deps.generate_script(
+                archetype=generation_context.selected_archetype,
+                station_name=runtime.generation_station_name,
+                personality=runtime.station_personality,
+                current_track=playback.current_track,
+                next_track=queue_context.next_track,
+                upcoming_tracks=queue_context.upcoming_tracks,
+                current_meta=generation_context.current_meta,
+                next_meta=generation_context.next_meta,
+                angle=generation_context.angle,
+                hook=generation_context.hook,
+                banned_list=generation_context.banned_list,
+                schedule_context=queue_context.schedule_context,
+                state=state,
+                rng=rng,
+                forced_mode=generation_context.forced_news_mode,
+                forced_track_focus=forced_track_focus,
+            )
+
+            if not script_text.strip():
+                raise RuntimeError("Generated script was empty after cleanup.")
+
+            tts_instructions = build_tts_instructions(runtime.station_personality)
+            assets = run_with_retries(
+                "TTS synthesis",
+                lambda: deps.create_story_assets(
+                    station_slug=args.station,
+                    current_track=playback.current_track,
+                    archetype=archetype_used,
+                    script_text=script_text,
+                    tts_instructions=tts_instructions,
+                ),
+            )
+            LOGGER.info("[assets] Script saved: %s", assets.text_path)
+            LOGGER.info("[assets] Audio saved: %s", assets.audio_path)
+
+            if args.dry_run:
+                LOGGER.info(
+                    "[dry-run] Skipping upload/injection; cadence and cooldowns are not consumed."
+                )
+                return HostCycleResult(
+                    status="generated",
+                    reason=None,
+                    station=args.station,
+                    current_track=playback.current_track,
+                    next_track=queue_context.next_track,
+                    selected_archetype=generation_context.selected_archetype,
+                    used_archetype=archetype_used,
+                    assets=assets,
+                )
+
+            publish_result = deps.publish_segment(
+                args=args,
+                runtime=runtime,
+                playback=playback,
+                queue_context=queue_context,
+                generation_context=generation_context,
+                archetype_used=archetype_used,
+                news_segment=news_segment,
+                script_text=script_text,
+                assets=assets,
+                state=state,
+                rng=rng,
+            )
+            return HostCycleResult(
+                status="published",
+                reason=None,
+                station=args.station,
+                current_track=playback.current_track,
+                next_track=queue_context.next_track,
+                selected_archetype=generation_context.selected_archetype,
+                used_archetype=archetype_used,
+                assets=assets,
+                queued_request_id=publish_result.queued_request_id,
+                expected_play_at_utc=publish_result.expected_play_at_utc,
+            )
+
+        finally:
+            try:
+                if state is not None:
+                    deps.save_state(state_path, state)
+                    LOGGER.info("[state] Saved orchestrator state: %s", state_path)
+            finally:
+                lock.release()
+
+
+def run_host_orchestrator_cycle(
+    request: HostCycleRequest,
+    *,
+    runtime: HostOrchestratorRuntime | None = None,
+) -> HostCycleResult:
+    return (runtime or HostOrchestratorRuntime()).run_cycle(request)
 
 
 def run(args: argparse.Namespace) -> None:
-    configure_logging()
-    forced_track_focus = validate_runtime_args(args)
-    LOGGER.info("%s", "=" * 84)
-    LOGGER.info(
-        "[cycle] Invocation received | station=%s | dry_run=%s | force_archetype=%s | force_track_focus=%s",
-        args.station,
-        args.dry_run,
-        args.force_archetype or "none",
-        forced_track_focus.value if forced_track_focus is not None else "none",
-    )
-
-    api_key = _load_required_api_key()
-    rng = random.Random()
-    cycle_ts = now_ts()
-    station_dir, state_path, lock_path = station_state_paths(args.station)
-    metadata_dir = station_dir / "metadata"
-    main_log_path, segment_log_path = configure_station_file_logging(metadata_dir)
-    lock = StationLock(lock_path)
-    if not lock.acquire():
-        return
-
-    LOGGER.info(
-        "[cycle] Starting orchestrator cycle | station=%s | dry_run=%s",
-        args.station,
-        args.dry_run,
-    )
-    LOGGER.info(
-        "[log] File logs active | main=%s | segments=%s",
-        main_log_path,
-        segment_log_path,
-    )
-
-    cadence_settings = cadence_settings_for_station(args.station)
-    state = load_state(state_path, cycle_ts, rng, cadence_settings)
-    LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
-    LOGGER.info(
-        "[cadence] State snapshot | songs_since_last_spoken=%s | songs_until_next_speak=%s | next_deadline=%s | wait_range=%s-%s | deadline_minutes=%s | cooldown_multiplier=%.2f",
-        state.songs_since_last_spoken,
-        state.songs_until_next_speak,
-        iso_utc(state.next_speak_deadline_ts),
-        cadence_settings.wait_range_songs[0],
-        cadence_settings.wait_range_songs[1],
-        cadence_settings.speak_deadline_minutes,
-        cadence_settings.cooldown_multiplier,
-    )
-
-    try:
-        state.schedule_block_mentions = prune_schedule_block_mentions(
-            state.schedule_block_mentions, now_ts()
-        )
-        runtime = _load_station_runtime(
-            args=args,
-            api_key=api_key,
-            station_dir=station_dir,
-            schedule_block_mentions=state.schedule_block_mentions,
-        )
-        playback = _fetch_playback_context(args, runtime.client, state)
-        if playback is None:
-            return
-
-        queue_context = _fetch_queue_context(
-            args=args,
-            client=runtime.client,
-            playback=playback,
-            schedule_state=runtime.schedule_state,
-            mention_state=state.schedule_block_mentions,
-        )
-        if queue_context is None:
-            return
-
-        forced_archetype, auto_forced_block_intro = _resolve_effective_forced_archetype(
-            args=args,
-            schedule_context=queue_context.schedule_context,
-        )
-        selected_archetype = _select_archetype(
-            args=args,
-            state=state,
-            playback=playback,
-            queue_context=queue_context,
-            forced_archetype=forced_archetype,
-            auto_forced_block_intro=auto_forced_block_intro,
-            forced_track_focus=forced_track_focus,
-            rng=rng,
-        )
-        if selected_archetype is None:
-            return
-
-        generation_context = _build_generation_context(
-            args=args,
-            runtime=runtime,
-            playback=playback,
-            queue_context=queue_context,
-            state=state,
-            selected_archetype=selected_archetype,
-            forced_archetype=forced_archetype,
-            auto_forced_block_intro=auto_forced_block_intro,
-            rng=rng,
-        )
-
-        script_text, news_segment, archetype_used = generate_archetype_script(
-            archetype=generation_context.selected_archetype,
-            station_name=runtime.generation_station_name,
-            personality=runtime.station_personality,
-            current_track=playback.current_track,
-            next_track=queue_context.next_track,
-            upcoming_tracks=queue_context.upcoming_tracks,
-            current_meta=generation_context.current_meta,
-            next_meta=generation_context.next_meta,
-            angle=generation_context.angle,
-            hook=generation_context.hook,
-            banned_list=generation_context.banned_list,
-            schedule_context=queue_context.schedule_context,
-            state=state,
-            rng=rng,
-            forced_mode=generation_context.forced_news_mode,
-            forced_track_focus=forced_track_focus,
-        )
-
-        if not script_text.strip():
-            raise RuntimeError("Generated script was empty after cleanup.")
-
-        tts_instructions = build_tts_instructions(runtime.station_personality)
-        assets = run_with_retries(
-            "TTS synthesis",
-            lambda: ensure_story_assets(
-                station_slug=args.station,
-                current_track=playback.current_track,
-                archetype=archetype_used,
-                script_text=script_text,
-                tts_instructions=tts_instructions,
-            ),
-        )
-        LOGGER.info("[assets] Script saved: %s", assets.text_path)
-        LOGGER.info("[assets] Audio saved: %s", assets.audio_path)
-
-        if args.dry_run:
-            LOGGER.info(
-                "[dry-run] Skipping upload/injection; cadence and cooldowns are not consumed."
-            )
-            return
-
-        _publish_segment(
-            args=args,
-            runtime=runtime,
-            playback=playback,
-            queue_context=queue_context,
-            generation_context=generation_context,
-            archetype_used=archetype_used,
-            news_segment=news_segment,
-            script_text=script_text,
-            assets=assets,
-            state=state,
-            rng=rng,
-        )
-
-    finally:
-        save_state_atomic(state_path, state)
-        LOGGER.info("[state] Saved orchestrator state: %s", state_path)
-        lock.release()
+    run_host_orchestrator_cycle(_cycle_request_from_args(args))
 
 
 def build_arg_parser() -> argparse.ArgumentParser:

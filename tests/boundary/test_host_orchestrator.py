@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import argparse
-from types import SimpleNamespace
+import random
 
 from neuralcast.pipelines.host_orchestrator import main as host_main
 from neuralcast.pipelines.host_orchestrator.models import (
     Archetype,
     QueueTrack,
     StoryAssets,
-    TrackMetadata,
 )
 from neuralcast.pipelines.host_orchestrator.state import default_state
 
@@ -26,124 +25,147 @@ class FakeLock:
         self.released = True
 
 
-def test_host_orchestrator_run_dry_run_generates_assets_without_publish(tmp_path, monkeypatch) -> None:
+class FakeHostAzuraCastClient:
+    def __init__(
+        self,
+        *,
+        current: QueueTrack,
+        next_track: QueueTrack,
+    ) -> None:
+        self.current = current
+        self.next_track = next_track
+        self.uploads: list[object] = []
+        self.telnet_commands: list[str] = []
+
+    def get_stations(self) -> list[dict[str, object]]:
+        return [{"id": 1, "shortcode": "neuralforge", "name": "NeuralForge"}]
+
+    def get_now_playing(self, _station: str) -> dict[str, object]:
+        return {
+            "listeners": {"current": 7},
+            "now_playing": {
+                "remaining": 180,
+                "song": {
+                    "id": self.current.song_id,
+                    "artist": self.current.artist,
+                    "title": self.current.title,
+                    "length": self.current.duration,
+                },
+            },
+        }
+
+    def get_upcoming_queue(self, _station: str) -> list[dict[str, object]]:
+        return [
+            {
+                "id": self.current.queue_id,
+                "duration": self.current.duration,
+                "song": {
+                    "id": self.current.song_id,
+                    "artist": self.current.artist,
+                    "title": self.current.title,
+                },
+            },
+            {
+                "id": self.next_track.queue_id,
+                "duration": self.next_track.duration,
+                "song": {
+                    "id": self.next_track.song_id,
+                    "artist": self.next_track.artist,
+                    "title": self.next_track.title,
+                },
+            },
+        ]
+
+    def upload_media(self, *_args, **_kwargs):  # pragma: no cover - dry-run guard
+        self.uploads.append((_args, _kwargs))
+        raise AssertionError("dry-run uploaded media")
+
+    def send_telnet_command(self, *_args, **_kwargs):  # pragma: no cover - dry-run guard
+        self.telnet_commands.append(str(_args))
+        raise AssertionError("dry-run queued media")
+
+
+def test_host_orchestrator_runtime_dry_run_generates_assets_without_publish(tmp_path) -> None:
     station_dir = tmp_path / "Station"
     metadata_dir = station_dir / "metadata"
     metadata_dir.mkdir(parents=True)
     current = QueueTrack("current", "1", "Ghost", "Rats", 240)
     next_track = QueueTrack("next", "2", "Opeth", "Harvest", 300)
     saved_states: list[object] = []
+    fake_client = FakeHostAzuraCastClient(current=current, next_track=next_track)
+    state_path = metadata_dir / "state.json"
+    lock_path = metadata_dir / "lock"
 
-    args = argparse.Namespace(
-        station="neuralforge",
-        dry_run=True,
-        force_archetype=None,
-        force_track_focus=None,
-    )
-
-    monkeypatch.setattr(host_main, "configure_logging", lambda: None)
-    monkeypatch.setattr(host_main, "_load_required_api_key", lambda: "api-key")
-    monkeypatch.setattr(host_main, "now_ts", lambda: 1000.0)
-    monkeypatch.setattr(
-        host_main,
-        "station_state_paths",
-        lambda _station: (station_dir, metadata_dir / "state.json", metadata_dir / "lock"),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "configure_station_file_logging",
-        lambda _metadata_dir: (_metadata_dir / "main.log", _metadata_dir / "segments.log"),
-    )
-    monkeypatch.setattr(host_main, "StationLock", FakeLock)
-    monkeypatch.setattr(
-        host_main,
-        "load_state",
-        lambda _path, ts, rng, _cadence_settings=None: default_state(ts, rng),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "save_state_atomic",
-        lambda _path, state: saved_states.append(state),
-    )
-    monkeypatch.setattr(host_main, "prune_schedule_block_mentions", lambda mentions, _ts: mentions)
-    monkeypatch.setattr(
-        host_main,
-        "_load_station_runtime",
-        lambda **_kwargs: host_main.StationRuntime(
-            station_dir=station_dir,
-            client=SimpleNamespace(),
-            station_id=1,
-            generation_station_name="NeuralForge",
-            station_personality=SimpleNamespace(script_profile="", tts_profile=""),
-            schedule_state=None,
+    deps = host_main.HostRuntimeDependencies(
+        configure_logging=lambda: None,
+        load_required_api_key=lambda: "api-key",
+        create_client=lambda _base_url, _api_key, _verify_tls: fake_client,
+        station_state_paths=lambda _station: (station_dir, state_path, lock_path),
+        configure_station_file_logging=lambda _metadata_dir: (
+            _metadata_dir / "main.log",
+            _metadata_dir / "segments.log",
         ),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "_fetch_playback_context",
-        lambda *_args, **_kwargs: host_main.PlaybackContext(
-            current_track=current,
-            current_remaining=180,
-            current_key="ghost|rats",
-            listener_count=7,
+        create_lock=FakeLock,
+        load_state=lambda _path, ts, rng, _cadence_settings=None: default_state(
+            ts, rng
         ),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "_fetch_queue_context",
-        lambda *_args, **_kwargs: host_main.QueueContext(
-            upcoming_tracks=[next_track],
-            next_track=next_track,
-            schedule_context=None,
-            schedule_reference_ts=1000.0,
+        save_state=lambda _path, state: saved_states.append(state),
+        make_rng=lambda: random.Random(1),
+        now=lambda: 1000.0,
+        generate_script=lambda **_kwargs: (
+            "Generated script",
+            None,
+            Archetype.BACK_SELL,
         ),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "_resolve_effective_forced_archetype",
-        lambda **_kwargs: (None, False),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "_select_archetype",
-        lambda **_kwargs: Archetype.BACK_SELL,
-    )
-    monkeypatch.setattr(
-        host_main,
-        "_build_generation_context",
-        lambda **_kwargs: host_main.GenerationContext(
-            selected_archetype=Archetype.BACK_SELL,
-            angle=None,
-            hook="hook",
-            banned_list=[],
-            current_meta=TrackMetadata(album="Prequelle"),
-            next_meta=TrackMetadata(album="Harvest"),
-            forced_news_mode=False,
-        ),
-    )
-    monkeypatch.setattr(
-        host_main,
-        "generate_archetype_script",
-        lambda **_kwargs: ("Generated script", None, Archetype.BACK_SELL),
-    )
-    monkeypatch.setattr(host_main, "build_tts_instructions", lambda _personality: "tts")
-    monkeypatch.setattr(host_main, "run_with_retries", lambda _label, func: func())
-    monkeypatch.setattr(
-        host_main,
-        "ensure_story_assets",
-        lambda **_kwargs: StoryAssets(
+        create_story_assets=lambda **_kwargs: StoryAssets(
             text_path=tmp_path / "script.txt",
             audio_path=tmp_path / "script.mp3",
             story_text="Generated script",
             remote_path="AI Stories/script.mp3",
         ),
+        publish_segment=lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("dry-run published")
+        ),
     )
-    monkeypatch.setattr(
-        host_main,
-        "_publish_segment",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("dry-run published")),
+    runtime = host_main.HostOrchestratorRuntime(deps)
+
+    result = runtime.run_cycle(
+        host_main.HostCycleRequest(
+            station="neuralforge",
+            base_url="https://azuracast.local",
+            dry_run=True,
+            force_archetype=Archetype.BACK_SELL,
+        )
     )
 
-    host_main.run(args)
-
+    assert result.status == "generated"
+    assert result.current_track is not None
+    assert result.current_track.artist == current.artist
+    assert result.current_track.title == current.title
+    assert result.next_track is not None
+    assert result.next_track.artist == next_track.artist
+    assert result.next_track.title == next_track.title
+    assert result.used_archetype == Archetype.BACK_SELL
+    assert result.assets is not None
+    assert fake_client.uploads == []
+    assert fake_client.telnet_commands == []
     assert saved_states
+
+
+def test_host_orchestrator_run_preserves_argument_validation() -> None:
+    args = argparse.Namespace(
+        station="neuralforge",
+        base_url="https://azuracast.local",
+        dry_run=True,
+        min_listeners=1,
+        force_archetype=Archetype.BACK_SELL.value,
+        force_track_focus=None,
+        verify_tls=False,
+        keep_local_days=3,
+        keep_remote_days=7,
+    )
+
+    request = host_main._cycle_request_from_args(args)
+
+    assert request.station == "neuralforge"
+    assert request.force_archetype == Archetype.BACK_SELL
