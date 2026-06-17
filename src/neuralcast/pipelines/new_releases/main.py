@@ -1289,75 +1289,27 @@ def _resolve_station_paths(station_arg: str) -> tuple[Path, Path]:
 
 def main() -> None:
     args = build_arg_parser().parse_args()
-    set_debug_mode(args.verbose)
-    station_dir, playlists_dir = _resolve_station_paths(args.station)
-    if not playlists_dir.exists():
-        raise SystemExit(f"Playlists directory not found: {playlists_dir}")
+    from .runtime import NewReleasesRequest, NewReleasesRuntime
 
-    artists, artist_tracks, artist_playlist_map = load_station_artists(playlists_dir)
-    artist_cache = load_artist_id_cache(playlists_dir)
-    audio_root = station_dir / "songs"
-    if not audio_root.exists():
-        log_debug(f"Audio root not found; skipping audio moves: {audio_root}")
-        audio_root = None
-    cutoff = datetime.now(UTC) - timedelta(days=args.days)
-
-    existing_releases = load_existing_new_releases(playlists_dir)
-    valid_existing, outdated_existing = partition_releases_by_cutoff(existing_releases, cutoff)
-    existing_ids = {release.track_id for release in valid_existing if release.track_id}
-    existing_keys = {
-        _normalize_audio_label(release.artist, release.title) for release in valid_existing
-    }
-
-    new_releases = build_new_releases(
-        artists,
-        days=args.days,
-        per_artist=args.per_artist,
-        min_rank=args.min_rank,
-        prefer_singles=args.prefer_singles,
-        known_tracks=artist_tracks,
-        artist_cache=artist_cache,
-        cutoff=cutoff,
-        seen_tracks=existing_ids,
-        seen_keys=existing_keys,
-    )
-    save_artist_id_cache(playlists_dir, artist_cache, dry_run=args.dry_run)
-
-    combined = valid_existing + new_releases
-    combined.sort(key=lambda item: (item.release_date, item.rank or 0), reverse=True)
-    final_releases: list[ArtistRelease] = []
-    seen_ids_final: set[str] = set()
-    seen_keys_final: set[str] = set()
-    for release in combined:
-        title_key = _normalize_audio_label(release.artist, release.title)
-        if (release.track_id and release.track_id in seen_ids_final) or title_key in seen_keys_final:
-            continue
-        final_releases.append(release)
-        seen_keys_final.add(title_key)
-        if release.track_id:
-            seen_ids_final.add(release.track_id)
-
-    if outdated_existing:
-        move_outdated_releases(
-            outdated_existing,
-            artist_playlist_map,
-            audio_root,
-            "New Releases",
+    NewReleasesRuntime().run(
+        NewReleasesRequest(
+            station=args.station,
+            days=args.days,
+            per_artist=args.per_artist,
+            min_rank=args.min_rank,
+            prefer_singles=args.prefer_singles,
             dry_run=args.dry_run,
+            verbose=args.verbose,
         )
-
-    if final_releases:
-        log_info(f"Collected {len(final_releases)} recent tracks")
-        print(f"Collected {len(final_releases)} recent tracks", flush=True)
-    else:
-        log_info("No releases found within the window")
-        print("No releases found within the window", flush=True)
-    save_new_releases(playlists_dir, final_releases, dry_run=args.dry_run)
+    )
 
 
 __all__ = [
     "ArtistIDCache",
     "ArtistRelease",
+    "NewReleasesRequest",
+    "NewReleasesResult",
+    "NewReleasesRuntime",
     "build_arg_parser",
     "build_new_releases",
     "fetch_recent_releases",
@@ -1367,3 +1319,11 @@ __all__ = [
     "parse_release_date",
     "save_new_releases",
 ]
+
+
+def __getattr__(name: str):
+    if name in {"NewReleasesRequest", "NewReleasesResult", "NewReleasesRuntime"}:
+        from . import runtime
+
+        return getattr(runtime, name)
+    raise AttributeError(name)
