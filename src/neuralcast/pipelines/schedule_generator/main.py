@@ -6,8 +6,6 @@ import argparse
 import datetime as dt
 import json
 import os
-from typing import Mapping
-from zoneinfo import ZoneInfo
 
 from neuralcast.config import (
     ALLOWED_STATION_SLUGS,
@@ -15,17 +13,6 @@ from neuralcast.config import (
     PROJECT_ROOT,
 )
 
-from .client import (
-    AzuraCastClient,
-    apply_weekly_schedule,
-    azuracast_time_for_api,
-    build_schedule_items_by_playlist,
-    choose_station_payload,
-    derive_station_name,
-    derive_station_timezone,
-    extract_station_playlists,
-    infer_azuracast_days,
-)
 from .config import (
     DEFAULT_MAX_BLOCK_MINUTES,
     DEFAULT_MIN_BLOCK_MINUTES,
@@ -41,67 +28,29 @@ from .config import (
     configure_logging,
     load_dotenv,
 )
-from .generation import (
-    DEFAULT_SCHEDULE_SEED_MODE,
-    SUPPORTED_SCHEDULE_SEED_MODES,
-    build_weekly_plan_with_code,
-    build_weekly_plan_with_llm,
-)
-from .models import (
-    DailyTemplateBlock,
-    ExpandedScheduleBlock,
-    ScheduleValidationError,
-    StationPlaylist,
-    WeeklySchedulePlan,
-)
-from .state import (
-    load_schedule_state,
-    resolve_station_dir,
-    run_with_retries,
-    save_schedule_state_atomic,
-    schedule_state_path,
+from .generation import DEFAULT_SCHEDULE_SEED_MODE, SUPPORTED_SCHEDULE_SEED_MODES
+from .runtime import (
+    AzuraCastScheduleRemote,
+    ScheduleGeneratorRuntime,
+    ScheduleRunRequest,
+    VPS_SCHEDULER_PROJECT_ROOT,
+    resolve_block_duration_bounds,
 )
 from .template import (
-    block_open_preference,
-    build_deterministic_daily_template,
-    build_duration_partition,
-    build_plan_hash,
-    build_weighted_playlist_cycle,
-    choose_open_block_indices,
-    compute_week_start,
-    expand_daily_template_to_week,
-    format_hhmm,
-    format_seed_template_for_prompt,
-    normalize_genre_labels,
-    normalize_mode,
-    normalize_string_list,
-    overlaps_unscheduled_window,
-    parse_hhmm,
     summarize_plan,
-    validate_daily_template,
 )
-
-
-VPS_SCHEDULER_PROJECT_ROOT = "/root/radio_host_orchestrator"
 
 
 def _resolve_block_duration_bounds(args: argparse.Namespace) -> tuple[int, int]:
-    min_block_minutes = (
-        DEFAULT_MIN_BLOCK_MINUTES
-        if args.min_block_minutes is None
-        else int(args.min_block_minutes)
+    return resolve_block_duration_bounds(
+        ScheduleRunRequest(
+            station=args.station,
+            base_url="",
+            api_key="",
+            min_block_minutes=args.min_block_minutes,
+            max_block_minutes=args.max_block_minutes,
+        )
     )
-    max_block_minutes = (
-        DEFAULT_MAX_BLOCK_MINUTES
-        if args.max_block_minutes is None
-        else int(args.max_block_minutes)
-    )
-    if str(args.station).strip().lower() == "neuralcast":
-        if args.min_block_minutes is None:
-            min_block_minutes = NEURALCAST_DEFAULT_MIN_BLOCK_MINUTES
-        if args.max_block_minutes is None:
-            max_block_minutes = NEURALCAST_DEFAULT_MAX_BLOCK_MINUTES
-    return min_block_minutes, max_block_minutes
 
 
 def run(args: argparse.Namespace) -> None:
@@ -117,136 +66,64 @@ def run(args: argparse.Namespace) -> None:
     if not api_key:
         raise RuntimeError("AZURACAST_API_KEY is not set in the environment.")
 
-    open_ratio_min = float(args.open_ratio_min)
-    open_ratio_max = float(args.open_ratio_max)
-    if (
-        str(args.station).strip().lower() == "neuralcast"
-        and open_ratio_min == DEFAULT_OPEN_RATIO_MIN
-        and open_ratio_max == DEFAULT_OPEN_RATIO_MAX
-    ):
-        open_ratio_min = NEURALCAST_DEFAULT_OPEN_RATIO_MIN
-        open_ratio_max = NEURALCAST_DEFAULT_OPEN_RATIO_MAX
-    if not (0.0 <= open_ratio_min <= open_ratio_max <= 1.0):
-        raise ValueError("Open-slot ratio bounds must satisfy 0 <= min <= max <= 1.")
-
-    min_open_slots = int(args.min_open_slots)
-    max_open_slots = int(args.max_open_slots)
-    if min_open_slots < 0 or max_open_slots < 0:
-        raise ValueError("Open-slot count bounds must be non-negative.")
-    if min_open_slots > max_open_slots:
-        raise ValueError("min-open-slots cannot exceed max-open-slots.")
-
-    min_block_minutes, max_block_minutes = _resolve_block_duration_bounds(args)
-    if min_block_minutes > max_block_minutes:
-        raise ValueError("min-block-minutes cannot exceed max-block-minutes.")
-    if args.seed_mode == "stable_week" and args.seed_salt:
-        raise ValueError(
-            "seed_salt is only supported when --seed-mode is 'fresh' or 'custom'."
-        )
-    if args.seed_mode == "custom" and not args.seed_salt:
-        raise ValueError("seed_salt is required when --seed-mode custom is used.")
-
-    if not args.dry_run:
-        current_project_root = str(PROJECT_ROOT.resolve())
-        if current_project_root != VPS_SCHEDULER_PROJECT_ROOT:
-            raise RuntimeError(
-                "Refusing non-dry-run schedule generation outside the VPS deployment root. "
-                f"Current PROJECT_ROOT={current_project_root!r}; expected "
-                f"{VPS_SCHEDULER_PROJECT_ROOT!r}. Use --dry-run locally, or run on the VPS."
-            )
-
-    client = AzuraCastClient(
-        base_url=base_url.rstrip("/"),
+    request = ScheduleRunRequest(
+        station=args.station,
+        base_url=base_url,
         api_key=api_key,
+        dry_run=args.dry_run,
+        force_apply=args.force_apply,
         verify_tls=args.verify_tls,
+        week_start_date=(
+            dt.date.fromisoformat(args.week_start_date) if args.week_start_date else None
+        ),
+        seed_mode=args.seed_mode,
+        seed_salt=args.seed_salt,
+        open_ratio_min=float(args.open_ratio_min),
+        open_ratio_max=float(args.open_ratio_max),
+        min_open_slots=int(args.min_open_slots),
+        max_open_slots=int(args.max_open_slots),
+        min_block_minutes=args.min_block_minutes,
+        max_block_minutes=args.max_block_minutes,
+        project_root=PROJECT_ROOT,
     )
-
-    stations = run_with_retries("Fetch stations", client.get_stations)
-    station_payload = choose_station_payload(stations, args.station)
-    station_name = derive_station_name(station_payload, args.station)
-    timezone_name = derive_station_timezone(station_payload)
-    station_tz = ZoneInfo(timezone_name)
-
-    now_local = dt.datetime.now(station_tz)
-    if args.week_start_date:
-        week_start = dt.date.fromisoformat(args.week_start_date)
-    else:
-        week_start = compute_week_start(now_local.date())
-    week_end = week_start + dt.timedelta(days=6)
-
-    raw_playlists = run_with_retries(
-        "Fetch station playlists",
-        lambda: client.get_station_playlists(args.station),
-    )
-    playlists = extract_station_playlists(raw_playlists)
-    if not playlists:
-        raise RuntimeError(
-            f"No playlists returned by AzuraCast for station '{args.station}'."
+    runtime = ScheduleGeneratorRuntime(
+        remote=AzuraCastScheduleRemote(
+            base_url=request.base_url,
+            api_key=request.api_key,
+            verify_tls=request.verify_tls,
         )
+    )
+    result = runtime.run(request)
+    plan = result.plan
 
     LOGGER.info(
         "[station] %s (%s) | timezone=%s | playlists=%s",
-        station_name,
+        plan.station_name,
         args.station,
-        timezone_name,
-        len(playlists),
-    )
-
-    plan = build_weekly_plan_with_code(
-        station_slug=args.station,
-        station_name=station_name,
-        timezone_name=timezone_name,
-        week_start=week_start,
-        week_end=week_end,
-        playlists=playlists,
-        open_ratio_min=open_ratio_min,
-        open_ratio_max=open_ratio_max,
-        min_open_slots=min_open_slots,
-        max_open_slots=max_open_slots,
-        min_block_minutes=min_block_minutes,
-        max_block_minutes=max_block_minutes,
-        seed_mode=args.seed_mode,
-        seed_salt=args.seed_salt,
+        plan.timezone,
+        result.playlist_count,
     )
 
     summarize_plan(plan)
-
-    state_path = schedule_state_path(args.station)
-    existing_state = load_schedule_state(state_path)
-    previous_hash = (
-        str(existing_state.get("plan_hash"))
-        if isinstance(existing_state, Mapping)
-        else None
-    )
 
     if args.dry_run:
         LOGGER.info("[dry-run] Skipping AzuraCast mutations.")
         print(json.dumps(plan.to_dict(), indent=2, ensure_ascii=False))
         return
 
-    if previous_hash and previous_hash == plan.plan_hash and not args.force_apply:
+    if result.status == "skipped_unchanged":
         LOGGER.info(
             "[apply] Plan hash unchanged (%s); skipping remote apply (use --force-apply to override).",
             plan.plan_hash,
         )
-        save_schedule_state_atomic(state_path, plan.to_dict())
         return
-
-    updated_playlists, updated_items = apply_weekly_schedule(
-        client=client,
-        station_slug=args.station,
-        playlists=playlists,
-        daily_template=plan.daily_template,
-    )
-
-    save_schedule_state_atomic(state_path, plan.to_dict())
 
     LOGGER.info(
         "[apply] Updated %s playlists with %s scheduled blocks total.",
-        updated_playlists,
-        updated_items,
+        result.updated_playlists,
+        result.updated_items,
     )
-    LOGGER.info("[state] Saved schedule state to %s", state_path)
+    LOGGER.info("[state] Saved schedule state to %s", result.state_path)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
