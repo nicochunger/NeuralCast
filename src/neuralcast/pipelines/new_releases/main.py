@@ -33,6 +33,15 @@ from neuralcast.metadata.storage import (
     save_station_entry_mapping,
     save_station_json_dict,
 )
+from neuralcast.metadata.track_resolution import (
+    CallableAlbumResolutionPort,
+    CallableTrackValidationPort,
+    ResolutionMode,
+    TrackMetadataResolver,
+    TrackResolutionRequest,
+)
+from neuralcast.models import Song
+from neuralcast.services.validation import verified, verified_album
 
 _DEBUG_ENABLED = False
 _PLAYLIST_FILENAME = "New Releases.csv"
@@ -979,28 +988,41 @@ def _promote_release_album(release: ArtistRelease) -> bool:
     if not should_attempt:
         return False
 
-    try:
-        match = guess_album(
-            release.artist,
-            release.title,
+    resolver = TrackMetadataResolver(
+        validator=CallableTrackValidationPort(
+            track_exists_func=verified,
+            album_matches_func=verified_album,
+        ),
+        album_resolver=CallableAlbumResolutionPort(guess_album_func=guess_album),
+    )
+    resolution = resolver.resolve(
+        TrackResolutionRequest(
+            song=Song(
+                artist=release.artist,
+                title=release.title,
+                album=release.album,
+                year=str(release.year),
+                validated=release.validated,
+            ),
+            mode=ResolutionMode.PROMOTE_RELEASE_ALBUM,
             prefer_spotify=False,
             prefer_deezer=True,
             min_confidence=0.55,
             allow_fallback=True,
         )
-    except Exception as exc:  # noqa: BLE001
-        log_warning(f"Album lookup failed for {release.artist} - {release.title}: {exc}")
+    )
+    for note in resolution.notes:
+        if note.startswith("album_lookup_failed:"):
+            detail = note.removeprefix("album_lookup_failed:")
+            log_warning(
+                f"Album lookup failed for {release.artist} - {release.title}: {detail}"
+            )
+
+    if not resolution.album_promoted or not resolution.song:
         return False
 
-    if not match:
-        return False
-
-    new_album = (match.album or "").strip()
+    new_album = (resolution.song.album or "").strip()
     if not new_album:
-        return False
-
-    new_type = (match.album_type or "").strip().casefold()
-    if new_type != "album":
         return False
 
     normalized_current = current_album.casefold()
@@ -1013,12 +1035,12 @@ def _promote_release_album(release: ArtistRelease) -> bool:
 
     previous_label = current_album or "single"
     release.album = new_album
-    release.album_type = match.album_type or "album"
+    release.album_type = resolution.album_type or "album"
     release.is_single = False
-    if match.release_date:
-        release.year = match.release_date.year
-    if match.track_id:
-        release.track_id = match.track_id
+    if resolution.release_date:
+        release.year = resolution.release_date.year
+    if resolution.track_id:
+        release.track_id = resolution.track_id
 
     log_info(
         f"Updated album metadata for {release.artist} - {release.title}: {previous_label} -> {new_album}"
