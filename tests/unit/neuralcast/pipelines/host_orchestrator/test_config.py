@@ -22,8 +22,8 @@ def test_cadence_settings_for_station_uses_default_for_neuralforge() -> None:
 def test_cadence_settings_for_station_slows_neuralcast_down() -> None:
     settings = config.cadence_settings_for_station("neuralcast")
 
-    assert settings.wait_range_songs == (5, 10)
-    assert settings.speak_deadline_minutes == 90
+    assert settings.wait_range_songs == (7, 12)
+    assert settings.speak_deadline_minutes == 120
     assert settings.cooldown_multiplier == 2.0
     assert (
         config.cooldown_seconds_for_archetype(Archetype.SHORT_STORY, settings)
@@ -39,6 +39,7 @@ def test_archetype_settings_for_station_disable_neuralcast_specific_archetypes()
             Archetype.DEEP_DIVE,
             Archetype.ERA_SNAPSHOT,
             Archetype.CONCERT_CHECK,
+            Archetype.ALBUM_SPOTLIGHT,
         }
     )
     assert config.archetype_settings_for_station("neuralforge").disabled_archetypes == frozenset()

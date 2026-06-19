@@ -25,8 +25,8 @@ def test_neuralcast_default_state_uses_longer_wait_range_and_deadline() -> None:
 
     result = state.default_state(now, random.Random(1), settings)
 
-    assert 5 <= result.songs_until_next_speak <= 10
-    assert result.next_speak_deadline_ts == now + 90 * 60
+    assert 7 <= result.songs_until_next_speak <= 12
+    assert result.next_speak_deadline_ts == now + 120 * 60
 
 
 def test_neuralcast_migration_clamps_existing_short_wait_roll() -> None:
@@ -40,7 +40,7 @@ def test_neuralcast_migration_clamps_existing_short_wait_roll() -> None:
         settings,
     )
 
-    assert result.songs_until_next_speak == 5
+    assert result.songs_until_next_speak == 7
 
 
 def test_neuralcast_success_update_rolls_longer_wait_and_scaled_cooldown() -> None:
@@ -63,8 +63,8 @@ def test_neuralcast_success_update_rolls_longer_wait_and_scaled_cooldown() -> No
         cadence_settings=settings,
     )
 
-    assert 5 <= result.songs_until_next_speak <= 10
-    assert result.next_speak_deadline_ts == now + 90 * 60
+    assert 7 <= result.songs_until_next_speak <= 12
+    assert result.next_speak_deadline_ts == now + 120 * 60
     assert result.cooldown_until[Archetype.SHORT_STORY.value] == now + 2 * 60 * 60
 
 
