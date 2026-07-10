@@ -26,11 +26,9 @@ from neuralcast.config import (
 )
 from neuralcast.metadata.album_lookup import guess_album
 from neuralcast.metadata.storage import (
-    load_station_entry_mapping,
     load_station_json_dict,
     metadata_key,
     normalize_metadata_component,
-    save_station_entry_mapping,
     save_station_json_dict,
 )
 from neuralcast.metadata.track_resolution import (
@@ -41,6 +39,11 @@ from neuralcast.metadata.track_resolution import (
     TrackResolutionRequest,
 )
 from neuralcast.models import Song
+from neuralcast.playlists.catalog import (
+    CatalogTrack,
+    CatalogWritePolicy,
+    StationPlaylistCatalog,
+)
 from neuralcast.services.validation import verified, verified_album
 
 _DEBUG_ENABLED = False
@@ -797,98 +800,58 @@ def _coerce_bool(value: object) -> bool:
     return False
 
 
-def _load_metadata_entries(playlists_dir: Path) -> dict[str, dict]:
-    entries, _resolved = load_station_entry_mapping(
-        playlists_dir,
-        _METADATA_FILENAME,
-        log_warning=log_warning,
-        warning_label="metadata file",
-        legacy_fallback=False,
-    )
-    return {
-        key: value for key, value in entries.items() if isinstance(key, str) and isinstance(value, dict)
-    }
-
-
-def _save_metadata_entries(
-    playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool
-) -> None:
-    if dry_run:
-        log_info("Dry run: not writing metadata JSON")
-        return
-    entries: dict[str, dict] = {}
-    for item in releases:
-        key = _metadata_key(item.artist, item.title, item.album, item.year)
-        entries[key] = {
-            "ReleaseDate": item.release_date.isoformat(),
-            "TrackID": item.track_id,
-            "AlbumType": item.album_type or "",
-            "IsSingle": item.is_single,
-            "Rank": item.rank if item.rank is not None else "",
-            "Validated": item.validated,
-        }
-    path = save_station_entry_mapping(playlists_dir, _METADATA_FILENAME, entries)
-    log_success(f"Stored metadata for {len(entries)} tracks → {path}")
-
-
 def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
     path = playlists_dir / _PLAYLIST_FILENAME
     if not path.exists():
         log_debug("New Releases.csv not found; starting from empty state")
         return []
-    metadata_entries = _load_metadata_entries(playlists_dir)
     try:
-        df = pd.read_csv(path)
+        tracks = StationPlaylistCatalog(
+            playlists_dir,
+            log=log_warning,
+        ).load_tracks_with_metadata(path, metadata_filename=_METADATA_FILENAME)
     except Exception as exc:  # noqa: BLE001
         log_error(f"Failed reading {path}: {exc}")
         return []
     releases: list[ArtistRelease] = []
-    for _, row in df.iterrows():
-        artist = str(row.get("Artist", "")).strip()
-        title = str(row.get("Title", "")).strip()
-        if not artist or not title:
-            continue
-        album = str(row.get("Album", "")).strip()
-        year_raw = str(row.get("Year", "")).strip()
+    for track in tracks:
+        song = track.song
+        metadata = track.metadata
+        year_raw = str(song.year or "").strip()
         try:
             year = int(year_raw)
         except ValueError:
             year = datetime.now(UTC).year
-        lookup_key = _metadata_key(artist, title, album, year)
-        metadata = metadata_entries.get(lookup_key, {})
         release_dt = datetime.min.replace(tzinfo=UTC)
-        release_raw = str(metadata.get("ReleaseDate", "")).strip() if isinstance(metadata, dict) else ""
+        release_raw = str(metadata.get("ReleaseDate", "")).strip()
         if release_raw:
             try:
                 release_dt = datetime.fromisoformat(release_raw)
                 if release_dt.tzinfo is None:
                     release_dt = release_dt.replace(tzinfo=UTC)
             except ValueError:
-                log_debug(f"Invalid ReleaseDate '{release_raw}' for {artist} - {title}")
-        track_id = str(metadata.get("TrackID", "")).strip() if isinstance(metadata, dict) else ""
+                log_debug(
+                    f"Invalid ReleaseDate '{release_raw}' for {song.artist} - {song.title}"
+                )
+        track_id = str(metadata.get("TrackID", "")).strip()
         rank = None
-        if isinstance(metadata, dict):
-            rank_raw = metadata.get("Rank")
-            if rank_raw not in (None, ""):
-                try:
-                    rank = int(rank_raw)
-                except (TypeError, ValueError):
-                    rank = None
-        album_type = (
-            str(metadata.get("AlbumType", "")).strip() or None
-            if isinstance(metadata, dict)
-            else None
-        )
-        is_single = _coerce_bool(metadata.get("IsSingle", False)) if isinstance(metadata, dict) else False
-        validated = _coerce_bool(row.get("Validated", False))
-        if isinstance(metadata, dict) and not validated:
+        rank_raw = metadata.get("Rank")
+        if rank_raw not in (None, ""):
+            try:
+                rank = int(rank_raw)
+            except (TypeError, ValueError):
+                rank = None
+        album_type = str(metadata.get("AlbumType", "")).strip() or None
+        is_single = _coerce_bool(metadata.get("IsSingle", False))
+        validated = bool(song.validated)
+        if not validated:
             validated = _coerce_bool(metadata.get("Validated", False))
         releases.append(
             ArtistRelease(
-                artist=artist,
-                title=title,
+                artist=song.artist,
+                title=song.title,
                 year=year,
-                album=album,
+                album=song.album or "",
                 release_date=release_dt,
                 track_id=track_id,
                 rank=rank,
@@ -935,48 +898,35 @@ def _append_release_to_playlist(
         else f"Appending '{release.artist} - {release.title}' to {csv_path.name}"
     )
     log_info(action)
-    if dry_run:
-        return
     try:
-        df = pd.read_csv(csv_path)
+        appended = StationPlaylistCatalog(
+            csv_path.parent,
+            log=log_debug,
+        ).append(
+            csv_path,
+            Song(
+                artist=release.artist,
+                title=release.title,
+                year=str(release.year),
+                album=release.album or None,
+                validated=False,
+            ),
+            policy=(
+                CatalogWritePolicy.PREVIEW
+                if dry_run
+                else CatalogWritePolicy.PERSIST
+            ),
+        )
     except Exception as exc:  # noqa: BLE001
         log_error(f"Failed reading {csv_path}: {exc}")
         return
-    if {"Artist", "Title"}.issubset(df.columns):
-        duplicate = (
-            df["Artist"].fillna("").str.strip().str.casefold()
-            == release.artist.casefold()
-        ) & (
-            df["Title"].fillna("").str.strip().str.casefold()
-            == release.title.casefold()
+    if not appended:
+        log_debug(
+            f"Track already present in {csv_path.name}: "
+            f"{release.artist} - {release.title}"
         )
-        if duplicate.any():
-            log_debug(
-                f"Track already present in {csv_path.name}: {release.artist} - {release.title}"
-            )
-            return
-    row: dict[str, object] = {}
-    for column in df.columns:
-        match column:
-            case "Artist":
-                row[column] = release.artist
-            case "Title":
-                row[column] = release.title
-            case "Year":
-                row[column] = str(release.year)
-            case "Album":
-                row[column] = release.album
-            case "Validated":
-                row[column] = release.validated
-            case _:
-                row[column] = ""
-    if "Artist" not in row:
-        row["Artist"] = release.artist
-    if "Title" not in row:
-        row["Title"] = release.title
-    appended = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    appended.to_csv(csv_path, index=False)
-    log_debug(f"Appended '{release.title}' to {csv_path.name}")
+    elif not dry_run:
+        log_debug(f"Appended '{release.title}' to {csv_path.name}")
 
 
 def _promote_release_album(release: ArtistRelease) -> bool:
@@ -1192,18 +1142,8 @@ def save_new_releases(playlists_dir: Path, releases: list[ArtistRelease], dry_ru
     sorted_releases = sorted(
         releases, key=lambda item: (item.release_date, item.rank or 0), reverse=True
     )
-    csv_rows: list[dict[str, object]] = []
     preview_rows: list[dict[str, object]] = []
     for item in sorted_releases:
-        csv_rows.append(
-            {
-                "Artist": item.artist,
-                "Title": item.title,
-                "Album": item.album,
-                "Year": str(item.year),
-                "Validated": item.validated,
-            }
-        )
         preview_rows.append(
             {
                 "Artist": item.artist,
@@ -1226,11 +1166,38 @@ def save_new_releases(playlists_dir: Path, releases: list[ArtistRelease], dry_ru
             print(df_preview.to_string(index=False), flush=True)
         return
 
-    df_csv = pd.DataFrame(csv_rows)
-    df_csv.to_csv(output_path, index=False)
-    _save_metadata_entries(playlists_dir, sorted_releases, dry_run=False)
-    log_success(f"Wrote {len(df_csv)} tracks → {output_path}")
-    print(f"Wrote {len(df_csv)} tracks to {output_path}", flush=True)
+    tracks = [_release_catalog_track(item) for item in sorted_releases]
+    StationPlaylistCatalog(playlists_dir, log=log_debug).replace_with_metadata(
+        output_path,
+        tracks,
+        metadata_filename=_METADATA_FILENAME,
+    )
+    log_success(f"Wrote {len(tracks)} tracks → {output_path}")
+    print(f"Wrote {len(tracks)} tracks to {output_path}", flush=True)
+
+
+def _release_metadata(release: ArtistRelease) -> dict[str, object]:
+    return {
+        "ReleaseDate": release.release_date.isoformat(),
+        "TrackID": release.track_id,
+        "AlbumType": release.album_type or "",
+        "IsSingle": release.is_single,
+        "Rank": release.rank if release.rank is not None else "",
+        "Validated": release.validated,
+    }
+
+
+def _release_catalog_track(release: ArtistRelease) -> CatalogTrack:
+    return CatalogTrack(
+        song=Song(
+            artist=release.artist,
+            title=release.title,
+            album=release.album or None,
+            year=str(release.year),
+            validated=release.validated,
+        ),
+        metadata=_release_metadata(release),
+    )
 
 
 def build_arg_parser() -> argparse.ArgumentParser:

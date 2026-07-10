@@ -11,8 +11,6 @@ from mutagen.easyid3 import EasyID3
 from neuralcast.models import Song
 
 DELETE_MARKER = "[DEL]"
-_YOUTUBE_HOST_FRAGMENTS = ("youtube.com", "youtu.be")
-_OVERRIDE_PATTERN = re.compile(r"^\[(https?://[^\]]+)\]\s*(.*)$")
 _FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
 _ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
 
@@ -51,44 +49,6 @@ def normalize_year_value(value: object) -> Optional[str]:
     return text
 
 
-def _strip_delete_prefix(value: Optional[str]) -> Tuple[Optional[str], bool]:
-    if value is None:
-        return None, False
-    if value.startswith(DELETE_MARKER):
-        cleaned = value[len(DELETE_MARKER) :].strip()
-        return (cleaned if cleaned else None), True
-    return value, False
-
-
-def _extract_override(value: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    if value is None:
-        return None, None
-    match = _OVERRIDE_PATTERN.match(value.strip())
-    if not match:
-        return value, None
-
-    url = match.group(1).strip()
-    normalized_url = url.lower()
-    if not any(host in normalized_url for host in _YOUTUBE_HOST_FRAGMENTS):
-        return value, None
-
-    remainder = match.group(2).strip()
-    return (remainder if remainder else None), url
-
-
-def _as_bool(value: object) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return value != 0
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if not normalized:
-            return False
-        return normalized in {"true", "1", "yes", "y"}
-    return False
-
-
 def sanitize_filename_component(value: str) -> str:
     return value.replace("/", " ").replace("\\", " ").strip()
 
@@ -100,106 +60,15 @@ def playlist_song_key(song: Song) -> Tuple[str, str]:
 def load_playlist(
     playlist_path: pathlib.Path,
 ) -> Tuple[List[Song], bool, List[Song], pd.DataFrame]:
-    df = pd.read_csv(
-        playlist_path,
-        dtype={
-            "Year": "string",
-            "Artist": "string",
-            "Title": "string",
-            "Album": "string",
-        },
-        keep_default_na=False,
-        na_filter=False,
+    from .catalog import StationPlaylistCatalog
+
+    snapshot = StationPlaylistCatalog(playlist_path.parent).load(playlist_path)
+    return (
+        snapshot.songs,
+        snapshot.needs_persist,
+        snapshot.deletion_requests,
+        snapshot._copy_source_frame(),
     )
-
-    needs_save = False
-    if not any(col.lower() == "validated" for col in df.columns):
-        df["Validated"] = False
-        needs_save = True
-        print(f"Added 'Validated' column to {playlist_path}")
-
-    column_lookup = {col.lower(): col for col in df.columns}
-
-    songs: List[Song] = []
-    marked_for_deletion: List[Song] = []
-    missing_year_count = 0
-
-    for _, row in df.iterrows():
-        artist_raw = (
-            _normalize_csv_value(row[column_lookup["artist"]])
-            if "artist" in column_lookup
-            else None
-        )
-        title_raw = (
-            _normalize_csv_value(row[column_lookup["title"]])
-            if "title" in column_lookup
-            else None
-        )
-        year_raw = row[column_lookup["year"]] if "year" in column_lookup else None
-        year = normalize_year_value(year_raw)
-        original_year = _normalize_csv_value(year_raw)
-        if original_year and year and year != original_year:
-            needs_save = True
-        album_raw = (
-            _normalize_csv_value(row[column_lookup["album"]])
-            if "album" in column_lookup
-            else None
-        )
-
-        artist_without_override, override_url = _extract_override(artist_raw)
-        artist, artist_marked = _strip_delete_prefix(artist_without_override)
-        title, title_marked = _strip_delete_prefix(title_raw)
-        album, _ = _strip_delete_prefix(album_raw)
-
-        validated_raw = (
-            row[column_lookup["validated"]]
-            if "validated" in column_lookup
-            else False
-        )
-        validated = _as_bool(validated_raw) if validated_raw is not None else False
-
-        if artist_marked or title_marked:
-            if artist and title:
-                marked_for_deletion.append(
-                    Song(
-                        artist=artist,
-                        title=title,
-                        year=year or "",
-                        album=album or None,
-                        validated=False,
-                    )
-                )
-            else:
-                print(
-                    f"Warning: Could not parse [DEL] row in {playlist_path}; missing artist/title"
-                )
-            needs_save = True
-            continue
-
-        if artist and title:
-            if not year:
-                missing_year_count += 1
-            songs.append(
-                Song(
-                    artist=artist,
-                    title=title,
-                    year=year or "",
-                    album=album,
-                    validated=validated,
-                    override_url=override_url,
-                )
-            )
-        else:
-            print(
-                f"Warning: Skipping incomplete row in {playlist_path}: Artist={artist}, Title={title}, Year={year}"
-            )
-
-    if missing_year_count:
-        print(
-            f"Warning: {missing_year_count} row(s) missing Year in {playlist_path}; leaving blank"
-        )
-
-    return songs, needs_save, marked_for_deletion, df
 
 
 def backfill_songs_from_library(
@@ -321,61 +190,14 @@ def save_playlist_with_validation(
     *,
     log: Callable[[str], None] = print,
 ):
-    # Update only the standard columns in the DataFrame, keep all others
-    # Build a DataFrame from songs for standard columns
-    std_cols = ["Artist", "Title", "Year", "Album", "Validated"]
-    song_keys = set((s.artist, s.title, s.year, s.album) for s in songs)
-    # Build a lookup for quick update
-    song_map = {}
-    for song in songs:
-        key = (song.artist, song.title)
-        song_map[key] = song
+    from .catalog import StationPlaylistCatalog
 
-    # Update rows in df for songs present, drop rows not in songs, and add new rows if needed
-    updated_rows = []
-    seen_keys = set()
-    for idx, row in df.iterrows():
-        artist = str(row.get("Artist", "")).strip()
-        title = str(row.get("Title", "")).strip()
-        key = (artist, title)
-        song = song_map.get(key)
-        if song:
-            # Update standard columns
-            row["Artist"] = (
-                f"[{song.override_url}] {song.artist}".strip()
-                if song.override_url
-                else song.artist
-            )
-            row["Title"] = song.title
-            normalized_year = normalize_year_value(song.year)
-            row["Year"] = normalized_year if normalized_year else ""
-            row["Album"] = song.album or ""
-            row["Validated"] = bool(song.validated)
-            updated_rows.append(row.to_dict())
-            seen_keys.add(key)
-        # else: row is not in songs anymore (e.g. deleted), so skip
-
-    # Add any new songs not present in df
-    for song in songs:
-        key = (song.artist, song.title)
-        if key not in seen_keys:
-            new_row = {col: "" for col in df.columns}
-            new_row["Artist"] = (
-                f"[{song.override_url}] {song.artist}".strip()
-                if song.override_url
-                else song.artist
-            )
-            new_row["Title"] = song.title
-            normalized_year = normalize_year_value(song.year)
-            new_row["Year"] = normalized_year if normalized_year else ""
-            new_row["Album"] = song.album or ""
-            new_row["Validated"] = bool(song.validated)
-            updated_rows.append({col: new_row.get(col, "") for col in df.columns})
-
-    # Create new DataFrame with all columns preserved
-    new_df = pd.DataFrame(updated_rows, columns=df.columns)
-    new_df.to_csv(playlist_path, index=False)
-    log(f"Cleaned and sorted playlist saved to {playlist_path}")
+    StationPlaylistCatalog.save_legacy_frame(
+        playlist_path,
+        songs,
+        df,
+        log=log,
+    )
 
 
 def delete_marked_mp3_files(

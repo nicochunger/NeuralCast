@@ -20,12 +20,6 @@ from neuralcast.audio.download import (
     youtube_to_mp3,
 )
 from neuralcast.metadata.album_lookup import guess_album
-from neuralcast.metadata.storage import (
-    load_station_entry_mapping,
-    metadata_key,
-    normalize_metadata_component,
-    save_station_entry_mapping,
-)
 from neuralcast.metadata.track_resolution import (
     CallableAlbumResolutionPort,
     CallableTrackValidationPort,
@@ -34,11 +28,11 @@ from neuralcast.metadata.track_resolution import (
     TrackResolutionRequest,
 )
 from neuralcast.models import Song
+from neuralcast.playlists.catalog import PlaylistSnapshot, StationPlaylistCatalog
 from neuralcast.playlists.utils import (
     backfill_songs_from_library,
     deduplicate_and_sort_songs,
     delete_marked_mp3_files,
-    load_playlist,
     normalize_year_value,
     playlist_song_key,
     replace_song_entry,
@@ -148,13 +142,19 @@ class MediaLibrary(Protocol):
 
 @dataclass
 class _PlaylistEntry:
-    file: pathlib.Path
-    name: str
+    snapshot: PlaylistSnapshot
     songs: list[Song]
     needs_save: bool
     deletions: list[Song]
-    df: pd.DataFrame
     removed_via_marker: int = 0
+
+    @property
+    def file(self) -> pathlib.Path:
+        return self.snapshot.path
+
+    @property
+    def name(self) -> str:
+        return self.snapshot.name
 
 
 @dataclass(frozen=True)
@@ -226,124 +226,14 @@ def _emit_captured_lines(
 def remove_new_releases_metadata_entries(
     playlists_dir: pathlib.Path, songs_to_remove: List[Song]
 ) -> int:
+    """Compatibility entrypoint for catalog-owned companion metadata cleanup."""
+
     if not songs_to_remove:
         return 0
-    entries, resolved = load_station_entry_mapping(
-        playlists_dir,
-        _METADATA_FILENAME,
-        log_warning=lambda message: print(f"⚠️ {message}"),
-        log_info=lambda message: print(f"ℹ️ {message}"),
-        warning_label="metadata file",
+    return StationPlaylistCatalog(playlists_dir).remove_companion_entries(
+        songs_to_remove,
+        filename=_METADATA_FILENAME,
     )
-    metadata_path = resolved.read_path if resolved.read_path.exists() else resolved.write_path
-    if not metadata_path.exists():
-        print(
-            f"⚠️ Metadata file not found at {metadata_path}; skipping metadata cleanup for New Releases"
-        )
-        return 0
-
-    def normalize_component(value: Optional[str]) -> str:
-        return normalize_metadata_component(value)
-
-    def normalize_year(value: Optional[str]) -> str:
-        if value is None:
-            return ""
-        text = str(value).strip()
-        if not text:
-            return ""
-        try:
-            return str(int(text))
-        except ValueError:
-            return text
-
-    def matching_keys(song: Song) -> List[str]:
-        artist_component = normalize_component(song.artist)
-        title_component = normalize_component(song.title)
-        album_component = normalize_component(song.album) if song.album else ""
-        year_component = normalize_year(song.year)
-
-        primary_key = metadata_key(
-            artist_component,
-            title_component,
-            album_component,
-            year_component,
-        )
-        if primary_key in entries:
-            return [primary_key]
-
-        album_filter = album_component or None
-        year_filter = year_component or None
-        candidates: List[str] = []
-        for existing_key in entries.keys():
-            parts = existing_key.split("|")
-            if len(parts) != 4:
-                continue
-            if parts[0] != artist_component or parts[1] != title_component:
-                continue
-            if album_filter is not None and parts[2] != album_component:
-                continue
-            if year_filter is not None and parts[3] != year_component:
-                continue
-            candidates.append(existing_key)
-        return candidates
-
-    removed = 0
-    missing: List[Song] = []
-    ambiguous: List[Song] = []
-    seen_keys = set()
-
-    for song in songs_to_remove:
-        unique_key = (
-            song.artist.lower().strip(),
-            song.title.lower().strip(),
-            (song.album or "").strip().lower(),
-            (song.year or "").strip(),
-        )
-        if unique_key in seen_keys:
-            continue
-        seen_keys.add(unique_key)
-
-        matches = matching_keys(song)
-        if not matches:
-            missing.append(song)
-            continue
-        if len(matches) > 1:
-            ambiguous.append(song)
-            continue
-
-        entries.pop(matches[0], None)
-        removed += 1
-        song_year = normalize_year(song.year)
-        print(f"🗑️ Removed metadata entry for {song.artist} - {song.title} ({song_year})")
-
-    if removed > 0:
-        try:
-            write_path = save_station_entry_mapping(
-                playlists_dir,
-                _METADATA_FILENAME,
-                entries,
-            )
-            print(
-                f"🗂️ Updated metadata file: {write_path.name} (removed {removed} entr{'y' if removed == 1 else 'ies'})"
-            )
-        except TypeError as exc:
-            print(f"⚠️ JSON serialization error while writing metadata file {write_path}: {exc}")
-        except OSError as exc:
-            print(f"⚠️ File write permission error for metadata file {write_path}: {exc}")
-        except Exception as exc:  # noqa: BLE001
-            print(f"⚠️ Unexpected error while writing metadata file {write_path}: {exc}")
-
-    for song in missing:
-        song_year = normalize_year(song.year)
-        print(
-            f"⚠️ New Releases metadata entry not found for {song.artist} - {song.title} ({song_year}); nothing removed"
-        )
-    for song in ambiguous:
-        print(
-            f"⚠️ Multiple New Releases metadata entries matched {song.artist} - {song.title}; skipped removal"
-        )
-
-    return removed
 
 
 def _backfill_album_for_missing_song(
@@ -796,14 +686,20 @@ class StationSync:
                 duplicate_analysis_log=station_dir / "duplicate_analysis.log",
             )
 
-        playlist_entries = self._load_playlist_entries(playlist_files)
+        catalog = StationPlaylistCatalog(playlists_dir)
+        playlist_entries = self._load_playlist_entries(catalog, playlist_files)
         self._apply_deletion_markers(playlist_entries, songs_root)
 
         playlist_reports: list[PlaylistSyncReport] = []
         all_songs_by_playlist: dict[str, list[Song]] = {}
 
         for entry in playlist_entries:
-            report, songs = self._sync_playlist(entry, songs_root, dry_run=request.dry_run)
+            report, songs = self._sync_playlist(
+                catalog,
+                entry,
+                songs_root,
+                dry_run=request.dry_run,
+            )
             playlist_reports.append(report)
             all_songs_by_playlist[entry.name] = songs
 
@@ -827,19 +723,18 @@ class StationSync:
 
     def _load_playlist_entries(
         self,
+        catalog: StationPlaylistCatalog,
         playlist_files: list[pathlib.Path],
     ) -> list[_PlaylistEntry]:
         entries: list[_PlaylistEntry] = []
         for playlist_file in playlist_files:
-            songs, playlist_needs_save, deletions, playlist_df = load_playlist(playlist_file)
+            snapshot = catalog.load(playlist_file)
             entries.append(
                 _PlaylistEntry(
-                    file=playlist_file,
-                    name=playlist_file.stem,
-                    songs=songs,
-                    needs_save=playlist_needs_save,
-                    deletions=deletions,
-                    df=playlist_df,
+                    snapshot=snapshot,
+                    songs=snapshot.songs,
+                    needs_save=snapshot.needs_persist,
+                    deletions=snapshot.deletion_requests,
                 )
             )
         return entries
@@ -890,11 +785,9 @@ class StationSync:
                 entry.needs_save = True
                 entry.removed_via_marker = removed_count
 
-            if entry.deletions and entry.name.casefold() == "new releases":
-                remove_new_releases_metadata_entries(entry.file.parent, entry.deletions)
-
     def _sync_playlist(
         self,
+        catalog: StationPlaylistCatalog,
         entry: _PlaylistEntry,
         songs_root: pathlib.Path,
         *,
@@ -921,11 +814,10 @@ class StationSync:
             playlist_log.change(f"🧹 removed {duplicates_removed} duplicate row(s)")
 
         if entry.needs_save or library_changed or normalized_changed:
-            save_playlist_with_validation(
-                entry.file,
+            catalog.save(
+                entry.snapshot,
                 songs,
-                entry.df,
-                log=playlist_log.change,
+                removed_songs=entry.deletions,
             )
 
         if not songs:
@@ -955,12 +847,7 @@ class StationSync:
                 override_updates = True
 
         if override_updates:
-            save_playlist_with_validation(
-                entry.file,
-                songs,
-                entry.df,
-                log=playlist_log.change,
-            )
+            catalog.save(entry.snapshot, songs)
 
         actions = self._build_playlist_actions(songs, music_dir)
         existing_pairs = [(item.song, item.path) for item in actions.existing_songs]
@@ -1055,11 +942,10 @@ class StationSync:
         valid_count = len(valid_songs)
 
         if validation_updates or songs_to_remove_from_playlist:
-            songs = _save_playlist_state(
-                entry.file,
-                entry.name,
+            songs = self._save_catalog_state(
+                catalog,
+                entry.snapshot,
                 songs,
-                entry.df,
                 songs_to_remove=songs_to_remove_from_playlist,
                 save_validation_updates=validation_updates,
                 log=playlist_log.change,
@@ -1108,11 +994,10 @@ class StationSync:
                     failed_count += 1
 
             if download_removals:
-                songs = _save_playlist_state(
-                    entry.file,
-                    entry.name,
+                songs = self._save_catalog_state(
+                    catalog,
+                    entry.snapshot,
                     songs,
-                    entry.df,
                     songs_to_remove=download_removals,
                     log=playlist_log.change,
                 )
@@ -1169,6 +1054,33 @@ class StationSync:
             ),
             normalized_songs,
         )
+
+    @staticmethod
+    def _save_catalog_state(
+        catalog: StationPlaylistCatalog,
+        snapshot: PlaylistSnapshot,
+        songs: list[Song],
+        *,
+        songs_to_remove: list[Song] | None = None,
+        save_validation_updates: bool = False,
+        log: Callable[[str], None] = print,
+    ) -> list[Song]:
+        songs_to_remove = songs_to_remove or []
+        removed_keys = {playlist_song_key(song) for song in songs_to_remove}
+        updated_songs = [
+            song for song in songs if playlist_song_key(song) not in removed_keys
+        ]
+        removed_count = len(songs) - len(updated_songs)
+        if removed_count:
+            log(f"🗑️ playlist rows removed: {removed_count}")
+        if save_validation_updates or removed_count:
+            catalog.save(
+                snapshot,
+                updated_songs,
+                removed_songs=songs_to_remove,
+            )
+            log("📝 playlist CSV updated")
+        return updated_songs
 
     def _override_candidates(
         self,
@@ -1364,9 +1276,10 @@ def list_playlists(station_slug: str) -> None:
         return
 
     print("Available playlists:")
+    catalog = StationPlaylistCatalog(playlists_dir)
     for idx, playlist_file in enumerate(playlist_files):
-        songs, _, _, _ = load_playlist(playlist_file)
-        print(f"{idx}: {playlist_file.stem} ({len(songs)} songs)")
+        snapshot = catalog.load(playlist_file)
+        print(f"{idx}: {playlist_file.stem} ({len(snapshot.songs)} songs)")
 
 
 __all__ = [
