@@ -707,17 +707,11 @@ def _neuralcast_reggae_playlists(
 def _neuralcast_evening_playlists(
     playlists: Sequence[StationPlaylist],
 ) -> List[StationPlaylist]:
-    aspen_playlists = _find_neuralcast_reserved_playlists(
+    return _find_neuralcast_reserved_playlists(
         playlists,
-        lambda playlist: _name_key(playlist.name) == "aspen vibes",
-        "Aspen Vibes",
+        lambda playlist: _name_key(playlist.name) == "deep house",
+        "Deep House",
     )
-    singer_songwriter_playlists = _find_neuralcast_reserved_playlists(
-        playlists,
-        lambda playlist: "singer songwriter" in _playlist_search_text(playlist),
-        "singer-songwriter",
-    )
-    return [*aspen_playlists, *singer_songwriter_playlists]
 
 
 def _reserved_playlist_blocks(
