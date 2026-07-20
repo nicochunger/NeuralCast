@@ -1,72 +1,275 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-The repo is now package-first under `src/neuralcast/`. Root scripts such as `main.py`, `update_new_releases.py`, `inject_host_segment.py`, and `schedule_generator.py` are compatibility shims that bootstrap `src/` and dispatch into `neuralcast.cli.*` entrypoints. Core logic is split across subpackages: `src/neuralcast/pipelines/` (playlist sync, new releases, host orchestrator, schedule generator), `src/neuralcast/audio/` (download/tagging/art), `src/neuralcast/metadata/` (album lookup), `src/neuralcast/playlists/` (CSV helpers), and `src/neuralcast/services/` (API clients).
-Station data still lives alongside the code in station folders (currently `NeuralCast/` and `NeuralForge/`). Each station keeps `playlists/` (CSV definitions), `songs/` (MP3 catalog mirrored per playlist), `metadata/` (New Releases caches + orchestrator/schedule state/logs), and `tts_snippets/` for generated/scripted drops. Generated reports such as `duplicate_analysis.log` land in the station folder.
-Global storytelling assets live under `src/neuralcast/assets/stories/`, including `style_history.json`, `snippets/<station>/<YYYY-MM-DD>/`, and `prompts/` used by host-orchestrator and schedule-generation flows. Keep that layout intact so the AzuraCast tooling can resolve prompts, persist style history, and clean up old media. Album-art fallbacks reside in `src/neuralcast/assets/images/Thumbnail_logo.png`; if you customize the image, keep a copy or symlink named `Thumbnail_logo.png` there so `audio.download.tag_mp3` can embed it when playlists lack album metadata.
+## Start Here
 
-## Build, Test, and Development Commands
-- `python -m pip install -e .` installs the package and CLI entrypoints from `pyproject.toml` for local development. Use `python -m pip install -e '.[dev]'` if you also want the optional dev extras (currently `pytest`).
-- Runtime workflows currently assume editable/repo-layout installs; wheel-safe packaging for all runtime assets is deferred.
-- `python main.py --station neuralforge --dry-run` audits playlists and tags without writing MP3s (root shim for `neuralcast.cli.sync_playlists`); run this before shipping changes.
-- `python main.py --station neuralforge` performs the full sync, including downloads and tag rewrites.
-- `python main.py --station neuralforge --sync-remote` performs local sync and then mirrors `<station>/songs/` to AzuraCast media via rsync (`--delete` enabled by default, with `AI Stories/***` excluded).
-- `python update_new_releases.py -s neuralforge --dry-run` previews updates to `New Releases.csv`; drop `--dry-run` to write results (shim for `neuralcast.cli.update_new_releases`).
-- `python inject_host_segment.py --base-url https://192.168.1.226 -s neuralforge --dry-run` exercises the AzuraCast host orchestrator locally (no uploads); remove `--dry-run` only when you intend to push the MP3 and queue it live (shim for `neuralcast.cli.host_orchestrator`).
-- `python schedule_generator.py --base-url https://192.168.1.226 -s neuralforge --dry-run` generates and validates a weekly AzuraCast schedule plan without writing it (shim for `neuralcast.cli.schedule_generator`).
-- `python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge` and `python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge` are the stable module entrypoints to prefer in cron/scripts and for VPS parity.
-- `./deployment/redeploy_host_orchestrator_rsync.sh` syncs the VPS host-orchestrator code (`src/` + `vps_requirements.txt`) using `rsync --delete` while preserving generated story snippets and excluding cache files.
+- Work from the repository root and work directly on `main` unless the user explicitly asks for a branch.
+- Treat station data, generated media, and remote AzuraCast state as operational data. Inspect the relevant pipeline before deleting files, running sync, or deploying.
+- Preserve unrelated user changes in a dirty worktree.
+- Prefer package entrypoints and code under `src/neuralcast/`; root scripts are compatibility shims.
+- The supported station slugs are `neuralcast` and `neuralforge`. The CLI default is `neuralforge`.
 
-## VPS Redeploy Procedure
-When asked to redeploy the host orchestrator package to the VPS, use the rsync deploy script:
+## Current Architecture
 
-1. Run the deploy script locally from the repo root:
-   - `./deployment/redeploy_host_orchestrator_rsync.sh`
+The project is package-first under `src/neuralcast/`:
 
-The script syncs `src/` and `vps_requirements.txt` to `/root/radio_host_orchestrator`, removes stale deleted code files via `rsync --delete`, preserves generated snippet media under `src/neuralcast/assets/stories/snippets/`, and prints a verification summary (including checks that legacy top-level pipeline files are gone).
+- `cli/`: stable command entrypoints for playlist sync, new releases, host orchestration, schedule generation, and the admin API.
+- `pipelines/station_sync.py`: authoritative station playlist/media synchronization service.
+- `pipelines/playlist_sync.py`: compatibility facade over `station_sync.py`; do not add new core behavior here.
+- `pipelines/media_sync.py`: rsync-based mirroring of station media to AzuraCast.
+- `pipelines/new_releases/`: Deezer-backed new-release discovery and playlist updates.
+- `pipelines/host_orchestrator/`: AzuraCast queue inspection, story generation, TTS, upload, cleanup, and interrupting-request insertion.
+- `pipelines/schedule_generator/`: weekly AzuraCast schedule planning and application.
+- `playlists/catalog.py`: authoritative playlist CSV parsing, round-tripping, deletion markers, YouTube overrides, and New Releases companion metadata.
+- `playlists/utils.py`: MP3/library reconciliation, filename sanitation, deduplication, and deletion helpers.
+- `audio/`: yt-dlp download, ID3 tagging, ReplayGain, and album-art handling.
+- `metadata/`: album lookup, track resolution, and station metadata storage.
+- `services/`: validation and AI/provider clients.
+- `admin_api/`: authenticated HTTP API and disk-backed jobs for host/schedule operations plus read-only live station views.
+- `assets/`: fallback images and story prompt/style assets.
 
-Prerequisites:
-- `rsync` must be installed both locally and on the VPS.
-- SSH access to `neuralvps` must be working.
+Root scripts `main.py`, `update_new_releases.py`, `inject_host_segment.py`, and `schedule_generator.py` bootstrap `src/` and dispatch into `neuralcast.cli.*`. Keep them thin and guarded by `if __name__ == "__main__":`.
 
-After deploy, verify the deployed host-orchestrator entrypoint timestamp or checksum in `/root/radio_host_orchestrator/src/neuralcast/pipelines/host_orchestrator/main.py` when needed.
+Station directories (`NeuralCast/` and `NeuralForge/`) contain:
 
-Cron guidance (VPS):
-- Cron jobs should invoke stable CLI module entrypoints (for example `python -m neuralcast.cli.host_orchestrator` and `python -m neuralcast.cli.schedule_generator`) instead of internal `src/neuralcast/pipelines/*.py` file paths.
-- Root-level wrapper scripts (`inject_host_segment.py`, `schedule_generator.py`) are stable locally but are not included in the VPS rsync subset unless you explicitly add them.
+- `playlists/`: CSV source of truth for station playlists.
+- `songs/<playlist>/`: MP3 files mirrored per playlist.
+- `metadata/`: New Releases metadata/artist caches and host/schedule runtime state.
+- `tts_snippets/`: station-local scripted/generated drops.
 
-Additional rule for host-orchestrator/scheduler edits:
-- Whenever a requested change modifies host-orchestrator runtime code/assets, automatically run the VPS rsync redeploy script after finishing the change, unless explicitly told not to deploy.
-- Treat these paths as mandatory redeploy triggers:
-  - `src/neuralcast/pipelines/host_orchestrator/main.py`
-  - `src/neuralcast/pipelines/host_orchestrator/*.py`
-  - `src/neuralcast/pipelines/schedule_generator/*.py`
-  - `src/neuralcast/cli/schedule_generator.py`
-  - `src/neuralcast/cli/host_orchestrator.py`
-  - `inject_host_segment.py`
-  - `src/neuralcast/assets/stories/prompts/*.md`
+Story assets shared by both stations live under `src/neuralcast/assets/stories/`. Generated host snippets live under `src/neuralcast/assets/stories/snippets/<station>/<YYYY-MM-DD>/`. Do not move these paths; deployment and cleanup code depend on them.
 
-## Station Metadata & Artist Cache
-`update_new_releases.py` and `main.py` both rely on `<station>/metadata/New Releases.metadata.json` to store structured playlist metadata plus `<station>/metadata/ArtistIDs.json` for cached artist IDs. The helpers automatically fall back to legacy copies under `playlists/` but will rewrite them into `metadata/` on the next save—do not delete the directory. When songs leave `New Releases.csv`, `main.py` calls `remove_new_releases_metadata_entries` so the JSON stays in sync; keep these files committed alongside the playlists whenever you touch release data.
+## Installation and Tests
 
-## Playlist Editing
-When adding new songs to playlist CSVs, always set the `Validated` column to `False` for the new rows so the pipeline can re-validate them.
+Editable/repository-layout installs are the supported runtime model:
 
-## Coding Style & Naming Conventions
-Follow Black-compatible, 4-space indentation with type hints where practical; the existing modules use dataclasses, Optional typing, and explicit return types. Function names stay snake_case (`youtube_to_mp3`), while classes and dataclasses use PascalCase (`AlbumMatch`). MP3 filenames should remain `Artist - Title.mp3`, sanitized via `sanitize_filename_component`. Keep side-effecting scripts guarded by `if __name__ == "__main__":` blocks to support imports.
+```bash
+python -m pip install -e .
+python -m pip install -e '.[dev]'
+```
 
-## Testing Guidelines
-Use `pytest` for automated coverage (`tests/test_story_orchestrator.py`, `tests/test_schedule_generator.py`) plus dry-run executions and targeted notebook checks (`tests.ipynb`, `test_album_art.ipynb`) for operational validation. When touching validation or tagging flows, capture console summaries plus the regenerated `duplicate_analysis.log` for review. The host orchestrator supports `--dry-run`, which still reads AzuraCast APIs and requires valid API credentials while skipping upload/queue mutation; attach those logs (and any queue screenshots for live runs) to document manual tests. Document manual test steps in your pull request so reviewers can replay them quickly.
+Run the default offline suite with:
 
-## Commit & Pull Request Guidelines
-Commits in this repo use short, imperative subjects (`Improve album lookup`, `Fix load playlist output length`). Group related edits together and avoid mixing feature work with data-only changes. Pull requests should include: 1) a concise summary of behavior changes, 2) manual test evidence (command output or log locations), and 3) any new configuration requirements (e.g., `.env` keys for Spotify, OpenAI, or AzuraCast). Add screenshots only when UI artifacts change, otherwise link to the relevant report files.
+```bash
+python -m pytest
+```
 
-Branch policy:
-- When implementing requested features or fixes, work directly on `main` by default.
-- Do not create a new branch unless the user explicitly asks for one.
+`pyproject.toml` excludes `integration` and `live` tests by default. Only run those markers when the task requires external tools/services and the necessary credentials are available. Tests are organized under `tests/unit/`, `tests/boundary/`, and opt-in `tests/integration/`.
 
-## Environment & Credentials
-The music metadata pipeline depends on `yt-dlp`, `ffmpeg`, `mp3gain`, and MusicBrainz connectivity. New-release discovery does not require Spotify credentials. Some album lookup paths still support Spotify, so define `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` only if you need those fallback lookups. Set `GEMINI_API_KEY` for `src/neuralcast/services/ai_client.py` story generation, and define `AZURACAST_API_KEY` (plus optional `AZURACAST_BASE_URL`/`AZURACAST_STATION`) before running `inject_host_segment.py`. Optional remote music mirroring uses rsync and can be configured with `NC_REMOTE_SYNC_HOST`, `NC_REMOTE_SYNC_USER`, `NC_REMOTE_SYNC_PORT`, station-specific `NC_REMOTE_SYNC_MEDIA_ROOT_<STATION_SLUG_UPPER>` overrides, shared `NC_REMOTE_SYNC_MEDIA_ROOT` (default `/var/lib/docker/volumes/azuracast_station_data/_data/{station}/media`), `NC_REMOTE_SYNC_SSH_KEY`, and `NC_REMOTE_SYNC_TIMEOUT_SECONDS`. Keep secrets out of Git—reference variable names and required scopes in docs instead, and confirm locals install `yt-dlp`, `ffmpeg`, and `mp3gain` system-wide. For VPS rsync deploys, ensure `rsync` is installed both locally and on the VPS.
+For CSV-only edits, also parse every changed CSV with Python's `csv` module or pandas and verify:
 
-## Story Snippet Automation
-`inject_host_segment.py` ties together AzuraCast queue polling, Gemini story generation, deterministic style selection with `src/neuralcast/assets/stories/style_history.json`, TTS synthesis via `src/neuralcast/services/ai_client.py`, and media uploads back to the station. The script reads prompt assets under `src/neuralcast/assets/stories/prompts/` (including `personality.md`, wrappers, and `tts_instructions.md`), writes assets under `src/neuralcast/assets/stories/snippets/<station>/<date>/`, cleans up stale items with `--keep-local-days` / `--keep-remote-days`, and pushes the final MP3 into AzuraCast’s `AI Stories/` folder before queuing it through the telnet `interrupting_requests.push` command. Keep the style history file checked in so the variant-avoidance logic works across runs, and document any changes to prompts or AzuraCast credentials in your PR.
+- every row has exactly the header's fields;
+- every new row has `Validated=False`;
+- commas and embedded quotes are correctly CSV-escaped;
+- no unintended same-playlist artist/title duplicate was introduced.
+
+Do not treat playlist sync `--dry-run` as a unit test or a read-only command. See the sync warning below.
+
+## Playlist CSV Contract
+
+Normal playlist rows use these logical fields:
+
+```text
+Artist,Title,Album,Year,Validated
+```
+
+Some existing files use `Artist,Title,Year,Album,Validated`. The catalog resolves columns by name, so preserve each file's existing header order rather than mechanically reordering it.
+
+When editing playlists:
+
+- Set `Validated` to `False` on every added or materially changed row. The resolver owns validation.
+- Keep the displayed artist/title canonical because the pair is the song identity and becomes the MP3 filename.
+- MP3 names are `Artist - Title.mp3`, with `/` and `\` replaced by spaces through `sanitize_filename_component`.
+- Same-playlist identity is case-insensitive after trimming. Do not add the same artist/title pair twice.
+- Cross-playlist repetition is allowed and intentional. The sync writes a station-level report to `<station>/duplicate_analysis.log`; do not “clean up” cross-playlist repeats unless asked.
+- Preserve optional/extra CSV columns. `StationPlaylistCatalog` round-trips existing columns.
+- Do not hand-edit generated `duplicate_analysis.log` files.
+
+### CSV Rows and Existing MP3s Must Be Changed Together
+
+The sync reconciles each `songs/<playlist>/` directory back into its CSV. If an MP3 remains after its CSV row is removed, `backfill_songs_from_library` can add the row back on the next run.
+
+Therefore:
+
+- When removing only a redundant spelling/version from one playlist, remove both that CSV row and its exact MP3 from that playlist directory.
+- Leave MP3s and rows in other playlists untouched.
+- Before deleting an MP3, verify that the retained duplicate exists and identify the exact filename being removed.
+- Do not use `[DEL]` for a playlist-local cleanup when the artist/title should remain in another playlist; `[DEL]` is global within the station sync.
+
+### `[DEL]` Global Deletion Marker
+
+Prefix either the `Artist` or `Title` field with `[DEL]` to request deletion:
+
+```csv
+[DEL] Old Artist,Old Song,Old Album,1999,False
+```
+
+Actual behavior is broader than the row's source playlist:
+
+- The catalog strips `[DEL]` and creates a deletion request for the artist/title identity.
+- Before syncing individual playlists, the station sync collects all deletion requests globally.
+- It deletes `Artist - Title.mp3` from every playlist directory under that station's `songs/` root.
+- It removes the matching artist/title row from every loaded playlist, then drops the marker row when CSVs are saved.
+
+Use `[DEL]` only when the recording should disappear from the entire station. Search all station playlists first. This deletion processing currently runs even with `--dry-run`, so a dry-run containing `[DEL]` markers is destructive.
+
+For `New Releases.csv`, removals also clean matching entries from `metadata/New Releases.metadata.json`.
+
+### Forced YouTube Replacement
+
+To force a specific YouTube source, prefix the `Artist` field with a bracketed YouTube URL and keep the artist after it:
+
+```csv
+[https://youtu.be/VIDEO_ID] Artist,Title,Album,2024,False
+```
+
+Supported hosts are `youtube.com` and `youtu.be`. On a non-dry sync, the pipeline:
+
+1. targets `songs/<playlist>/Artist - Title.mp3`;
+2. renames an existing file to `.mp3.bak`;
+3. downloads the exact URL with yt-dlp (no search fallback);
+4. tags the replacement and reapplies art/ReplayGain;
+5. deletes the backup and removes the bracketed URL from the CSV after success.
+
+If replacement fails, the original backup is restored and the override remains available for retry. In `--dry-run`, the replacement is only reported and the URL remains in the CSV.
+
+Use this syntax to replace a bad recording, live version, cover, or incorrect search result. Do not put the URL in `Title`, `Album`, or a separate invented column.
+
+## Playlist Sync Commands and Side Effects
+
+Local-only preview of downloads/remote changes:
+
+```bash
+python main.py --station neuralcast --dry-run --no-sync-remote
+```
+
+Apply locally without remote rsync:
+
+```bash
+python main.py --station neuralcast --no-sync-remote
+```
+
+Apply locally and mirror to AzuraCast:
+
+```bash
+python main.py --station neuralcast
+```
+
+Remote media mirroring is currently enabled by default. `--sync-remote` is therefore redundant; use `--no-sync-remote` when remote access or mutation is not intended. Remote rsync uses `--delete` by default. `--no-remote-delete` disables remote deletions.
+
+Important: playlist `--dry-run` skips new MP3 downloads and makes remote rsync use `--dry-run`, but it is not fully read-only locally. Current code may still:
+
+- process `[DEL]` markers and delete MP3s;
+- rewrite/sort playlist CSVs and validation results;
+- remove invalid/unavailable rows and invalid existing files;
+- rename/backfill files discovered in playlist directories;
+- retag existing MP3s and reapply album art/ReplayGain;
+- regenerate `duplicate_analysis.log`.
+
+Never run it merely to inspect data if those local changes are not authorized. For a read-only audit, parse CSVs and inspect files directly.
+
+Remote rsync mirrors `<station>/songs/` to the configured AzuraCast media root, preflights that the remote root exists, and excludes `AI Stories/***` and `.albumart/***`. Configuration precedence is CLI, station-specific environment, shared environment, then defaults. The main variables are:
+
+- `NC_REMOTE_SYNC_HOST` (default `neuralvps`)
+- `NC_REMOTE_SYNC_USER`, `NC_REMOTE_SYNC_PORT`, `NC_REMOTE_SYNC_SSH_KEY`
+- `NC_REMOTE_SYNC_MEDIA_ROOT_<STATION_SLUG_UPPER>`
+- `NC_REMOTE_SYNC_MEDIA_ROOT` (default `/var/lib/docker/volumes/azuracast_station_data/_data/{station}/media`)
+- `NC_REMOTE_SYNC_RSYNC_BIN`, `NC_REMOTE_SYNC_TIMEOUT_SECONDS`
+
+Because remote sync uses `--delete`, inspect local deletions and use a remote dry-run when the impact is uncertain.
+
+## New Releases and Station Metadata
+
+Preview/apply with:
+
+```bash
+python update_new_releases.py -s neuralcast --dry-run
+python update_new_releases.py -s neuralcast
+```
+
+New-release discovery is Deezer-backed and does not require Spotify credentials. Optional Spotify album-lookup fallbacks still use `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
+
+Keep these station metadata files synchronized and committed when release data changes:
+
+- `<station>/metadata/New Releases.metadata.json`
+- `<station>/metadata/ArtistIDs.json`
+
+The storage helpers may read legacy locations but canonical writes belong under `metadata/`. Do not delete that directory.
+
+## Host Orchestrator, Scheduler, and Admin API
+
+Prefer module entrypoints for cron, VPS, and operational instructions:
+
+```bash
+python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
+python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
+python -m neuralcast.cli.admin_api
+```
+
+Host and schedule dry-runs still read live AzuraCast APIs and require valid credentials. Remove `--dry-run` only when uploads, queue changes, or schedule application are intended.
+
+The host orchestrator uses prompts under `src/neuralcast/assets/stories/prompts/`, persistent style history at `src/neuralcast/assets/stories/style_history.json`, and generated snippets under `src/neuralcast/assets/stories/snippets/`. Keep `style_history.json` checked in and preserve generated snippet directories during deployment.
+
+The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also require `AZURACAST_BASE_URL` and `AZURACAST_API_KEY`. Its persistent jobs/logs live under `admin_http/`. The canonical service unit is `deployment/systemd/neuralcast-admin-api.service`.
+
+## VPS Deployment Pipeline
+
+The canonical deployment command is:
+
+```bash
+./deployment/redeploy_host_orchestrator_rsync.sh
+```
+
+It deploys to `neuralvps:/root/radio_host_orchestrator` by default and:
+
+- rsyncs `src/` with `--delete` while excluding caches, `*.mp3`, and generated story snippets;
+- syncs `vps_requirements.txt`;
+- rsyncs the complete `deployment/` tree with `--delete`;
+- removes the obsolete zip deployment artifact;
+- verifies key CLI/pipeline files and checks that legacy top-level pipeline modules are absent.
+
+Override the target with `REMOTE_HOST` and `REMOTE_DIR`. Both local and remote hosts require `rsync`; SSH access must work.
+
+The script does not install changed Python dependencies and does not restart persistent systemd services. If `vps_requirements.txt` changes, update the VPS virtualenv explicitly. If admin API runtime code changes, restart `neuralcast-admin-api` after a successful deploy and verify its health. Cron-launched host/schedule commands load new code on their next invocation.
+
+Automatically run the rsync deployment after completing requested changes to VPS runtime code/assets unless the user explicitly says not to deploy. Mandatory triggers include:
+
+- `src/neuralcast/pipelines/host_orchestrator/**`
+- `src/neuralcast/pipelines/schedule_generator/**`
+- `src/neuralcast/cli/host_orchestrator.py`
+- `src/neuralcast/cli/schedule_generator.py`
+- `src/neuralcast/admin_api/**` and `src/neuralcast/cli/admin_api.py`
+- shared runtime modules used by those services, including `src/neuralcast/services/ai_client.py`
+- `src/neuralcast/assets/stories/prompts/*.md`
+- `inject_host_segment.py`, `schedule_generator.py`, `vps_requirements.txt`, or `deployment/**`
+
+Playlist/station-data-only edits do not trigger this code deployment; station music reaches AzuraCast through the separate media rsync in playlist sync.
+
+After deployment, use the script's verification output and, when needed, verify timestamps/checksums under `/root/radio_host_orchestrator/src/neuralcast/`. See `deployment/INSTRUCTIONS.md` for cron examples and the admin API bridge-repair procedure used after AzuraCast Docker-network changes.
+
+## Environment and External Tools
+
+Keep secrets out of Git. Relevant variables include:
+
+- `AZURACAST_API_KEY`, `AZURACAST_BASE_URL`, `AZURACAST_STATION`
+- `GEMINI_API_KEY`, optional `GEMINI_TEXT_MODEL` and `GEMINI_TTS_MODEL`
+- optional `OPENAI_API_KEY`
+- optional `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`
+- `NEURALCAST_ADMIN_HTTP_TOKEN`, optional admin host/port settings
+- `NC_YTDLP_COOKIES_FILE` or `NC_YTDLP_COOKIES_FROM_BROWSER` when YouTube requires authentication
+- the `NC_REMOTE_SYNC_*` variables listed above
+
+Music workflows require yt-dlp, ffmpeg, and mp3gain. Album art and validation may require network access to MusicBrainz/provider APIs.
+
+The fallback cover is `src/neuralcast/assets/images/Thumbnail_logo.png`. Keep that exact filename available if the image is customized.
+
+## Coding and Review Conventions
+
+- Use Black-compatible formatting, 4-space indentation, and type hints for new Python code.
+- Use snake_case for functions and PascalCase for classes/dataclasses.
+- Keep domain behavior in the authoritative package module rather than compatibility shims.
+- Preserve atomic catalog writes and companion-metadata cleanup when changing playlist persistence.
+- Add focused unit tests for behavior changes and boundary tests when several internal modules interact.
+- Mock external HTTP, subprocess, filesystem, and credential boundaries in the default test suite.
+- Do not commit generated runtime logs, cache files, downloaded dependencies, or temporary lock artifacts created only by local tooling.
+
+Commits use short imperative subjects. Keep feature/code work separate from unrelated station-data edits. Pull requests should summarize behavior, include reproducible test/manual evidence, and list new environment or deployment requirements.
