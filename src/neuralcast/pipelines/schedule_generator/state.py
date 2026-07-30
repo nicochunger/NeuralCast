@@ -58,6 +58,17 @@ def load_schedule_state(path: pathlib.Path) -> Optional[Mapping[str, Any]]:
     return payload if isinstance(payload, Mapping) else None
 
 
+def load_schedule_presentation(station: str) -> Optional[Mapping[str, Any]]:
+    """Return persisted display copy without creating station directories."""
+
+    path = resolve_station_dir(station) / "metadata" / STATE_FILENAME
+    state = load_schedule_state(path)
+    if not isinstance(state, Mapping):
+        return None
+    presentation = state.get("presentation")
+    return presentation if isinstance(presentation, Mapping) else None
+
+
 def save_schedule_state_atomic(path: pathlib.Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
@@ -66,4 +77,3 @@ def save_schedule_state_atomic(path: pathlib.Path, payload: Mapping[str, Any]) -
         encoding="utf-8",
     )
     tmp_path.replace(path)
-

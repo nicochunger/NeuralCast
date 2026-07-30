@@ -101,9 +101,10 @@ class WeeklySchedulePlan:
     expanded_blocks: List[ExpandedScheduleBlock]
     rationale: str
     plan_hash: str
+    presentation: Dict[str, Any] | None = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        payload = {
             "state_version": STATE_VERSION,
             "station": self.station,
             "station_name": self.station_name,
@@ -121,3 +122,6 @@ class WeeklySchedulePlan:
             "rationale": self.rationale,
             "plan_hash": self.plan_hash,
         }
+        if self.presentation is not None:
+            payload["presentation"] = self.presentation
+        return payload

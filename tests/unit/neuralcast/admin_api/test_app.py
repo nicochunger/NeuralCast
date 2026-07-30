@@ -115,6 +115,7 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertIn("/admin/capabilities", paths)
         self.assertIn("/admin/stations/{station}/now-playing", paths)
         self.assertIn("/admin/stations/{station}/queue", paths)
+        self.assertIn("/admin/stations/{station}/schedule-presentation", paths)
         self.assertIn("/admin/force-archetype", paths)
         self.assertIn("/admin/run-schedule-generator", paths)
         self.assertIn("/admin/jobs/{job_id}", paths)
@@ -152,6 +153,37 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertEqual(queue.status_code, 200)
         self.assertEqual(queue.json()["next_track"]["title"], "Noose")
         self.assertEqual(len(queue.json()["items"]), 1)
+
+    def test_schedule_presentation_endpoint_returns_persisted_copy(self) -> None:
+        presentation = {
+            "version": 1,
+            "plan_hash": "plan-1",
+            "generated_at_utc": "2026-07-30T12:00:00+00:00",
+            "blocks": [
+                {
+                    "key": "ids:37,28",
+                    "playlist_ids": ["28", "37"],
+                    "playlist_names": ["Folk Metal", "Folk Rock"],
+                    "kind": "combo",
+                    "translations": {"en": {"title": "Folk & Fire", "description": "Rooted melodies meet thunderous metal intensity."}},
+                }
+            ],
+        }
+        client = TestClient(
+            create_app(
+                job_manager=self.manager,
+                station_service=self.station_service,
+                schedule_presentation_loader=lambda station: presentation if station == "neuralforge" else None,
+            )
+        )
+        headers = {"Authorization": "Bearer test-token"}
+
+        response = client.get(
+            "/admin/stations/neuralforge/schedule-presentation", headers=headers
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["blocks"][0]["translations"]["en"]["title"], "Folk & Fire")
 
     def test_http_force_archetype_job_lifecycle_and_conflict(self) -> None:
         client = TestClient(

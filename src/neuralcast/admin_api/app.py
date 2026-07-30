@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, sta
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from neuralcast.pipelines.host_orchestrator.models import Archetype, supports_track_focus
+from neuralcast.pipelines.schedule_generator.state import load_schedule_presentation
 
 from .jobs import (
     DEFAULT_ADMIN_SCHEDULE_SEED_MODE,
@@ -257,6 +258,16 @@ class QueueResponse(BaseModel):
     next_track: TrackResponse | None
 
 
+class SchedulePresentationResponse(BaseModel):
+    """Editorial copy for a station's current generated schedule."""
+
+    station: str
+    version: int
+    plan_hash: str
+    generated_at_utc: str
+    blocks: list[dict[str, Any]]
+
+
 def require_admin_token(
     authorization: str | None = Header(default=None),
 ) -> None:
@@ -297,15 +308,21 @@ def get_station_service(request: Request) -> AdminStationService:
     return request.app.state.station_service
 
 
+def get_schedule_presentation_loader(request: Request):
+    return request.app.state.schedule_presentation_loader
+
+
 def create_app(
     job_manager: JobManager | None = None,
     station_service: AdminStationService | None = None,
+    schedule_presentation_loader=load_schedule_presentation,
 ) -> FastAPI:
     """Create the FastAPI application for the admin HTTP service."""
 
     app = FastAPI(title="NeuralCast Admin API", version="0.2.0")
     app.state.job_manager = job_manager or JobManager()
     app.state.station_service = station_service or AdminStationService()
+    app.state.schedule_presentation_loader = schedule_presentation_loader
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -389,6 +406,28 @@ def create_app(
             ) from exc
 
         return QueueResponse(**payload)
+
+    @app.get(
+        "/admin/stations/{station}/schedule-presentation",
+        response_model=SchedulePresentationResponse,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def station_schedule_presentation(
+        station: str,
+        loader=Depends(get_schedule_presentation_loader),
+    ) -> SchedulePresentationResponse:
+        if station not in SUPPORTED_STATIONS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Unsupported station '{station}'.",
+            )
+        presentation = loader(station)
+        if presentation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No generated schedule presentation is available.",
+            )
+        return SchedulePresentationResponse(station=station, **presentation)
 
     @app.post(
         "/admin/force-archetype",

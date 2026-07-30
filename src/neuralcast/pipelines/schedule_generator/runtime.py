@@ -32,6 +32,7 @@ from .config import (
 )
 from .generation import DEFAULT_SCHEDULE_SEED_MODE, build_weekly_plan_with_code
 from .models import DailyTemplateBlock, StationPlaylist, WeeklySchedulePlan
+from .presentation import build_schedule_presentation, presentation_matches_plan
 from .state import (
     load_schedule_state,
     run_with_retries,
@@ -270,6 +271,16 @@ class ScheduleGeneratorRuntime:
             )
 
         if previous_hash and previous_hash == plan.plan_hash and not request.force_apply:
+            existing_presentation = (
+                existing_state.get("presentation")
+                if isinstance(existing_state, Mapping)
+                else None
+            )
+            plan.presentation = (
+                dict(existing_presentation)
+                if presentation_matches_plan(existing_presentation, plan.plan_hash)
+                else build_schedule_presentation(plan)
+            )
             self._state_store.save(request.station, plan)
             return ScheduleRunResult(
                 status="skipped_unchanged",
@@ -284,6 +295,7 @@ class ScheduleGeneratorRuntime:
             playlists=context.playlists,
             daily_template=plan.daily_template,
         )
+        plan.presentation = build_schedule_presentation(plan)
         self._state_store.save(request.station, plan)
         return ScheduleRunResult(
             status="applied",
