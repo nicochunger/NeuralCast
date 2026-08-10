@@ -452,23 +452,22 @@ curl -sS \
   http://127.0.0.1:8787/admin/jobs/20260314T153012Z-neuralforge-deep_dive
 ```
 
-## VPS Deployment Steps
+## Runtime Update Steps
 
-1. From the local canonical repository, deploy the latest `src/` tree and `vps_requirements.txt`:
+This repository is the canonical checkout on the VPS. Update it in place:
 
 ```bash
+cd /root/projects/NeuralCast
 git pull --ff-only
 ```
 
-2. On the VPS, install the updated requirements inside `/root/projects/NeuralCast/.venv`:
+Install updated requirements in this checkout when dependencies change:
 
 ```bash
-ssh neuralvps
-cd /root/projects/NeuralCast
 ./.venv/bin/pip install -e .
 ```
 
-3. Add `NEURALCAST_ADMIN_HTTP_TOKEN` to `/root/projects/NeuralCast/.env`.
+Add `NEURALCAST_ADMIN_HTTP_TOKEN` to `.env`.
 
 If AzuraCast will proxy to the API from Docker on the same host, also add:
 
@@ -477,7 +476,7 @@ NEURALCAST_ADMIN_HTTP_HOST=172.18.0.1
 NEURALCAST_ADMIN_HTTP_PORT=8787
 ```
 
-4. Install and start the systemd unit:
+Install and start the systemd unit:
 
 ```bash
 cp /root/projects/NeuralCast/deployment/systemd/neuralcast-admin-api.service /etc/systemd/system/neuralcast-admin-api.service

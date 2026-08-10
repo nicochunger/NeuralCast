@@ -89,8 +89,8 @@ python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.
-- Module entrypoints are preferred for cron/VPS usage.
-- The VPS checkout is authoritative: each `<station>/songs/` path is a symlink to its live AzuraCast media directory, so no rsync media mirror is required.
+- Module entrypoints are preferred for cron and operational usage in this VPS-resident checkout.
+- This repository is authoritative: each `<station>/songs/` path is a symlink to its live AzuraCast media directory, so no rsync media mirror is required.
 - The new releases updater writes to `New Releases.csv` plus `metadata/New Releases.metadata.json` and `metadata/ArtistIDs.json`.
 
 ## Station Data Layout

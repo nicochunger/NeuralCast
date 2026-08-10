@@ -3,7 +3,7 @@
 ## Start Here
 
 - Work from the repository root and work directly on `main` unless the user explicitly asks for a branch.
-- Treat station data, generated media, and remote AzuraCast state as operational data. Inspect the relevant pipeline before deleting files, running sync, or deploying.
+- Treat station data, generated media, and live AzuraCast state on this VPS as operational data. Inspect the relevant pipeline before deleting files, running sync, or deploying.
 - Preserve unrelated user changes in a dirty worktree.
 - Prefer package entrypoints and code under `src/neuralcast/`; root scripts are compatibility shims.
 - The supported station slugs are `neuralcast` and `neuralforge`. The CLI default is `neuralforge`.
@@ -158,7 +158,7 @@ Important: playlist `--dry-run` skips new MP3 downloads, but it is not fully rea
 
 Never run it merely to inspect data if those local changes are not authorized. For a read-only audit, parse CSVs and inspect files directly.
 
-`<station>/songs` is a symlink to that station's AzuraCast media directory. The VPS media tree is authoritative, so playlist sync writes and deletes operate on the live media files directly; no rsync or local-to-VPS mirror is used.
+`<station>/songs` is a symlink to that station's AzuraCast media directory. The VPS media tree is authoritative, so playlist sync writes and deletes operate on the live media files directly; no rsync or separate media mirror is used.
 
 ## New Releases and Station Metadata
 
@@ -180,7 +180,7 @@ The storage helpers may read legacy locations but canonical writes belong under 
 
 ## Host Orchestrator, Scheduler, and Admin API
 
-Prefer module entrypoints for cron, VPS, and operational instructions:
+Prefer module entrypoints for cron and other operational work in this VPS-resident checkout:
 
 ```bash
 python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
@@ -194,9 +194,9 @@ The host orchestrator uses prompts under `src/neuralcast/assets/stories/prompts/
 
 The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also require `AZURACAST_BASE_URL` and `AZURACAST_API_KEY`. Its persistent jobs/logs live under `runtime/admin_http/`. The canonical service unit is `deployment/systemd/neuralcast-admin-api.service`.
 
-## VPS-Authoritative Development and Media
+## VPS-Resident Development and Media
 
-The production checkout and primary development workspace is `/root/projects/NeuralCast` on the VPS. Develop there over SSH, run tests there, and commit/push from that checkout. The former rsync deployment workflow is retired; do not use `deployment/redeploy_host_orchestrator_rsync.sh` for normal changes.
+This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Run tests, commit, and push from this checkout; do not treat another local checkout as a deployment source. The former rsync deployment workflow is retired; do not use `deployment/redeploy_host_orchestrator_rsync.sh` for normal changes.
 
 Keep all project-local operational state close to the checkout:
 
@@ -206,7 +206,7 @@ Keep all project-local operational state close to the checkout:
 - `runtime/logs/`: scheduled-service logs;
 - `NeuralCast/songs` and `NeuralForge/songs`: symlinks to their existing AzuraCast media roots.
 
-AzuraCast's media directories are the only MP3 copies. Do not replace the `songs/` symlinks or introduce a local-to-VPS media mirror. The VPS catalog and media tree are authoritative.
+AzuraCast's media directories are the only MP3 copies. Do not replace the `songs/` symlinks or introduce another media mirror. This checkout and its linked media tree are authoritative.
 
 After a runtime code change, restart `neuralcast-admin-api` when applicable and verify `/healthz`. Cron-launched host/schedule commands load new code on their next invocation. See `deployment/INSTRUCTIONS.md` for the current service and cron layout.
 

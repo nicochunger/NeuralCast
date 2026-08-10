@@ -1,15 +1,14 @@
-# VPS Runtime Instructions
+# Runtime Instructions
 
-The VPS checkout is the production and development workspace. Do not use an rsync deployment for normal changes.
+This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Do not use an rsync deployment or another checkout as a deployment source.
 
 ## Prerequisites
 
-- VPS access through the `neuralvps` SSH target
-- A Git checkout at `/root/projects/NeuralCast`
+- The `/root/projects/NeuralCast` checkout on this VPS
 
 ## Deploy Command
 
-From the VPS checkout:
+From this checkout:
 
 ```bash
 cd /root/projects/NeuralCast
@@ -18,11 +17,11 @@ git pull --ff-only
 
 What it does:
 
-- The VPS checkout is the primary development workspace; normal changes are committed and pushed directly from it.
+- This checkout is the primary development workspace; normal changes are committed and pushed directly from it.
 - Updates the current branch without overwriting local operational files.
 - Restart persistent services after changing their runtime code.
 
-## Environment Variables on VPS
+## Environment Variables
 
 Create or update `/root/projects/NeuralCast/.env`:
 
