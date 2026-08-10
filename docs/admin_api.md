@@ -465,7 +465,7 @@ git pull --ff-only
 ```bash
 ssh neuralvps
 cd /root/projects/NeuralCast
-./.venv/bin/pip install -r vps_requirements.txt
+./.venv/bin/pip install -e .
 ```
 
 3. Add `NEURALCAST_ADMIN_HTTP_TOKEN` to `/root/projects/NeuralCast/.env`.

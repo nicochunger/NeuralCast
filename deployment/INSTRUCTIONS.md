@@ -40,6 +40,7 @@ Use module entrypoints (preferred):
 ```bash
 cd /root/projects/NeuralCast
 source .venv/bin/activate
+pip install -e .
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
