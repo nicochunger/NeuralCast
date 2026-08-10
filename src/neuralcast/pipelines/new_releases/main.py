@@ -52,6 +52,8 @@ _METADATA_FILENAME = "New Releases.metadata.json"
 _ARTIST_CACHE_FILENAME = "ArtistIDs.json"
 _EXCLUDED_PLAYLIST_FILENAMES = {"new releases.csv"}
 _KNOWN_TRACK_SAMPLE_SIZE = 8
+_KNOWN_ALBUM_SAMPLE_SIZE = 3
+_KNOWN_IDENTITY_MATCH_SAMPLE_SIZE = 3
 _REQUEST_TIMEOUT = 15
 _API_BASE_URL = "https://api.deezer.com"
 _MAX_API_RETRIES = 3
@@ -65,6 +67,22 @@ SESSION.headers.update({"User-Agent": "NeuralCast/1.0"})
 _LAST_REQUEST_TS = 0.0
 _QUOTA_PAUSE_UNTIL = 0.0
 _MB_RELEASE_CACHE: dict[tuple[str, str, str], Optional[datetime]] = {}
+_KNOWN_TRACK_MATCH_CACHE: dict[
+    tuple[str, str, tuple[str, ...]], Optional[list[dict]]
+] = {}
+_ALBUM_GENRE_CACHE: dict[str, Optional[frozenset[int]]] = {}
+_MB_RECORDING_ARTIST_CACHE: dict[
+    tuple[str, str], Optional[frozenset[str]]
+] = {}
+
+# Deezer sometimes groups distinct same-named artists under one artist ID. Genre
+# evidence from known station tracks gives us a release-level identity check. The
+# rock family is intentionally broad because Deezer moves metal releases between
+# Rock, Alternative, Indie Rock, and Heavy Metal.
+_COMPATIBLE_GENRE_FAMILIES = (
+    frozenset({85, 87, 152, 464}),
+    frozenset({106, 113}),
+)
 
 musicbrainzngs.set_useragent("NeuralCast", "0.1", "neuralcast@example.com")
 
@@ -130,10 +148,89 @@ def _normalize_audio_label(*parts: str) -> str:
     return re.sub(r"[^a-z0-9]", "", normalized.casefold())
 
 
+def _normalize_track_match_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    stripped = "".join(char for char in normalized if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]", "", stripped.casefold())
+
+
+def _track_titles_match(candidate: str, expected: str) -> bool:
+    candidate_key = _normalize_track_match_key(candidate)
+    expected_key = _normalize_track_match_key(expected)
+    if not candidate_key or not expected_key:
+        return False
+    if candidate_key == expected_key:
+        return True
+    return (
+        min(len(candidate_key), len(expected_key)) >= 8
+        and _ratio(candidate_key, expected_key) >= 0.9
+    )
+
+
 def _normalize_musicbrainz_label(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value or "")
     stripped = "".join(char for char in normalized if not unicodedata.combining(char))
     return re.sub(r"[^a-z0-9]", "", stripped.casefold())
+
+
+def _musicbrainz_recording_artist_ids(
+    artist_name: str, title: str
+) -> Optional[frozenset[str]]:
+    cache_key = (
+        _normalize_artist_match_key(artist_name),
+        _normalize_musicbrainz_label(title),
+    )
+    if cache_key in _MB_RECORDING_ARTIST_CACHE:
+        return _MB_RECORDING_ARTIST_CACHE[cache_key]
+    try:
+        response = musicbrainzngs.search_recordings(
+            artist=artist_name,
+            recording=title,
+            limit=25,
+        )
+    except Exception:
+        _MB_RECORDING_ARTIST_CACHE[cache_key] = None
+        return None
+
+    expected_title = _normalize_musicbrainz_label(title)
+    artist_ids: set[str] = set()
+    for item in response.get("recording-list", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if _normalize_musicbrainz_label(str(item.get("title") or "")) != expected_title:
+            continue
+        for credit in item.get("artist-credit", []) or []:
+            if not isinstance(credit, dict):
+                continue
+            artist = credit.get("artist") if isinstance(credit.get("artist"), dict) else {}
+            candidate_name = str(artist.get("name") or "")
+            artist_id = str(artist.get("id") or "").strip()
+            if artist_id and _artist_names_match(candidate_name, artist_name):
+                artist_ids.add(artist_id)
+
+    result = frozenset(artist_ids)
+    _MB_RECORDING_ARTIST_CACHE[cache_key] = result
+    return result
+
+
+def _known_musicbrainz_artist_ids(
+    artist_name: str, known_titles: Optional[set[str]]
+) -> frozenset[str]:
+    support: dict[str, int] = {}
+    for title in sorted(title for title in (known_titles or set()) if title)[
+        :_KNOWN_TRACK_SAMPLE_SIZE
+    ]:
+        artist_ids = _musicbrainz_recording_artist_ids(artist_name, title)
+        for artist_id in artist_ids or frozenset():
+            support[artist_id] = support.get(artist_id, 0) + 1
+    if not support:
+        return frozenset()
+    strongest_support = max(support.values())
+    return frozenset(
+        artist_id
+        for artist_id, count in support.items()
+        if count == strongest_support
+    )
 
 
 def _normalize_metadata_component(value: str) -> str:
@@ -378,13 +475,6 @@ def _fetch_artist_by_id(artist_id: str) -> Optional[dict]:
     return payload
 
 
-def _track_matches_artist(track: dict, artist_id: str, artist_name: str) -> bool:
-    artist = track.get("artist") if isinstance(track.get("artist"), dict) else {}
-    if str(artist.get("id") or "") == str(artist_id):
-        return True
-    return _artist_names_match(str(artist.get("name") or ""), artist_name)
-
-
 def _track_matches_artist_id(track: dict, artist_id: str) -> bool:
     artist = track.get("artist") if isinstance(track.get("artist"), dict) else {}
     return bool(artist_id) and str(artist.get("id") or "") == str(artist_id)
@@ -401,24 +491,195 @@ def _is_track_currently_available(track: dict) -> bool:
     return False
 
 
-def _artist_has_known_track(
+def _known_track_cache_key(
+    artist_id: str, artist_name: str, known_titles: set[str]
+) -> tuple[str, str, tuple[str, ...]]:
+    normalized_titles = {
+        normalized_title
+        for title in known_titles
+        if (normalized_title := _normalize_track_match_key(title))
+    }
+    title_keys = tuple(sorted(normalized_titles))
+    return str(artist_id), _normalize_artist_match_key(artist_name), title_keys
+
+
+def _find_known_artist_tracks(
     artist_id: str, artist_name: str, known_titles: Optional[set[str]]
-) -> bool:
+) -> Optional[list[dict]]:
     if not artist_id or not known_titles:
-        return False
+        return []
+    cache_key = _known_track_cache_key(artist_id, artist_name, known_titles)
+    if cache_key in _KNOWN_TRACK_MATCH_CACHE:
+        cached = _KNOWN_TRACK_MATCH_CACHE[cache_key]
+        return list(cached) if cached is not None else None
+
+    matches: list[dict] = []
+    seen_track_ids: set[str] = set()
+    seen_album_ids: set[str] = set()
+    received_response = False
     for title in sorted(title for title in known_titles if title)[:_KNOWN_TRACK_SAMPLE_SIZE]:
         for query in (f'artist:"{artist_name}" track:"{title}"', f"{artist_name} {title}"):
             payload = _deezer_get("/search/track", params={"q": query, "limit": 5})
-            if not payload:
+            if payload is None:
                 continue
+            received_response = True
+            query_matched = False
             for track in payload.get("data", []):
                 if not isinstance(track, dict):
                     continue
                 if not _track_matches_artist_id(track, artist_id):
                     continue
-                if _close_enough(str(track.get("title") or ""), title):
-                    return True
-    return False
+                track_titles = (
+                    str(track.get("title_short") or ""),
+                    str(track.get("title") or ""),
+                )
+                if not any(_track_titles_match(value, title) for value in track_titles):
+                    continue
+                track_id = str(track.get("id") or "").strip()
+                if track_id and track_id in seen_track_ids:
+                    query_matched = True
+                    continue
+                matches.append(track)
+                if track_id:
+                    seen_track_ids.add(track_id)
+                album = track.get("album") if isinstance(track.get("album"), dict) else {}
+                album_id = str(album.get("id") or "").strip()
+                if album_id:
+                    seen_album_ids.add(album_id)
+                query_matched = True
+                break
+            if query_matched:
+                break
+        if (
+            len(matches) >= _KNOWN_IDENTITY_MATCH_SAMPLE_SIZE
+            or len(seen_album_ids) >= _KNOWN_ALBUM_SAMPLE_SIZE
+        ):
+            break
+
+    if not received_response:
+        _KNOWN_TRACK_MATCH_CACHE[cache_key] = None
+        return None
+    _KNOWN_TRACK_MATCH_CACHE[cache_key] = list(matches)
+    return matches
+
+
+def _artist_has_known_track(
+    artist_id: str, artist_name: str, known_titles: Optional[set[str]]
+) -> Optional[bool]:
+    matches = _find_known_artist_tracks(artist_id, artist_name, known_titles)
+    return bool(matches) if matches is not None else None
+
+
+def _genre_ids_from_album(album: dict) -> frozenset[int]:
+    genre_ids: set[int] = set()
+    values: list[object] = [album.get("genre_id")]
+    genres = album.get("genres") if isinstance(album.get("genres"), dict) else {}
+    for item in genres.get("data", []) or []:
+        if isinstance(item, dict):
+            values.append(item.get("id"))
+    for value in values:
+        try:
+            genre_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if genre_id > 0:
+            genre_ids.add(genre_id)
+    return frozenset(genre_ids)
+
+
+def _album_genre_ids(album_id: str) -> Optional[frozenset[int]]:
+    album_id = str(album_id or "").strip()
+    if not album_id:
+        return frozenset()
+    if album_id in _ALBUM_GENRE_CACHE:
+        return _ALBUM_GENRE_CACHE[album_id]
+    payload = _deezer_get(f"/album/{album_id}")
+    if not payload:
+        _ALBUM_GENRE_CACHE[album_id] = None
+        return None
+    genre_ids = _genre_ids_from_album(payload)
+    _ALBUM_GENRE_CACHE[album_id] = genre_ids
+    return genre_ids
+
+
+def _known_artist_genre_ids(
+    artist_id: str, artist_name: str, known_titles: Optional[set[str]]
+) -> frozenset[int]:
+    album_match_counts: dict[str, int] = {}
+    for track in _find_known_artist_tracks(artist_id, artist_name, known_titles) or []:
+        album = track.get("album") if isinstance(track.get("album"), dict) else {}
+        album_id = str(album.get("id") or "").strip()
+        if not album_id:
+            continue
+        album_match_counts[album_id] = album_match_counts.get(album_id, 0) + 1
+
+    if not album_match_counts:
+        return frozenset()
+
+    strongest_support = max(album_match_counts.values())
+    genre_ids: set[int] = set()
+    for album_id, support in album_match_counts.items():
+        if support != strongest_support:
+            continue
+        album_genres = _album_genre_ids(album_id)
+        if album_genres:
+            genre_ids.update(album_genres)
+    return frozenset(genre_ids)
+
+
+def _known_artist_genres_are_ambiguous(
+    artist_id: str, artist_name: str, known_titles: Optional[set[str]]
+) -> bool:
+    album_genres: list[frozenset[int]] = []
+    seen_album_ids: set[str] = set()
+    for track in _find_known_artist_tracks(artist_id, artist_name, known_titles) or []:
+        album = track.get("album") if isinstance(track.get("album"), dict) else {}
+        album_id = str(album.get("id") or "").strip()
+        if not album_id or album_id in seen_album_ids:
+            continue
+        seen_album_ids.add(album_id)
+        genres = _album_genre_ids(album_id)
+        if genres:
+            album_genres.append(genres)
+
+    return any(
+        not _genre_sets_are_compatible(left, right)
+        for index, left in enumerate(album_genres)
+        for right in album_genres[index + 1 :]
+    )
+
+
+def _genre_sets_are_compatible(
+    known_genres: frozenset[int], candidate_genres: frozenset[int]
+) -> bool:
+    if known_genres & candidate_genres:
+        return True
+    return any(
+        bool(known_genres & family) and bool(candidate_genres & family)
+        for family in _COMPATIBLE_GENRE_FAMILIES
+    )
+
+
+def _album_matches_known_genres(
+    album: dict, known_genres: frozenset[int]
+) -> bool:
+    if not known_genres:
+        return True
+    candidate_genres = _genre_ids_from_album(album)
+    if candidate_genres and _genre_sets_are_compatible(
+        known_genres, candidate_genres
+    ):
+        return True
+
+    album_id = str(album.get("id") or "").strip()
+    detailed_genres = _album_genre_ids(album_id)
+    if detailed_genres is None:
+        # A provider outage should not make a valid release disappear.
+        return True
+    return bool(
+        detailed_genres
+        and _genre_sets_are_compatible(known_genres, detailed_genres)
+    )
 
 
 def _search_artist_using_known_tracks(
@@ -439,7 +700,7 @@ def _search_artist_using_known_tracks(
                 artist_label = str(artist.get("name") or "")
                 if _normalize_artist_match_key(artist_label) != artist_match_key:
                     continue
-                if not _close_enough(str(track.get("title") or ""), title):
+                if not _track_titles_match(str(track.get("title") or ""), title):
                     continue
                 artist_id = str(artist.get("id") or "").strip()
                 if not artist_id:
@@ -459,12 +720,23 @@ def _best_artist_match(
         return None
     if not known_titles:
         return exact_matches[0]
+    verification_unavailable = False
     for candidate in exact_matches:
         candidate_id = str(candidate.get("id") or "").strip()
-        if candidate_id and _artist_has_known_track(
-            candidate_id, artist_name, known_titles
-        ):
+        matches_known = (
+            _artist_has_known_track(candidate_id, artist_name, known_titles)
+            if candidate_id
+            else False
+        )
+        if matches_known is True:
             return candidate
+        if matches_known is None:
+            verification_unavailable = True
+    if verification_unavailable:
+        log_warning(
+            f"Could not verify Deezer artist '{artist_name}' against known tracks; skipping"
+        )
+        return None
     log_warning(
         f"Deezer artist '{artist_name}' has no exact known-track match; skipping"
     )
@@ -495,26 +767,33 @@ def _resolve_artist(
             name_matches = _artist_names_match(artist_label, artist_name) or _close_enough(
                 artist_label, artist_name, minimum=0.9
             )
-            cached_matches_known = False
-            if not name_matches and known_titles:
+            if known_titles:
                 cached_matches_known = _artist_has_known_track(
                     cached_id, artist_name, known_titles
                 )
-            if name_matches or cached_matches_known:
-                exact_matches = _exact_artist_matches(artist_name) if known_titles else []
-                if len(exact_matches) > 1 and not cached_matches_known:
-                    cached_matches_known = _artist_has_known_track(
-                        cached_id, artist_name, known_titles
-                    )
-                if len(exact_matches) > 1 and not cached_matches_known:
-                    log_warning(
-                        f"Cached Deezer artist ID for ambiguous '{artist_name}' "
-                        "does not match known tracks; refreshing lookup"
-                    )
-                    cache.remove(artist_name)
-                else:
+                if cached_matches_known is True:
                     log_debug(f"Resolved Deezer artist '{artist_name}' from cache")
                     return artist
+                if cached_matches_known is None:
+                    if name_matches:
+                        log_warning(
+                            f"Could not revalidate cached Deezer artist '{artist_name}'; "
+                            "using the name-matching cached ID"
+                        )
+                        return artist
+                    log_warning(
+                        f"Could not revalidate cached Deezer artist alias '{artist_name}'; "
+                        "skipping until Deezer is available"
+                    )
+                    return None
+                log_warning(
+                    f"Cached Deezer artist ID for '{artist_name}' does not match "
+                    "known tracks; refreshing lookup"
+                )
+                cache.remove(artist_name)
+            elif name_matches:
+                log_debug(f"Resolved Deezer artist '{artist_name}' from cache")
+                return artist
             else:
                 log_warning(
                     f"Cached Deezer artist ID mismatch for '{artist_name}', refreshing lookup"
@@ -543,7 +822,16 @@ _TITLE_EXCLUDE_PATTERNS = [
     re.compile(r"\bre[-\s]?imagined\b", re.I),
     re.compile(r"\bredux\b", re.I),
     re.compile(r"\bacoustic\b", re.I),
-    re.compile(r"\bdemo\b", re.I),
+    re.compile(r"\bdemos?\b", re.I),
+    re.compile(r"\binstrumentals?\b", re.I),
+    re.compile(r"\bouttakes?\b", re.I),
+    re.compile(r"\bunreleased\b", re.I),
+    re.compile(r"\bcovers?\b", re.I),
+    re.compile(r"\bbonus\s+tracks?\b", re.I),
+    re.compile(r"\bsound\s*checks?\b", re.I),
+    re.compile(r"\bsessions?\b", re.I),
+    re.compile(r"\boriginal\s+drums?\b", re.I),
+    re.compile(r"\b(?:19|20)\d{2}\s*\)", re.I),
     re.compile(r"\bradio\s+edit\b", re.I),
     re.compile(r"\bedit\b", re.I),
     re.compile(r"\bremix\b", re.I),
@@ -561,6 +849,10 @@ _ALBUM_EXCLUDE_PATTERNS = _TITLE_EXCLUDE_PATTERNS + [
     re.compile(r"\bbest\s+of\b", re.I),
     re.compile(r"\bcollection\b", re.I),
     re.compile(r"\banthology\b", re.I),
+    re.compile(r"\bbonus\s+track\s+edition\b", re.I),
+    re.compile(r"\boriginal\s+soundtrack\b", re.I),
+    re.compile(r"\bset\s*list\b", re.I),
+    re.compile(r"\barchive(?:d|s)?\b", re.I),
 ]
 
 
@@ -572,6 +864,18 @@ def _is_alt_or_reissue(title: str, album_name: str) -> bool:
         if pattern.search(album_name or ""):
             return True
     return False
+
+
+def _is_known_catalog_title(title: str, known_titles: Optional[set[str]]) -> bool:
+    title_key = _normalize_track_match_key(title)
+    return bool(
+        title_key
+        and known_titles
+        and any(
+            title_key == _normalize_track_match_key(known_title)
+            for known_title in known_titles
+        )
+    )
 
 
 def _parse_musicbrainz_date(date_str: str | None) -> Optional[datetime]:
@@ -710,10 +1014,10 @@ def _iter_recent_albums(artist_id: str, cutoff: datetime) -> list[tuple[datetime
     return albums
 
 
-def _album_tracks_by_artist(album_id: str, artist_id: str, artist_name: str) -> list[dict]:
+def _album_tracks_by_artist(album_id: str, artist_id: str) -> list[dict]:
     tracks: list[dict] = []
     for track in _paginate_deezer(f"/album/{album_id}/tracks", params={"limit": 100}):
-        if _track_matches_artist(track, artist_id, artist_name):
+        if _track_matches_artist_id(track, artist_id):
             tracks.append(track)
     tracks.sort(
         key=lambda item: (
@@ -738,6 +1042,15 @@ def fetch_recent_releases(
     artist_id = str(artist.get("id") or "").strip()
     if not artist_id:
         return []
+    known_genres = _known_artist_genre_ids(artist_id, artist_name, known_titles)
+    known_musicbrainz_ids = (
+        _known_musicbrainz_artist_ids(artist_name, known_titles)
+        if known_genres
+        and _known_artist_genres_are_ambiguous(
+            artist_id, artist_name, known_titles
+        )
+        else frozenset()
+    )
 
     candidates: list[ArtistRelease] = []
     for release_date, album in _iter_recent_albums(artist_id, cutoff):
@@ -747,10 +1060,16 @@ def fetch_recent_releases(
         album_name = str(album.get("title") or "").strip()
         if _is_alt_or_reissue("", album_name):
             continue
-        tracks = _album_tracks_by_artist(album_id, artist_id, artist_name)
+        if not _album_matches_known_genres(album, known_genres):
+            log_debug(
+                f"Skipping release '{album_name}' for {artist_name}: its Deezer "
+                "genres do not match known station tracks"
+            )
+            continue
+        tracks = _album_tracks_by_artist(album_id, artist_id)
         if not tracks:
             continue
-        chosen_track: Optional[dict] = None
+        eligible_tracks: list[dict] = []
         for track in tracks:
             if not _is_track_currently_available(track):
                 log_debug(
@@ -759,15 +1078,41 @@ def fetch_recent_releases(
                 )
                 continue
             title = str(track.get("title") or "").strip()
-            if title and not _is_alt_or_reissue(title, album_name):
-                chosen_track = track
-                break
-        if not chosen_track:
+            if not title or _is_alt_or_reissue(title, album_name):
+                continue
+            if _is_known_catalog_title(title, known_titles):
+                log_debug(
+                    f"Skipping already-cataloged track for {artist_name}: {title}"
+                )
+                continue
+            eligible_tracks.append(track)
+        if not eligible_tracks:
             continue
+        chosen_track = max(
+            eligible_tracks,
+            key=lambda item: (
+                int(item.get("rank") or 0),
+                -int(item.get("disk_number") or 0),
+                -int(item.get("track_position") or 0),
+            ),
+        )
         title = str(chosen_track.get("title") or "").strip()
         track_id = str(chosen_track.get("id") or "").strip()
         if not title or not track_id:
             continue
+        if known_musicbrainz_ids:
+            candidate_musicbrainz_ids = _musicbrainz_recording_artist_ids(
+                artist_name, title
+            )
+            if (
+                candidate_musicbrainz_ids
+                and known_musicbrainz_ids.isdisjoint(candidate_musicbrainz_ids)
+            ):
+                log_debug(
+                    f"Skipping release for a different same-named artist: "
+                    f"{artist_name} - {title}"
+                )
+                continue
         if _is_probable_old_catalog_release(artist_name, title, album_name, release_date):
             continue
         record_type = str(album.get("record_type") or "").strip().lower() or None
@@ -1087,16 +1432,27 @@ def build_new_releases(
     cutoff: Optional[datetime] = None,
     seen_tracks: Optional[Set[str]] = None,
     seen_keys: Optional[Set[str]] = None,
+    existing_artist_counts: Optional[dict[str, int]] = None,
 ) -> list[ArtistRelease]:
     cutoff = cutoff or datetime.now(UTC) - timedelta(days=days)
     releases: list[ArtistRelease] = []
     seen_track_ids: Set[str] = set(seen_tracks or set())
     seen_title_keys: Set[str] = set(seen_keys or set())
     artists_list = list(artists)
+    normalized_existing_counts = {
+        _normalize_text(artist): max(int(count), 0)
+        for artist, count in (existing_artist_counts or {}).items()
+    }
 
     for artist in tqdm(
         artists_list, desc="Artists", unit="artist", disable=not sys.stdout.isatty()
     ):
+        remaining_slots = max(
+            per_artist - normalized_existing_counts.get(_normalize_text(artist), 0),
+            0,
+        )
+        if remaining_slots == 0:
+            continue
         artist_titles = (known_tracks or {}).get(artist, set())
         candidates = fetch_recent_releases(
             artist, cutoff, artist_titles, artist_cache=artist_cache
@@ -1125,7 +1481,7 @@ def build_new_releases(
             if candidate.track_id:
                 seen_track_ids.add(candidate.track_id)
             kept += 1
-            if kept >= per_artist:
+            if kept >= remaining_slots:
                 break
 
     releases.sort(key=lambda item: (item.release_date, item.rank or 0), reverse=True)

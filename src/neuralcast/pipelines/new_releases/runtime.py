@@ -122,6 +122,12 @@ class NewReleasesRuntime:
             legacy._normalize_audio_label(release.artist, release.title)
             for release in valid_existing
         }
+        existing_artist_counts: dict[str, int] = {}
+        for release in valid_existing:
+            artist_key = legacy._normalize_text(release.artist)
+            existing_artist_counts[artist_key] = (
+                existing_artist_counts.get(artist_key, 0) + 1
+            )
 
         new_releases = deps.build_new_releases(
             artists,
@@ -134,6 +140,7 @@ class NewReleasesRuntime:
             cutoff=cutoff,
             seen_tracks=existing_ids,
             seen_keys=existing_keys,
+            existing_artist_counts=existing_artist_counts,
         )
         deps.save_artist_id_cache(playlists_dir, artist_cache)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Mapping, Sequence
@@ -236,13 +237,22 @@ class StationPlaylistCatalog:
     ) -> list[CatalogTrack]:
         snapshot = self.load(playlist)
         entries = self.load_companion_entries(metadata_filename)
-        return [
-            CatalogTrack(
-                song=song,
-                metadata=entries.get(_song_metadata_key(song), {}),
-            )
-            for song in snapshot.songs
-        ]
+        tracks: list[CatalogTrack] = []
+        for song in snapshot.songs:
+            exact_metadata = entries.get(_song_metadata_key(song))
+            if exact_metadata is not None:
+                tracks.append(CatalogTrack(song=song, metadata=exact_metadata))
+                continue
+
+            identity = _song_companion_identity(song)
+            identity_matches = [
+                value
+                for key, value in entries.items()
+                if _metadata_identity(key) == identity
+            ]
+            metadata = identity_matches[0] if len(identity_matches) == 1 else {}
+            tracks.append(CatalogTrack(song=song, metadata=metadata))
+        return tracks
 
     def replace_with_metadata(
         self,
@@ -330,7 +340,7 @@ class StationPlaylistCatalog:
                 removed += 1
                 continue
 
-            identity = playlist_song_key(song)
+            identity = _song_companion_identity(song)
             matches = [
                 key
                 for key in entries
@@ -596,7 +606,23 @@ def _metadata_identity(key: str) -> tuple[str, str] | None:
     parts = key.split("|")
     if len(parts) < 2:
         return None
-    return parts[0].strip().casefold(), parts[1].strip().casefold()
+    return (
+        _normalize_companion_identity_component(parts[0]),
+        _normalize_companion_identity_component(parts[1]),
+    )
+
+
+def _song_companion_identity(song: Song) -> tuple[str, str]:
+    return (
+        _normalize_companion_identity_component(song.artist),
+        _normalize_companion_identity_component(song.title),
+    )
+
+
+def _normalize_companion_identity_component(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    stripped = "".join(char for char in normalized if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]", "", stripped.casefold())
 
 
 __all__ = [

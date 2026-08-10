@@ -49,6 +49,11 @@ def test_runtime_migrates_outdated_before_saving_final_playlist(tmp_path) -> Non
         track_id="new",
     )
     calls: list[str] = []
+    build_kwargs: dict[str, object] = {}
+
+    def build_releases(*_args, **kwargs):
+        build_kwargs.update(kwargs)
+        return [new_release]
 
     def deps_factory(request: NewReleasesRequest) -> NewReleasesRuntimeDependencies:
         return NewReleasesRuntimeDependencies(
@@ -60,7 +65,7 @@ def test_runtime_migrates_outdated_before_saving_final_playlist(tmp_path) -> Non
             ),
             load_artist_id_cache=lambda _playlists: legacy.ArtistIDCache({}),
             load_existing_new_releases=lambda _playlists: [old_release],
-            build_new_releases=lambda *_args, **_kwargs: [new_release],
+            build_new_releases=build_releases,
             save_artist_id_cache=lambda _playlists, _cache: calls.append("cache"),
             move_outdated_releases=lambda *_args: calls.append("move"),
             save_new_releases=lambda _playlists, _releases: calls.append("save"),
@@ -77,6 +82,7 @@ def test_runtime_migrates_outdated_before_saving_final_playlist(tmp_path) -> Non
     assert calls == ["cache", "move", "save"]
     assert result.final_releases == [new_release]
     assert result.outdated_existing == [old_release]
+    assert build_kwargs["existing_artist_counts"] == {}
 
 
 def test_runtime_dedupes_existing_and_new_releases_by_track_id(tmp_path) -> None:

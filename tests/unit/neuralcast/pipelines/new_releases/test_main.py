@@ -17,6 +17,11 @@ new_releases = importlib.import_module("neuralcast.pipelines.new_releases.main")
 
 
 class NewReleasesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        new_releases._KNOWN_TRACK_MATCH_CACHE.clear()
+        new_releases._ALBUM_GENRE_CACHE.clear()
+        new_releases._MB_RECORDING_ARTIST_CACHE.clear()
+
     @staticmethod
     def _fake_response(payload: dict, status_code: int = 200):
         class _Response:
@@ -97,6 +102,32 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(len(releases), 1)
         self.assertEqual(releases[0].title, "Single Cut")
 
+    @patch.object(new_releases, "fetch_recent_releases")
+    def test_build_new_releases_counts_existing_tracks_toward_per_artist_limit(
+        self, fetch_recent_releases
+    ) -> None:
+        fetch_recent_releases.return_value = [
+            new_releases.ArtistRelease(
+                artist="Ghost",
+                title="New Cut",
+                album="Album",
+                year=2026,
+                release_date=datetime(2026, 5, 1, tzinfo=UTC),
+                track_id="new",
+            )
+        ]
+
+        releases = new_releases.build_new_releases(
+            ["Ghost"],
+            days=120,
+            per_artist=3,
+            known_tracks={"Ghost": {"Rats"}},
+            existing_artist_counts={"ghost": 3},
+        )
+
+        self.assertEqual(releases, [])
+        fetch_recent_releases.assert_not_called()
+
     def test_fetch_recent_releases_skips_unreadable_tracks(self) -> None:
         with (
             patch.object(
@@ -145,6 +176,11 @@ class NewReleasesTest(unittest.TestCase):
                 "_is_probable_old_catalog_release",
                 return_value=False,
             ),
+            patch.object(
+                new_releases,
+                "_known_artist_genre_ids",
+                return_value=frozenset(),
+            ),
         ):
             releases = new_releases.fetch_recent_releases(
                 "Atavistia",
@@ -156,8 +192,257 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(releases[0].title, "Mystic Tavern")
         self.assertEqual(releases[0].track_id, "3785083802")
 
-    def test_is_alt_or_reissue_treats_mix_as_alternate_version(self) -> None:
-        self.assertTrue(new_releases._is_alt_or_reissue("Mama Kin (2024 Mix)", ""))
+    def test_fetch_recent_releases_prefers_highest_ranked_album_track(self) -> None:
+        with (
+            patch.object(
+                new_releases,
+                "_resolve_artist",
+                return_value={"id": "123", "name": "Ghost"},
+            ),
+            patch.object(
+                new_releases,
+                "_iter_recent_albums",
+                return_value=[
+                    (
+                        datetime(2026, 5, 15, tzinfo=UTC),
+                        {
+                            "id": "456",
+                            "title": "Skeleta",
+                            "record_type": "album",
+                            "genre_id": 464,
+                        },
+                    )
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_album_tracks_by_artist",
+                return_value=[
+                    {
+                        "id": "first",
+                        "title": "Opening Track",
+                        "readable": True,
+                        "track_position": 1,
+                        "disk_number": 1,
+                        "rank": 100,
+                    },
+                    {
+                        "id": "best",
+                        "title": "Lead Single",
+                        "readable": True,
+                        "track_position": 2,
+                        "disk_number": 1,
+                        "rank": 900,
+                    },
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genre_ids",
+                return_value=frozenset({464}),
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genres_are_ambiguous",
+                return_value=False,
+            ),
+            patch.object(
+                new_releases,
+                "_is_probable_old_catalog_release",
+                return_value=False,
+            ),
+        ):
+            releases = new_releases.fetch_recent_releases(
+                "Ghost",
+                cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+                known_titles={"Rats"},
+            )
+
+        self.assertEqual([release.title for release in releases], ["Lead Single"])
+
+    def test_fetch_recent_releases_rejects_merged_artist_genre_mismatch(self) -> None:
+        with (
+            patch.object(
+                new_releases,
+                "_resolve_artist",
+                return_value={"id": "357887", "name": "Parsifal"},
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genre_ids",
+                return_value=frozenset({85, 464}),
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genres_are_ambiguous",
+                return_value=False,
+            ),
+            patch.object(
+                new_releases,
+                "_iter_recent_albums",
+                return_value=[
+                    (
+                        datetime(2026, 5, 12, tzinfo=UTC),
+                        {
+                            "id": "981531511",
+                            "title": "MELLONTAS",
+                            "record_type": "single",
+                            "genre_id": 132,
+                        },
+                    )
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_album_genre_ids",
+                return_value=frozenset({132}),
+            ),
+            patch.object(new_releases, "_album_tracks_by_artist") as album_tracks,
+        ):
+            releases = new_releases.fetch_recent_releases(
+                "Parsifal",
+                cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+                known_titles={"Storming the Reaper"},
+            )
+
+        self.assertEqual(releases, [])
+        album_tracks.assert_not_called()
+
+    def test_fetch_recent_releases_rejects_same_genre_musicbrainz_identity_mismatch(
+        self,
+    ) -> None:
+        with (
+            patch.object(
+                new_releases,
+                "_resolve_artist",
+                return_value={"id": "424248", "name": "Black Rose"},
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genre_ids",
+                return_value=frozenset({152}),
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genres_are_ambiguous",
+                return_value=True,
+            ),
+            patch.object(
+                new_releases,
+                "_known_musicbrainz_artist_ids",
+                return_value=frozenset({"british-band"}),
+            ),
+            patch.object(
+                new_releases,
+                "_musicbrainz_recording_artist_ids",
+                return_value=frozenset({"swedish-band"}),
+            ),
+            patch.object(
+                new_releases,
+                "_iter_recent_albums",
+                return_value=[
+                    (
+                        datetime(2026, 7, 20, tzinfo=UTC),
+                        {
+                            "id": "1018928021",
+                            "title": "Divine Sign (single)",
+                            "record_type": "single",
+                            "genre_id": 152,
+                        },
+                    )
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_album_tracks_by_artist",
+                return_value=[
+                    {
+                        "id": "4126501871",
+                        "title": "Divine Sign",
+                        "readable": True,
+                        "track_position": 1,
+                        "disk_number": 1,
+                        "rank": 100000,
+                    }
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_is_probable_old_catalog_release",
+                return_value=False,
+            ) as old_catalog_check,
+        ):
+            releases = new_releases.fetch_recent_releases(
+                "Black Rose",
+                cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+                known_titles={"No Point Runnin'", "Sucker For Your Love"},
+            )
+
+        self.assertEqual(releases, [])
+        old_catalog_check.assert_not_called()
+
+    def test_fetch_recent_releases_skips_tracks_already_in_station_catalog(self) -> None:
+        with (
+            patch.object(
+                new_releases,
+                "_resolve_artist",
+                return_value={"id": "123", "name": "Motörhead"},
+            ),
+            patch.object(
+                new_releases,
+                "_known_artist_genre_ids",
+                return_value=frozenset(),
+            ),
+            patch.object(
+                new_releases,
+                "_iter_recent_albums",
+                return_value=[
+                    (
+                        datetime(2026, 5, 12, tzinfo=UTC),
+                        {
+                            "id": "456",
+                            "title": "Neat Neat Neat",
+                            "record_type": "single",
+                        },
+                    )
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_album_tracks_by_artist",
+                return_value=[
+                    {
+                        "id": "789",
+                        "title": "Neat Neat Neat",
+                        "readable": True,
+                        "track_position": 1,
+                        "disk_number": 1,
+                        "rank": 100000,
+                    }
+                ],
+            ),
+        ):
+            releases = new_releases.fetch_recent_releases(
+                "Motörhead",
+                cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+                known_titles={"Neat Neat Neat"},
+            )
+
+        self.assertEqual(releases, [])
+
+    def test_is_alt_or_reissue_rejects_archival_and_alternate_versions(self) -> None:
+        cases = [
+            ("Mama Kin (2024 Mix)", ""),
+            ("Eire (Outtake)", ""),
+            ("Natural Disaster (Instrumental)", ""),
+            ("Kiss The Sky (Unreleased Track)", ""),
+            ("Stay Clean (Sound check)", ""),
+            ("Don't Tell Me You Love Me (2026)", ""),
+            ("Going Under", "Play Dirty (Bonus Track Edition)"),
+        ]
+        for title, album in cases:
+            with self.subTest(title=title, album=album):
+                self.assertTrue(new_releases._is_alt_or_reissue(title, album))
 
     def test_is_probable_old_catalog_release_uses_musicbrainz_dates(self) -> None:
         new_releases._MB_RELEASE_CACHE.clear()
@@ -244,6 +529,11 @@ class NewReleasesTest(unittest.TestCase):
                 "_is_probable_old_catalog_release",
                 return_value=True,
             ),
+            patch.object(
+                new_releases,
+                "_known_artist_genre_ids",
+                return_value=frozenset(),
+            ),
         ):
             releases = new_releases.fetch_recent_releases(
                 "Aerosmith",
@@ -253,7 +543,7 @@ class NewReleasesTest(unittest.TestCase):
 
         self.assertEqual(releases, [])
 
-    def test_resolve_artist_uses_unambiguous_cached_artist_without_track_verification(self) -> None:
+    def test_resolve_artist_revalidates_cached_artist_with_known_track(self) -> None:
         cache = new_releases.ArtistIDCache(entries={}, dirty=False)
         cache.set("Ghost", "8506054")
 
@@ -264,7 +554,9 @@ class NewReleasesTest(unittest.TestCase):
                 return_value={"id": "8506054", "name": "Ghost"},
             ) as fetch_artist,
             patch.object(new_releases, "_exact_artist_matches", return_value=[]),
-            patch.object(new_releases, "_artist_has_known_track") as has_track,
+            patch.object(
+                new_releases, "_artist_has_known_track", return_value=True
+            ) as has_track,
             patch.object(new_releases, "_best_artist_match") as best_match,
             patch.object(new_releases, "_search_artist_using_known_tracks") as search_known,
         ):
@@ -274,9 +566,34 @@ class NewReleasesTest(unittest.TestCase):
 
         self.assertEqual(artist, {"id": "8506054", "name": "Ghost"})
         fetch_artist.assert_called_once_with("8506054")
-        has_track.assert_not_called()
+        has_track.assert_called_once_with(
+            "8506054", "Ghost", {"Rats", "Square Hammer"}
+        )
         best_match.assert_not_called()
         search_known.assert_not_called()
+
+    def test_resolve_artist_keeps_name_matching_cache_when_verification_is_down(
+        self,
+    ) -> None:
+        cache = new_releases.ArtistIDCache(entries={"ghost": "8506054"})
+
+        with (
+            patch.object(
+                new_releases,
+                "_fetch_artist_by_id",
+                return_value={"id": "8506054", "name": "Ghost"},
+            ),
+            patch.object(
+                new_releases, "_artist_has_known_track", return_value=None
+            ),
+            patch.object(new_releases, "_best_artist_match") as best_match,
+        ):
+            artist = new_releases._resolve_artist("Ghost", {"Rats"}, cache)
+
+        self.assertEqual(artist, {"id": "8506054", "name": "Ghost"})
+        self.assertEqual(cache.get("Ghost"), "8506054")
+        self.assertFalse(cache.dirty)
+        best_match.assert_not_called()
 
     def test_artist_has_known_track_requires_candidate_artist_id(self) -> None:
         with patch.object(
@@ -296,6 +613,33 @@ class NewReleasesTest(unittest.TestCase):
             )
 
         self.assertFalse(result)
+
+    def test_known_artist_genres_use_best_supported_known_album(self) -> None:
+        with (
+            patch.object(
+                new_releases,
+                "_find_known_artist_tracks",
+                return_value=[
+                    {"album": {"id": "wrong"}},
+                    {"album": {"id": "correct"}},
+                    {"album": {"id": "correct"}},
+                ],
+            ),
+            patch.object(
+                new_releases,
+                "_album_genre_ids",
+                side_effect=lambda album_id: (
+                    frozenset({152}) if album_id == "correct" else frozenset({116})
+                ),
+            ),
+        ):
+            genre_ids = new_releases._known_artist_genre_ids(
+                "424248",
+                "Black Rose",
+                {"I Don't Believe It", "No Point Runnin'", "Sucker For Your Love"},
+            )
+
+        self.assertEqual(genre_ids, frozenset({152}))
 
     def test_best_artist_match_uses_known_track_id_for_duplicate_names(self) -> None:
         exact_matches = [

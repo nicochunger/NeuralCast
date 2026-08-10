@@ -112,6 +112,33 @@ def test_replace_new_releases_writes_csv_and_matching_metadata(tmp_path) -> None
     }
 
 
+def test_load_new_releases_metadata_survives_album_and_punctuation_changes(
+    tmp_path,
+) -> None:
+    playlists_dir = tmp_path / "playlists"
+    playlists_dir.mkdir()
+    original = Song(
+        artist="The Great Kat",
+        title="Beethoven’s 666th",
+        album="Death Metal Beethoven's 666th",
+        year="2026",
+    )
+    catalog = StationPlaylistCatalog(playlists_dir, log=lambda _message: None)
+    catalog.replace_with_metadata(
+        "New Releases",
+        [CatalogTrack(song=original, metadata={"TrackID": "123"})],
+    )
+    snapshot = catalog.load("New Releases")
+    changed = snapshot.songs[0].model_copy(
+        update={"title": "Beethoven's 666th", "album": "Beethoven's 666th"}
+    )
+    catalog.save(snapshot, [changed])
+
+    tracks = catalog.load_tracks_with_metadata("New Releases")
+
+    assert tracks[0].metadata == {"TrackID": "123"}
+
+
 def test_save_new_releases_removal_updates_companion_metadata(tmp_path) -> None:
     playlists_dir = tmp_path / "playlists"
     playlists_dir.mkdir()
