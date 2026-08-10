@@ -15,7 +15,6 @@ The project is package-first under `src/neuralcast/`:
 - `cli/`: stable command entrypoints for playlist sync, new releases, host orchestration, schedule generation, and the admin API.
 - `pipelines/station_sync.py`: authoritative station playlist/media synchronization service.
 - `pipelines/playlist_sync.py`: compatibility facade over `station_sync.py`; do not add new core behavior here.
-- `pipelines/media_sync.py`: rsync-based mirroring of station media to AzuraCast.
 - `pipelines/new_releases/`: Deezer-backed new-release discovery and playlist updates.
 - `pipelines/host_orchestrator/`: AzuraCast queue inspection, story generation, TTS, upload, cleanup, and interrupting-request insertion.
 - `pipelines/schedule_generator/`: weekly AzuraCast schedule planning and application.
@@ -136,27 +135,19 @@ Use this syntax to replace a bad recording, live version, cover, or incorrect se
 
 ## Playlist Sync Commands and Side Effects
 
-Local-only preview of downloads/remote changes:
+Preview planned playlist and media changes:
 
 ```bash
-python main.py --station neuralcast --dry-run --no-sync-remote
+python main.py --station neuralcast --dry-run
 ```
 
-Apply locally without remote rsync:
-
-```bash
-python main.py --station neuralcast --no-sync-remote
-```
-
-Apply locally and mirror to AzuraCast:
+Apply changes directly to the live AzuraCast media tree:
 
 ```bash
 python main.py --station neuralcast
 ```
 
-Remote media mirroring is currently enabled by default. `--sync-remote` is therefore redundant; use `--no-sync-remote` when remote access or mutation is not intended. Remote rsync uses `--delete` by default. `--no-remote-delete` disables remote deletions.
-
-Important: playlist `--dry-run` skips new MP3 downloads and makes remote rsync use `--dry-run`, but it is not fully read-only locally. Current code may still:
+Important: playlist `--dry-run` skips new MP3 downloads, but it is not fully read-only locally. Current code may still:
 
 - process `[DEL]` markers and delete MP3s;
 - rewrite/sort playlist CSVs and validation results;
@@ -167,15 +158,7 @@ Important: playlist `--dry-run` skips new MP3 downloads and makes remote rsync u
 
 Never run it merely to inspect data if those local changes are not authorized. For a read-only audit, parse CSVs and inspect files directly.
 
-Remote rsync mirrors `<station>/songs/` to the configured AzuraCast media root, preflights that the remote root exists, and excludes `AI Stories/***` and `.albumart/***`. Configuration precedence is CLI, station-specific environment, shared environment, then defaults. The main variables are:
-
-- `NC_REMOTE_SYNC_HOST` (default `neuralvps`)
-- `NC_REMOTE_SYNC_USER`, `NC_REMOTE_SYNC_PORT`, `NC_REMOTE_SYNC_SSH_KEY`
-- `NC_REMOTE_SYNC_MEDIA_ROOT_<STATION_SLUG_UPPER>`
-- `NC_REMOTE_SYNC_MEDIA_ROOT` (default `/var/lib/docker/volumes/azuracast_station_data/_data/{station}/media`)
-- `NC_REMOTE_SYNC_RSYNC_BIN`, `NC_REMOTE_SYNC_TIMEOUT_SECONDS`
-
-Because remote sync uses `--delete`, inspect local deletions and use a remote dry-run when the impact is uncertain.
+`<station>/songs` is a symlink to that station's AzuraCast media directory. The VPS media tree is authoritative, so playlist sync writes and deletes operate on the live media files directly; no rsync or local-to-VPS mirror is used.
 
 ## New Releases and Station Metadata
 
@@ -223,7 +206,7 @@ Keep all project-local operational state close to the checkout:
 - `runtime/logs/`: scheduled-service logs;
 - `NeuralCast/songs` and `NeuralForge/songs`: symlinks to their existing AzuraCast media roots.
 
-AzuraCast's media directories are the only MP3 copies. When a station `songs/` path resolves to its configured AzuraCast media root, station sync detects that condition and skips remote rsync. Do not use local-to-VPS media mirroring after this migration. The VPS catalog and media tree are authoritative.
+AzuraCast's media directories are the only MP3 copies. Do not replace the `songs/` symlinks or introduce a local-to-VPS media mirror. The VPS catalog and media tree are authoritative.
 
 After a runtime code change, restart `neuralcast-admin-api` when applicable and verify `/healthz`. Cron-launched host/schedule commands load new code on their next invocation. See `deployment/INSTRUCTIONS.md` for the current service and cron layout.
 
@@ -237,7 +220,6 @@ Keep secrets out of Git. Relevant variables include:
 - optional `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`
 - `NEURALCAST_ADMIN_HTTP_TOKEN`, optional admin host/port settings
 - `NC_YTDLP_COOKIES_FILE` or `NC_YTDLP_COOKIES_FROM_BROWSER` when YouTube requires authentication
-- the `NC_REMOTE_SYNC_*` variables listed above
 
 Music workflows require yt-dlp, ffmpeg, and mp3gain. Album art and validation may require network access to MusicBrainz/provider APIs.
 
