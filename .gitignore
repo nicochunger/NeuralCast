@@ -1,4 +1,6 @@
 songs/
+NeuralCast/songs
+NeuralForge/songs
 .env
 __pycache__/
 .pytest_cache/

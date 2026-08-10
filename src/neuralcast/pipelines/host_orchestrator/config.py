@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Any, Dict, FrozenSet, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-from neuralcast.config import ASSETS_ROOT
+from neuralcast.config import ASSETS_ROOT, LOGS_ROOT
 from .models import Archetype, StationPersonality
 
 STORY_ROOT = ASSETS_ROOT / "stories"
@@ -168,9 +168,11 @@ def configure_station_file_logging(
     *,
     level: int = logging.INFO,
 ) -> Tuple[pathlib.Path, pathlib.Path]:
-    metadata_dir.mkdir(parents=True, exist_ok=True)
-    main_log_path = metadata_dir / ORCHESTRATOR_LOG_FILENAME
-    segment_log_path = metadata_dir / ORCHESTRATOR_SEGMENT_EVENTS_LOG_FILENAME
+    station_name = metadata_dir.parent.name.strip().lower() or "unknown"
+    station_logs_dir = LOGS_ROOT / "host_orchestrator" / station_name
+    station_logs_dir.mkdir(parents=True, exist_ok=True)
+    main_log_path = station_logs_dir / ORCHESTRATOR_LOG_FILENAME
+    segment_log_path = station_logs_dir / ORCHESTRATOR_SEGMENT_EVENTS_LOG_FILENAME
 
     if not _has_file_handler(LOGGER, main_log_path):
         file_handler = logging.FileHandler(main_log_path, encoding="utf-8")

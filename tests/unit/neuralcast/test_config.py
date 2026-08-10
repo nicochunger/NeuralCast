@@ -14,3 +14,8 @@ def test_station_dir_from_slug_resolves_known_station() -> None:
 def test_station_dir_from_slug_rejects_unknown_station() -> None:
     with pytest.raises(ValueError, match="Unsupported station"):
         config.station_dir_from_slug("unknown")
+
+
+def test_runtime_paths_are_project_local() -> None:
+    assert config.RUNTIME_ROOT == config.PROJECT_ROOT / "runtime"
+    assert config.LOGS_ROOT == config.RUNTIME_ROOT / "logs"
