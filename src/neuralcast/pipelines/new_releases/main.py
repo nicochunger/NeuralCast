@@ -19,6 +19,7 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
+from neuralcast.audio.download import tag_mp3
 from neuralcast.config import (
     ALLOWED_STATION_SLUGS,
     DEFAULT_STATION_SLUG,
@@ -1279,7 +1280,16 @@ def _promote_release_album(release: ArtistRelease) -> bool:
 
     current_album = (release.album or "").strip()
     current_type = (release.album_type or "").strip().casefold()
-    should_attempt = release.is_single or not current_album or current_type != "album"
+    # Some providers label a pre-album single as an "album" whose title is the
+    # track title.  Treat that as provisional metadata so aging a release also
+    # gives a now-published studio album a chance to replace it.
+    album_is_track_title = _track_titles_match(current_album, release.title)
+    should_attempt = (
+        release.is_single
+        or not current_album
+        or current_type != "album"
+        or album_is_track_title
+    )
     if not should_attempt:
         return False
 
@@ -1349,6 +1359,7 @@ def _move_track_audio(
     destination_dir_name: str,
     release: ArtistRelease,
     dry_run: bool,
+    refresh_metadata: bool = False,
 ) -> None:
     if not audio_root:
         return
@@ -1378,6 +1389,22 @@ def _move_track_audio(
             dest_path = dest_dir / candidate.name
             candidate.replace(dest_path)
             log_info(f"Moved {candidate.name} to {dest_dir}")
+            if refresh_metadata:
+                try:
+                    tag_mp3(
+                        str(dest_path),
+                        release.artist,
+                        release.title,
+                        str(release.year),
+                        destination_dir_name,
+                        release.album,
+                        log_prefix="      ",
+                    )
+                except Exception as exc:
+                    log_warning(
+                        "Moved audio but could not refresh album metadata/art for "
+                        f"{release.artist} - {release.title}: {exc}"
+                    )
             return
     log_warning(
         f"No audio found for {release.artist} - {release.title} in {src_dir}; nothing moved"
@@ -1399,7 +1426,7 @@ def move_outdated_releases(
         if not destination:
             log_warning(f"No destination playlist for {release.artist} - {release.title}")
             continue
-        _promote_release_album(release)
+        album_promoted = _promote_release_album(release)
         migrations.append((release, destination))
         _append_release_to_playlist(destination, release, dry_run=dry_run)
         _move_track_audio(
@@ -1408,6 +1435,7 @@ def move_outdated_releases(
             destination.stem,
             release,
             dry_run=dry_run,
+            refresh_metadata=album_promoted,
         )
     if not migrations:
         return

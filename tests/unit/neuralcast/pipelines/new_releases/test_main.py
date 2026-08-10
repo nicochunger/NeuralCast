@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pandas as pd
@@ -862,7 +863,9 @@ class NewReleasesTest(unittest.TestCase):
                 }
             }
 
-            with patch.object(new_releases, "_promote_release_album", return_value=False):
+            with patch.object(new_releases, "_promote_release_album", return_value=True), patch.object(
+                new_releases, "tag_mp3"
+            ) as tag_mp3:
                 new_releases.move_outdated_releases(
                     [release],
                     artist_playlist_map,
@@ -874,9 +877,53 @@ class NewReleasesTest(unittest.TestCase):
             moved_audio = destination_dir / "Ghost - Peacefield.mp3"
             self.assertFalse(audio_path.exists())
             self.assertTrue(moved_audio.exists())
+            tag_mp3.assert_called_once_with(
+                str(moved_audio),
+                "Ghost",
+                "Peacefield",
+                "2025",
+                "Gothic Metal",
+                "Skeleta",
+                log_prefix="      ",
+            )
 
             df = pd.read_csv(destination_csv, dtype=str).fillna("")
             self.assertEqual(list(df["Title"]), ["Rats", "Peacefield"])
+
+    def test_promote_release_album_rechecks_track_titled_album(self) -> None:
+        release = new_releases.ArtistRelease(
+            artist="Ghost",
+            title="Peacefield",
+            album="Peacefield",
+            year=2025,
+            release_date=datetime(2025, 1, 1, tzinfo=UTC),
+            track_id="123",
+            album_type="album",
+            is_single=False,
+        )
+        resolution = SimpleNamespace(
+            notes=(),
+            album_promoted=True,
+            song=new_releases.Song(
+                artist="Ghost",
+                title="Peacefield",
+                album="Skeleta",
+                year="2025",
+            ),
+            album_type="album",
+            release_date=None,
+            track_id=None,
+        )
+
+        with patch.object(new_releases, "TrackMetadataResolver") as resolver_type:
+            resolver_type.return_value.resolve.return_value = resolution
+
+            promoted = new_releases._promote_release_album(release)
+
+        self.assertTrue(promoted)
+        resolver_type.return_value.resolve.assert_called_once()
+        self.assertEqual(release.album, "Skeleta")
+        self.assertFalse(release.is_single)
 
     def test_main_moves_outdated_releases_before_saving_new_releases(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
