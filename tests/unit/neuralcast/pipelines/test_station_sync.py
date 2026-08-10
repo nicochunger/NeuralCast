@@ -242,3 +242,43 @@ def test_station_sync_remote_sync_runs_when_enabled(tmp_path, monkeypatch) -> No
     )
 
     assert result == fake_result
+
+
+def test_station_sync_skips_remote_sync_when_songs_are_azuracast_media_root(
+    tmp_path, monkeypatch
+) -> None:
+    station_dir = tmp_path / "Station"
+    media_root = tmp_path / "azuracast-media"
+    media_root.mkdir(parents=True)
+    (station_dir / "songs").parent.mkdir(parents=True)
+    (station_dir / "songs").symlink_to(media_root, target_is_directory=True)
+    service = station_sync.StationSync(station_dir_resolver=lambda _slug: station_dir)
+    monkeypatch.setattr(
+        station_sync,
+        "build_remote_sync_config",
+        lambda **_kwargs: type(
+            "Config",
+            (),
+            {
+                "local_songs_root": station_dir / "songs",
+                "remote_host": "neuralvps",
+                "remote_media_root": str(media_root),
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        station_sync,
+        "run_remote_sync",
+        lambda _config: pytest.fail("same-root remote sync must not run"),
+    )
+
+    result = service._run_remote_sync(
+        request=station_sync.SyncRequest(
+            station_slug="neuralforge",
+            dry_run=False,
+            remote_sync=RemoteSyncRequest(enabled=True),
+        ),
+        songs_root=station_dir / "songs",
+    )
+
+    assert result is None

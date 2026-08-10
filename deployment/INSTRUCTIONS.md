@@ -1,32 +1,30 @@
-# VPS Deployment Instructions (Host Orchestrator + Scheduler)
+# VPS Runtime Instructions
 
-This repository now deploys runtime code with rsync, not zip packaging.
+The VPS checkout is the production and development workspace. Do not use an rsync deployment for normal changes.
 
 ## Prerequisites
 
-- Local machine with `rsync` and `ssh`
-- VPS reachable through the `neuralvps` SSH target (or override `REMOTE_HOST`)
-- `rsync` installed on the VPS
+- VPS access through the `neuralvps` SSH target
+- A Git checkout at `/root/projects/NeuralCast`
 
 ## Deploy Command
 
-From repository root:
+From the VPS checkout:
 
 ```bash
-./deployment/redeploy_host_orchestrator_rsync.sh
+cd /root/projects/NeuralCast
+git pull --ff-only
 ```
 
 What it does:
 
-- Syncs `src/` to `/root/radio_host_orchestrator/src/` with `rsync --delete`
-- Syncs `vps_requirements.txt`
-- Syncs the full `deployment/` tree so canonical unit files, cron templates, and VPS repair scripts are available on the VPS
-- Preserves generated snippet media under `src/neuralcast/assets/stories/snippets/`
-- Verifies deployed entrypoints and confirms legacy top-level pipeline files are gone
+- The VPS checkout is the primary development workspace; normal changes are committed and pushed directly from it.
+- Updates the current branch without overwriting local operational files.
+- Restart persistent services after changing their runtime code.
 
 ## Environment Variables on VPS
 
-Create or update `/root/radio_host_orchestrator/.env`:
+Create or update `/root/projects/NeuralCast/.env`:
 
 ```env
 AZURACAST_API_KEY=your_azuracast_key
@@ -40,8 +38,8 @@ GEMINI_API_KEY=your_gemini_key
 Use module entrypoints (preferred):
 
 ```bash
-cd /root/radio_host_orchestrator
-source venv/bin/activate
+cd /root/projects/NeuralCast
+source .venv/bin/activate
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
@@ -55,20 +53,20 @@ Notes:
 
 ```cron
 # Host orchestrator every hour at minute 5
-5 * * * * cd /root/radio_host_orchestrator && PYTHONPATH=$(pwd)/src ./venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> /root/radio_host_orchestrator/host_orchestrator.log 2>&1
+5 * * * * cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator.log 2>&1
 
 # Weekly schedule generator every Monday at 02:10
-10 2 * * 1 cd /root/radio_host_orchestrator && PYTHONPATH=$(pwd)/src ./venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> /root/radio_host_orchestrator/schedule_generator.log 2>&1
+10 2 * * 1 cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator.log 2>&1
 ```
 
 ## Admin API Bridge Repair After AzuraCast Updates
 
 If the AzuraCast Docker network is recreated during updates, the Linux bridge name can change and invalidate the UFW rule that allows the web container to reach the admin API on port `8787`. This repo now includes a repair script and a cron definition to refresh that bridge-specific UFW rule after the weekly AzuraCast update.
 
-Deploy the repo as usual, then install the cron file on the VPS:
+Install the cron file from the VPS checkout:
 
 ```bash
-sudo cp /root/radio_host_orchestrator/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
+sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo systemctl reload cron
 ```
@@ -76,7 +74,7 @@ sudo systemctl reload cron
 The installed cron runs every Monday at `04:45` Europe/Paris time and executes:
 
 ```bash
-/root/radio_host_orchestrator/deployment/repair_admin_api_bridge_after_azuracast_update.sh
+/root/projects/NeuralCast/deployment/repair_admin_api_bridge_after_azuracast_update.sh
 ```
 
 The script:
@@ -92,10 +90,4 @@ Cron output lands in:
 
 ```text
 /var/log/neuralcast-admin-api-bridge-repair.log
-```
-
-## Optional Deploy Overrides
-
-```bash
-REMOTE_HOST=myvps REMOTE_DIR=/opt/radio_host_orchestrator ./deployment/redeploy_host_orchestrator_rsync.sh
 ```

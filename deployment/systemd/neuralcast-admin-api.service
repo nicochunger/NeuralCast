@@ -5,10 +5,10 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/radio_host_orchestrator
-Environment=PYTHONPATH=/root/radio_host_orchestrator/src
-EnvironmentFile=/root/radio_host_orchestrator/.env
-ExecStart=/root/radio_host_orchestrator/venv/bin/python -m neuralcast.cli.admin_api
+WorkingDirectory=/root/projects/NeuralCast
+Environment=PYTHONPATH=/root/projects/NeuralCast/src
+EnvironmentFile=/root/projects/NeuralCast/.env
+ExecStart=/root/projects/NeuralCast/.venv/bin/python -m neuralcast.cli.admin_api
 Restart=on-failure
 RestartSec=5
 

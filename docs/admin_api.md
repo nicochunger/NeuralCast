@@ -10,13 +10,13 @@ The admin API is a thin HTTP wrapper around existing repo logic. It:
 - returns the supported stations/archetypes/capabilities from repo truth
 - reads live now-playing and queue state through the existing AzuraCast transport helpers
 - launches the real `neuralcast.cli.host_orchestrator` and `neuralcast.cli.schedule_generator` subprocesses
-- captures stdout/stderr to a per-job log and stores disk-backed job state under `admin_http/` so job status survives API restarts
+- captures stdout/stderr to a per-job log and stores disk-backed job state under `runtime/admin_http/` so job status survives API restarts
 
 The service binds to localhost by default. Expose it publicly through a reverse proxy such as nginx or caddy, and require HTTPS at the proxy layer.
 
 ## Environment Variables
 
-Set these in `/root/radio_host_orchestrator/.env` on the VPS:
+Set these in `/root/projects/NeuralCast/.env` on the VPS:
 
 ```env
 NEURALCAST_ADMIN_HTTP_TOKEN=replace-with-a-long-random-token
@@ -150,13 +150,13 @@ ufw allow in on br-<azuracast-network-id> from 172.18.0.0/16 to any port 8787 pr
 
 Because AzuraCast updates can recreate the Docker network and change the bridge name, the repo now includes an automated repair step for this firewall rule:
 
-- Script: `/root/radio_host_orchestrator/deployment/repair_admin_api_bridge_after_azuracast_update.sh`
-- Cron template: `/root/radio_host_orchestrator/deployment/cron/neuralcast-admin-api-post-azuracast-update`
+- Script: `/root/projects/NeuralCast/deployment/repair_admin_api_bridge_after_azuracast_update.sh`
+- Cron template: `/root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update`
 
 Install the cron file on the VPS:
 
 ```bash
-sudo cp /root/radio_host_orchestrator/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
+sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo systemctl reload cron
 ```
@@ -457,18 +457,18 @@ curl -sS \
 1. From the local canonical repository, deploy the latest `src/` tree and `vps_requirements.txt`:
 
 ```bash
-./deployment/redeploy_host_orchestrator_rsync.sh
+git pull --ff-only
 ```
 
-2. On the VPS, install the updated requirements inside `/root/radio_host_orchestrator/venv`:
+2. On the VPS, install the updated requirements inside `/root/projects/NeuralCast/.venv`:
 
 ```bash
 ssh neuralvps
-cd /root/radio_host_orchestrator
-./venv/bin/pip install -r vps_requirements.txt
+cd /root/projects/NeuralCast
+./.venv/bin/pip install -r vps_requirements.txt
 ```
 
-3. Add `NEURALCAST_ADMIN_HTTP_TOKEN` to `/root/radio_host_orchestrator/.env`.
+3. Add `NEURALCAST_ADMIN_HTTP_TOKEN` to `/root/projects/NeuralCast/.env`.
 
 If AzuraCast will proxy to the API from Docker on the same host, also add:
 
@@ -480,7 +480,7 @@ NEURALCAST_ADMIN_HTTP_PORT=8787
 4. Install and start the systemd unit:
 
 ```bash
-cp /root/radio_host_orchestrator/deployment/systemd/neuralcast-admin-api.service /etc/systemd/system/neuralcast-admin-api.service
+cp /root/projects/NeuralCast/deployment/systemd/neuralcast-admin-api.service /etc/systemd/system/neuralcast-admin-api.service
 systemctl daemon-reload
 systemctl enable --now neuralcast-admin-api.service
 systemctl status neuralcast-admin-api.service
@@ -494,5 +494,5 @@ If AzuraCast owns `80/443`, use the mounted nginx include approach above and poi
 
 The service stores job state and logs under the repo root:
 
-- `admin_http/jobs/<job_id>.json`
-- `admin_http/logs/<job_id>.log`
+- `runtime/admin_http/jobs/<job_id>.json`
+- `runtime/admin_http/logs/<job_id>.log`

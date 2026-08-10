@@ -209,42 +209,23 @@ Host and schedule dry-runs still read live AzuraCast APIs and require valid cred
 
 The host orchestrator uses prompts under `src/neuralcast/assets/stories/prompts/`, persistent style history at `src/neuralcast/assets/stories/style_history.json`, and generated snippets under `src/neuralcast/assets/stories/snippets/`. Keep `style_history.json` checked in and preserve generated snippet directories during deployment.
 
-The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also require `AZURACAST_BASE_URL` and `AZURACAST_API_KEY`. Its persistent jobs/logs live under `admin_http/`. The canonical service unit is `deployment/systemd/neuralcast-admin-api.service`.
+The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also require `AZURACAST_BASE_URL` and `AZURACAST_API_KEY`. Its persistent jobs/logs live under `runtime/admin_http/`. The canonical service unit is `deployment/systemd/neuralcast-admin-api.service`.
 
-## VPS Deployment Pipeline
+## VPS-Authoritative Development and Media
 
-The canonical deployment command is:
+The production checkout and primary development workspace is `/root/projects/NeuralCast` on the VPS. Develop there over SSH, run tests there, and commit/push from that checkout. The former rsync deployment workflow is retired; do not use `deployment/redeploy_host_orchestrator_rsync.sh` for normal changes.
 
-```bash
-./deployment/redeploy_host_orchestrator_rsync.sh
-```
+Keep all project-local operational state close to the checkout:
 
-It deploys to `neuralvps:/root/radio_host_orchestrator` by default and:
+- `.env`: Git-ignored VPS secrets;
+- `.venv/`: Git-ignored runtime environment;
+- `runtime/admin_http/`: admin API jobs and job logs;
+- `runtime/logs/`: scheduled-service logs;
+- `NeuralCast/songs` and `NeuralForge/songs`: symlinks to their existing AzuraCast media roots.
 
-- rsyncs `src/` with `--delete` while excluding caches, `*.mp3`, and generated story snippets;
-- syncs `vps_requirements.txt`;
-- rsyncs the complete `deployment/` tree with `--delete`;
-- removes the obsolete zip deployment artifact;
-- verifies key CLI/pipeline files and checks that legacy top-level pipeline modules are absent.
+AzuraCast's media directories are the only MP3 copies. When a station `songs/` path resolves to its configured AzuraCast media root, station sync detects that condition and skips remote rsync. Do not use local-to-VPS media mirroring after this migration. The VPS catalog and media tree are authoritative.
 
-Override the target with `REMOTE_HOST` and `REMOTE_DIR`. Both local and remote hosts require `rsync`; SSH access must work.
-
-The script does not install changed Python dependencies and does not restart persistent systemd services. If `vps_requirements.txt` changes, update the VPS virtualenv explicitly. If admin API runtime code changes, restart `neuralcast-admin-api` after a successful deploy and verify its health. Cron-launched host/schedule commands load new code on their next invocation.
-
-Automatically run the rsync deployment after completing requested changes to VPS runtime code/assets unless the user explicitly says not to deploy. Mandatory triggers include:
-
-- `src/neuralcast/pipelines/host_orchestrator/**`
-- `src/neuralcast/pipelines/schedule_generator/**`
-- `src/neuralcast/cli/host_orchestrator.py`
-- `src/neuralcast/cli/schedule_generator.py`
-- `src/neuralcast/admin_api/**` and `src/neuralcast/cli/admin_api.py`
-- shared runtime modules used by those services, including `src/neuralcast/services/ai_client.py`
-- `src/neuralcast/assets/stories/prompts/*.md`
-- `inject_host_segment.py`, `schedule_generator.py`, `vps_requirements.txt`, or `deployment/**`
-
-Playlist/station-data-only edits do not trigger this code deployment; station music reaches AzuraCast through the separate media rsync in playlist sync.
-
-After deployment, use the script's verification output and, when needed, verify timestamps/checksums under `/root/radio_host_orchestrator/src/neuralcast/`. See `deployment/INSTRUCTIONS.md` for cron examples and the admin API bridge-repair procedure used after AzuraCast Docker-network changes.
+After a runtime code change, restart `neuralcast-admin-api` when applicable and verify `/healthz`. Cron-launched host/schedule commands load new code on their next invocation. See `deployment/INSTRUCTIONS.md` for the current service and cron layout.
 
 ## Environment and External Tools
 

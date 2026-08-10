@@ -1229,6 +1229,15 @@ class StationSync:
             delete_remote=remote_sync.delete_remote,
             timeout_seconds=remote_sync.timeout_seconds,
         )
+        if _is_direct_azuracast_media_root(
+            remote_sync_config.local_songs_root,
+            remote_sync_config.remote_media_root,
+        ):
+            print(
+                "🌐 [remote-sync] skipped: station songs already point directly to "
+                "the configured AzuraCast media root."
+            )
+            return None
         mode_label = "preview" if request.dry_run else "apply"
         print(
             f"🌐 [remote-sync] Running rsync ({mode_label}) from "
@@ -1245,6 +1254,23 @@ class StationSync:
             f"{remote_result.deleted_count} deletion(s)."
         )
         return remote_result
+
+
+def _is_direct_azuracast_media_root(
+    local_songs_root: pathlib.Path,
+    remote_media_root: str,
+) -> bool:
+    """Return whether rsync would copy a media directory onto itself.
+
+    The VPS-authoritative layout makes ``<station>/songs`` a symlink to the
+    AzuraCast media directory.  Skipping this case preserves normal remote
+    mirroring for local development while avoiding a same-root rsync on VPS.
+    """
+
+    try:
+        return local_songs_root.resolve() == pathlib.Path(remote_media_root).resolve()
+    except OSError:
+        return False
 
 
 def main(

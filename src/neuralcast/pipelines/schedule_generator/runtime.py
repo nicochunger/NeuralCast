@@ -41,7 +41,7 @@ from .state import (
 )
 from .template import compute_week_start
 
-VPS_SCHEDULER_PROJECT_ROOT = "/root/radio_host_orchestrator"
+VPS_SCHEDULER_PROJECT_ROOT = "/root/projects/NeuralCast"
 ScheduleRunStatus = Literal["dry_run", "skipped_unchanged", "applied"]
 PlanBuilder = Callable[..., WeeklySchedulePlan]
 

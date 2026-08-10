@@ -12,7 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "neuralcast"
 ASSETS_ROOT = PACKAGE_ROOT / "assets"
-LOGS_ROOT = PROJECT_ROOT / "logs"
+RUNTIME_ROOT = PROJECT_ROOT / "runtime"
+LOGS_ROOT = RUNTIME_ROOT / "logs"
 
 STATION_DIRECTORY_BY_SLUG: Final[dict[str, str]] = {
     "neuralcast": "NeuralCast",
@@ -43,6 +44,7 @@ __all__ = [
     "PROJECT_ROOT",
     "SRC_ROOT",
     "PACKAGE_ROOT",
+    "RUNTIME_ROOT",
     "ASSETS_ROOT",
     "LOGS_ROOT",
     "STATION_DIRECTORY_BY_SLUG",

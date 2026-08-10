@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping
 
-from neuralcast.config import ALLOWED_STATION_SLUGS, PROJECT_ROOT
+from neuralcast.config import ALLOWED_STATION_SLUGS, PROJECT_ROOT, RUNTIME_ROOT
 from neuralcast.pipelines.host_orchestrator.models import (
     Archetype,
     TrackFocus,
@@ -55,7 +55,7 @@ SUPPORTED_SCHEDULE_TUNING_FIELDS = (
     "min_block_minutes",
     "max_block_minutes",
 )
-ADMIN_HTTP_ROOT = PROJECT_ROOT / "admin_http"
+ADMIN_HTTP_ROOT = RUNTIME_ROOT / "admin_http"
 ADMIN_HTTP_JOBS_DIR = ADMIN_HTTP_ROOT / "jobs"
 ADMIN_HTTP_LOGS_DIR = ADMIN_HTTP_ROOT / "logs"
 LOG_TAIL_LINES = 20

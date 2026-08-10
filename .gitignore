@@ -12,6 +12,7 @@ build/
 *.egg-info/
 src/neuralcast/assets/stories/snippets/
 deployment/deploy_host_orchestrator.zip
+runtime/
 logs/*.log
 */duplicate_analysis.log
 */albums_not_validated.csv

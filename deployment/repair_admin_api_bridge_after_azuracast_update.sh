@@ -3,7 +3,7 @@ set -euo pipefail
 
 NETWORK_NAME="${AZURACAST_DOCKER_NETWORK:-azuracast_default}"
 CONTAINER_NAME="${AZURACAST_WEB_CONTAINER:-azuracast}"
-APP_ROOT="${APP_ROOT:-/root/radio_host_orchestrator}"
+APP_ROOT="${APP_ROOT:-/root/projects/NeuralCast}"
 ENV_FILE="${ENV_FILE:-${APP_ROOT}/.env}"
 ADMIN_PORT="${NEURALCAST_ADMIN_HTTP_PORT:-8787}"
 ADMIN_BIND_HOST="${NEURALCAST_ADMIN_HTTP_HOST:-172.18.0.1}"
