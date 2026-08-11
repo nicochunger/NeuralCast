@@ -12,7 +12,6 @@ import pandas as pd
 
 from neuralcast.metadata.storage import metadata_key
 from neuralcast.models import Song, ValidationResult
-from neuralcast.pipelines.media_sync import RemoteSyncRequest
 from neuralcast.pipelines.station_sync import (
     MediaLibrary,
     PlaylistLog,
@@ -148,7 +147,6 @@ class StationSyncBoundaryTest(unittest.TestCase):
                 SyncRequest(
                     station_slug="test-station",
                     dry_run=True,
-                    remote_sync=RemoteSyncRequest(enabled=False),
                 )
             )
 
@@ -212,7 +210,6 @@ class StationSyncBoundaryTest(unittest.TestCase):
                 SyncRequest(
                     station_slug="test-station",
                     dry_run=False,
-                    remote_sync=RemoteSyncRequest(enabled=False),
                 )
             )
 

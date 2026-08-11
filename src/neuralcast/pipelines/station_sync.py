@@ -44,12 +44,6 @@ from neuralcast.services.validation import (
     verified,
     verified_album,
 )
-from neuralcast.pipelines.media_sync import (
-    RemoteSyncRequest,
-    build_remote_sync_config,
-    RemoteSyncResult,
-    run_remote_sync,
-)
 _METADATA_FILENAME = "New Releases.metadata.json"
 
 
@@ -57,7 +51,6 @@ _METADATA_FILENAME = "New Releases.metadata.json"
 class SyncRequest:
     station_slug: str
     dry_run: bool = False
-    remote_sync: RemoteSyncRequest | None = None
 
 
 @dataclass(frozen=True)
@@ -81,7 +74,6 @@ class SyncReport:
     dry_run: bool
     playlist_reports: list[PlaylistSyncReport]
     duplicate_analysis_log: pathlib.Path
-    remote_sync_result: RemoteSyncResult | None = None
 
 
 class TrackResolver(Protocol):
@@ -709,16 +701,11 @@ class StationSync:
         )
         print(f"📝 [sync] cross-playlist analysis written to {analysis_log_file}")
 
-        remote_result = self._run_remote_sync(
-            request=request,
-            songs_root=songs_root,
-        )
         return SyncReport(
             station_slug=request.station_slug,
             dry_run=request.dry_run,
             playlist_reports=playlist_reports,
             duplicate_analysis_log=analysis_log_file,
-            remote_sync_result=remote_result,
         )
 
     def _load_playlist_entries(
@@ -1204,86 +1191,14 @@ class StationSync:
             handle.write("\n".join(analysis_lines) + "\n")
         return analysis_log_file
 
-    def _run_remote_sync(
-        self,
-        *,
-        request: SyncRequest,
-        songs_root: pathlib.Path,
-    ) -> RemoteSyncResult | None:
-        remote_sync = request.remote_sync
-        if not remote_sync or not remote_sync.enabled:
-            return None
-
-        print("🌐 [remote-sync] preparing rsync...")
-        remote_sync_config = build_remote_sync_config(
-            station_slug=request.station_slug,
-            local_songs_root=songs_root,
-            dry_run=request.dry_run,
-            remote_host=remote_sync.remote_host,
-            remote_user=remote_sync.remote_user,
-            remote_port=remote_sync.remote_port,
-            remote_media_root=remote_sync.remote_media_root,
-            remote_ssh_key=remote_sync.remote_ssh_key,
-            remote_rsync_bin=remote_sync.remote_rsync_bin,
-            remote_extra_rsync_args=remote_sync.remote_extra_rsync_args,
-            delete_remote=remote_sync.delete_remote,
-            timeout_seconds=remote_sync.timeout_seconds,
-        )
-        if _is_direct_azuracast_media_root(
-            remote_sync_config.local_songs_root,
-            remote_sync_config.remote_media_root,
-        ):
-            print(
-                "🌐 [remote-sync] skipped: station songs already point directly to "
-                "the configured AzuraCast media root."
-            )
-            return None
-        mode_label = "preview" if request.dry_run else "apply"
-        print(
-            f"🌐 [remote-sync] Running rsync ({mode_label}) from "
-            f"{remote_sync_config.local_songs_root} to "
-            f"{remote_sync_config.remote_host}:{remote_sync_config.remote_media_root}/"
-        )
-        remote_result = run_remote_sync(remote_sync_config)
-        if remote_result.stdout.strip():
-            print(remote_result.stdout.rstrip())
-        if remote_result.stderr.strip():
-            print(remote_result.stderr.rstrip())
-        print(
-            f"✅ [remote-sync] Completed: {remote_result.changed_count} changed item(s), "
-            f"{remote_result.deleted_count} deletion(s)."
-        )
-        return remote_result
-
-
-def _is_direct_azuracast_media_root(
-    local_songs_root: pathlib.Path,
-    remote_media_root: str,
-) -> bool:
-    """Return whether rsync would copy a media directory onto itself.
-
-    The VPS-authoritative layout makes ``<station>/songs`` a symlink to the
-    AzuraCast media directory.  Skipping this case preserves normal remote
-    mirroring for local development while avoiding a same-root rsync on VPS.
-    """
-
-    try:
-        return local_songs_root.resolve() == pathlib.Path(remote_media_root).resolve()
-    except OSError:
-        return False
-
-
 def main(
     station_slug: str,
     dry_run: bool = False,
-    *,
-    remote_sync: RemoteSyncRequest | None = None,
 ) -> SyncReport:
     return StationSync().run(
         SyncRequest(
             station_slug=station_slug,
             dry_run=dry_run,
-            remote_sync=remote_sync,
         )
     )
 

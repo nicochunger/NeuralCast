@@ -158,7 +158,7 @@ Important: playlist `--dry-run` skips new MP3 downloads, but it is not fully rea
 
 Never run it merely to inspect data if those local changes are not authorized. For a read-only audit, parse CSVs and inspect files directly.
 
-`<station>/songs` is a symlink to that station's AzuraCast media directory. The VPS media tree is authoritative, so playlist sync writes and deletes operate on the live media files directly; no rsync or separate media mirror is used.
+`<station>/songs` is a symlink to that station's AzuraCast media directory. The VPS media tree is authoritative, so playlist sync writes and deletes operate on the live media files directly.
 
 ## New Releases and Station Metadata
 

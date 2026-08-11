@@ -10,7 +10,6 @@ from neuralcast.audio.download import DownloadNoResultsError
 from neuralcast.metadata.storage import metadata_key
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
-from neuralcast.pipelines.media_sync import RemoteSyncRequest, RemoteSyncResult
 
 
 def test_remove_new_releases_metadata_entries_removes_matching_keys(tmp_path) -> None:
@@ -196,89 +195,8 @@ def test_station_sync_run_handles_missing_playlist_dir(tmp_path) -> None:
         station_sync.SyncRequest(
             station_slug="missing",
             dry_run=True,
-            remote_sync=RemoteSyncRequest(enabled=False),
         )
     )
 
     assert report.playlist_reports == []
     assert report.duplicate_analysis_log == tmp_path / "Station" / "duplicate_analysis.log"
-
-
-def test_station_sync_remote_sync_runs_when_enabled(tmp_path, monkeypatch) -> None:
-    station_dir = tmp_path / "Station"
-    songs_root = station_dir / "songs"
-    songs_root.mkdir(parents=True)
-    service = station_sync.StationSync(station_dir_resolver=lambda _slug: station_dir)
-    fake_result = RemoteSyncResult(
-        command=("rsync",),
-        changed_count=2,
-        deleted_count=1,
-        stdout="changed\n",
-        stderr="",
-        dry_run=True,
-    )
-    monkeypatch.setattr(
-        station_sync,
-        "build_remote_sync_config",
-        lambda **kwargs: type(
-            "Config",
-            (),
-            {
-                "local_songs_root": kwargs["local_songs_root"],
-                "remote_host": "host",
-                "remote_media_root": "/media",
-            },
-        )(),
-    )
-    monkeypatch.setattr(station_sync, "run_remote_sync", lambda _config: fake_result)
-
-    result = service._run_remote_sync(
-        request=station_sync.SyncRequest(
-            station_slug="neuralforge",
-            dry_run=True,
-            remote_sync=RemoteSyncRequest(enabled=True),
-        ),
-        songs_root=songs_root,
-    )
-
-    assert result == fake_result
-
-
-def test_station_sync_skips_remote_sync_when_songs_are_azuracast_media_root(
-    tmp_path, monkeypatch
-) -> None:
-    station_dir = tmp_path / "Station"
-    media_root = tmp_path / "azuracast-media"
-    media_root.mkdir(parents=True)
-    (station_dir / "songs").parent.mkdir(parents=True)
-    (station_dir / "songs").symlink_to(media_root, target_is_directory=True)
-    service = station_sync.StationSync(station_dir_resolver=lambda _slug: station_dir)
-    monkeypatch.setattr(
-        station_sync,
-        "build_remote_sync_config",
-        lambda **_kwargs: type(
-            "Config",
-            (),
-            {
-                "local_songs_root": station_dir / "songs",
-                "remote_host": "neuralvps",
-                "remote_media_root": str(media_root),
-            },
-        )(),
-    )
-    monkeypatch.setattr(
-        station_sync,
-        "run_remote_sync",
-        lambda _config: pytest.fail("same-root remote sync must not run"),
-    )
-
-    result = service._run_remote_sync(
-        request=station_sync.SyncRequest(
-            station_slug="neuralforge",
-            dry_run=False,
-            remote_sync=RemoteSyncRequest(enabled=True),
-        ),
-        songs_root=station_dir / "songs",
-    )
-
-    assert result is None

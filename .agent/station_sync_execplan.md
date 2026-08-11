@@ -6,7 +6,7 @@ This document must be maintained in accordance with `.agent/PLANS.md`.
 
 ## Purpose / Big Picture
 
-Refactor the main playlist sync pipeline so callers invoke a single deep module that owns station reconciliation end to end. After this change, the CLI and compatibility shims will call a `StationSync` service through a small request/report interface instead of invoking a thousand-line procedural `main()` function directly. The observable behavior should stay the same: `python main.py --station neuralforge --dry-run` still audits playlists and retags existing files, and `python main.py --station neuralforge` still validates, downloads, tags, writes reports, and optionally mirrors media remotely. The difference is architectural: tests can exercise the boundary of “sync this station” without reaching into internal helpers such as `_save_playlist_state` and `_backfill_album_for_missing_song`.
+Refactor the main playlist sync pipeline so callers invoke a single deep module that owns station reconciliation end to end. After this change, the CLI and compatibility shims will call a `StationSync` service through a small request/report interface instead of invoking a thousand-line procedural `main()` function directly. The observable behavior should stay the same: `python main.py --station neuralforge --dry-run` still audits playlists and retags existing files, and `python main.py --station neuralforge` still validates, downloads, tags, and writes reports directly against the VPS-resident station media tree. The difference is architectural: tests can exercise the boundary of “sync this station” without reaching into internal helpers such as `_save_playlist_state` and `_backfill_album_for_missing_song`.
 
 ## Progress
 
@@ -15,20 +15,20 @@ Refactor the main playlist sync pipeline so callers invoke a single deep module 
 - [x] (2026-03-17 07:21Z) Created `src/neuralcast/pipelines/station_sync.py` with `SyncRequest`, `PlaylistSyncReport`, `SyncReport`, `StationSync`, default resolver/media adapters, and private playlist action types.
 - [x] (2026-03-17 07:21Z) Converted `src/neuralcast/pipelines/playlist_sync.py` into a compatibility wrapper that re-exports the new service boundary and legacy helper names still referenced elsewhere.
 - [x] (2026-03-17 07:22Z) Replaced the old helper-specific playlist sync test with boundary coverage for `StationSync.run()` and updated Deezer album-backfill tests to target `DefaultTrackResolver`.
-- [x] (2026-03-17 07:23Z) Validated syntax with `python3 -m py_compile` and ran `PYTHONPATH=src python3 -m unittest tests.test_media_sync` successfully.
+- [x] (2026-03-17 07:23Z) Validated syntax with `python3 -m py_compile` successfully.
 - [ ] Run the full targeted Python test suite once project dependencies (`pandas`, `mutagen`, `python-dotenv`, and preferably `pytest`) are installed in the local environment.
 - [ ] Create the GitHub RFC issue required by the architecture skill; blocked in this environment because `gh` is not installed.
 
 ## Surprises & Discoveries
 
-- Observation: `src/neuralcast/pipelines/playlist_sync.py` currently owns orchestration, persistence, album repair, file mutation, duplicate analysis, and remote mirroring in one function.
+- Observation: `src/neuralcast/pipelines/playlist_sync.py` currently owns orchestration, persistence, album repair, file mutation, and duplicate analysis in one function.
   Evidence: `main()` spans `src/neuralcast/pipelines/playlist_sync.py:379` through `:1130`.
 - Observation: the current tests already expose architectural leakage because they patch private helpers directly.
   Evidence: `tests/test_playlist_sync.py` calls `_save_playlist_state`, and `tests/test_deezer_sync_provider.py` calls `_backfill_album_for_missing_song`.
 - Observation: this shell does not provide the `python` alias; commands must use `python3`.
   Evidence: `python -m py_compile ...` returned `/bin/bash: python: command not found`.
 - Observation: the local environment is missing several runtime and test dependencies, so only dependency-light validations can run here.
-  Evidence: `python3 -m unittest tests.test_playlist_sync ...` failed with `ModuleNotFoundError` for `pandas`, `dotenv`, and `mutagen`; `python3 -m unittest tests.test_media_sync` passed because it does not import those packages.
+  Evidence: the first local environment lacked several project dependencies; the repository `.venv` is now used for validation.
 - Observation: the GitHub CLI is not installed, so the required architecture RFC issue cannot be created from this shell.
   Evidence: `gh --version` returned `/bin/bash: gh: command not found`.
 
@@ -61,7 +61,7 @@ The current entrypoint stack is:
 - `src/neuralcast/cli/sync_playlists.py`, which parses CLI arguments and calls `neuralcast.pipelines.playlist_sync.main`.
 - `src/neuralcast/pipelines/playlist_sync.py`, which currently performs almost the entire station sync workflow inline.
 
-Within this repository, a “station sync” means reconciling the playlist CSV files under `<Station>/playlists/` with the MP3 files under `<Station>/songs/`, while preserving playlist metadata, validating tracks against external providers, repairing album metadata when possible, optionally downloading/tagging missing files, writing a duplicate-analysis log, and optionally mirroring the final songs tree to a remote AzuraCast media directory using rsync.
+Within this repository, a “station sync” means reconciling the playlist CSV files under `<Station>/playlists/` with the MP3 files under `<Station>/songs/`, while preserving playlist metadata, validating tracks against external providers, repairing album metadata when possible, downloading/tagging missing files, and writing a duplicate-analysis log. The `songs/` paths are symlinks to the live AzuraCast media directories on this VPS.
 
 The helper modules already provide useful behavior, but they are not the right public boundary:
 
@@ -69,9 +69,8 @@ The helper modules already provide useful behavior, but they are not the right p
 - `src/neuralcast/services/validation.py` verifies tracks and albums against Deezer, MusicBrainz, and iTunes.
 - `src/neuralcast/metadata/album_lookup.py` guesses album metadata and release dates.
 - `src/neuralcast/audio/download.py` downloads MP3s via `yt-dlp` and applies ID3 tags plus ReplayGain.
-- `src/neuralcast/pipelines/media_sync.py` builds and runs the optional rsync mirror step.
 
-This refactor will add a new service module that depends on those helpers through default adapters. The new service will accept a `SyncRequest` describing which station to sync and whether the run is a dry run, then return a `SyncReport` summarizing playlist-level outcomes plus duplicate-analysis and remote-sync results.
+This refactor will add a new service module that depends on those helpers through default adapters. The new service will accept a `SyncRequest` describing which station to sync and whether the run is a dry run, then return a `SyncReport` summarizing playlist-level outcomes and duplicate analysis.
 
 ## Plan of Work
 
@@ -81,8 +80,7 @@ Define default collaborators in the same module at first to keep the migration t
 
 - a resolver adapter for track availability validation and album backfill;
 - a media adapter for override replacement, retag audit, downloads, and tagging;
-- persistence methods that use `load_playlist`, `save_playlist_with_validation`, and the station metadata helpers;
-- remote-sync application that delegates to `src/neuralcast/pipelines/media_sync.py`.
+- persistence methods that use `load_playlist`, `save_playlist_with_validation`, and the station metadata helpers.
 
 After the new module works, reduce `src/neuralcast/pipelines/playlist_sync.py` to a compatibility wrapper that re-exports the legacy helper names still used by tests, delegates `main()` to `StationSync.run()`, and keeps `list_playlists()` behavior intact. The wrapper may keep thin compatibility functions around old helper names while the new service becomes the real implementation center.
 
@@ -95,11 +93,10 @@ Finish by validating the targeted test suite and, if possible in the local envir
 Run from the repository root:
 
     python3 -m py_compile src/neuralcast/pipelines/station_sync.py src/neuralcast/pipelines/playlist_sync.py tests/test_playlist_sync.py tests/test_deezer_sync_provider.py
-    PYTHONPATH=src python3 -m unittest tests.test_media_sync
 
 When the local environment has project dependencies installed, run:
 
-    pytest tests/test_playlist_sync.py tests/test_deezer_sync_provider.py tests/test_media_sync.py tests/test_audio_download.py
+    pytest tests/test_playlist_sync.py tests/test_deezer_sync_provider.py tests/test_audio_download.py
 
 If the environment is configured well enough for a CLI smoke test, run:
 
@@ -126,7 +123,6 @@ This refactor is safe to apply incrementally because the old entrypoint remains 
 Validation artifacts gathered so far:
 
 - `python3 -m py_compile src/neuralcast/pipelines/station_sync.py src/neuralcast/pipelines/playlist_sync.py tests/test_playlist_sync.py tests/test_deezer_sync_provider.py` completed successfully.
-- `PYTHONPATH=src python3 -m unittest tests.test_media_sync` completed successfully (`Ran 3 tests in 0.108s`, `OK`).
 - `PYTHONPATH=src python3 -m unittest tests.test_audio_download` failed to import because `mutagen` is not installed.
 - `PYTHONPATH=src python3 -m unittest tests.test_playlist_sync tests.test_deezer_sync_provider ...` failed to import because `pandas`, `python-dotenv`, and `mutagen` are not installed.
 - `gh --version` failed because the GitHub CLI is not installed.
@@ -143,7 +139,6 @@ The new public interface in `src/neuralcast/pipelines/station_sync.py` must incl
     class SyncRequest:
         station_slug: str
         dry_run: bool = False
-        remote_sync: RemoteSyncRequest | None = None
 
     @dataclass(frozen=True)
     class PlaylistSyncReport:
@@ -165,7 +160,6 @@ The new public interface in `src/neuralcast/pipelines/station_sync.py` must incl
         dry_run: bool
         playlist_reports: list[PlaylistSyncReport]
         duplicate_analysis_log: Path
-        remote_sync_result: RemoteSyncResult | None = None
 
     class StationSync:
         def run(self, request: SyncRequest) -> SyncReport:
