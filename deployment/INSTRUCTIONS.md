@@ -1,6 +1,6 @@
 # Runtime Instructions
 
-This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Do not use an rsync deployment or another checkout as a deployment source.
+This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Make changes in this checkout; do not use another checkout as a deployment source.
 
 ## Prerequisites
 

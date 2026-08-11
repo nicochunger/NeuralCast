@@ -196,7 +196,7 @@ The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also re
 
 ## VPS-Resident Development and Media
 
-This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Run tests, commit, and push from this checkout; do not treat another local checkout as a deployment source. The former rsync deployment workflow is retired; do not use `deployment/redeploy_host_orchestrator_rsync.sh` for normal changes.
+This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Run tests, commit, and push from this checkout; do not treat another local checkout as a deployment source.
 
 Keep all project-local operational state close to the checkout:
 
