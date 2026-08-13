@@ -18,10 +18,16 @@ from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
     QueueTrack,
 )
 from neuralcast.services import ai_client
-from neuralcast.services.ai_client import DEFAULT_GEMINI_TTS_MODEL  # noqa: E402
+from neuralcast.services.ai_client import (  # noqa: E402
+    DEFAULT_GEMINI_TEXT_MODEL,
+    DEFAULT_GEMINI_TTS_MODEL,
+)
 
 
 class AIClientDefaultsTest(unittest.TestCase):
+    def test_default_gemini_text_model_matches_expected_model_id(self) -> None:
+        self.assertEqual(DEFAULT_GEMINI_TEXT_MODEL, "gemini-3.7-flash")
+
     def test_default_gemini_tts_model_matches_expected_model_id(self) -> None:
         self.assertEqual(DEFAULT_GEMINI_TTS_MODEL, "gemini-3.1-flash-tts-preview")
 

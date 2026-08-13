@@ -62,7 +62,10 @@ from .state import (
     sample_generation_settings,
 )
 from .utils import now_ts, run_with_retries
-from neuralcast.services.ai_client import get_gemini_client
+from neuralcast.services.ai_client import (
+    DEFAULT_GEMINI_TEXT_MODEL,
+    get_gemini_client,
+)
 
 
 @dataclass(frozen=True)
@@ -500,7 +503,7 @@ def gemini_generate_text(
     temperature: float,
     top_p: float,
     with_search: bool,
-    model: str = "gemini-3-flash-preview",
+    model: str = DEFAULT_GEMINI_TEXT_MODEL,
 ) -> str:
     client = get_gemini_client()
     try:

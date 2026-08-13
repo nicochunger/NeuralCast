@@ -29,7 +29,10 @@ _GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 _GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
 _DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
-_DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3-flash-preview")
+DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3.7-flash")
+# Keep the private name for callers that imported it before the public constant
+# was introduced.
+_DEFAULT_GEMINI_TEXT_MODEL = DEFAULT_GEMINI_TEXT_MODEL
 DEFAULT_GEMINI_TTS_MODEL = os.getenv(
     "GEMINI_TTS_MODEL", "gemini-3.1-flash-tts-preview"
 )
@@ -303,6 +306,7 @@ def tts(text: str, outfile: str):
 
 __all__ = [
     "DEFAULT_GEMINI_TTS_MODEL",
+    "DEFAULT_GEMINI_TEXT_MODEL",
     "get_openai_client",
     "openai_text_completion",
     "openai_speech",

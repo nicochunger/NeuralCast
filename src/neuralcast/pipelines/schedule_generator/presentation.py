@@ -13,6 +13,8 @@ import logging
 import os
 from typing import Any, Mapping, Sequence
 
+from neuralcast.services.ai_client import DEFAULT_GEMINI_TEXT_MODEL
+
 from .models import DailyTemplateBlock, WeeklySchedulePlan
 
 LOGGER = logging.getLogger("schedule_generator")
@@ -101,7 +103,7 @@ def _generate_copy(units: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
         prompt = _build_prompt(units)
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         response = client.models.generate_content(
-            model=os.getenv("SCHEDULE_PRESENTATION_MODEL", "gemini-3-flash-preview"),
+            model=os.getenv("SCHEDULE_PRESENTATION_MODEL", DEFAULT_GEMINI_TEXT_MODEL),
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
