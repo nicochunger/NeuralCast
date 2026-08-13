@@ -46,6 +46,7 @@ from .models import (
     Archetype,
     ConcertEventMeta,
     ConcertSegment,
+    GeneratedSegmentMetadata,
     NewsSegment,
     NewsStoryMeta,
     OrchestratorState,
@@ -76,6 +77,24 @@ class ArchetypePromptVariants:
     era_snapshot_focus: Optional[str] = None
     deep_dive_lane: Optional[str] = None
     deep_dive_focus: Optional[str] = None
+
+
+def _segment_metadata_for_archetype(
+    archetype: Archetype,
+    prompt_kwargs: Mapping[str, Any],
+) -> GeneratedSegmentMetadata:
+    focus_keys = {
+        Archetype.SHORT_STORY: "short_story_focus",
+        Archetype.ALBUM_SPOTLIGHT: "album_spotlight_focus",
+        Archetype.ERA_SNAPSHOT: "era_snapshot_focus",
+        Archetype.DEEP_DIVE: "deep_dive_focus",
+    }
+    focus_value = prompt_kwargs.get(focus_keys.get(archetype, ""))
+    try:
+        focus = TrackFocus(focus_value) if focus_value else None
+    except ValueError:
+        focus = None
+    return GeneratedSegmentMetadata(track_focus=focus)
 
 
 def format_shared_input(
@@ -1233,7 +1252,7 @@ def fallback_to_ultra_minimal(
     schedule_context: Optional[ScheduleContext],
     state: OrchestratorState,
     rng: random.Random,
-) -> Tuple[str, None, Archetype]:
+) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
     fallback_script, _, fallback_arch = generate_archetype_script(
         archetype=Archetype.ULTRA_MINIMAL,
@@ -1253,7 +1272,7 @@ def fallback_to_ultra_minimal(
         forced_mode=False,
         allow_ultra_minimal_fallback=False,
     )
-    return fallback_script, None, fallback_arch
+    return fallback_script, GeneratedSegmentMetadata(), fallback_arch
 
 
 def _resolve_prompt_variants(
@@ -1378,7 +1397,7 @@ def _generate_standard_archetype_script(
     generate_with_retries,
     fallback,
     terminal_ultra_minimal_fallback,
-) -> Tuple[str, None, Archetype]:
+) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     prompt = build_prompt(archetype=archetype, **prompt_kwargs)
     generated = generate_with_retries(
         prompt=prompt,
@@ -1409,7 +1428,7 @@ def _generate_standard_archetype_script(
             return terminal_ultra_minimal_fallback()
         return fallback()
 
-    return cleaned, None, archetype
+    return cleaned, _segment_metadata_for_archetype(archetype, prompt_kwargs), archetype
 
 
 def _generate_concert_check_script(
@@ -1425,7 +1444,7 @@ def _generate_concert_check_script(
     rng: random.Random,
     generate_with_retries,
     fallback,
-) -> Tuple[str, None, Archetype]:
+) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     generation_attempts = 2
     for generation_attempt in range(generation_attempts):
         prompt = build_prompt(archetype=Archetype.CONCERT_CHECK, **prompt_kwargs)
@@ -1484,7 +1503,7 @@ def _generate_concert_check_script(
                     schedule_context=schedule_context,
                     rng=rng,
                 ),
-                None,
+                GeneratedSegmentMetadata(concert_segment=segment),
                 Archetype.CONCERT_CHECK,
             )
 
@@ -1514,7 +1533,7 @@ def _generate_news_script(
     rng: random.Random,
     generate_with_retries,
     fallback,
-) -> Tuple[str, Optional[NewsSegment], Archetype]:
+) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     story_count = rng.randint(1, 2)
     topic_attempts = 3
     conservative_news_temperature = min(0.65, temperature)
@@ -1631,7 +1650,7 @@ def _generate_news_script(
                     schedule_context=schedule_context,
                     rng=rng,
                 ),
-                segment,
+                GeneratedSegmentMetadata(news_segment=segment),
                 Archetype.NEWS,
             )
 
@@ -1670,10 +1689,13 @@ def generate_archetype_script(
     forced_mode: bool,
     forced_track_focus: Optional[TrackFocus] = None,
     allow_ultra_minimal_fallback: bool = True,
-) -> Tuple[str, Optional[NewsSegment], Archetype]:
-    """Generate script and optional structured metadata.
+) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
+    """Generate script and structured presentation metadata.
 
-    Returns: (script, news_segment, archetype_used)
+    Returns: (script, segment_metadata, archetype_used).
+
+    ``segment_metadata`` carries validated news/concert facts and the selected
+    current/next track focus used by the listener-facing title builder.
     """
 
     temperature, top_p = sample_generation_settings(archetype, rng)
@@ -1723,7 +1745,7 @@ def generate_archetype_script(
             ),
         )
 
-    def fallback() -> Tuple[str, None, Archetype]:
+    def fallback() -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
         return fallback_to_ultra_minimal(
             station_name=station_name,
             personality=personality,
@@ -1738,7 +1760,7 @@ def generate_archetype_script(
             rng=rng,
         )
 
-    def terminal_ultra_minimal_fallback() -> Tuple[str, None, Archetype]:
+    def terminal_ultra_minimal_fallback() -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
         LOGGER.warning(
             "[ultra_minimal] Gemini did not produce a usable script; using deterministic local fallback."
         )
@@ -1749,7 +1771,7 @@ def generate_archetype_script(
                 schedule_context=schedule_context,
                 rng=rng,
             ),
-            None,
+            GeneratedSegmentMetadata(),
             Archetype.ULTRA_MINIMAL,
         )
 

@@ -66,6 +66,8 @@ SYSTEM_TZ = ZoneInfo("Europe/Zurich")
 LOGGER = logging.getLogger("host_orchestrator")
 SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")
 
+HOST_ARTIST_NAME = "NueralHost"
+
 
 @dataclass(frozen=True)
 class StationCadenceSettings:
@@ -213,10 +215,12 @@ def log_segment_event(
     schedule_section: Optional[str],
     mention_intent: Optional[str],
     news_topics: Optional[str] = None,
+    segment_title: Optional[str] = None,
 ) -> None:
     parts = [
         f"station={station}",
         f"archetype={archetype}",
+        f"title={segment_title or 'n/a'}",
         f"current={current_track}",
         f"next={next_track}",
         f"request_id={queued_request_id or 'n/a'}",

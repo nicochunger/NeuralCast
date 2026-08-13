@@ -118,6 +118,15 @@ class ConcertSegment:
     events: List[ConcertEventMeta]
 
 
+@dataclass(frozen=True)
+class GeneratedSegmentMetadata:
+    """Structured facts needed to present a generated segment to listeners."""
+
+    news_segment: Optional[NewsSegment] = None
+    concert_segment: Optional[ConcertSegment] = None
+    track_focus: Optional[TrackFocus] = None
+
+
 @dataclass
 class OrchestratorState:
     state_version: int

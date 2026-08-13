@@ -146,6 +146,7 @@ def test_host_orchestrator_runtime_dry_run_generates_assets_without_publish(tmp_
     assert result.next_track.artist == next_track.artist
     assert result.next_track.title == next_track.title
     assert result.used_archetype == Archetype.BACK_SELL
+    assert result.segment_title == "Puente musical: Ghost - Rats -> Opeth - Harvest"
     assert result.assets is not None
     assert fake_client.uploads == []
     assert fake_client.telnet_commands == []

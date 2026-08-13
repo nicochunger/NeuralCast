@@ -12,6 +12,8 @@ from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+from mutagen.id3 import APIC, ID3
+
 from neuralcast.pipelines.host_orchestrator import assets as story_assets  # noqa: E402
 from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
     build_prompt,
@@ -68,6 +70,28 @@ class StoryAssetTest(unittest.TestCase):
             duration=240,
         )
 
+    def test_story_audio_tags_preserve_embedded_cover_art(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            audio_path = Path(tmpdir) / "story.mp3"
+            tags = ID3()
+            tags.add(
+                APIC(
+                    encoding=3,
+                    mime="image/jpeg",
+                    type=3,
+                    desc="Cover",
+                    data=b"cover bytes",
+                )
+            )
+            tags.save(audio_path, v2_version=3)
+
+            story_assets.tag_story_audio(audio_path, "Historia del tema")
+
+            saved_tags = ID3(audio_path)
+            self.assertEqual(saved_tags.getall("TPE1")[0].text, ["NueralHost"])
+            self.assertEqual(saved_tags.getall("TIT2")[0].text, ["Historia del tema"])
+            self.assertEqual(saved_tags.getall("APIC")[0].data, b"cover bytes")
+
     def test_neuralforge_story_assets_embed_station_cover_art(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir) / "snippets"
@@ -86,11 +110,18 @@ class StoryAssetTest(unittest.TestCase):
                     Archetype.SHORT_STORY,
                     "Script text",
                     "TTS instructions",
+                    "Historia del tema: Recién sonó - Test Artist - Test Title",
                 )
 
             embed_cover.assert_called_once_with(
                 result.audio_path,
                 story_assets.AI_SNIPPET_COVER_PATH_BY_STATION["neuralforge"],
+            )
+            tags = ID3(result.audio_path)
+            self.assertEqual(tags.getall("TPE1")[0].text, ["NueralHost"])
+            self.assertEqual(
+                tags.getall("TIT2")[0].text,
+                ["Historia del tema: Recién sonó - Test Artist - Test Title"],
             )
 
     def test_neuralcast_story_assets_embed_station_cover_art(self) -> None:
@@ -111,6 +142,7 @@ class StoryAssetTest(unittest.TestCase):
                     Archetype.SHORT_STORY,
                     "Script text",
                     "TTS instructions",
+                    "Historia del tema: Ahora viene - Next Artist - Next Title",
                 )
 
             embed_cover.assert_called_once_with(
@@ -136,6 +168,7 @@ class StoryAssetTest(unittest.TestCase):
                     Archetype.SHORT_STORY,
                     "Script text",
                     "TTS instructions",
+                    "Historia del tema: Recién sonó - Test Artist - Test Title",
                 )
 
             embed_cover.assert_not_called()
@@ -623,7 +656,7 @@ META (JSON):
             "neuralcast.pipelines.host_orchestrator.generation.gemini_generate_text",
             return_value="Historia breve del proximo tema.",
         ) as mock_generate:
-            script, _, archetype_used = generate_archetype_script(
+            script, segment_metadata, archetype_used = generate_archetype_script(
                 archetype=Archetype.SHORT_STORY,
                 station_name="NeuralForge",
                 personality=personality,
@@ -643,6 +676,7 @@ META (JSON):
             )
 
         self.assertEqual(archetype_used, Archetype.SHORT_STORY)
+        self.assertEqual(segment_metadata.track_focus, TrackFocus.NEXT)
         self.assertIn("Historia breve", script)
         prompt = mock_generate.call_args.kwargs["prompt"]
         self.assertIn("Short-story focus mode", prompt)

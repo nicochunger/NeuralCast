@@ -10,7 +10,14 @@ import re
 import subprocess
 from typing import Any, Dict, Mapping
 
-from .config import AI_SNIPPET_COVER_PATH_BY_STATION, LOGGER, STORY_OUTPUT_DIR
+from mutagen.id3 import ID3, ID3NoHeaderError, TIT2, TPE1
+
+from .config import (
+    AI_SNIPPET_COVER_PATH_BY_STATION,
+    HOST_ARTIST_NAME,
+    LOGGER,
+    STORY_OUTPUT_DIR,
+)
 from .models import Archetype, QueueTrack, StoryAssets, TrackMetadata
 from .schedule import resolve_station_metadata_file
 from .transport import AzuraCastClient
@@ -130,12 +137,27 @@ def apply_replaygain(audio_path: pathlib.Path) -> None:
         LOGGER.warning("[audio] ReplayGain skipped due to OS error: %s", exc)
 
 
+def tag_story_audio(audio_path: pathlib.Path, title: str) -> None:
+    """Write the listener-facing identity while preserving embedded artwork."""
+    try:
+        tags = ID3(audio_path)
+    except ID3NoHeaderError:
+        tags = ID3()
+
+    tags.delall("TPE1")
+    tags.delall("TIT2")
+    tags.add(TPE1(encoding=3, text=[HOST_ARTIST_NAME]))
+    tags.add(TIT2(encoding=3, text=[title]))
+    tags.save(audio_path, v2_version=3)
+
+
 def ensure_story_assets(
     station_slug: str,
     current_track: QueueTrack,
     archetype: Archetype,
     script_text: str,
     tts_instructions: str,
+    segment_title: str,
 ) -> StoryAssets:
     safe_artist = sanitize_filename_component(current_track.artist).replace("'", "")
     safe_title = sanitize_filename_component(current_track.title).replace("'", "")
@@ -163,6 +185,7 @@ def ensure_story_assets(
     cover_path = AI_SNIPPET_COVER_PATH_BY_STATION.get(station_slug.casefold())
     if cover_path is not None:
         embed_local_cover_art(audio_path, cover_path)
+    tag_story_audio(audio_path, segment_title)
 
     return StoryAssets(
         text_path=text_path,

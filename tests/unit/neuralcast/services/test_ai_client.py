@@ -40,12 +40,16 @@ class AIClientDefaultsTest(unittest.TestCase):
             duration=240,
         )
 
+        def _fake_speech(**kwargs: object) -> None:
+            pathlib.Path(str(kwargs["outfile"])).write_bytes(b"fake mp3")
+
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch(
                 "neuralcast.pipelines.host_orchestrator.assets.STORY_OUTPUT_DIR",
                 pathlib.Path(tmpdir),
             ), patch(
-                "neuralcast.pipelines.host_orchestrator.assets.synthesize_speech"
+                "neuralcast.pipelines.host_orchestrator.assets.synthesize_speech",
+                side_effect=_fake_speech,
             ) as synthesize_mock, patch(
                 "neuralcast.pipelines.host_orchestrator.assets.apply_replaygain"
             ):
@@ -55,6 +59,7 @@ class AIClientDefaultsTest(unittest.TestCase):
                     archetype=Archetype.SHORT_STORY,
                     script_text="Hola mundo",
                     tts_instructions="Natural",
+                    segment_title="Historia del tema: Recién sonó - Artist - Title",
                 )
 
         synthesize_mock.assert_called_once()

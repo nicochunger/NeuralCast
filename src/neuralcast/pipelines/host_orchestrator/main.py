@@ -50,6 +50,8 @@ from .generation import (
 )
 from .models import (
     Archetype,
+    GeneratedSegmentMetadata,
+    NewsSegment,
     QueueTrack,
     ScheduleContext,
     StationPersonality,
@@ -58,6 +60,7 @@ from .models import (
     TrackMetadata,
     supports_track_focus,
 )
+from .presentation import build_segment_title
 from .schedule import (
     load_schedule_state_payload,
     prune_schedule_block_mentions,
@@ -88,6 +91,8 @@ from .transport import (
     extract_current_track,
     extract_telnet_request_id,
     extract_upload_duration,
+    extract_upload_media_id,
+    extract_upload_song_id,
     extract_upload_storage_path,
     parse_queue_tracks,
 )
@@ -163,6 +168,7 @@ class HostCycleResult:
     next_track: QueueTrack | None = None
     selected_archetype: Archetype | None = None
     used_archetype: Archetype | None = None
+    segment_title: str | None = None
     assets: StoryAssets | None = None
     queued_request_id: str | None = None
     expected_play_at_utc: str | None = None
@@ -510,6 +516,7 @@ def _publish_segment(
     queue_context: QueueContext,
     generation_context: GenerationContext,
     archetype_used: Archetype,
+    segment_title: str,
     news_segment,
     script_text: str,
     assets,
@@ -530,11 +537,17 @@ def _publish_segment(
         raise RuntimeError("Upload response missing storage path.")
 
     story_duration = extract_upload_duration(upload_response)
+    media_id = extract_upload_media_id(upload_response)
+    if not media_id:
+        raise RuntimeError("Upload response missing media ID.")
+    song_id = extract_upload_song_id(upload_response)
     full_media_path = f"/var/azuracast/stations/{args.station}/media/{upload_path}"
     telnet_command = build_request_command(
         media_full_path=full_media_path,
-        title=f"AI Host: {playback.current_track.title}",
+        title=segment_title,
         duration=story_duration,
+        media_id=media_id,
+        song_id=song_id,
     )
 
     telnet_response = run_with_retries(
@@ -572,6 +585,7 @@ def _publish_segment(
     log_segment_event(
         station=args.station,
         archetype=archetype_used.value,
+        segment_title=segment_title,
         current_track=f"{playback.current_track.artist} - {playback.current_track.title}",
         next_track=f"{queue_context.next_track.artist} - {queue_context.next_track.title}",
         queued_request_id=request_id,
@@ -629,7 +643,9 @@ class HostRuntimeDependencies:
     save_state: Callable[[pathlib.Path, Any], None] = save_state_atomic
     make_rng: Callable[[], random.Random] = random.Random
     now: Callable[[], float] = now_ts
-    generate_script: Callable[..., tuple[str, Any, Archetype]] = generate_archetype_script
+    generate_script: Callable[
+        ..., tuple[str, GeneratedSegmentMetadata, Archetype]
+    ] = generate_archetype_script
     create_story_assets: Callable[..., StoryAssets] = ensure_story_assets
     publish_segment: Callable[..., PublishResult] = _publish_segment
 
@@ -805,7 +821,7 @@ class HostOrchestratorRuntime:
                 rng=rng,
             )
 
-            script_text, news_segment, archetype_used = deps.generate_script(
+            script_text, segment_metadata_raw, archetype_used = deps.generate_script(
                 archetype=generation_context.selected_archetype,
                 station_name=runtime.generation_station_name,
                 personality=runtime.station_personality,
@@ -824,8 +840,32 @@ class HostOrchestratorRuntime:
                 forced_track_focus=forced_track_focus,
             )
 
+            if isinstance(segment_metadata_raw, GeneratedSegmentMetadata):
+                segment_metadata = segment_metadata_raw
+            elif isinstance(segment_metadata_raw, NewsSegment):
+                # Keep compatibility with custom/older generator dependencies
+                # that returned NewsSegment directly as the second tuple item.
+                segment_metadata = GeneratedSegmentMetadata(
+                    news_segment=segment_metadata_raw
+                )
+            else:
+                segment_metadata = GeneratedSegmentMetadata()
+            news_segment = segment_metadata.news_segment
+
             if not script_text.strip():
                 raise RuntimeError("Generated script was empty after cleanup.")
+
+            segment_title = build_segment_title(
+                archetype=archetype_used,
+                current_track=playback.current_track,
+                next_track=queue_context.next_track,
+                upcoming_tracks=queue_context.upcoming_tracks,
+                current_meta=generation_context.current_meta,
+                next_meta=generation_context.next_meta,
+                segment_metadata=segment_metadata,
+                schedule_context=queue_context.schedule_context,
+            )
+            LOGGER.info("[segment] Listener-facing title: %s", segment_title)
 
             tts_instructions = build_tts_instructions(runtime.station_personality)
             assets = run_with_retries(
@@ -836,6 +876,7 @@ class HostOrchestratorRuntime:
                     archetype=archetype_used,
                     script_text=script_text,
                     tts_instructions=tts_instructions,
+                    segment_title=segment_title,
                 ),
             )
             LOGGER.info("[assets] Script saved: %s", assets.text_path)
@@ -853,6 +894,7 @@ class HostOrchestratorRuntime:
                     next_track=queue_context.next_track,
                     selected_archetype=generation_context.selected_archetype,
                     used_archetype=archetype_used,
+                    segment_title=segment_title,
                     assets=assets,
                 )
 
@@ -863,6 +905,7 @@ class HostOrchestratorRuntime:
                 queue_context=queue_context,
                 generation_context=generation_context,
                 archetype_used=archetype_used,
+                segment_title=segment_title,
                 news_segment=news_segment,
                 script_text=script_text,
                 assets=assets,
@@ -877,6 +920,7 @@ class HostOrchestratorRuntime:
                 next_track=queue_context.next_track,
                 selected_archetype=generation_context.selected_archetype,
                 used_archetype=archetype_used,
+                segment_title=segment_title,
                 assets=assets,
                 queued_request_id=publish_result.queued_request_id,
                 expected_play_at_utc=publish_result.expected_play_at_utc,

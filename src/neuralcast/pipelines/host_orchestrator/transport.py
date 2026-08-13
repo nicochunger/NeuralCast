@@ -7,6 +7,7 @@ import pathlib
 import warnings
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from .config import HOST_ARTIST_NAME
 from .models import QueueTrack
 from .utils import track_key
 
@@ -267,9 +268,14 @@ def choose_station_payload(
 
 
 def build_request_command(
-    media_full_path: str, title: str, duration: Optional[int]
+    media_full_path: str,
+    title: str,
+    duration: Optional[int],
+    *,
+    media_id: str,
+    song_id: Optional[str] = None,
 ) -> str:
-    artist = "NeuralCast AI"
+    artist = HOST_ARTIST_NAME
 
     def _escape(value: str) -> str:
         return value.replace("\\", "\\\\").replace('"', '\\"')
@@ -277,7 +283,10 @@ def build_request_command(
     annotations = [
         f'title="{_escape(title)}"',
         f'artist="{_escape(artist)}"',
+        f'media_id="{_escape(media_id)}"',
     ]
+    if song_id:
+        annotations.append(f'song_id="{_escape(song_id)}"')
     if duration is not None and duration > 0:
         annotations.append(f'duration="{duration}"')
     return f"requests.push annotate:{','.join(annotations)}:{media_full_path}"
@@ -309,6 +318,31 @@ def extract_upload_duration(upload_response: Mapping[str, Any]) -> Optional[int]
         except (TypeError, ValueError):
             continue
     return None
+
+
+def _extract_upload_value(
+    upload_response: Mapping[str, Any], key: str
+) -> Optional[str]:
+    candidates = [upload_response.get(key)]
+    data = upload_response.get("data")
+    if isinstance(data, Mapping):
+        candidates.append(data.get(key))
+
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        value = str(candidate).strip()
+        if value:
+            return value
+    return None
+
+
+def extract_upload_media_id(upload_response: Mapping[str, Any]) -> Optional[str]:
+    return _extract_upload_value(upload_response, "id")
+
+
+def extract_upload_song_id(upload_response: Mapping[str, Any]) -> Optional[str]:
+    return _extract_upload_value(upload_response, "song_id")
 
 
 def extract_telnet_request_id(response_payload: Mapping[str, Any]) -> Optional[str]:

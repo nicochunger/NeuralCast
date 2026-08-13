@@ -76,6 +76,9 @@ def test_station_and_upload_response_helpers() -> None:
     assert transport.derive_station_display_name(station, "fallback") == "NeuralCast"
     assert transport.extract_upload_storage_path({"data": {"storage_location": "AI Stories/x.mp3"}}) == "AI Stories/x.mp3"
     assert transport.extract_upload_duration({"data": {"length": "12.8"}}) == 12
+    assert transport.extract_upload_media_id({"id": 42}) == "42"
+    assert transport.extract_upload_media_id({"data": {"id": "43"}}) == "43"
+    assert transport.extract_upload_song_id({"song_id": "song-42"}) == "song-42"
     assert transport.extract_telnet_request_id({"logs": [{"context": {"response": ["ok", "request-1"]}}]}) == "request-1"
 
 
@@ -84,9 +87,12 @@ def test_build_request_command_escapes_annotation_values() -> None:
         "AI Stories/item.mp3",
         'A "quoted" title',
         12,
+        media_id="42",
+        song_id='song-"42"',
     )
 
     assert command == (
         'requests.push annotate:title="A \\"quoted\\" title",'
-        'artist="NeuralCast AI",duration="12":AI Stories/item.mp3'
+        'artist="NueralHost",media_id="42",song_id="song-\\"42\\"",'
+        'duration="12":AI Stories/item.mp3'
     )
