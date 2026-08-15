@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hmac
+import json
 import os
 from typing import Any
 
@@ -24,6 +25,7 @@ from .jobs import (
     SUPPORTED_STATIONS,
     SUPPORTED_TRACK_FOCUSES,
 )
+from .favorites import FavoriteStore
 from .stations import AdminStationService, StationServiceConfigError
 
 BEARER_PREFIX = "Bearer "
@@ -268,6 +270,50 @@ class SchedulePresentationResponse(BaseModel):
     blocks: list[dict[str, Any]]
 
 
+class FavoriteTrackPayload(BaseModel):
+    """A favorite track serialized by the PWA."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    id: str = Field(min_length=1, max_length=512)
+    station_id: str = Field(alias="stationId", min_length=1, max_length=32)
+    liked_at: int = Field(alias="likedAt", ge=0)
+    text: str | None = Field(default=None, max_length=500)
+    artist: str | None = Field(default=None, max_length=300)
+    title: str | None = Field(default=None, max_length=300)
+    album: str | None = Field(default=None, max_length=300)
+    genre: str | None = Field(default=None, max_length=300)
+    art: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("station_id")
+    @classmethod
+    def validate_station_id(cls, value: str) -> str:
+        if value not in SUPPORTED_STATIONS:
+            raise ValueError(f"Unsupported station '{value}'.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_track_identity(self) -> "FavoriteTrackPayload":
+        if not any((self.title, self.artist, self.text)):
+            raise ValueError("A favorite must include track metadata.")
+        return self
+
+
+class FavoritesRequest(BaseModel):
+    """Request body for replacing the admin user's favorites."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    favorites: list[FavoriteTrackPayload] = Field(default_factory=list, max_length=500)
+
+
+class FavoritesResponse(BaseModel):
+    """Response body for the admin user's favorites."""
+
+    favorites: list[FavoriteTrackPayload]
+    exists: bool
+
+
 def require_admin_token(
     authorization: str | None = Header(default=None),
 ) -> None:
@@ -312,10 +358,17 @@ def get_schedule_presentation_loader(request: Request):
     return request.app.state.schedule_presentation_loader
 
 
+def get_favorite_store(request: Request) -> FavoriteStore:
+    """Read the shared favorites store from the FastAPI app state."""
+
+    return request.app.state.favorite_store
+
+
 def create_app(
     job_manager: JobManager | None = None,
     station_service: AdminStationService | None = None,
     schedule_presentation_loader=load_schedule_presentation,
+    favorite_store: FavoriteStore | None = None,
 ) -> FastAPI:
     """Create the FastAPI application for the admin HTTP service."""
 
@@ -323,10 +376,54 @@ def create_app(
     app.state.job_manager = job_manager or JobManager()
     app.state.station_service = station_service or AdminStationService()
     app.state.schedule_presentation_loader = schedule_presentation_loader
+    app.state.favorite_store = favorite_store or FavoriteStore()
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get(
+        "/admin/favorites",
+        response_model=FavoritesResponse,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def get_favorites(
+        store: FavoriteStore = Depends(get_favorite_store),
+    ) -> FavoritesResponse:
+        try:
+            raw_favorites, exists = store.read()
+            favorites = _normalize_favorites(raw_favorites)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Favorites storage is unavailable.",
+            ) from exc
+
+        return FavoritesResponse(favorites=favorites, exists=exists)
+
+    @app.put(
+        "/admin/favorites",
+        response_model=FavoritesResponse,
+        dependencies=[Depends(require_admin_token)],
+    )
+    def put_favorites(
+        payload: FavoritesRequest,
+        store: FavoriteStore = Depends(get_favorite_store),
+    ) -> FavoritesResponse:
+        favorites = _normalize_favorites([
+            favorite.model_dump(by_alias=True, exclude_none=True)
+            for favorite in payload.favorites
+        ])
+
+        try:
+            store.write(favorites)
+        except OSError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Favorites storage is unavailable.",
+            ) from exc
+
+        return FavoritesResponse(favorites=favorites, exists=True)
 
     @app.get(
         "/admin/options",
@@ -515,6 +612,19 @@ def create_app(
         return JobStatusResponse(**payload)
 
     return app
+
+
+def _normalize_favorites(raw_favorites: list[dict[str, Any]]) -> list[FavoriteTrackPayload]:
+    by_id: dict[str, FavoriteTrackPayload] = {}
+
+    for raw_favorite in raw_favorites:
+        try:
+            favorite = FavoriteTrackPayload.model_validate(raw_favorite)
+        except Exception:  # noqa: BLE001
+            continue
+        by_id[favorite.id] = favorite
+
+    return sorted(by_id.values(), key=lambda favorite: favorite.liked_at, reverse=True)
 
 
 app = create_app()

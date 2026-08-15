@@ -18,6 +18,7 @@ from neuralcast.admin_api.app import (
     create_app,
     require_admin_token,
 )
+from neuralcast.admin_api.favorites import FavoriteStore
 from neuralcast.admin_api.jobs import (
     DEFAULT_ADMIN_SCHEDULE_SEED_MODE,
     JOB_OPERATION_FORCE_ARCHETYPE,
@@ -101,6 +102,10 @@ class AdminApiUnitTest(unittest.TestCase):
         self.station_service = AdminStationService(
             client_factory=lambda: FakeAzuraCastClient()
         )
+        self.favorite_store = FavoriteStore(
+            path=self.base_dir / "favorites.json",
+            lock_path=self.base_dir / "favorites.lock",
+        )
         os.environ["NEURALCAST_ADMIN_HTTP_TOKEN"] = "test-token"
         self.addCleanup(os.environ.pop, "NEURALCAST_ADMIN_HTTP_TOKEN", None)
 
@@ -119,6 +124,55 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertIn("/admin/force-archetype", paths)
         self.assertIn("/admin/run-schedule-generator", paths)
         self.assertIn("/admin/jobs/{job_id}", paths)
+        self.assertIn("/admin/favorites", paths)
+
+    def test_http_favorites_endpoint_persists_authenticated_admin_favorites(self) -> None:
+        client = TestClient(
+            create_app(
+                job_manager=self.manager,
+                station_service=self.station_service,
+                favorite_store=self.favorite_store,
+            )
+        )
+        headers = {"Authorization": "Bearer test-token"}
+
+        unauthenticated = client.get("/admin/favorites")
+        self.assertEqual(unauthenticated.status_code, 401)
+
+        empty = client.get("/admin/favorites", headers=headers)
+        self.assertEqual(empty.status_code, 200)
+        self.assertEqual(empty.json(), {"favorites": [], "exists": False})
+
+        saved = client.put(
+            "/admin/favorites",
+            headers=headers,
+            json={
+                "favorites": [
+                    {
+                        "id": "neuralcast:artist|song",
+                        "stationId": "neuralcast",
+                        "likedAt": 1760000000000,
+                        "artist": "Artist",
+                        "title": "Song",
+                    }
+                ]
+            },
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()["favorites"][0]["stationId"], "neuralcast")
+        self.assertTrue(self.favorite_store.path.exists())
+
+        loaded = client.get("/admin/favorites", headers=headers)
+        self.assertEqual(loaded.status_code, 200)
+        self.assertTrue(loaded.json()["exists"])
+        self.assertEqual(loaded.json()["favorites"][0]["title"], "Song")
+
+        invalid = client.put(
+            "/admin/favorites",
+            headers=headers,
+            json={"favorites": [{"id": "bad", "stationId": "unknown", "likedAt": 1, "title": "Song"}]},
+        )
+        self.assertEqual(invalid.status_code, 422)
 
     def test_http_endpoints_enforce_auth_and_return_station_payloads(self) -> None:
         client = TestClient(

@@ -77,6 +77,16 @@ The installed cron runs every Monday at `04:45` Europe/Paris time and executes:
 /root/projects/NeuralCast/deployment/repair_admin_api_bridge_after_azuracast_update.sh
 ```
 
+## Admin favorites storage
+
+The authenticated admin HTTP API exposes `GET` and `PUT` `/admin/favorites` for the NeuralCast web PWA. It stores the single admin user's station-grouped favorites at:
+
+```text
+/root/projects/NeuralCast/runtime/admin_http/favorites.json
+```
+
+Writes are atomic and protected by `/root/projects/NeuralCast/runtime/admin_http/favorites.lock`. The Vercel app reaches this route through its existing `HOST_ADMIN_BASE_URL` and `HOST_ADMIN_TOKEN` configuration; the browser never receives the VPS token.
+
 The script:
 
 - discovers the current `azuracast_default` Docker bridge
