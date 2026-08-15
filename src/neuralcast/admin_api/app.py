@@ -410,10 +410,14 @@ def create_app(
         payload: FavoritesRequest,
         store: FavoriteStore = Depends(get_favorite_store),
     ) -> FavoritesResponse:
-        favorites = _normalize_favorites([
+        normalized_favorites = _normalize_favorites([
             favorite.model_dump(by_alias=True, exclude_none=True)
             for favorite in payload.favorites
         ])
+        favorites = [
+            favorite.model_dump(by_alias=True, exclude_none=True)
+            for favorite in normalized_favorites
+        ]
 
         try:
             store.write(favorites)
@@ -423,7 +427,7 @@ def create_app(
                 detail="Favorites storage is unavailable.",
             ) from exc
 
-        return FavoritesResponse(favorites=favorites, exists=True)
+        return FavoritesResponse(favorites=normalized_favorites, exists=True)
 
     @app.get(
         "/admin/options",
