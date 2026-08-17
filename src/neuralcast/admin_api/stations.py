@@ -12,8 +12,9 @@ from neuralcast.pipelines.host_orchestrator.transport import (
     extract_current_track,
     parse_queue_tracks,
 )
+from neuralcast.pipelines.host_orchestrator.channels import resolve_host_channel
 
-from .jobs import SUPPORTED_STATIONS
+from .jobs import SUPPORTED_HOST_CHANNELS, SUPPORTED_STATIONS
 
 ClientFactory = Callable[[], AzuraCastClient]
 
@@ -39,10 +40,10 @@ class AdminStationService:
         self._client_factory = client_factory or self._build_client_from_env
 
     def now_playing(self, station: str) -> dict[str, Any]:
-        self._validate_station(station)
+        target_station = self._target_station(station)
 
         client = self._client_factory()
-        payload = client.get_now_playing(station)
+        payload = client.get_now_playing(target_station)
         current_track, remaining_seconds = extract_current_track(payload)
         listener_count = extract_current_listeners(payload)
 
@@ -54,14 +55,14 @@ class AdminStationService:
         }
 
     def queue(self, station: str, *, limit: int = 4) -> dict[str, Any]:
-        self._validate_station(station)
+        target_station = self._target_station(station)
 
         client = self._client_factory()
-        queue_payload = client.get_upcoming_queue(station)
+        queue_payload = client.get_upcoming_queue(target_station)
         queue_tracks = parse_queue_tracks(queue_payload)
 
         try:
-            now_playing_payload = client.get_now_playing(station)
+            now_playing_payload = client.get_now_playing(target_station)
             current_track, _remaining_seconds = extract_current_track(now_playing_payload)
             items = choose_upcoming_tracks(
                 current=current_track,
@@ -78,11 +79,15 @@ class AdminStationService:
             "next_track": (_serialize_track(next_track) if next_track is not None else None),
         }
 
-    def _validate_station(self, station: str) -> None:
+    def _target_station(self, station: str) -> str:
+        if station in SUPPORTED_HOST_CHANNELS:
+            return resolve_host_channel(channel_key=station).azuracast_station
         if station not in SUPPORTED_STATIONS:
             raise ValueError(
-                f"Unsupported station '{station}'. Allowed values: {SUPPORTED_STATIONS}."
+                "Unsupported station or host channel "
+                f"'{station}'. Allowed values: {SUPPORTED_STATIONS + SUPPORTED_HOST_CHANNELS}."
             )
+        return station
 
     @staticmethod
     def _build_client_from_env() -> AzuraCastClient:

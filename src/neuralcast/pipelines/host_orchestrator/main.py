@@ -26,6 +26,7 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
 
+from .channels import HostChannel, host_channel_keys, resolve_host_channel
 from .assets import (
     cleanup_local_stories,
     cleanup_remote_stories,
@@ -45,7 +46,6 @@ from .config import (
 from .generation import (
     build_tts_instructions,
     generate_archetype_script,
-    resolve_station_personality,
     station_name_for_generation,
 )
 from .models import (
@@ -111,6 +111,7 @@ class ArgumentValidationError(ValueError):
 
 @dataclass(frozen=True)
 class StationRuntime:
+    channel: HostChannel
     station_dir: pathlib.Path
     client: AzuraCastClient
     station_id: int
@@ -150,6 +151,7 @@ class GenerationContext:
 class HostCycleRequest:
     station: str
     base_url: str
+    channel: str | None = None
     dry_run: bool = False
     min_listeners: int = 1
     force_archetype: Archetype | None = None
@@ -172,6 +174,7 @@ class HostCycleResult:
     assets: StoryAssets | None = None
     queued_request_id: str | None = None
     expected_play_at_utc: str | None = None
+    channel: str | None = None
 
 
 @dataclass(frozen=True)
@@ -215,6 +218,7 @@ def _load_required_api_key() -> str:
 
 def _load_station_runtime(
     args: argparse.Namespace,
+    channel: HostChannel,
     api_key: str,
     station_dir: pathlib.Path,
     schedule_block_mentions: Mapping[str, Mapping[str, Any]],
@@ -222,17 +226,37 @@ def _load_station_runtime(
 ) -> StationRuntime:
     client = client_factory(args.base_url.rstrip("/"), api_key, args.verify_tls)
 
-    stations = run_with_retries("Fetch stations", client.get_stations)
-    station_payload = choose_station_payload(stations, args.station)
-    station_id_raw = station_payload.get("id")
-    station_id = int(station_id_raw) if station_id_raw is not None else None
-    if station_id is None:
-        raise RuntimeError("Station payload missing station ID; cannot queue media.")
-
-    station_name = derive_station_display_name(station_payload, fallback=args.station)
-    generation_station_name = station_name_for_generation(args.station, station_name)
-    station_personality = resolve_station_personality(args.station)
-    LOGGER.info("[station] Personality profile active: %s", args.station)
+    if channel.azuracast_station_id is not None:
+        station_id = channel.azuracast_station_id
+        station_name = args.station
+        LOGGER.info(
+            "[station] Using configured AzuraCast station ID %s.", station_id
+        )
+    else:
+        stations = run_with_retries("Fetch stations", client.get_stations)
+        station_payload = choose_station_payload(stations, args.station)
+        station_id_raw = station_payload.get("id")
+        station_id = int(station_id_raw) if station_id_raw is not None else None
+        if station_id is None:
+            raise RuntimeError("Station payload missing station ID; cannot queue media.")
+        station_name = derive_station_display_name(
+            station_payload, fallback=args.station
+        )
+    generation_station_name = station_name_for_generation(
+        channel.brand.personality_station, station_name
+    )
+    station_personality = StationPersonality(
+        script_profile=channel.brand.script_style,
+        tts_profile=channel.brand.tts_style,
+    )
+    LOGGER.info(
+        "[station] Channel=%s target=%s brand=%s locale=%s media_owner=%s",
+        channel.key,
+        channel.azuracast_station,
+        channel.brand.key,
+        channel.locale.tag,
+        channel.media_owner_station,
+    )
 
     schedule_state = load_schedule_state_payload(station_dir)
     if schedule_state is not None:
@@ -242,6 +266,7 @@ def _load_station_runtime(
         )
 
     return StationRuntime(
+        channel=channel,
         station_dir=station_dir,
         client=client,
         station_id=station_id,
@@ -445,7 +470,7 @@ def _select_archetype(
         current_remaining=playback.current_remaining,
         seconds_until_block_change=seconds_until_block_change,
         disabled_archetypes=archetype_settings_for_station(
-            args.station
+            args.brand_station
         ).disabled_archetypes,
     )
     if legal:
@@ -541,7 +566,7 @@ def _publish_segment(
     if not media_id:
         raise RuntimeError("Upload response missing media ID.")
     song_id = extract_upload_song_id(upload_response)
-    full_media_path = f"/var/azuracast/stations/{args.station}/media/{upload_path}"
+    full_media_path = f"{runtime.channel.liquidsoap_media_root}/{upload_path}"
     telnet_command = build_request_command(
         media_full_path=full_media_path,
         title=segment_title,
@@ -573,7 +598,9 @@ def _publish_segment(
         script_text=script_text,
         schedule_context=queue_context.schedule_context,
         rng=rng,
-        cadence_settings=cadence_settings_for_station(args.station),
+        cadence_settings=cadence_settings_for_station(
+            runtime.channel.brand.cadence_station
+        ),
     )
 
     expected_play_at_utc = iso_utc(success_ts + max(0, playback.current_remaining))
@@ -611,8 +638,13 @@ def _publish_segment(
         expected_play_at_utc,
     )
 
-    cleanup_local_stories(args.station, args.keep_local_days)
-    cleanup_remote_stories(runtime.client, args.station, args.keep_remote_days)
+    cleanup_local_stories(runtime.channel.key, args.keep_local_days)
+    cleanup_remote_stories(
+        runtime.client,
+        args.station,
+        args.keep_remote_days,
+        remote_prefix=runtime.channel.remote_prefix,
+    )
     return PublishResult(
         queued_request_id=request_id,
         expected_play_at_utc=expected_play_at_utc,
@@ -651,8 +683,15 @@ class HostRuntimeDependencies:
 
 
 def _args_from_cycle_request(request: HostCycleRequest) -> argparse.Namespace:
+    channel = resolve_host_channel(
+        channel_key=request.channel,
+        station_slug=request.station,
+    )
     return argparse.Namespace(
-        station=request.station,
+        channel=channel.key,
+        station=channel.azuracast_station,
+        content_station=channel.content_station,
+        brand_station=channel.brand.cadence_station,
         base_url=request.base_url,
         dry_run=request.dry_run,
         min_listeners=request.min_listeners,
@@ -672,6 +711,7 @@ def _cycle_request_from_args(args: argparse.Namespace) -> HostCycleRequest:
     return HostCycleRequest(
         station=args.station,
         base_url=args.base_url,
+        channel=getattr(args, "channel", None),
         dry_run=args.dry_run,
         min_listeners=args.min_listeners,
         force_archetype=(
@@ -696,12 +736,15 @@ class HostOrchestratorRuntime:
     def run_cycle(self, request: HostCycleRequest) -> HostCycleResult:
         deps = self.dependencies
         args = _args_from_cycle_request(request)
+        channel = resolve_host_channel(channel_key=args.channel)
         deps.configure_logging()
         forced_track_focus = validate_runtime_args(args)
         LOGGER.info("%s", "=" * 84)
         LOGGER.info(
-            "[cycle] Invocation received | station=%s | dry_run=%s | force_archetype=%s | force_track_focus=%s",
+            "[cycle] Invocation received | channel=%s | station=%s | locale=%s | dry_run=%s | force_archetype=%s | force_track_focus=%s",
+            channel.key,
             args.station,
+            channel.locale.tag,
             args.dry_run,
             args.force_archetype or "none",
             forced_track_focus.value if forced_track_focus is not None else "none",
@@ -710,8 +753,9 @@ class HostOrchestratorRuntime:
         api_key = deps.load_required_api_key()
         rng = deps.make_rng()
         cycle_ts = deps.now()
-        station_dir, state_path, lock_path = deps.station_state_paths(args.station)
-        metadata_dir = station_dir / "metadata"
+        station_dir, state_path, lock_path = deps.station_state_paths(channel.key)
+        metadata_dir = state_path.parent
+        metadata_dir.mkdir(parents=True, exist_ok=True)
         main_log_path, segment_log_path = deps.configure_station_file_logging(
             metadata_dir
         )
@@ -721,6 +765,7 @@ class HostOrchestratorRuntime:
                 status="skipped",
                 reason="lock active",
                 station=args.station,
+                channel=channel.key,
             )
 
         state = None
@@ -736,7 +781,9 @@ class HostOrchestratorRuntime:
                 segment_log_path,
             )
 
-            cadence_settings = cadence_settings_for_station(args.station)
+            cadence_settings = cadence_settings_for_station(
+                channel.brand.cadence_station
+            )
             state = deps.load_state(state_path, cycle_ts, rng, cadence_settings)
             LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
             LOGGER.info(
@@ -755,6 +802,7 @@ class HostOrchestratorRuntime:
             )
             runtime = _load_station_runtime(
                 args=args,
+                channel=channel,
                 api_key=api_key,
                 station_dir=station_dir,
                 schedule_block_mentions=state.schedule_block_mentions,
@@ -766,6 +814,7 @@ class HostOrchestratorRuntime:
                     status="skipped",
                     reason="playback unavailable",
                     station=args.station,
+                    channel=channel.key,
                 )
 
             queue_context = _fetch_queue_context(
@@ -780,6 +829,7 @@ class HostOrchestratorRuntime:
                     status="skipped",
                     reason="queue unavailable",
                     station=args.station,
+                    channel=channel.key,
                     current_track=playback.current_track,
                 )
 
@@ -805,6 +855,7 @@ class HostOrchestratorRuntime:
                     status="skipped",
                     reason="archetype gate closed",
                     station=args.station,
+                    channel=channel.key,
                     current_track=playback.current_track,
                     next_track=queue_context.next_track,
                 )
@@ -838,6 +889,7 @@ class HostOrchestratorRuntime:
                 rng=rng,
                 forced_mode=generation_context.forced_news_mode,
                 forced_track_focus=forced_track_focus,
+                locale=channel.locale,
             )
 
             if isinstance(segment_metadata_raw, GeneratedSegmentMetadata):
@@ -864,19 +916,28 @@ class HostOrchestratorRuntime:
                 next_meta=generation_context.next_meta,
                 segment_metadata=segment_metadata,
                 schedule_context=queue_context.schedule_context,
+                locale=channel.locale,
             )
             LOGGER.info("[segment] Listener-facing title: %s", segment_title)
 
-            tts_instructions = build_tts_instructions(runtime.station_personality)
+            tts_instructions = build_tts_instructions(
+                runtime.station_personality,
+                locale=channel.locale,
+            )
             assets = run_with_retries(
                 "TTS synthesis",
                 lambda: deps.create_story_assets(
-                    station_slug=args.station,
+                    station_slug=channel.content_station,
                     current_track=playback.current_track,
                     archetype=archetype_used,
                     script_text=script_text,
                     tts_instructions=tts_instructions,
                     segment_title=segment_title,
+                    channel_key=channel.key,
+                    cover_station=channel.brand.cover_station,
+                    remote_prefix=channel.remote_prefix,
+                    tts_voice=channel.locale.tts_voice,
+                    language=channel.locale.tag,
                 ),
             )
             LOGGER.info("[assets] Script saved: %s", assets.text_path)
@@ -890,6 +951,7 @@ class HostOrchestratorRuntime:
                     status="generated",
                     reason=None,
                     station=args.station,
+                    channel=channel.key,
                     current_track=playback.current_track,
                     next_track=queue_context.next_track,
                     selected_archetype=generation_context.selected_archetype,
@@ -916,6 +978,7 @@ class HostOrchestratorRuntime:
                 status="published",
                 reason=None,
                 station=args.station,
+                channel=channel.key,
                 current_track=playback.current_track,
                 next_track=queue_context.next_track,
                 selected_archetype=generation_context.selected_archetype,
@@ -965,6 +1028,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         choices=ALLOWED_STATION_SLUGS,
         default=os.getenv("AZURACAST_STATION", DEFAULT_STATION_SLUG),
         help="AzuraCast station shortcode (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--channel",
+        choices=host_channel_keys(),
+        help=(
+            "Configured broadcast channel. Overrides --station and selects the "
+            "target AzuraCast station, content brand, locale, state, and media path."
+        ),
     )
     parser.add_argument(
         "--dry-run",

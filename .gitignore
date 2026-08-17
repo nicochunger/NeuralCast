@@ -20,4 +20,7 @@ logs/*.log
 */albums_not_validated.csv
 */metadata/ai_host_orchestrator_state.json
 */metadata/ai_host_orchestrator_state.corrupt.*.json
+*/metadata/host_channels/*/ai_host_orchestrator_state.json
+*/metadata/host_channels/*/ai_host_orchestrator_state.corrupt.*.json
+*/metadata/host_channels/*/ai_host_orchestrator.lock
 */metadata/ai_schedule_state.json

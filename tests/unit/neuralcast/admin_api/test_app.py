@@ -338,6 +338,10 @@ class AdminApiUnitTest(unittest.TestCase):
 
         with self.assertRaises(ValidationError):
             ForceArchetypeRequest(station="bad-station", archetype="deep_dive")
+        english_request = ForceArchetypeRequest(
+            station="neuralcast-en", archetype="back_sell"
+        )
+        self.assertEqual(english_request.station, "neuralcast-en")
         with self.assertRaises(ValidationError):
             ForceArchetypeRequest(station="neuralcast", archetype="not-real")
         album_spotlight_request = ForceArchetypeRequest(

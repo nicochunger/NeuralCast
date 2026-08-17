@@ -15,6 +15,9 @@ from zoneinfo import ZoneInfo
 from mutagen.id3 import APIC, ID3
 
 from neuralcast.pipelines.host_orchestrator import assets as story_assets  # noqa: E402
+from neuralcast.pipelines.host_orchestrator.channels import (  # noqa: E402
+    get_channel_registry,
+)
 from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
     build_prompt,
     build_system_prompt,
@@ -149,6 +152,39 @@ class StoryAssetTest(unittest.TestCase):
                 result.audio_path,
                 story_assets.AI_SNIPPET_COVER_PATH_BY_STATION["neuralcast"],
             )
+
+    def test_channel_story_assets_use_isolated_paths_and_locale_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "snippets"
+            speech_calls: list[dict[str, object]] = []
+
+            def _fake_speech(**kwargs: object) -> None:
+                speech_calls.append(kwargs)
+                Path(str(kwargs["outfile"])).write_bytes(b"fake mp3")
+
+            with patch.object(story_assets, "STORY_OUTPUT_DIR", output_dir), patch.object(
+                story_assets, "synthesize_speech", side_effect=_fake_speech
+            ), patch.object(story_assets, "apply_replaygain"), patch.object(
+                story_assets, "embed_local_cover_art", return_value=True
+            ):
+                result = story_assets.ensure_story_assets(
+                    "neuralcast",
+                    self._queue_track(),
+                    Archetype.BACK_SELL,
+                    "English script",
+                    "English TTS instructions",
+                    "Music bridge",
+                    channel_key="neuralcast-en",
+                    cover_station="neuralcast",
+                    remote_prefix="AI Stories/neuralcast/en",
+                    tts_voice="Aoede",
+                    language="en",
+                )
+
+            self.assertEqual(result.audio_path.parts[-3], "neuralcast-en")
+            self.assertTrue(result.remote_path.startswith("AI Stories/neuralcast/en/"))
+            self.assertEqual(speech_calls[0]["gemini_voice"], "Aoede")
+            self.assertEqual(ID3(result.audio_path).getall("TLAN")[0].text, ["en"])
 
     def test_unmapped_station_story_assets_skip_station_cover_art(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -402,6 +438,19 @@ META (JSON):
         self.assertEqual(segment.story_count, 1)
         self.assertEqual(segment.stories[0].topic, "Tech/AI")
 
+    def test_parse_news_output_accepts_configured_english_locale(self) -> None:
+        output = """SCRIPT:
+Here is the latest update.
+
+META (JSON):
+{"story_count": 1, "language": "en", "stories": [{"topic": "Science", "headline": "New result", "source_url": "https://example.com/item"}]}
+"""
+
+        segment, reason = parse_news_output(output, expected_locale="en")
+
+        self.assertEqual(reason, "ok")
+        self.assertIsNotNone(segment)
+
     def test_news_validation_duplicate_and_age(self) -> None:
         ts = time.time()
         rng = __import__("random").Random(5)
@@ -460,6 +509,18 @@ META (JSON):
         self.assertIn("Perfil de personalidad de la estacion", system_prompt)
         self.assertIn("metal", system_prompt.lower())
         self.assertIn("La voz suena natural", tts_instructions)
+
+    def test_english_locale_controls_system_prompt_and_tts(self) -> None:
+        locale = get_channel_registry().locales["en"]
+        personality = resolve_station_personality("neuralcast")
+
+        system_prompt = build_system_prompt(
+            "NéuralCast", personality, locale=locale
+        )
+        tts_instructions = build_tts_instructions(personality, locale=locale)
+
+        self.assertIn("exclusively in natural conversational English", system_prompt)
+        self.assertIn("neutral international accent", tts_instructions)
 
     def test_should_enable_search_for_new_archetypes(self) -> None:
         self.assertTrue(should_enable_search(Archetype.ALBUM_SPOTLIGHT, None))

@@ -1,0 +1,146 @@
+{
+  "brands": {
+    "neuralcast": {
+      "content_station": "neuralcast",
+      "personality_station": "neuralcast",
+      "cadence_station": "neuralcast",
+      "cover_station": "neuralcast",
+      "script_style": "NeuralCast is calm, natural, mature, warm, lightly nostalgic, and musically informed. It sounds like a real host speaking live in a studio: relaxed but attentive, never theatrical, corporate, robotic, or over-polished. Transitions should acknowledge the listening moment naturally and hand off to the next track with quiet confidence.",
+      "tts_style": "Use restrained, mature energy, an unhurried but living pace, clear breathing, warmth, and a lightly nostalgic presence. Sound like a real radio host sharing music with taste and closeness, never a corporate announcer."
+    },
+    "neuralforge": {
+      "content_station": "neuralforge",
+      "personality_station": "neuralforge",
+      "cadence_station": "neuralforge",
+      "cover_station": "neuralforge",
+      "script_style": "NeuralForge is direct, warm, conversational, musically precise, and firmly energetic without shouting or becoming theatrical. Use compact, speakable lines and concrete observations rather than reviews or lectures. Avoid tired metal clichés unless a specific track fact genuinely supports them.",
+      "tts_style": "Use high but controlled energy, confident presence, crisp attacks, short natural pauses, and real breathing. Sound like a live metal-radio host, never a corporate voice or a caricature."
+    }
+  },
+  "locales": {
+    "es-AR": {
+      "output_language": "natural Argentinian Spanish",
+      "script_guidance": "Write the spoken script exclusively in natural Argentinian Spanish (es-AR), using voseo and restrained Rioplatense phrasing. Preserve artist names, song titles, album names, playlist names, and source names exactly as supplied.",
+      "tts_instructions": "prompts/tts_instructions.md",
+      "tts_voice": "Enceladus",
+      "presentation": {
+        "back_sell": "Puente musical",
+        "up_next_tease": "Lo que viene",
+        "short_story": "Historia del tema",
+        "album_spotlight": "Álbum en foco",
+        "era_snapshot": "Postal de época",
+        "deep_dive": "Contexto a fondo",
+        "news": "Panorama de noticias",
+        "concert_check": "Agenda en vivo",
+        "block_intro": "Inicio de bloque",
+        "ultra_minimal": "Pase musical",
+        "default": "Segmento musical",
+        "current": "Recién sonó",
+        "next": "Ahora viene",
+        "previous_track": "tema anterior",
+        "next_track": "próximo tema",
+        "unknown_track": "tema sin identificar",
+        "current_affairs": "actualidad",
+        "concerts": "agenda de shows",
+        "new_section": "nueva sección",
+        "music": "música",
+        "and": "y",
+        "fallback_current_next": ["Recien sono {current_title}; ahora sigue {next_artist} con {next_title}.", "Venimos de {current_artist} con {current_title}; ahora entra {next_artist} con {next_title}."],
+        "fallback_next": ["Ahora sigue {next_artist} con {next_title}."],
+        "fallback_music": "Seguimos con musica."
+      },
+      "schedule": {
+        "block_terms": ["bloque", "seccion"],
+        "current_markers": ["estamos en", "seguimos en", "aca en"],
+        "open_markers": ["bloque libre", "sin tematica", "mezcla libre", "cualquier genero", "catalogo", "generos cruzados"],
+        "open_label": "bloque libre",
+        "mid_open_short": ["seguimos en bloque libre, sin tematica", "aca en bloque libre, mezcla libre"],
+        "mid_open_long": ["seguimos en bloque libre, sin tematica, con mezcla de todo el catalogo", "aca en bloque libre: pueden caer generos cruzados de todo el catalogo"],
+        "start_open_short": ["arranca bloque libre, sin tematica", "arranca mezcla libre, sin tematica"],
+        "start_open_long": ["arranca bloque libre, sin tematica: puede sonar cualquier genero del catalogo", "arranca mezcla libre, con catalogo barajado y cruce de generos"],
+        "mid_section_short": ["seguimos en {section}", "aca en {section}", "en {section}"],
+        "mid_section_long": ["seguimos en {section}, con ese clima de {genres}", "aca en {section}, bien en esa linea de {genres}"],
+        "start_section_short": ["arranca {section}, con {genres}", "arrancamos {section}, con {genres}"],
+        "start_section_long": ["arranca {section}, con ese eje de {genres}", "abre {section}, con ese color de {genres}"],
+        "genre_default": ["en esa linea de {genres}"]
+      }
+    },
+    "en": {
+      "output_language": "natural conversational English",
+      "script_guidance": "Write the spoken script exclusively in natural conversational English. Use a clear neutral international register, warm radio phrasing, and no Spanish fillers or grammar. Preserve artist names, song titles, album names, playlist names, and source names exactly as supplied. Spanish text elsewhere in the control prompt is instruction only and must never determine the output language.",
+      "tts_instructions": "prompts/locales/en/tts_instructions.md",
+      "tts_voice": "Enceladus",
+      "presentation": {
+        "back_sell": "Music bridge",
+        "up_next_tease": "Coming up",
+        "short_story": "Track story",
+        "album_spotlight": "Album spotlight",
+        "era_snapshot": "Era snapshot",
+        "deep_dive": "Deep dive",
+        "news": "News update",
+        "concert_check": "Concert radar",
+        "block_intro": "Block introduction",
+        "ultra_minimal": "Music handoff",
+        "default": "Host segment",
+        "current": "Just played",
+        "next": "Coming up",
+        "previous_track": "previous track",
+        "next_track": "next track",
+        "unknown_track": "unidentified track",
+        "current_affairs": "current affairs",
+        "concerts": "concert calendar",
+        "new_section": "new section",
+        "music": "music",
+        "and": "and",
+        "fallback_current_next": ["That was {current_title}; now here’s {next_artist} with {next_title}.", "We’ve just heard {current_artist} with {current_title}; next up is {next_artist} with {next_title}."],
+        "fallback_next": ["Next up is {next_artist} with {next_title}."],
+        "fallback_music": "Let’s get back to the music."
+      },
+      "schedule": {
+        "block_terms": ["block", "section", "set"],
+        "current_markers": ["we're in", "we are in", "staying with", "continuing in"],
+        "open_markers": ["open rotation", "open block", "free-form", "mixed genres", "whole catalog", "full catalog"],
+        "open_label": "open rotation",
+        "mid_open_short": ["we're staying in open rotation", "still in the free-form mix"],
+        "mid_open_long": ["we're staying in open rotation, with the whole catalog in play", "we're still in the free-form mix, crossing genres from the full catalog"],
+        "start_open_short": ["open rotation starts here", "the free-form mix starts here"],
+        "start_open_long": ["open rotation starts here, with the whole catalog in play", "the free-form mix starts here, crossing genres across the catalog"],
+        "mid_section_short": ["we're staying with {section}", "still in {section}", "continuing in {section}"],
+        "mid_section_long": ["we're staying with {section}, in that {genres} lane", "still in {section}, with the sound of {genres}"],
+        "start_section_short": ["{section} starts here, with {genres}", "we're opening {section} with {genres}"],
+        "start_section_long": ["{section} starts here, built around {genres}", "we're opening {section} in a {genres} direction"],
+        "genre_default": ["in that {genres} direction"]
+      }
+    }
+  },
+  "channels": {
+    "neuralcast-es": {
+      "azuracast_station": "neuralcast",
+      "brand": "neuralcast",
+      "locale": "es-AR",
+      "media_owner_station": "neuralcast",
+      "remote_prefix": "AI Stories/neuralcast/es-AR",
+      "legacy_station": "neuralcast"
+    },
+    "neuralcast-en": {
+      "azuracast_station": "neuralcast_shared_media_test",
+      "azuracast_station_id": 3,
+      "brand": "neuralcast",
+      "locale": "en",
+      "media_owner_station": "neuralcast",
+      "remote_prefix": "AI Stories/neuralcast/en"
+    },
+    "neuralforge-es": {
+      "azuracast_station": "neuralforge",
+      "brand": "neuralforge",
+      "locale": "es-AR",
+      "media_owner_station": "neuralforge",
+      "remote_prefix": "AI Stories/neuralforge/es-AR",
+      "legacy_station": "neuralforge"
+    }
+  },
+  "legacy_station_channels": {
+    "neuralcast": "neuralcast-es",
+    "neuralforge": "neuralforge-es"
+  }
+}

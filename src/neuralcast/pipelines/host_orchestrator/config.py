@@ -170,7 +170,11 @@ def configure_station_file_logging(
     *,
     level: int = logging.INFO,
 ) -> Tuple[pathlib.Path, pathlib.Path]:
-    station_name = metadata_dir.parent.name.strip().lower() or "unknown"
+    if metadata_dir.parent.name == "host_channels":
+        station_name = metadata_dir.name.strip().lower()
+    else:
+        station_name = metadata_dir.parent.name.strip().lower()
+    station_name = station_name or "unknown"
     station_logs_dir = LOGS_ROOT / "host_orchestrator" / station_name
     station_logs_dir.mkdir(parents=True, exist_ok=True)
     main_log_path = station_logs_dir / ORCHESTRATOR_LOG_FILENAME

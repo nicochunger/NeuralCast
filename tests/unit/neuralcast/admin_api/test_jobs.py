@@ -40,6 +40,20 @@ def test_build_job_command_dispatches_by_operation(tmp_path) -> None:
     assert "--dry-run" in argv
 
 
+def test_force_archetype_command_targets_configured_host_channel(tmp_path) -> None:
+    argv, _env, _cwd = jobs.build_force_archetype_command(
+        "neuralcast-en",
+        "back_sell",
+        None,
+        True,
+        project_root=tmp_path,
+    )
+
+    channel_index = argv.index("--channel")
+    assert argv[channel_index + 1] == "neuralcast-en"
+    assert "-s" not in argv
+
+
 def test_read_log_tail_returns_last_lines(tmp_path) -> None:
     log_path = tmp_path / "job.log"
     log_path.write_text("one\ntwo\nthree\n", encoding="utf-8")

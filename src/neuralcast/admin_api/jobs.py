@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, PROJECT_ROOT, RUNTIME_ROOT
+from neuralcast.pipelines.host_orchestrator.channels import host_channel_keys
 from neuralcast.pipelines.host_orchestrator.models import (
     Archetype,
     TrackFocus,
@@ -27,6 +28,7 @@ from neuralcast.pipelines.schedule_generator.generation import (
 
 EXPECTED_SUPPORTED_STATIONS = ("neuralcast", "neuralforge")
 SUPPORTED_STATIONS = tuple(ALLOWED_STATION_SLUGS)
+SUPPORTED_HOST_CHANNELS = host_channel_keys()
 if SUPPORTED_STATIONS != EXPECTED_SUPPORTED_STATIONS:
     raise RuntimeError(
         "Admin API station allowlist drifted from the expected "
@@ -163,11 +165,12 @@ def build_force_archetype_command(
     if not python_executable.exists():
         python_executable = Path(sys.executable)
 
+    target_option = "--channel" if station in SUPPORTED_HOST_CHANNELS else "-s"
     argv = [
         str(python_executable),
         "-m",
         "neuralcast.cli.host_orchestrator",
-        "-s",
+        target_option,
         station,
         "--force-archetype",
         archetype,
@@ -432,6 +435,7 @@ class JobManager:
 
         return {
             "stations": list(SUPPORTED_STATIONS),
+            "host_channels": list(SUPPORTED_HOST_CHANNELS),
             "archetypes": list(SUPPORTED_ARCHETYPES),
         }
 
@@ -440,6 +444,7 @@ class JobManager:
 
         return {
             "stations": list(SUPPORTED_STATIONS),
+            "host_channels": list(SUPPORTED_HOST_CHANNELS),
             "archetypes": list(SUPPORTED_ARCHETYPES),
             "track_focus_values": list(SUPPORTED_TRACK_FOCUSES),
             "track_focus_archetypes": list(SUPPORTED_TRACK_FOCUS_ARCHETYPES),

@@ -12,6 +12,8 @@ from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
+from .channels import HostLocale, get_channel_registry
+
 from .config import (
     CONCERT_COUNTRY_ALIASES,
     CONCERT_OUTPUT_RE,
@@ -29,7 +31,6 @@ from .config import (
     STATION_GENERATION_NAMES,
     STATION_PERSONALITIES,
     SYSTEM_TZ,
-    TTS_INSTRUCTIONS_PATH,
     WRAPPER_ALBUM_SPOTLIGHT,
     WRAPPER_BACK_SELL,
     WRAPPER_BLOCK_INTRO,
@@ -79,6 +80,14 @@ class ArchetypePromptVariants:
     deep_dive_focus: Optional[str] = None
 
 
+def _default_locale() -> HostLocale:
+    return get_channel_registry().locales["es-AR"]
+
+
+def _resolved_locale(locale: Optional[HostLocale]) -> HostLocale:
+    return locale or _default_locale()
+
+
 def _segment_metadata_for_archetype(
     archetype: Archetype,
     prompt_kwargs: Mapping[str, Any],
@@ -117,7 +126,9 @@ def format_shared_input(
     era_snapshot_focus: Optional[str] = None,
     deep_dive_lane: Optional[str] = None,
     deep_dive_focus: Optional[str] = None,
+    locale: Optional[HostLocale] = None,
 ) -> str:
+    locale = _resolved_locale(locale)
     now_local = dt.datetime.now(SYSTEM_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
     hook_text = (hook or "").strip()
     if hook_text:
@@ -405,7 +416,12 @@ def format_shared_input(
                 ]
             )
 
-    lines.append("- Idioma de salida del guion hablado: es-AR")
+    lines.extend(
+        [
+            f"- Idioma de salida del guion hablado: {locale.tag} ({locale.output_language})",
+            f"- Instruccion de idioma obligatoria y prioritaria: {locale.script_guidance}",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -431,10 +447,12 @@ def build_prompt(
     deep_dive_focus: Optional[str] = None,
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
+    locale: Optional[HostLocale] = None,
 ) -> str:
+    locale = _resolved_locale(locale)
     if archetype == Archetype.NEWS:
         now_utc = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-        wrapper = WRAPPER_NEWS.format(
+        wrapper = WRAPPER_NEWS.replace("es-AR", locale.tag).format(
             story_count=story_count or 1,
             news_topics=", ".join(news_topics or NEWS_TOPICS),
             news_max_age_hours=NEWS_MAX_AGE_HOURS,
@@ -448,7 +466,7 @@ def build_prompt(
             ).isoformat().replace("+00:00", "Z"),
         )
     elif archetype == Archetype.CONCERT_CHECK:
-        wrapper = WRAPPER_CONCERT_CHECK.format(
+        wrapper = WRAPPER_CONCERT_CHECK.replace("es-AR", locale.tag).format(
             concert_countries=", ".join(CONCERT_TARGET_COUNTRIES),
         )
     else:
@@ -483,9 +501,14 @@ def build_prompt(
         era_snapshot_focus=era_snapshot_focus,
         deep_dive_lane=deep_dive_lane,
         deep_dive_focus=deep_dive_focus,
+        locale=locale,
     )
 
-    return f"{wrapper}\n\n{shared_input}"
+    return (
+        f"{wrapper}\n\n{shared_input}\n\n"
+        "LANGUAGE OVERRIDE (highest priority):\n"
+        f"{locale.script_guidance}\n"
+    )
 
 
 def station_name_for_generation(station_slug: str, fallback_name: str) -> str:
@@ -498,22 +521,33 @@ def resolve_station_personality(station_slug: str) -> StationPersonality:
     return STATION_PERSONALITIES.get(normalized, STATION_PERSONALITIES["neuralcast"])
 
 
-def build_system_prompt(station_name: str, personality: StationPersonality) -> str:
+def build_system_prompt(
+    station_name: str,
+    personality: StationPersonality,
+    locale: Optional[HostLocale] = None,
+) -> str:
+    locale = _resolved_locale(locale)
     personality_guide = load_personality_guide()
     return (
         f"{HOST_CONSTITUTION_TEMPLATE.format(station_name=station_name).strip()}\n\n"
         f"{personality_guide}\n\n"
         f"{SCRIPT_STYLE_BASELINE.strip()}\n\n"
         "Perfil de personalidad de la estacion:\n"
-        f"- {personality.script_profile}\n"
+        f"- {personality.script_profile}\n\n"
+        "Language rule (highest priority):\n"
+        f"- {locale.script_guidance}\n"
     )
 
 
-def build_tts_instructions(personality: StationPersonality) -> str:
-    base = TTS_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
+def build_tts_instructions(
+    personality: StationPersonality,
+    locale: Optional[HostLocale] = None,
+) -> str:
+    locale = _resolved_locale(locale)
+    base = locale.tts_instructions_path.read_text(encoding="utf-8").strip()
     if not personality.tts_profile.strip():
         return base
-    return f"{base}\n\nAjuste de personalidad de estacion:\n{personality.tts_profile}\n"
+    return f"{base}\n\nStation personality adjustment:\n{personality.tts_profile}\n"
 
 
 def gemini_generate_text(
@@ -601,7 +635,19 @@ def _normalize_text_for_contains(value: str) -> str:
     return text.strip()
 
 
-def _script_has_block_reference(script_text: str, schedule_context: ScheduleContext) -> bool:
+def _locale_string_list(locale: HostLocale, key: str) -> List[str]:
+    values = locale.schedule.get(key)
+    if not isinstance(values, list):
+        return []
+    return [str(value).strip() for value in values if str(value).strip()]
+
+
+def _script_has_block_reference(
+    script_text: str,
+    schedule_context: ScheduleContext,
+    locale: Optional[HostLocale] = None,
+) -> bool:
+    locale = _resolved_locale(locale)
     script_norm = _normalize_text_for_contains(script_text)
     if not script_norm:
         return False
@@ -614,33 +660,37 @@ def _script_has_block_reference(script_text: str, schedule_context: ScheduleCont
     if playlist_norm and playlist_norm in script_norm:
         return True
 
-    if "bloque" in script_norm or "seccion" in script_norm:
+    if any(
+        _normalize_text_for_contains(term) in script_norm
+        for term in _locale_string_list(locale, "block_terms")
+    ):
         for genre in schedule_context.genre_labels:
             genre_norm = _normalize_text_for_contains(genre)
             if genre_norm and genre_norm in script_norm:
                 return True
 
     # Fallback: phrases that usually indicate block orientation.
-    if "estamos en" in script_norm or "seguimos en" in script_norm:
+    if any(
+        _normalize_text_for_contains(marker) in script_norm
+        for marker in _locale_string_list(locale, "current_markers")
+    ):
         return True
 
     return False
 
 
-def _script_has_genre_reference(script_text: str, schedule_context: ScheduleContext) -> bool:
+def _script_has_genre_reference(
+    script_text: str,
+    schedule_context: ScheduleContext,
+    locale: Optional[HostLocale] = None,
+) -> bool:
+    locale = _resolved_locale(locale)
     script_norm = _normalize_text_for_contains(script_text)
     if not script_norm:
         return False
 
     if schedule_context.mode == "open":
-        for marker in (
-            "bloque libre",
-            "sin tematica",
-            "mezcla libre",
-            "cualquier genero",
-            "catalogo",
-            "generos cruzados",
-        ):
+        for marker in _locale_string_list(locale, "open_markers"):
             if marker in script_norm:
                 return True
 
@@ -651,57 +701,60 @@ def _script_has_genre_reference(script_text: str, schedule_context: ScheduleCont
     return False
 
 
-def _spoken_section_label(schedule_context: ScheduleContext) -> str:
+def _spoken_section_label(
+    schedule_context: ScheduleContext,
+    locale: Optional[HostLocale] = None,
+) -> str:
+    locale = _resolved_locale(locale)
     if schedule_context.mode == "open":
-        return "bloque libre"
+        return str(locale.schedule.get("open_label") or "open rotation")
 
     section = schedule_context.section_label.strip()
-    return section or "este bloque"
+    return section or str(locale.schedule.get("open_label") or "this block")
+
+
+def _formatted_schedule_options(
+    locale: HostLocale,
+    key: str,
+    *,
+    section: str = "",
+    genres: str = "",
+) -> List[str]:
+    return [
+        template.format(section=section, genres=genres)
+        for template in _locale_string_list(locale, key)
+    ]
 
 
 def _build_mid_block_clause(
     schedule_context: ScheduleContext,
     archetype: Archetype,
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> str:
-    section = _spoken_section_label(schedule_context)
+    locale = _resolved_locale(locale)
+    section = _spoken_section_label(schedule_context, locale)
     genres = ", ".join([item for item in schedule_context.genre_labels if item][:2]).strip()
 
     if schedule_context.mode == "open":
-        if archetype == Archetype.ULTRA_MINIMAL:
-            options = [
-                "seguimos en bloque libre, sin tematica",
-                "aca en bloque libre, mezcla libre",
-                "en bloque libre, sin tematica",
-            ]
-        else:
-            options = [
-                "seguimos en bloque libre, sin tematica, con mezcla de todo el catalogo",
-                "aca en bloque libre: pueden caer generos cruzados de todo el catalogo",
-                "seguimos en mezcla libre, sin tematica fija, con catalogo barajado",
-            ]
+        key = "mid_open_short" if archetype == Archetype.ULTRA_MINIMAL else "mid_open_long"
+        options = _formatted_schedule_options(locale, key)
         return rng.choice(options)
 
     if archetype == Archetype.ULTRA_MINIMAL:
-        options = [
-            f"seguimos en {section}",
-            f"metidos en {section}",
-            f"en {section}",
-        ]
+        options = _formatted_schedule_options(
+            locale, "mid_section_short", section=section, genres=genres
+        )
         return rng.choice(options)
 
     if genres:
-        options = [
-            f"seguimos en {section}, con ese clima de {genres}",
-            f"seguimos en {section}, bien en esa linea de {genres}",
-            f"aca en {section}, con ese color de {genres}",
-        ]
+        options = _formatted_schedule_options(
+            locale, "mid_section_long", section=section, genres=genres
+        )
     else:
-        options = [
-            f"seguimos en {section}",
-            f"aca en {section}",
-            f"metidos en {section}",
-        ]
+        options = _formatted_schedule_options(
+            locale, "mid_section_short", section=section, genres=genres
+        )
     return rng.choice(options)
 
 
@@ -710,7 +763,9 @@ def ensure_mid_block_reference(
     archetype: Archetype,
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> str:
+    locale = _resolved_locale(locale)
     if schedule_context is None:
         return script_text
 
@@ -728,7 +783,7 @@ def ensure_mid_block_reference(
     }:
         return script_text
 
-    if _script_has_block_reference(script_text, schedule_context):
+    if _script_has_block_reference(script_text, schedule_context, locale):
         LOGGER.info(
             "[schedule] Mid-block mention already present in generated %s script for '%s'.",
             archetype.value,
@@ -736,7 +791,7 @@ def ensure_mid_block_reference(
         )
         return script_text
 
-    clause = _build_mid_block_clause(schedule_context, archetype, rng)
+    clause = _build_mid_block_clause(schedule_context, archetype, rng, locale)
     text = script_text.strip()
     if not text:
         return text
@@ -760,8 +815,10 @@ def _build_schedule_genre_clause(
     schedule_context: ScheduleContext,
     archetype: Archetype,
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> str:
-    section = _spoken_section_label(schedule_context)
+    locale = _resolved_locale(locale)
+    section = _spoken_section_label(schedule_context, locale)
     genres = [str(item).strip() for item in schedule_context.genre_labels if str(item).strip()]
     genres_text = ", ".join(genres[:2]).strip()
     if not genres_text and schedule_context.mode != "open":
@@ -770,57 +827,27 @@ def _build_schedule_genre_clause(
     mention_intent = schedule_context.mention_intent or "none"
     if schedule_context.mode == "open":
         if mention_intent == "start":
-            if archetype == Archetype.ULTRA_MINIMAL:
-                options = [
-                    "arranca bloque libre, sin tematica",
-                    "arranca mezcla libre, sin tematica",
-                ]
-            else:
-                options = [
-                    "arranca bloque libre, sin tematica: puede sonar cualquier genero del catalogo",
-                    "arranca mezcla libre, con catalogo barajado y cruce de generos",
-                    "arranca bloque libre, sin tematica fija, con todo el catalogo en juego",
-                ]
+            key = "start_open_short" if archetype == Archetype.ULTRA_MINIMAL else "start_open_long"
+            options = _formatted_schedule_options(locale, key)
         elif mention_intent == "mid":
-            if archetype == Archetype.ULTRA_MINIMAL:
-                options = [
-                    "seguimos en bloque libre, sin tematica",
-                    "aca en bloque libre, mezcla libre",
-                ]
-            else:
-                options = [
-                    "seguimos en bloque libre, sin tematica, pueden caer generos de todo el catalogo",
-                    "aca en mezcla libre, sin tematica fija, con catalogo barajado",
-                    "seguimos en bloque libre: cruce de generos de todo el catalogo",
-                ]
+            key = "mid_open_short" if archetype == Archetype.ULTRA_MINIMAL else "mid_open_long"
+            options = _formatted_schedule_options(locale, key)
         else:
-            options = ["en bloque libre, sin tematica"]
+            options = [str(locale.schedule.get("open_label") or "open rotation")]
     elif mention_intent == "start":
-        if archetype == Archetype.ULTRA_MINIMAL:
-            options = [
-                f"arranca {section}, con {genres_text}",
-                f"arrancamos {section}, con {genres_text}",
-            ]
-        else:
-            options = [
-                f"arranca {section}, con ese eje de {genres_text}",
-                f"arrancamos {section}, en clave de {genres_text}",
-                f"abre {section}, con ese color de {genres_text}",
-            ]
+        key = "start_section_short" if archetype == Archetype.ULTRA_MINIMAL else "start_section_long"
+        options = _formatted_schedule_options(
+            locale, key, section=section, genres=genres_text
+        )
     elif mention_intent == "mid":
-        if archetype == Archetype.ULTRA_MINIMAL:
-            options = [
-                f"seguimos en {section}, con {genres_text}",
-                f"aca en {section}, con {genres_text}",
-            ]
-        else:
-            options = [
-                f"seguimos en {section}, con ese clima de {genres_text}",
-                f"aca en {section}, bien en esa linea de {genres_text}",
-                f"seguimos en {section}, en clave de {genres_text}",
-            ]
+        key = "mid_section_short" if archetype == Archetype.ULTRA_MINIMAL else "mid_section_long"
+        options = _formatted_schedule_options(
+            locale, key, section=section, genres=genres_text
+        )
     else:
-        options = [f"en esa linea de {genres_text}"]
+        options = _formatted_schedule_options(
+            locale, "genre_default", section=section, genres=genres_text
+        )
 
     return rng.choice(options)
 
@@ -830,17 +857,19 @@ def ensure_schedule_genre_reference(
     archetype: Archetype,
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> str:
+    locale = _resolved_locale(locale)
     if schedule_context is None:
         return script_text
 
     if schedule_context.mention_intent not in {"start", "mid"}:
         return script_text
 
-    if _script_has_genre_reference(script_text, schedule_context):
+    if _script_has_genre_reference(script_text, schedule_context, locale):
         return script_text
 
-    clause = _build_schedule_genre_clause(schedule_context, archetype, rng)
+    clause = _build_schedule_genre_clause(schedule_context, archetype, rng, locale)
     if not clause:
         return script_text
 
@@ -869,19 +898,23 @@ def _postprocess_schedule_script(
     archetype: Archetype,
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> str:
+    locale = _resolved_locale(locale)
     cleaned = cleanup_generated_script(script_text)
     cleaned = ensure_mid_block_reference(
         script_text=cleaned,
         archetype=archetype,
         schedule_context=schedule_context,
         rng=rng,
+        locale=locale,
     )
     cleaned = ensure_schedule_genre_reference(
         script_text=cleaned,
         archetype=archetype,
         schedule_context=schedule_context,
         rng=rng,
+        locale=locale,
     )
     return cleaned
 
@@ -918,7 +951,9 @@ def parse_structured_script_and_meta(
     return script, meta, "ok"
 
 
-def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
+def parse_news_output(
+    raw: str, expected_locale: str = "es-AR"
+) -> Tuple[Optional[NewsSegment], str]:
     script, meta, reason = parse_structured_script_and_meta(raw, NEWS_OUTPUT_RE)
     if reason != "ok":
         return None, reason
@@ -931,8 +966,8 @@ def parse_news_output(raw: str) -> Tuple[Optional[NewsSegment], str]:
 
     if story_count not in (1, 2):
         return None, "story_count must be 1 or 2"
-    if language.lower() != "es-ar":
-        return None, "language must be es-AR"
+    if language.casefold() != expected_locale.casefold():
+        return None, f"language must be {expected_locale}"
     if not isinstance(stories, list) or len(stories) != story_count:
         return None, "stories must match story_count"
 
@@ -967,18 +1002,24 @@ def attempt_news_repair(
     top_p: float,
     station_name: str,
     personality: StationPersonality,
+    locale: Optional[HostLocale] = None,
 ) -> str:
-    repair_prompt = REPAIR_NEWS_CONTRACT.format(original_output=original_output)
+    locale = _resolved_locale(locale)
+    repair_prompt = REPAIR_NEWS_CONTRACT.replace("es-AR", locale.tag).format(
+        original_output=original_output
+    )
     return gemini_generate_text(
         prompt=repair_prompt,
-        system_prompt=build_system_prompt(station_name, personality),
+        system_prompt=build_system_prompt(station_name, personality, locale),
         temperature=temperature,
         top_p=top_p,
         with_search=False,
     )
 
 
-def parse_concert_output(raw: str) -> Tuple[Optional[ConcertSegment], str]:
+def parse_concert_output(
+    raw: str, expected_locale: str = "es-AR"
+) -> Tuple[Optional[ConcertSegment], str]:
     script, meta, reason = parse_structured_script_and_meta(raw, CONCERT_OUTPUT_RE)
     if reason != "ok":
         return None, reason
@@ -987,8 +1028,8 @@ def parse_concert_output(raw: str) -> Tuple[Optional[ConcertSegment], str]:
 
     language = str(meta.get("language") or "").strip()
     events = meta.get("events")
-    if language.lower() != "es-ar":
-        return None, "language must be es-AR"
+    if language.casefold() != expected_locale.casefold():
+        return None, f"language must be {expected_locale}"
     if not isinstance(events, list) or not events:
         return None, "events must be a non-empty list"
     if len(events) > 3:
@@ -1029,11 +1070,15 @@ def attempt_concert_repair(
     top_p: float,
     station_name: str,
     personality: StationPersonality,
+    locale: Optional[HostLocale] = None,
 ) -> str:
-    repair_prompt = REPAIR_CONCERT_CONTRACT.format(original_output=original_output)
+    locale = _resolved_locale(locale)
+    repair_prompt = REPAIR_CONCERT_CONTRACT.replace("es-AR", locale.tag).format(
+        original_output=original_output
+    )
     return gemini_generate_text(
         prompt=repair_prompt,
-        system_prompt=build_system_prompt(station_name, personality),
+        system_prompt=build_system_prompt(station_name, personality, locale),
         temperature=temperature,
         top_p=top_p,
         with_search=False,
@@ -1214,7 +1259,9 @@ def build_local_ultra_minimal_script(
     next_track: QueueTrack,
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> str:
+    locale = _resolved_locale(locale)
     current_artist = str(current_track.artist or "").strip()
     current_title = str(current_track.title or "").strip()
     next_artist = str(next_track.artist or "").strip()
@@ -1222,21 +1269,34 @@ def build_local_ultra_minimal_script(
 
     options: List[str] = []
     if current_title and next_artist and next_title:
+        templates = locale.presentation.get("fallback_current_next") or []
         options.extend(
-            [
-                f"Recien sono {current_title}; ahora sigue {next_artist} con {next_title}.",
-                f"Venimos de {current_artist} con {current_title}; ahora entra {next_artist} con {next_title}.",
-            ]
+            str(template).format(
+                current_artist=current_artist,
+                current_title=current_title,
+                next_artist=next_artist,
+                next_title=next_title,
+            )
+            for template in templates
         )
     if next_artist and next_title:
-        options.append(f"Ahora sigue {next_artist} con {next_title}.")
+        templates = locale.presentation.get("fallback_next") or []
+        options.extend(
+            str(template).format(next_artist=next_artist, next_title=next_title)
+            for template in templates
+        )
 
-    fallback_script = rng.choice(options) if options else "Seguimos con musica."
+    fallback_script = (
+        rng.choice(options)
+        if options
+        else str(locale.presentation.get("fallback_music") or "Music continues.")
+    )
     return _postprocess_schedule_script(
         script_text=fallback_script,
         archetype=Archetype.ULTRA_MINIMAL,
         schedule_context=schedule_context,
         rng=rng,
+        locale=locale,
     )
 
 
@@ -1252,7 +1312,9 @@ def fallback_to_ultra_minimal(
     schedule_context: Optional[ScheduleContext],
     state: OrchestratorState,
     rng: random.Random,
+    locale: Optional[HostLocale] = None,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
+    locale = _resolved_locale(locale)
     fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
     fallback_script, _, fallback_arch = generate_archetype_script(
         archetype=Archetype.ULTRA_MINIMAL,
@@ -1271,6 +1333,7 @@ def fallback_to_ultra_minimal(
         rng=rng,
         forced_mode=False,
         allow_ultra_minimal_fallback=False,
+        locale=locale,
     )
     return fallback_script, GeneratedSegmentMetadata(), fallback_arch
 
@@ -1363,6 +1426,7 @@ def _build_prompt_kwargs(
     schedule_context: Optional[ScheduleContext],
     state: OrchestratorState,
     variants: ArchetypePromptVariants,
+    locale: Optional[HostLocale] = None,
 ) -> Dict[str, Any]:
     return {
         "station_name": station_name,
@@ -1383,6 +1447,7 @@ def _build_prompt_kwargs(
         "era_snapshot_focus": variants.era_snapshot_focus,
         "deep_dive_lane": variants.deep_dive_lane,
         "deep_dive_focus": variants.deep_dive_focus,
+        "locale": _resolved_locale(locale),
     }
 
 
@@ -1418,6 +1483,7 @@ def _generate_standard_archetype_script(
         archetype=archetype,
         schedule_context=schedule_context,
         rng=rng,
+        locale=prompt_kwargs.get("locale"),
     )
     if not cleaned.strip() or cleaned.strip() == "NO_SCRIPT":
         LOGGER.info(
@@ -1445,6 +1511,7 @@ def _generate_concert_check_script(
     generate_with_retries,
     fallback,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
+    locale = _resolved_locale(prompt_kwargs.get("locale"))
     generation_attempts = 2
     for generation_attempt in range(generation_attempts):
         prompt = build_prompt(archetype=Archetype.CONCERT_CHECK, **prompt_kwargs)
@@ -1454,7 +1521,7 @@ def _generate_concert_check_script(
             with_search=True,
         )
 
-        segment, reason = parse_concert_output(generated)
+        segment, reason = parse_concert_output(generated, locale.tag)
         if reason == "NO_SCRIPT":
             LOGGER.info(
                 "[concert_check] No qualifying concerts found; falling back to ultra_minimal."
@@ -1474,9 +1541,10 @@ def _generate_concert_check_script(
                     top_p=top_p,
                     station_name=station_name,
                     personality=personality,
+                    locale=locale,
                 ),
             )
-            segment, reason = parse_concert_output(repaired)
+            segment, reason = parse_concert_output(repaired, locale.tag)
             if segment is None:
                 LOGGER.warning(
                     "[concert_check] Output remained invalid after repair (%s).",
@@ -1502,6 +1570,7 @@ def _generate_concert_check_script(
                     archetype=Archetype.CONCERT_CHECK,
                     schedule_context=schedule_context,
                     rng=rng,
+                    locale=locale,
                 ),
                 GeneratedSegmentMetadata(concert_segment=segment),
                 Archetype.CONCERT_CHECK,
@@ -1534,6 +1603,7 @@ def _generate_news_script(
     generate_with_retries,
     fallback,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
+    locale = _resolved_locale(prompt_kwargs.get("locale"))
     story_count = rng.randint(1, 2)
     topic_attempts = 3
     conservative_news_temperature = min(0.65, temperature)
@@ -1565,7 +1635,7 @@ def _generate_news_script(
             with_search=True,
         )
 
-        segment, reason = parse_news_output(generated)
+        segment, reason = parse_news_output(generated, locale.tag)
         if reason == "NO_SCRIPT":
             LOGGER.warning(
                 "[news] Gemini returned NO_SCRIPT (%s/%s) at sampled settings temp=%.3f top_p=%.3f topics=%s. Raw=%r",
@@ -1589,7 +1659,7 @@ def _generate_news_script(
                     temperature_override=conservative_news_temperature,
                     top_p_override=conservative_news_top_p,
                 )
-                segment, reason = parse_news_output(generated)
+                segment, reason = parse_news_output(generated, locale.tag)
 
         if reason == "NO_SCRIPT":
             if topic_attempt < topic_attempts - 1:
@@ -1621,9 +1691,10 @@ def _generate_news_script(
                     top_p=top_p,
                     station_name=station_name,
                     personality=personality,
+                    locale=locale,
                 ),
             )
-            segment, reason = parse_news_output(repaired)
+            segment, reason = parse_news_output(repaired, locale.tag)
             if segment is None:
                 if forced_mode:
                     raise RuntimeError(
@@ -1649,6 +1720,7 @@ def _generate_news_script(
                     archetype=Archetype.NEWS,
                     schedule_context=schedule_context,
                     rng=rng,
+                    locale=locale,
                 ),
                 GeneratedSegmentMetadata(news_segment=segment),
                 Archetype.NEWS,
@@ -1689,6 +1761,7 @@ def generate_archetype_script(
     forced_mode: bool,
     forced_track_focus: Optional[TrackFocus] = None,
     allow_ultra_minimal_fallback: bool = True,
+    locale: Optional[HostLocale] = None,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     """Generate script and structured presentation metadata.
 
@@ -1698,8 +1771,9 @@ def generate_archetype_script(
     current/next track focus used by the listener-facing title builder.
     """
 
+    locale = _resolved_locale(locale)
     temperature, top_p = sample_generation_settings(archetype, rng)
-    system_prompt = build_system_prompt(station_name, personality)
+    system_prompt = build_system_prompt(station_name, personality, locale=locale)
     variants = _resolve_prompt_variants(
         archetype=archetype,
         forced_track_focus=forced_track_focus,
@@ -1721,6 +1795,7 @@ def generate_archetype_script(
         schedule_context=schedule_context,
         state=state,
         variants=variants,
+        locale=locale,
     )
 
     def generate_with_retries(
@@ -1758,6 +1833,7 @@ def generate_archetype_script(
             schedule_context=schedule_context,
             state=state,
             rng=rng,
+            locale=locale,
         )
 
     def terminal_ultra_minimal_fallback() -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
@@ -1770,6 +1846,7 @@ def generate_archetype_script(
                 next_track=next_track,
                 schedule_context=schedule_context,
                 rng=rng,
+                locale=locale,
             ),
             GeneratedSegmentMetadata(),
             Archetype.ULTRA_MINIMAL,

@@ -10,7 +10,7 @@ import re
 import subprocess
 from typing import Any, Dict, Mapping
 
-from mutagen.id3 import ID3, ID3NoHeaderError, TIT2, TPE1
+from mutagen.id3 import ID3, ID3NoHeaderError, TIT2, TLAN, TPE1
 
 from .config import (
     AI_SNIPPET_COVER_PATH_BY_STATION,
@@ -137,7 +137,9 @@ def apply_replaygain(audio_path: pathlib.Path) -> None:
         LOGGER.warning("[audio] ReplayGain skipped due to OS error: %s", exc)
 
 
-def tag_story_audio(audio_path: pathlib.Path, title: str) -> None:
+def tag_story_audio(
+    audio_path: pathlib.Path, title: str, language: str | None = None
+) -> None:
     """Write the listener-facing identity while preserving embedded artwork."""
     try:
         tags = ID3(audio_path)
@@ -146,8 +148,11 @@ def tag_story_audio(audio_path: pathlib.Path, title: str) -> None:
 
     tags.delall("TPE1")
     tags.delall("TIT2")
+    tags.delall("TLAN")
     tags.add(TPE1(encoding=3, text=[HOST_ARTIST_NAME]))
     tags.add(TIT2(encoding=3, text=[title]))
+    if language:
+        tags.add(TLAN(encoding=3, text=[language]))
     tags.save(audio_path, v2_version=3)
 
 
@@ -158,12 +163,19 @@ def ensure_story_assets(
     script_text: str,
     tts_instructions: str,
     segment_title: str,
+    *,
+    channel_key: str | None = None,
+    cover_station: str | None = None,
+    remote_prefix: str = "AI Stories",
+    tts_voice: str = "Enceladus",
+    language: str | None = None,
 ) -> StoryAssets:
     safe_artist = sanitize_filename_component(current_track.artist).replace("'", "")
     safe_title = sanitize_filename_component(current_track.title).replace("'", "")
     timestamp = dt.datetime.now()
     date_str = timestamp.strftime("%Y-%m-%d")
-    station_dir = STORY_OUTPUT_DIR / station_slug
+    output_scope = channel_key or station_slug
+    station_dir = STORY_OUTPUT_DIR / output_scope
     target_dir = station_dir / date_str
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -178,20 +190,25 @@ def ensure_story_assets(
         outfile=str(audio_path),
         instructions=tts_instructions,
         gemini_model=DEFAULT_GEMINI_TTS_MODEL,
+        gemini_voice=tts_voice,
     )
 
     apply_replaygain(audio_path)
 
-    cover_path = AI_SNIPPET_COVER_PATH_BY_STATION.get(station_slug.casefold())
+    cover_path = AI_SNIPPET_COVER_PATH_BY_STATION.get(
+        (cover_station or station_slug).casefold()
+    )
     if cover_path is not None:
         embed_local_cover_art(audio_path, cover_path)
-    tag_story_audio(audio_path, segment_title)
+    tag_story_audio(audio_path, segment_title, language=language)
 
     return StoryAssets(
         text_path=text_path,
         audio_path=audio_path,
         story_text=script_text,
-        remote_path="/".join(["AI Stories", date_str, f"{base_name}.mp3"]),
+        remote_path="/".join(
+            [remote_prefix.strip("/"), date_str, f"{base_name}.mp3"]
+        ),
     )
 
 
@@ -230,7 +247,10 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
 
 
 def cleanup_remote_stories(
-    client: AzuraCastClient, station_slug: str, keep_days: int
+    client: AzuraCastClient,
+    station_slug: str,
+    keep_days: int,
+    remote_prefix: str = "AI Stories",
 ) -> None:
     if keep_days <= 0:
         return
@@ -243,9 +263,10 @@ def cleanup_remote_stories(
         LOGGER.warning("[cleanup] Unable to list remote media files: %s", exc)
         return
 
+    normalized_prefix = remote_prefix.strip("/") + "/"
     for entry in media_files:
         path = str(entry.get("path") or "")
-        if not path.startswith("AI Stories/"):
+        if not path.startswith(normalized_prefix):
             continue
         mtime = entry.get("mtime")
         media_id = entry.get("id") or entry.get("media_id")

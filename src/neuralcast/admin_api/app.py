@@ -21,6 +21,7 @@ from .jobs import (
     JobManager,
     JobNotFoundError,
     SUPPORTED_ARCHETYPES,
+    SUPPORTED_HOST_CHANNELS,
     SUPPORTED_SCHEDULE_SEED_MODES,
     SUPPORTED_STATIONS,
     SUPPORTED_TRACK_FOCUSES,
@@ -35,6 +36,7 @@ class OptionsResponse(BaseModel):
     """Response model for `/admin/options`."""
 
     stations: list[str]
+    host_channels: list[str] = Field(default_factory=list)
     archetypes: list[str]
 
 
@@ -54,6 +56,7 @@ class CapabilitiesResponse(BaseModel):
     """Response model for `/admin/capabilities`."""
 
     stations: list[str]
+    host_channels: list[str] = Field(default_factory=list)
     archetypes: list[str]
     track_focus_values: list[str]
     track_focus_archetypes: list[str]
@@ -73,9 +76,10 @@ class ForceArchetypeRequest(BaseModel):
     @field_validator("station")
     @classmethod
     def validate_station(cls, value: str) -> str:
-        if value not in SUPPORTED_STATIONS:
+        allowed = SUPPORTED_STATIONS + SUPPORTED_HOST_CHANNELS
+        if value not in allowed:
             raise ValueError(
-                f"Unsupported station '{value}'. Allowed values: {SUPPORTED_STATIONS}."
+                f"Unsupported host target '{value}'. Allowed values: {allowed}."
             )
         return value
 

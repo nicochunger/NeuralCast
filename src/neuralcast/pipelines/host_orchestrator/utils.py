@@ -9,6 +9,7 @@ import time
 from typing import Any, Callable, Sequence, Tuple
 
 from neuralcast.config import station_dir_from_slug
+from .channels import resolve_host_channel
 from .config import (
     GENERATION_RETRIES,
     GENERATION_RETRY_DELAYS,
@@ -44,16 +45,26 @@ def run_with_retries(
             time.sleep(delay)
 
 
-def resolve_station_dir(station: str) -> pathlib.Path:
-    return station_dir_from_slug(station)
+def resolve_station_dir(station_or_channel: str) -> pathlib.Path:
+    try:
+        channel = resolve_host_channel(channel_key=station_or_channel)
+    except ValueError:
+        return station_dir_from_slug(station_or_channel)
+    return channel.content_station_dir
 
 
 def station_state_paths(
-    station: str,
+    station_or_channel: str,
 ) -> Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
-    station_dir = resolve_station_dir(station)
+    try:
+        channel = resolve_host_channel(channel_key=station_or_channel)
+    except ValueError:
+        channel = resolve_host_channel(station_slug=station_or_channel)
+
+    station_dir = channel.content_station_dir
     metadata_dir = station_dir / "metadata"
-    metadata_dir.mkdir(parents=True, exist_ok=True)
+    if channel.legacy_station is None:
+        metadata_dir = metadata_dir / "host_channels" / channel.key
     return station_dir, metadata_dir / STATE_FILENAME, metadata_dir / LOCK_FILENAME
 
 

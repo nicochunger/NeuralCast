@@ -14,6 +14,7 @@ from neuralcast.pipelines.host_orchestrator.models import (
     TrackMetadata,
 )
 from neuralcast.pipelines.host_orchestrator.presentation import build_segment_title
+from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
 
 
 def _track(artist: str, title: str) -> QueueTrack:
@@ -134,3 +135,19 @@ def test_bridge_and_fallback_titles_are_track_accurate() -> None:
         current_track=current,
         next_track=upcoming,
     ) == "Pase musical: Ahora viene - Opeth - Harvest"
+
+
+def test_english_titles_are_localized_without_changing_track_metadata() -> None:
+    current = _track("Ghost", "Rats")
+    upcoming = _track("Opeth", "Harvest")
+    locale = get_channel_registry().locales["en"]
+
+    title = build_segment_title(
+        archetype=Archetype.SHORT_STORY,
+        current_track=current,
+        next_track=upcoming,
+        segment_metadata=GeneratedSegmentMetadata(track_focus=TrackFocus.NEXT),
+        locale=locale,
+    )
+
+    assert title == "Track story: Coming up - Opeth - Harvest"

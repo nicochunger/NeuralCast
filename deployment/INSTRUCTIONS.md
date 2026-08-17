@@ -41,6 +41,9 @@ cd /root/projects/NeuralCast
 source .venv/bin/activate
 pip install -e .
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
+
+# Multilingual channel example (shared NeuralCast catalog, English host):
+PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run --channel neuralcast-en --min-listeners 0
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
 
@@ -54,6 +57,9 @@ Notes:
 ```cron
 # Host orchestrator every hour at minute 5
 5 * * * * cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator.log 2>&1
+
+# English NeuralCast channel at :15 and :45, offset from the main NeuralCast job
+15,45 * * * * cd /root/projects/NeuralCast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator_neuralcast_en.log 2>&1
 
 # Weekly schedule generator every Monday at 02:10
 10 2 * * 1 cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator.log 2>&1
