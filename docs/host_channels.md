@@ -34,6 +34,12 @@ media prefixes. A channel using shared storage must set
 `media_owner_station` (or an explicit `liquidsoap_media_root`) to the station
 whose physical media directory Liquidsoap can read.
 
+Channels may independently select `cadence_profile` and `archetype_profile`.
+These reference an existing station policy without changing the channel's
+brand, catalog, language, or target stream. For example, `neuralcast-en` keeps
+the NeuralCast identity and English locale while using NeuralForge's speaking
+cadence, cooldowns, and enabled-archetype policy.
+
 To add a language, add a locale entry and its TTS instruction file, then add one
 or more channel entries that reference it. To add another stream for an existing
 language, only a channel entry is required.

@@ -6,6 +6,10 @@ from neuralcast.pipelines.host_orchestrator.channels import (
     get_channel_registry,
     resolve_host_channel,
 )
+from neuralcast.pipelines.host_orchestrator.config import (
+    archetype_settings_for_station,
+    cadence_settings_for_station,
+)
 from neuralcast.pipelines.host_orchestrator.main import (
     HostCycleRequest,
     _args_from_cycle_request,
@@ -24,6 +28,19 @@ def test_english_channel_reuses_neuralcast_content_and_media_root() -> None:
         "/var/azuracast/stations/neuralcast/media"
     )
     assert channel.remote_prefix == "AI Stories/neuralcast/en"
+    assert channel.cadence_profile == "neuralforge"
+    assert channel.archetype_profile == "neuralforge"
+
+
+def test_english_channel_uses_neuralforge_runtime_policies() -> None:
+    channel = resolve_host_channel(channel_key="neuralcast-en")
+
+    assert cadence_settings_for_station(
+        channel.cadence_profile
+    ) == cadence_settings_for_station("neuralforge")
+    assert archetype_settings_for_station(
+        channel.archetype_profile
+    ) == archetype_settings_for_station("neuralforge")
 
 
 def test_legacy_station_resolution_preserves_spanish_channels() -> None:
@@ -43,7 +60,8 @@ def test_channel_request_overrides_legacy_station_default() -> None:
     assert args.channel == "neuralcast-en"
     assert args.station == "neuralcast_shared_media_test"
     assert args.content_station == "neuralcast"
-    assert args.brand_station == "neuralcast"
+    assert args.cadence_profile == "neuralforge"
+    assert args.archetype_profile == "neuralforge"
 
 
 def test_variant_channel_has_isolated_state_paths() -> None:

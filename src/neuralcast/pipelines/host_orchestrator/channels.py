@@ -91,6 +91,8 @@ class HostChannel:
     media_owner_station: str
     liquidsoap_media_root: str
     remote_prefix: str
+    cadence_profile: str
+    archetype_profile: str
     legacy_station: str | None = None
 
     @property
@@ -270,6 +272,14 @@ def load_channel_registry(
         station_id = int(station_id_raw) if station_id_raw is not None else None
         if station_id is not None and station_id <= 0:
             raise ValueError(f"Channel '{key}' has invalid azuracast_station_id.")
+        cadence_profile = str(
+            raw.get("cadence_profile") or brands[brand_key].cadence_station
+        )
+        archetype_profile = str(
+            raw.get("archetype_profile") or brands[brand_key].content_station
+        )
+        station_dir_from_slug(cadence_profile)
+        station_dir_from_slug(archetype_profile)
         channels[channel_key] = HostChannel(
             key=channel_key,
             azuracast_station=_required_string(
@@ -281,6 +291,8 @@ def load_channel_registry(
             media_owner_station=media_owner,
             liquidsoap_media_root=media_root,
             remote_prefix=remote_prefix.rstrip("/"),
+            cadence_profile=cadence_profile,
+            archetype_profile=archetype_profile,
             legacy_station=(str(raw.get("legacy_station") or "").strip() or None),
         )
 

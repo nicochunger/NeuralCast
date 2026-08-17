@@ -127,6 +127,8 @@
       "azuracast_station_id": 3,
       "brand": "neuralcast",
       "locale": "en",
+      "cadence_profile": "neuralforge",
+      "archetype_profile": "neuralforge",
       "media_owner_station": "neuralcast",
       "remote_prefix": "AI Stories/neuralcast/en"
     },

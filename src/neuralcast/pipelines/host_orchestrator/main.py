@@ -470,7 +470,7 @@ def _select_archetype(
         current_remaining=playback.current_remaining,
         seconds_until_block_change=seconds_until_block_change,
         disabled_archetypes=archetype_settings_for_station(
-            args.brand_station
+            args.archetype_profile
         ).disabled_archetypes,
     )
     if legal:
@@ -599,7 +599,7 @@ def _publish_segment(
         schedule_context=queue_context.schedule_context,
         rng=rng,
         cadence_settings=cadence_settings_for_station(
-            runtime.channel.brand.cadence_station
+            runtime.channel.cadence_profile
         ),
     )
 
@@ -691,7 +691,8 @@ def _args_from_cycle_request(request: HostCycleRequest) -> argparse.Namespace:
         channel=channel.key,
         station=channel.azuracast_station,
         content_station=channel.content_station,
-        brand_station=channel.brand.cadence_station,
+        cadence_profile=channel.cadence_profile,
+        archetype_profile=channel.archetype_profile,
         base_url=request.base_url,
         dry_run=request.dry_run,
         min_listeners=request.min_listeners,
@@ -782,7 +783,7 @@ class HostOrchestratorRuntime:
             )
 
             cadence_settings = cadence_settings_for_station(
-                channel.brand.cadence_station
+                channel.cadence_profile
             )
             state = deps.load_state(state_path, cycle_ts, rng, cadence_settings)
             LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
