@@ -152,11 +152,40 @@ def test_default_media_library_audit_existing_tags_refreshes_mismatches(tmp_path
     refreshed = library.audit_existing_tags(
         [(Song(artist="Artist", title="Song", year="2026", album="Album"), song_path)],
         "Playlist",
+        repair=True,
         log=station_sync.PlaylistLog("Playlist"),
     )
 
     assert refreshed == 1
     assert tagged == [(str(song_path), "Artist", "Song", "2026", "Playlist", "Album")]
+
+
+def test_default_media_library_tag_audit_is_read_only_without_repair(
+    tmp_path, monkeypatch
+) -> None:
+    library = station_sync.DefaultMediaLibrary()
+    song_path = tmp_path / "Artist - Song.mp3"
+    song_path.write_bytes(b"mp3")
+
+    class FakeEasyID3(dict):
+        def __init__(self, _path: str) -> None:
+            super().__init__(artist=["Wrong"], title=["Song"])
+
+    monkeypatch.setattr(station_sync, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(
+        station_sync,
+        "tag_mp3",
+        lambda *_args, **_kwargs: pytest.fail("read-only tag audit attempted repair"),
+    )
+
+    mismatches = library.audit_existing_tags(
+        [(Song(artist="Artist", title="Song", year="2026"), song_path)],
+        "Playlist",
+        repair=False,
+        log=station_sync.PlaylistLog("Playlist"),
+    )
+
+    assert mismatches == 1
 
 
 def test_station_sync_helpers_classify_actions_and_write_duplicate_analysis(tmp_path) -> None:

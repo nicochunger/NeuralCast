@@ -66,6 +66,35 @@ def test_deduplicate_and_sort_songs_removes_case_insensitive_duplicates() -> Non
     ]
 
 
+def test_library_backfill_plans_rename_before_applying_it(
+    tmp_path, monkeypatch
+) -> None:
+    music_dir = tmp_path / "Playlist"
+    music_dir.mkdir()
+    source = music_dir / "unexpected.mp3"
+    source.write_bytes(b"mp3")
+
+    class FakeEasyID3(dict):
+        def __init__(self, _path: str) -> None:
+            super().__init__(artist=["AC/DC"], title=["Thunderstruck"], date=["1990"])
+
+    monkeypatch.setattr(utils, "EasyID3", FakeEasyID3)
+
+    plan = utils.plan_songs_from_library("Playlist", [], music_dir)
+
+    target = music_dir / "AC DC - Thunderstruck.mp3"
+    assert source.exists()
+    assert not target.exists()
+    assert len(plan.renames) == 1
+    assert plan.added_from_files == 1
+
+    existing_paths = utils.apply_library_renames(plan)
+
+    assert not source.exists()
+    assert target.exists()
+    assert existing_paths[("ac/dc", "thunderstruck")] == target
+
+
 def test_save_playlist_preserves_extra_columns_and_override_url(tmp_path) -> None:
     playlist_path = tmp_path / "Playlist.csv"
     df = pd.DataFrame(
@@ -119,3 +148,23 @@ def test_delete_marked_mp3_files_deletes_matching_files_across_playlists(tmp_pat
     assert removed == 2
     assert not (first / "AC DC - Thunderstruck.mp3").exists()
     assert not (second / "AC DC - Thunderstruck.mp3").exists()
+
+
+def test_find_marked_mp3_files_is_read_only(tmp_path) -> None:
+    songs_root = tmp_path / "songs"
+    playlist = songs_root / "Playlist"
+    playlist.mkdir(parents=True)
+    target = playlist / "AC DC - Thunderstruck.mp3"
+    target.write_bytes(b"mp3")
+
+    found = utils.find_marked_mp3_files(
+        {
+            ("ac dc", "thunderstruck"): Song(
+                artist="AC/DC", title="Thunderstruck", year="1990"
+            )
+        },
+        songs_root,
+    )
+
+    assert found == [target]
+    assert target.exists()

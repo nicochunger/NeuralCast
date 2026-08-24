@@ -118,6 +118,7 @@ class FakeMediaLibrary(MediaLibrary):
         existing_songs: list[tuple[Song, Path]],
         playlist_name: str,
         *,
+        repair: bool,
         log: PlaylistLog,
     ) -> int:
         return 0

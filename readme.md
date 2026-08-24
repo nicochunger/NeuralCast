@@ -65,6 +65,9 @@ python main.py --station neuralcast --dry-run
 python main.py --station neuralforge
 ```
 
+Playlist sync `--dry-run` performs live read-only validation and reports the
+same planned CSV, metadata, tag, and media changes that apply mode would execute.
+
 New releases:
 
 ```bash

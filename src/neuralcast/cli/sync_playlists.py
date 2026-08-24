@@ -23,7 +23,10 @@ def run() -> None:
         "-n",
         "--dry-run",
         action="store_true",
-        help="Dry run: validate and re-tag existing MP3s, but skip new downloads.",
+        help=(
+            "Preview validation, metadata, playlist, and media changes without "
+            "writing them."
+        ),
     )
     args = parser.parse_args()
     from neuralcast.pipelines.playlist_sync import main

@@ -61,7 +61,8 @@ For CSV-only edits, also parse every changed CSV with Python's `csv` module or p
 - commas and embedded quotes are correctly CSV-escaped;
 - no unintended same-playlist artist/title duplicate was introduced.
 
-Do not treat playlist sync `--dry-run` as a unit test or a read-only command. See the sync warning below.
+Playlist sync `--dry-run` is read-only for station CSV, metadata, and media files,
+but it still performs live provider lookups. Mock those boundaries in tests.
 
 ## Playlist CSV Contract
 
@@ -109,7 +110,7 @@ Actual behavior is broader than the row's source playlist:
 - It deletes `Artist - Title.mp3` from every playlist directory under that station's `songs/` root.
 - It removes the matching artist/title row from every loaded playlist, then drops the marker row when CSVs are saved.
 
-Use `[DEL]` only when the recording should disappear from the entire station. Search all station playlists first. This deletion processing currently runs even with `--dry-run`, so a dry-run containing `[DEL]` markers is destructive.
+Use `[DEL]` only when the recording should disappear from the entire station. Search all station playlists first. In `--dry-run`, matching deletions are reported without changing CSVs or MP3s.
 
 For `New Releases.csv`, removals also clean matching entries from `metadata/New Releases.metadata.json`.
 
@@ -147,16 +148,14 @@ Apply changes directly to the live AzuraCast media tree:
 python main.py --station neuralcast
 ```
 
-Important: playlist `--dry-run` skips new MP3 downloads, but it is not fully read-only locally. Current code may still:
+Playlist `--dry-run` performs the same inventory, validation, album lookup, tag
+inspection, and action planning as apply mode, but it does not create directories,
+write CSV/metadata/report files, rename or delete media, repair tags, apply
+overrides, or download tracks. It can still make read-only network requests to
+validation and metadata providers.
 
-- process `[DEL]` markers and delete MP3s;
-- rewrite/sort playlist CSVs and validation results;
-- remove invalid/unavailable rows and invalid existing files;
-- rename/backfill files discovered in playlist directories;
-- retag existing MP3s and reapply album art/ReplayGain;
-- regenerate `duplicate_analysis.log`.
-
-Never run it merely to inspect data if those local changes are not authorized. For a read-only audit, parse CSVs and inspect files directly.
+Normal apply mode executes the planned changes, including repair of mismatched
+existing ID3 tags, album art, and ReplayGain.
 
 `<station>/songs` is a symlink to that station's AzuraCast media directory. The VPS media tree is authoritative, so playlist sync writes and deletes operate on the live media files directly.
 

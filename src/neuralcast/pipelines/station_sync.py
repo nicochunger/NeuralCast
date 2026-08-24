@@ -28,12 +28,18 @@ from neuralcast.metadata.track_resolution import (
     TrackResolutionRequest,
 )
 from neuralcast.models import Song
-from neuralcast.playlists.catalog import PlaylistSnapshot, StationPlaylistCatalog
+from neuralcast.playlists.catalog import (
+    CatalogWritePolicy,
+    PlaylistSnapshot,
+    StationPlaylistCatalog,
+)
 from neuralcast.playlists.utils import (
-    backfill_songs_from_library,
+    apply_library_renames,
     deduplicate_and_sort_songs,
     delete_marked_mp3_files,
+    find_marked_mp3_files,
     normalize_year_value,
+    plan_songs_from_library,
     playlist_song_key,
     replace_song_entry,
     sanitize_filename_component,
@@ -66,6 +72,8 @@ class PlaylistSyncReport:
     validation_updated: bool = False
     override_updated: bool = False
     pending_overrides: int = 0
+    planned_download_count: int = 0
+    tag_repair_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -109,6 +117,7 @@ class MediaLibrary(Protocol):
         existing_songs: list[tuple[Song, pathlib.Path]],
         playlist_name: str,
         *,
+        repair: bool,
         log: PlaylistLog,
     ) -> int:
         ...
@@ -524,9 +533,10 @@ class DefaultMediaLibrary:
         existing_songs: list[tuple[Song, pathlib.Path]],
         playlist_name: str,
         *,
+        repair: bool,
         log: PlaylistLog,
     ) -> int:
-        refreshed = 0
+        mismatches = 0
         for song, song_path in existing_songs:
             track_label = f"{song.artist or 'Unknown Artist'} - {song.title or song_path.stem}"
             status_lines: List[str] = []
@@ -539,21 +549,22 @@ class DefaultMediaLibrary:
                 cur_album = audio.get("album", [""])[0] if audio.get("album") else ""
             except Exception as exc:
                 status_lines.append(
-                    f"⚠️ Cannot read tags ({exc}); rewriting metadata + album art"
+                    f"⚠️ Cannot read tags ({exc}); metadata + album art need repair"
                 )
-                _, tag_lines = _capture_output(
-                    lambda: tag_mp3(
-                        str(song_path),
-                        song.artist,
-                        song.title,
-                        song.year,
-                        playlist_name,
-                        song.album,
-                        log_prefix="      ",
+                if repair:
+                    _, tag_lines = _capture_output(
+                        lambda: tag_mp3(
+                            str(song_path),
+                            song.artist,
+                            song.title,
+                            song.year,
+                            playlist_name,
+                            song.album,
+                            log_prefix="      ",
+                        )
                     )
-                )
-                _emit_captured_lines(tag_lines, logger=log.warning)
-                refreshed += 1
+                    _emit_captured_lines(tag_lines, logger=log.warning)
+                mismatches += 1
                 for line in status_lines:
                     log.change(f"{track_label}: {line}")
                 continue
@@ -577,25 +588,29 @@ class DefaultMediaLibrary:
             if not needs:
                 continue
 
-            status_lines.append(f"Updating fields: {', '.join(needs)}")
-            status_lines.append("Reapplying album art")
-            _, tag_lines = _capture_output(
-                lambda: tag_mp3(
-                    str(song_path),
-                    song.artist,
-                    song.title,
-                    song.year,
-                    playlist_name,
-                    song.album,
-                    log_prefix="      ",
-                )
+            action = "Updating" if repair else "Would update"
+            status_lines.append(f"{action} fields: {', '.join(needs)}")
+            status_lines.append(
+                "Reapplying album art" if repair else "Would reapply album art"
             )
-            _emit_captured_lines(tag_lines, logger=log.warning)
-            refreshed += 1
+            if repair:
+                _, tag_lines = _capture_output(
+                    lambda: tag_mp3(
+                        str(song_path),
+                        song.artist,
+                        song.title,
+                        song.year,
+                        playlist_name,
+                        song.album,
+                        log_prefix="      ",
+                    )
+                )
+                _emit_captured_lines(tag_lines, logger=log.warning)
+            mismatches += 1
             for line in status_lines:
                 log.change(f"{track_label}: {line}")
 
-        return refreshed
+        return mismatches
 
     def download_song(
         self,
@@ -680,7 +695,11 @@ class StationSync:
 
         catalog = StationPlaylistCatalog(playlists_dir)
         playlist_entries = self._load_playlist_entries(catalog, playlist_files)
-        self._apply_deletion_markers(playlist_entries, songs_root)
+        deletion_paths = self._apply_deletion_markers(
+            playlist_entries,
+            songs_root,
+            dry_run=request.dry_run,
+        )
 
         playlist_reports: list[PlaylistSyncReport] = []
         all_songs_by_playlist: dict[str, list[Song]] = {}
@@ -691,6 +710,7 @@ class StationSync:
                 entry,
                 songs_root,
                 dry_run=request.dry_run,
+                planned_deleted_paths=deletion_paths,
             )
             playlist_reports.append(report)
             all_songs_by_playlist[entry.name] = songs
@@ -698,8 +718,15 @@ class StationSync:
         analysis_log_file = self._write_duplicate_analysis(
             station_dir / "duplicate_analysis.log",
             all_songs_by_playlist,
+            dry_run=request.dry_run,
         )
-        print(f"📝 [sync] cross-playlist analysis written to {analysis_log_file}")
+        if request.dry_run:
+            print(
+                f"🧪 [sync] dry-run: would write cross-playlist analysis to "
+                f"{analysis_log_file}"
+            )
+        else:
+            print(f"📝 [sync] cross-playlist analysis written to {analysis_log_file}")
 
         return SyncReport(
             station_slug=request.station_slug,
@@ -730,7 +757,9 @@ class StationSync:
         self,
         playlist_entries: list[_PlaylistEntry],
         songs_root: pathlib.Path,
-    ) -> None:
+        *,
+        dry_run: bool,
+    ) -> set[pathlib.Path]:
         deletion_targets: Dict[Tuple[str, str], Song] = {}
         deletion_sources: Dict[Tuple[str, str], set[str]] = {}
 
@@ -744,21 +773,47 @@ class StationSync:
                 deletion_sources.setdefault(key, set()).add(entry.name)
 
         if not deletion_targets:
-            return
+            return set()
 
         print(f"🗑️ [sync] processing {len(deletion_targets)} [DEL] marker(s)")
         for key, song in deletion_targets.items():
             playlists_list = sorted(deletion_sources.get(key, []))
             playlists_note = ", ".join(playlists_list)
-            print(f"  📝 delete request: {song.artist} - {song.title} ({playlists_note})")
+            print(
+                f"  📝 delete request: "
+                f"{song.artist} - {song.title} ({playlists_note})"
+            )
 
-        deleted_files = delete_marked_mp3_files(
-            deletion_targets,
-            songs_root,
-            log=lambda line: print(f"  {line}"),
-        )
+        if dry_run:
+            deletion_paths = find_marked_mp3_files(
+                deletion_targets,
+                songs_root,
+                log=lambda line: print(f"  {line}"),
+            )
+            deleted_files = len(deletion_paths)
+            for path in deletion_paths:
+                try:
+                    relative_path = path.relative_to(songs_root)
+                except ValueError:
+                    relative_path = path
+                print(f"  🧪 Would delete MP3 due to [DEL]: {relative_path}")
+        else:
+            deletion_paths = find_marked_mp3_files(
+                deletion_targets,
+                songs_root,
+                log=lambda line: print(f"  {line}"),
+            )
+            deleted_files = delete_marked_mp3_files(
+                deletion_targets,
+                songs_root,
+                log=lambda line: print(f"  {line}"),
+            )
         if deleted_files:
-            print(f"🗑️ [sync] deleted {deleted_files} MP3 file(s) due to [DEL] markers")
+            action = "would delete" if dry_run else "deleted"
+            print(
+                f"🗑️ [sync] {action} {deleted_files} MP3 file(s) "
+                "due to [DEL] markers"
+            )
 
         for entry in playlist_entries:
             filtered_songs = [
@@ -771,6 +826,7 @@ class StationSync:
                 entry.songs = filtered_songs
                 entry.needs_save = True
                 entry.removed_via_marker = removed_count
+        return set(deletion_paths)
 
     def _sync_playlist(
         self,
@@ -779,24 +835,45 @@ class StationSync:
         songs_root: pathlib.Path,
         *,
         dry_run: bool,
+        planned_deleted_paths: set[pathlib.Path] | None = None,
     ) -> tuple[PlaylistSyncReport, list[Song]]:
         playlist_log = PlaylistLog(entry.name)
         songs = entry.songs
         if entry.removed_via_marker:
             playlist_log.change(
-                f"🗑️ removed {entry.removed_via_marker} song(s) marked with [DEL] from playlist"
+                f"🗑️ removed {entry.removed_via_marker} song(s) marked with "
+                "[DEL] from playlist"
             )
 
         music_dir = songs_root / entry.name
-        music_dir.mkdir(parents=True, exist_ok=True)
+        if not dry_run:
+            music_dir.mkdir(parents=True, exist_ok=True)
 
-        songs, library_changed, added_from_files = backfill_songs_from_library(
+        backfill_plan = plan_songs_from_library(
             entry.name,
             songs,
             music_dir,
+            ignored_paths=planned_deleted_paths,
             log=playlist_log.change,
         )
-        songs, normalized_changed, duplicates_removed = deduplicate_and_sort_songs(songs)
+        songs = backfill_plan.songs
+        library_changed = backfill_plan.changed
+        added_from_files = backfill_plan.added_from_files
+        if dry_run:
+            existing_paths = dict(backfill_plan.existing_paths)
+            for rename in backfill_plan.renames:
+                playlist_log.change(
+                    f"🧪 dry-run: would rename "
+                    f"{rename.source.name} -> {rename.target.name}"
+                )
+        else:
+            existing_paths = apply_library_renames(
+                backfill_plan,
+                log=playlist_log.change,
+            )
+        songs, normalized_changed, duplicates_removed = deduplicate_and_sort_songs(
+            songs
+        )
         if duplicates_removed > 0:
             playlist_log.change(f"🧹 removed {duplicates_removed} duplicate row(s)")
 
@@ -805,6 +882,11 @@ class StationSync:
                 entry.snapshot,
                 songs,
                 removed_songs=entry.deletions,
+                policy=(
+                    CatalogWritePolicy.PREVIEW
+                    if dry_run
+                    else CatalogWritePolicy.PERSIST
+                ),
             )
 
         if not songs:
@@ -836,19 +918,11 @@ class StationSync:
         if override_updates:
             catalog.save(entry.snapshot, songs)
 
-        actions = self._build_playlist_actions(songs, music_dir)
-        existing_pairs = [(item.song, item.path) for item in actions.existing_songs]
-        if dry_run and existing_pairs:
-            refreshed = self._media_library.audit_existing_tags(
-                existing_pairs,
-                entry.name,
-                log=playlist_log,
-            )
-            if refreshed > 0:
-                playlist_log.change(
-                    f"🧪 dry-run retag audit would refresh {refreshed} file(s)"
-                )
-
+        actions = self._build_playlist_actions(
+            songs,
+            music_dir,
+            existing_paths=existing_paths,
+        )
         songs_to_remove_from_playlist: list[Song] = []
         validation_updates = False
 
@@ -870,10 +944,13 @@ class StationSync:
                 songs_to_remove_from_playlist.append(item.song)
 
         for item in invalid_existing:
+            action = "would remove" if dry_run else "removed"
             playlist_log.change(
-                f"🗑️ removed invalid existing track: {item.song.artist} - {item.song.title} ({item.path.name})"
+                f"🗑️ {action} invalid existing track: "
+                f"{item.song.artist} - {item.song.title} ({item.path.name})"
             )
-            self._media_library.delete_file(item.path, log=playlist_log)
+            if not dry_run:
+                self._media_library.delete_file(item.path, log=playlist_log)
 
         available_missing: list[_SongLocation] = []
         for item in actions.missing_songs:
@@ -935,8 +1012,33 @@ class StationSync:
                 songs,
                 songs_to_remove=songs_to_remove_from_playlist,
                 save_validation_updates=validation_updates,
+                dry_run=dry_run,
                 log=playlist_log.change,
             )
+
+        removed_keys = {
+            playlist_song_key(song) for song in songs_to_remove_from_playlist
+        }
+        current_songs = {playlist_song_key(song): song for song in songs}
+        existing_pairs = [
+            (current_songs.get(playlist_song_key(item.song), item.song), item.path)
+            for item in actions.existing_songs
+            if playlist_song_key(item.song) not in removed_keys
+        ]
+        tag_repair_count = 0
+        if existing_pairs:
+            tag_repair_count = self._media_library.audit_existing_tags(
+                existing_pairs,
+                entry.name,
+                repair=not dry_run,
+                log=playlist_log,
+            )
+            if tag_repair_count > 0:
+                action = "would refresh" if dry_run else "refreshed"
+                prefix = "🧪 " if dry_run else ""
+                playlist_log.change(
+                    f"{prefix}tag audit {action} {tag_repair_count} file(s)"
+                )
 
         downloaded_count = 0
         failed_count = 0
@@ -986,10 +1088,13 @@ class StationSync:
                     entry.snapshot,
                     songs,
                     songs_to_remove=download_removals,
+                    dry_run=False,
                     log=playlist_log.change,
                 )
 
-        removed_count = len({playlist_song_key(song) for song in songs_to_remove_from_playlist})
+        removed_count = entry.removed_via_marker + len(
+            {playlist_song_key(song) for song in songs_to_remove_from_playlist}
+        )
         final_song_count = len(songs)
         changed_parts: List[str] = []
         if added_from_files > 0:
@@ -1038,6 +1143,8 @@ class StationSync:
                 validation_updated=validation_updates,
                 override_updated=override_updates,
                 pending_overrides=actions.pending_overrides,
+                planned_download_count=valid_count,
+                tag_repair_count=tag_repair_count,
             ),
             normalized_songs,
         )
@@ -1050,6 +1157,7 @@ class StationSync:
         *,
         songs_to_remove: list[Song] | None = None,
         save_validation_updates: bool = False,
+        dry_run: bool = False,
         log: Callable[[str], None] = print,
     ) -> list[Song]:
         songs_to_remove = songs_to_remove or []
@@ -1065,8 +1173,14 @@ class StationSync:
                 snapshot,
                 updated_songs,
                 removed_songs=songs_to_remove,
+                policy=(
+                    CatalogWritePolicy.PREVIEW
+                    if dry_run
+                    else CatalogWritePolicy.PERSIST
+                ),
             )
-            log("📝 playlist CSV updated")
+            action = "would update" if dry_run else "updated"
+            log(f"📝 playlist CSV {action}")
         return updated_songs
 
     def _override_candidates(
@@ -1092,15 +1206,21 @@ class StationSync:
         self,
         songs: list[Song],
         music_dir: pathlib.Path,
+        *,
+        existing_paths: dict[tuple[str, str], pathlib.Path] | None = None,
     ) -> _PlaylistActions:
         existing_songs: list[_SongLocation] = []
         missing_songs: list[_SongLocation] = []
         pending_overrides = 0
+        existing_paths = existing_paths or {}
 
         for song in songs:
             safe_artist = sanitize_filename_component(song.artist)
             safe_title = sanitize_filename_component(song.title)
             song_path = music_dir / f"{safe_artist} - {safe_title}.mp3"
+            known_path = existing_paths.get(playlist_song_key(song))
+            if not song_path.exists() and known_path is not None:
+                song_path = known_path
             location = _SongLocation(song, song_path)
             if song.override_url:
                 pending_overrides += 1
@@ -1122,6 +1242,8 @@ class StationSync:
         self,
         analysis_log_file: pathlib.Path,
         all_songs_by_playlist: dict[str, list[Song]],
+        *,
+        dry_run: bool = False,
     ) -> pathlib.Path:
         analysis_lines: List[str] = []
 
@@ -1146,7 +1268,10 @@ class StationSync:
             if len(value["playlists"]) > 1
         }
 
-        total_songs = sum(len(playlist_songs) for playlist_songs in all_songs_by_playlist.values())
+        total_songs = sum(
+            len(playlist_songs)
+            for playlist_songs in all_songs_by_playlist.values()
+        )
         total_unique_songs = len(song_appearances)
         duplicate_songs = len(duplicates)
         unique_songs = total_unique_songs - duplicate_songs
@@ -1187,8 +1312,9 @@ class StationSync:
             log(f"\n✅ No duplicate songs found across playlists!")
 
         log("\n" + "=" * 60)
-        with analysis_log_file.open("w", encoding="utf-8") as handle:
-            handle.write("\n".join(analysis_lines) + "\n")
+        if not dry_run:
+            with analysis_log_file.open("w", encoding="utf-8") as handle:
+                handle.write("\n".join(analysis_lines) + "\n")
         return analysis_log_file
 
 def main(
