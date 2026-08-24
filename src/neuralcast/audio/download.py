@@ -94,6 +94,8 @@ def tag_mp3(
     album: Optional[str] = None,
     *,
     log_prefix: str = "",
+    refresh_art: bool = True,
+    apply_replaygain: bool = True,
 ):
     file_name = os.path.basename(path)
     trimmed_album = str(album).strip() if album else ""
@@ -116,14 +118,14 @@ def tag_mp3(
         audio["album"] = str(album).strip()
     audio.save()
 
-    if album and str(album).strip():
+    if refresh_art and album and str(album).strip():
         try:
             _log("🎨 Embedding album art via MusicBrainz")
             embed_from_artist_album(path, artist, trimmed_album, log_prefix=log_prefix)
             _log("   ✓ Album art embedded")
         except Exception as exc:
             _log(f"⚠️ Failed to embed cover art from MusicBrainz: {exc}")
-    else:
+    elif refresh_art:
         try:
             id3 = ID3(path)
         except ID3NoHeaderError:
@@ -148,6 +150,9 @@ def tag_mp3(
             _log("🎨 Attached fallback thumbnail art")
         else:
             _log("🎨 No fallback thumbnail art available")
+
+    if not apply_replaygain:
+        return
 
     _log("🔊 Applying ReplayGain")
     try:

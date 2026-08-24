@@ -85,6 +85,47 @@ def test_runtime_migrates_outdated_before_saving_final_playlist(tmp_path) -> Non
     assert build_kwargs["existing_artist_counts"] == {}
 
 
+def test_runtime_keeps_collision_blocked_release_in_new_releases(tmp_path) -> None:
+    station_dir = tmp_path / "Station"
+    playlists_dir = station_dir / "playlists"
+    songs_dir = station_dir / "songs"
+    playlists_dir.mkdir(parents=True)
+    songs_dir.mkdir()
+    old_release = _release(
+        "Peacefield",
+        release_date=datetime(2025, 1, 1, tzinfo=UTC),
+        track_id="old",
+    )
+    saved: list[list[legacy.ArtistRelease]] = []
+
+    def deps_factory(request: NewReleasesRequest) -> NewReleasesRuntimeDependencies:
+        return NewReleasesRuntimeDependencies(
+            station_paths=lambda _station: (station_dir, playlists_dir),
+            load_station_artists=lambda _playlists: (
+                ["Ghost"],
+                {"Ghost": {"Rats"}},
+                {"Ghost": {playlists_dir / "Gothic Metal.csv": {"Rats"}}},
+            ),
+            load_artist_id_cache=lambda _playlists: legacy.ArtistIDCache({}),
+            load_existing_new_releases=lambda _playlists: [old_release],
+            build_new_releases=lambda *_args, **_kwargs: [],
+            save_artist_id_cache=lambda _playlists, _cache: None,
+            move_outdated_releases=lambda *_args: [old_release],
+            save_new_releases=lambda _playlists, releases: saved.append(releases),
+            now=lambda: datetime(2026, 6, 1, tzinfo=UTC),
+            set_debug_mode=lambda _enabled: None,
+            log_debug=lambda _message: None,
+            log_info=lambda _message: None,
+        )
+
+    result = NewReleasesRuntime(deps_factory).run(
+        NewReleasesRequest(station="neuralforge")
+    )
+
+    assert result.final_releases == [old_release]
+    assert saved == [[old_release]]
+
+
 def test_runtime_dedupes_existing_and_new_releases_by_track_id(tmp_path) -> None:
     station_dir = tmp_path / "Station"
     playlists_dir = station_dir / "playlists"

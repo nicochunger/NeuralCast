@@ -590,9 +590,11 @@ class DefaultMediaLibrary:
 
             action = "Updating" if repair else "Would update"
             status_lines.append(f"{action} fields: {', '.join(needs)}")
-            status_lines.append(
-                "Reapplying album art" if repair else "Would reapply album art"
-            )
+            refresh_art = "album" in needs
+            if refresh_art:
+                status_lines.append(
+                    "Reapplying album art" if repair else "Would reapply album art"
+                )
             if repair:
                 _, tag_lines = _capture_output(
                     lambda: tag_mp3(
@@ -603,6 +605,8 @@ class DefaultMediaLibrary:
                         playlist_name,
                         song.album,
                         log_prefix="      ",
+                        refresh_art=refresh_art,
+                        apply_replaygain=False,
                     )
                 )
                 _emit_captured_lines(tag_lines, logger=log.warning)

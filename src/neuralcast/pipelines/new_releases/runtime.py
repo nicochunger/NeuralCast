@@ -48,7 +48,7 @@ class NewReleasesRuntimeDependencies:
     load_existing_new_releases: Callable[[Path], list[legacy.ArtistRelease]]
     build_new_releases: Callable[..., list[legacy.ArtistRelease]]
     save_artist_id_cache: Callable[[Path, legacy.ArtistIDCache], None]
-    move_outdated_releases: Callable[..., None]
+    move_outdated_releases: Callable[..., list[legacy.ArtistRelease] | None]
     save_new_releases: Callable[[Path, list[legacy.ArtistRelease]], None]
     now: Callable[[], datetime]
     set_debug_mode: Callable[[bool], None]
@@ -144,15 +144,18 @@ class NewReleasesRuntime:
         )
         deps.save_artist_id_cache(playlists_dir, artist_cache)
 
-        final_releases = _dedupe_releases(valid_existing + new_releases)
-
+        blocked_releases: list[legacy.ArtistRelease] = []
         if outdated_existing:
-            deps.move_outdated_releases(
+            blocked_releases = deps.move_outdated_releases(
                 outdated_existing,
                 artist_playlist_map,
                 audio_root,
                 "New Releases",
-            )
+            ) or []
+
+        final_releases = _dedupe_releases(
+            valid_existing + new_releases + blocked_releases
+        )
 
         if final_releases:
             deps.log_info(f"Collected {len(final_releases)} recent tracks")

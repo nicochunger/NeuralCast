@@ -128,7 +128,7 @@ def test_default_media_library_audit_existing_tags_refreshes_mismatches(tmp_path
     library = station_sync.DefaultMediaLibrary()
     song_path = tmp_path / "Artist - Song.mp3"
     song_path.write_bytes(b"mp3")
-    tagged: list[tuple[str, str, str, str, str, str | None]] = []
+    tagged: list[tuple[tuple[object, ...], dict[str, object]]] = []
 
     class FakeEasyID3(dict):
         def __init__(self, _path: str) -> None:
@@ -144,9 +144,7 @@ def test_default_media_library_audit_existing_tags_refreshes_mismatches(tmp_path
     monkeypatch.setattr(
         station_sync,
         "tag_mp3",
-        lambda path, artist, title, year, genre, album, log_prefix="": tagged.append(
-            (path, artist, title, year, genre, album)
-        ),
+        lambda *args, **kwargs: tagged.append((args, kwargs)),
     )
 
     refreshed = library.audit_existing_tags(
@@ -157,7 +155,58 @@ def test_default_media_library_audit_existing_tags_refreshes_mismatches(tmp_path
     )
 
     assert refreshed == 1
-    assert tagged == [(str(song_path), "Artist", "Song", "2026", "Playlist", "Album")]
+    assert tagged == [
+        (
+            (str(song_path), "Artist", "Song", "2026", "Playlist", "Album"),
+            {
+                "log_prefix": "      ",
+                "refresh_art": True,
+                "apply_replaygain": False,
+            },
+        )
+    ]
+
+
+def test_default_media_library_genre_repair_skips_art_and_replaygain(
+    tmp_path, monkeypatch
+) -> None:
+    library = station_sync.DefaultMediaLibrary()
+    song_path = tmp_path / "Artist - Song.mp3"
+    song_path.write_bytes(b"mp3")
+    tagged: list[dict[str, object]] = []
+
+    class FakeEasyID3(dict):
+        def __init__(self, _path: str) -> None:
+            super().__init__(
+                artist=["Artist"],
+                title=["Song"],
+                date=["2026"],
+                genre=["New Releases"],
+                album=["Album"],
+            )
+
+    monkeypatch.setattr(station_sync, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(
+        station_sync,
+        "tag_mp3",
+        lambda *_args, **kwargs: tagged.append(kwargs),
+    )
+
+    mismatches = library.audit_existing_tags(
+        [(Song(artist="Artist", title="Song", year="2026", album="Album"), song_path)],
+        "Folk Rock",
+        repair=True,
+        log=station_sync.PlaylistLog("Folk Rock"),
+    )
+
+    assert mismatches == 1
+    assert tagged == [
+        {
+            "log_prefix": "      ",
+            "refresh_art": False,
+            "apply_replaygain": False,
+        }
+    ]
 
 
 def test_default_media_library_tag_audit_is_read_only_without_repair(

@@ -17,6 +17,7 @@ from typing import Iterable, Optional, Set
 
 import pandas as pd
 import requests
+from mutagen.easyid3 import EasyID3
 from tqdm import tqdm
 
 from neuralcast.audio.download import tag_mp3
@@ -45,6 +46,7 @@ from neuralcast.playlists.catalog import (
     CatalogWritePolicy,
     StationPlaylistCatalog,
 )
+from neuralcast.playlists.utils import sanitize_filename_component
 from neuralcast.services.validation import verified, verified_album
 
 _DEBUG_ENABLED = False
@@ -1359,25 +1361,15 @@ def _move_track_audio(
     destination_dir_name: str,
     release: ArtistRelease,
     dry_run: bool,
-    refresh_metadata: bool = False,
-) -> None:
+    refresh_album_art: bool = False,
+) -> bool:
     if not audio_root:
-        return
+        return True
     src_dir = audio_root / source_dir_name
     if not src_dir.exists():
         log_debug(f"Audio source directory missing: {src_dir}")
-        return
+        return True
     dest_dir = audio_root / destination_dir_name
-    if dry_run:
-        log_info(
-            f"Dry run: would move audio for '{release.artist} - {release.title}'"
-            f" from {src_dir} to {dest_dir}"
-        )
-        return
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    log_info(
-        f"Moving audio for '{release.artist} - {release.title}' from {src_dir} to {dest_dir}"
-    )
     target_key = _normalize_audio_label(release.artist, release.title)
     for candidate in src_dir.iterdir():
         if not candidate.is_file():
@@ -1385,11 +1377,49 @@ def _move_track_audio(
         if candidate.suffix.lower() not in {".mp3", ".flac", ".wav"}:
             continue
         candidate_key = _normalize_audio_label(candidate.stem)
-        if candidate_key == target_key or target_key in candidate_key:
-            dest_path = dest_dir / candidate.name
+        if candidate_key != target_key and candidate.suffix.lower() == ".mp3":
+            try:
+                tags = EasyID3(str(candidate))
+                tagged_artist = tags.get("artist", [""])[0]
+                tagged_title = tags.get("title", [""])[0]
+                candidate_key = _normalize_audio_label(tagged_artist, tagged_title)
+            except Exception:  # noqa: BLE001 - filename matching remains available
+                pass
+        if candidate_key == target_key:
+            canonical_name = (
+                f"{sanitize_filename_component(release.artist)} - "
+                f"{sanitize_filename_component(release.title)}{candidate.suffix.lower()}"
+            )
+            collision = next(
+                (
+                    path
+                    for path in dest_dir.iterdir()
+                    if path.is_file() and path.name.casefold() == canonical_name.casefold()
+                ),
+                None,
+            ) if dest_dir.exists() else None
+            if collision is not None:
+                log_warning(
+                    "Audio move blocked because the permanent playlist already has "
+                    f"a case-insensitive filename match: {collision.name}. "
+                    "The release will remain in New Releases for review."
+                )
+                return False
+            dest_path = dest_dir / canonical_name
+            if dry_run:
+                log_info(
+                    f"Dry run: would move {candidate.name} to "
+                    f"{dest_dir / canonical_name}"
+                )
+                return True
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            log_info(
+                f"Moving audio for '{release.artist} - {release.title}' "
+                f"from {src_dir} to {dest_dir}"
+            )
             candidate.replace(dest_path)
-            log_info(f"Moved {candidate.name} to {dest_dir}")
-            if refresh_metadata:
+            log_info(f"Moved {candidate.name} to {dest_path}")
+            if dest_path.suffix.lower() == ".mp3":
                 try:
                     tag_mp3(
                         str(dest_path),
@@ -1399,16 +1429,24 @@ def _move_track_audio(
                         destination_dir_name,
                         release.album,
                         log_prefix="      ",
+                        refresh_art=refresh_album_art,
+                        apply_replaygain=False,
                     )
                 except Exception as exc:
                     log_warning(
-                        "Moved audio but could not refresh album metadata/art for "
+                        "Moved audio but could not refresh destination metadata for "
                         f"{release.artist} - {release.title}: {exc}"
                     )
-            return
+            else:
+                log_warning(
+                    f"Moved {dest_path.name}, but automatic destination tagging "
+                    "currently supports MP3 files only"
+                )
+            return True
     log_warning(
         f"No audio found for {release.artist} - {release.title} in {src_dir}; nothing moved"
     )
+    return True
 
 
 def move_outdated_releases(
@@ -1417,28 +1455,33 @@ def move_outdated_releases(
     audio_root: Optional[Path],
     new_releases_dir_name: str,
     dry_run: bool,
-) -> None:
+) -> list[ArtistRelease]:
     if not releases:
-        return
+        return []
     migrations: list[tuple[ArtistRelease, Path]] = []
+    blocked_releases: list[ArtistRelease] = []
     for release in releases:
         destination = _resolve_destination_playlist(release, artist_playlist_map)
         if not destination:
             log_warning(f"No destination playlist for {release.artist} - {release.title}")
+            blocked_releases.append(release)
             continue
         album_promoted = _promote_release_album(release)
-        migrations.append((release, destination))
-        _append_release_to_playlist(destination, release, dry_run=dry_run)
-        _move_track_audio(
+        moved = _move_track_audio(
             audio_root,
             new_releases_dir_name,
             destination.stem,
             release,
             dry_run=dry_run,
-            refresh_metadata=album_promoted,
+            refresh_album_art=album_promoted,
         )
+        if not moved:
+            blocked_releases.append(release)
+            continue
+        migrations.append((release, destination))
+        _append_release_to_playlist(destination, release, dry_run=dry_run)
     if not migrations:
-        return
+        return blocked_releases
     action_phrase = (
         "Dry run: would move the following tracks to permanent playlists"
         if dry_run
@@ -1447,6 +1490,7 @@ def move_outdated_releases(
     log_info(action_phrase)
     for release, destination in migrations:
         log_info(f"  • {release.artist} – {release.title} → {destination.name}")
+    return blocked_releases
 
 
 def build_new_releases(

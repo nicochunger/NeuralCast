@@ -247,3 +247,46 @@ def test_tag_mp3_logs_replaygain_missing_without_failing(tmp_path, monkeypatch, 
     download.tag_mp3(str(mp3_path), "Ghost", "Rats", "Unknown", "Metal")
 
     assert "mp3gain not available" in capsys.readouterr().out
+
+
+def test_tag_mp3_can_update_fields_without_art_or_replaygain(
+    tmp_path, monkeypatch
+) -> None:
+    mp3_path = tmp_path / "song.mp3"
+    mp3_path.write_bytes(b"mp3")
+    saved_tags: dict[str, str] = {}
+
+    class FakeEasyID3(dict):
+        def save(self, *_args, **_kwargs) -> None:
+            saved_tags.update(self)
+
+    monkeypatch.setattr(download, "ensure_easyid3", lambda _path: FakeEasyID3())
+    monkeypatch.setattr(
+        download,
+        "embed_from_artist_album",
+        lambda *_args, **_kwargs: pytest.fail("album art refresh was not disabled"),
+    )
+    monkeypatch.setattr(
+        download.subprocess,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("ReplayGain was not disabled"),
+    )
+
+    download.tag_mp3(
+        str(mp3_path),
+        "Ghost",
+        "Rats",
+        "2018",
+        "Gothic Metal",
+        album="Prequelle",
+        refresh_art=False,
+        apply_replaygain=False,
+    )
+
+    assert saved_tags == {
+        "artist": "Ghost",
+        "title": "Rats",
+        "date": "2018",
+        "genre": "Gothic Metal",
+        "album": "Prequelle",
+    }

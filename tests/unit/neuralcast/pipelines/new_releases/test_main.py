@@ -885,10 +885,121 @@ class NewReleasesTest(unittest.TestCase):
                 "Gothic Metal",
                 "Skeleta",
                 log_prefix="      ",
+                refresh_art=True,
+                apply_replaygain=False,
             )
 
             df = pd.read_csv(destination_csv, dtype=str).fillna("")
             self.assertEqual(list(df["Title"]), ["Rats", "Peacefield"])
+
+    def test_move_outdated_release_updates_destination_genre_without_album_refresh(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            station_dir = Path(tmpdir)
+            playlists_dir = station_dir / "playlists"
+            source_dir = station_dir / "songs" / "New Releases"
+            destination_dir = station_dir / "songs" / "Folk Rock"
+            playlists_dir.mkdir(parents=True)
+            source_dir.mkdir(parents=True)
+            destination_dir.mkdir(parents=True)
+            destination_csv = playlists_dir / "Folk Rock.csv"
+            pd.DataFrame(columns=["Artist", "Title", "Album", "Year", "Validated"]).to_csv(
+                destination_csv, index=False
+            )
+            source = source_dir / "Artist - Song.mp3"
+            source.write_bytes(b"fake mp3")
+            release = new_releases.ArtistRelease(
+                artist="Artist",
+                title="Song",
+                album="Album",
+                year=2026,
+                release_date=datetime(2026, 1, 1, tzinfo=UTC),
+                track_id="1",
+                album_type="album",
+            )
+
+            with patch.object(
+                new_releases, "_promote_release_album", return_value=False
+            ), patch.object(new_releases, "tag_mp3") as tag_mp3:
+                blocked = new_releases.move_outdated_releases(
+                    [release],
+                    {"Artist": {destination_csv: {"Older Song"}}},
+                    station_dir / "songs",
+                    "New Releases",
+                    dry_run=False,
+                )
+
+            destination = destination_dir / "Artist - Song.mp3"
+            self.assertEqual(blocked, [])
+            self.assertTrue(destination.exists())
+            tag_mp3.assert_called_once_with(
+                str(destination),
+                "Artist",
+                "Song",
+                "2026",
+                "Folk Rock",
+                "Album",
+                log_prefix="      ",
+                refresh_art=False,
+                apply_replaygain=False,
+            )
+
+    def test_move_outdated_release_retains_source_on_case_insensitive_collision(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            station_dir = Path(tmpdir)
+            playlists_dir = station_dir / "playlists"
+            source_dir = station_dir / "songs" / "New Releases"
+            destination_dir = station_dir / "songs" / "Celtic Metal"
+            playlists_dir.mkdir(parents=True)
+            source_dir.mkdir(parents=True)
+            destination_dir.mkdir(parents=True)
+            destination_csv = playlists_dir / "Celtic Metal.csv"
+            pd.DataFrame(columns=["Artist", "Title", "Album", "Year", "Validated"]).to_csv(
+                destination_csv, index=False
+            )
+            source = source_dir / (
+                'Lyriel - The Skye Boat Song (from "Outlander") (Case Conflict 7).mp3'
+            )
+            source.write_bytes(b"new recording")
+            existing = destination_dir / 'Lyriel - The Skye Boat Song (From "Outlander").mp3'
+            existing.write_bytes(b"existing recording")
+            release = new_releases.ArtistRelease(
+                artist="Lyriel",
+                title='The Skye Boat Song (From "Outlander")',
+                album='The Skye Boat Song (From "Outlander")',
+                year=2026,
+                release_date=datetime(2026, 1, 1, tzinfo=UTC),
+                track_id="1",
+                album_type="single",
+                is_single=True,
+            )
+
+            with patch.object(
+                new_releases, "_promote_release_album", return_value=False
+            ), patch.object(
+                new_releases,
+                "EasyID3",
+                return_value={
+                    "artist": ["Lyriel"],
+                    "title": ['The Skye Boat Song (From "Outlander")'],
+                },
+            ), patch.object(new_releases, "tag_mp3") as tag_mp3:
+                blocked = new_releases.move_outdated_releases(
+                    [release],
+                    {"Lyriel": {destination_csv: {"Older Song"}}},
+                    station_dir / "songs",
+                    "New Releases",
+                    dry_run=False,
+                )
+
+            self.assertEqual(blocked, [release])
+            self.assertTrue(source.exists())
+            self.assertEqual(existing.read_bytes(), b"existing recording")
+            tag_mp3.assert_not_called()
+            self.assertTrue(pd.read_csv(destination_csv).empty)
 
     def test_promote_release_album_rechecks_track_titled_album(self) -> None:
         release = new_releases.ArtistRelease(
