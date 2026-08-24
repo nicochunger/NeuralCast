@@ -392,6 +392,7 @@ def _fetch_queue_context(
         ts_break=schedule_reference_ts,
         mention_state=mention_state,
         next_track=next_track,
+        upcoming_tracks=upcoming_tracks,
     )
     if schedule_context is not None:
         LOGGER.info(

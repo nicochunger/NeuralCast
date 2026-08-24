@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 from .config import (
+    SCHEDULE_BLOCK_INTRO_CONFIRMATION_TRACKS,
     LOGGER,
     SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES,
     SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS,
@@ -525,6 +526,7 @@ def resolve_schedule_context_for_upcoming_break(
     ts_break: float,
     mention_state: Mapping[str, Mapping[str, Any]],
     next_track: Optional[QueueTrack],
+    upcoming_tracks: Sequence[QueueTrack] = (),
 ) -> Optional[ScheduleContext]:
     boundary_context = resolve_schedule_context(
         schedule_state=schedule_state,
@@ -581,8 +583,43 @@ def resolve_schedule_context_for_upcoming_break(
         should_force_recovery_start = True
         reason = "break_after_block_start_recovery"
     elif playlist_match is True:
+        confirmation_tracks = list(
+            upcoming_tracks[:SCHEDULE_BLOCK_INTRO_CONFIRMATION_TRACKS]
+        )
+        confirmation_matches = [
+            _track_matches_block_playlist(track, next_entry)
+            for track in confirmation_tracks
+        ]
+        confirmed_count = sum(match is True for match in confirmation_matches)
+        required_count = SCHEDULE_BLOCK_INTRO_CONFIRMATION_TRACKS
+        if len(confirmation_tracks) < required_count:
+            LOGGER.info(
+                "[schedule] Deferring early block intro for '%s': "
+                "only %s/%s upcoming tracks available for confirmation.",
+                str(
+                    next_entry.get("section_label")
+                    or next_entry.get("playlist_name")
+                    or "n/d"
+                ),
+                len(confirmation_tracks),
+                required_count,
+            )
+            return boundary_context
+        if confirmed_count < required_count:
+            LOGGER.info(
+                "[schedule] Deferring early block intro for '%s': "
+                "upcoming playlist matches=%s/%s.",
+                str(
+                    next_entry.get("section_label")
+                    or next_entry.get("playlist_name")
+                    or "n/d"
+                ),
+                confirmed_count,
+                required_count,
+            )
+            return boundary_context
         should_force_recovery_start = True
-        reason = "next_track_matches_upcoming_block"
+        reason = f"next_{required_count}_tracks_match_upcoming_block"
 
     if not should_force_recovery_start:
         return boundary_context
