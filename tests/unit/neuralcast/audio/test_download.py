@@ -116,6 +116,22 @@ def test_search_probe_returns_true_false_or_none(monkeypatch) -> None:
     assert download._yt_dlp_search_has_results("Ghost Rats") is None
 
 
+def test_search_probe_uses_authenticated_youtube_clients(monkeypatch) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run(cmd: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="video-id\n")
+
+    monkeypatch.setenv("NC_YTDLP_COOKIES_FILE", "/tmp/youtube-cookies.txt")
+    monkeypatch.setattr(download.subprocess, "run", fake_run)
+
+    assert download._yt_dlp_search_has_results("Ghost Rats") is True
+    assert commands[0][commands[0].index("--extractor-args") + 1] == (
+        "youtube:player_client=default,web_embedded"
+    )
+
+
 def test_youtube_to_mp3_uses_direct_url_when_search_disabled(tmp_path, monkeypatch) -> None:
     outfile = tmp_path / "downloaded.mp3"
     commands: list[list[str]] = []
@@ -126,10 +142,45 @@ def test_youtube_to_mp3_uses_direct_url_when_search_disabled(tmp_path, monkeypat
         return subprocess.CompletedProcess(args=cmd, returncode=0)
 
     monkeypatch.setattr(download.subprocess, "run", fake_run)
+    monkeypatch.setenv("NC_YTDLP_COOKIES_FILE", "/tmp/youtube-cookies.txt")
 
     download.youtube_to_mp3("https://example.test/video", str(outfile), use_search=False)
 
     assert commands[0][3] == "https://example.test/video"
+    assert commands[0][4:8] == [
+        "--remote-components",
+        "ejs:github",
+        "--js-runtimes",
+        "node",
+    ]
+    assert commands[0][commands[0].index("--extractor-args") + 1] == (
+        "youtube:player_client=default,web_embedded"
+    )
+
+
+def test_youtube_to_mp3_keeps_default_clients_without_authentication(
+    tmp_path, monkeypatch
+) -> None:
+    outfile = tmp_path / "downloaded.mp3"
+    commands: list[list[str]] = []
+
+    def fake_run(cmd: list[str], check: bool) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
+        outfile.write_bytes(b"mp3")
+        return subprocess.CompletedProcess(args=cmd, returncode=0)
+
+    for key in (
+        "NC_YTDLP_COOKIES_FILE",
+        "YTDLP_COOKIES_FILE",
+        "NC_YTDLP_COOKIES_FROM_BROWSER",
+        "YTDLP_COOKIES_FROM_BROWSER",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(download.subprocess, "run", fake_run)
+
+    download.youtube_to_mp3("https://example.test/video", str(outfile), use_search=False)
+
+    assert "--extractor-args" not in commands[0]
 
 
 def test_tag_mp3_sets_standard_tags_and_album_art_provider(tmp_path, monkeypatch) -> None:

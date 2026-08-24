@@ -36,6 +36,8 @@ Esta carpeta contiene plantillas de prompts usadas por:
 2. `build_tts_instructions(...)` compone instrucciones de TTS con:
    - `tts_instructions.md`
    - ajuste inline opcional de personalidad (`personality.tts_profile`)
+   - si el canal configura `tts_instructions_override`, usa ese archivo como prompt
+     completo y no agrega el ajuste de personalidad compartido
 
 3. `build_prompt(...)` compone `contents` (prompt de usuario) con:
    - un wrapper `wrapper_*.md`

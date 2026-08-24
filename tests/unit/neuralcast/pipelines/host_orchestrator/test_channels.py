@@ -48,6 +48,17 @@ def test_legacy_station_resolution_preserves_spanish_channels() -> None:
     assert resolve_host_channel(station_slug="neuralforge").key == "neuralforge-es"
 
 
+def test_neuralforge_spanish_has_channel_specific_tts_instructions() -> None:
+    neuralforge = resolve_host_channel(channel_key="neuralforge-es")
+    neuralcast = resolve_host_channel(channel_key="neuralcast-es")
+
+    assert neuralforge.tts_instructions_override_path is not None
+    assert neuralforge.tts_instructions_override_path.name == (
+        "neuralforge_tts_instructions.md"
+    )
+    assert neuralcast.tts_instructions_override_path is None
+
+
 def test_channel_request_overrides_legacy_station_default() -> None:
     args = _args_from_cycle_request(
         HostCycleRequest(

@@ -26,6 +26,12 @@ class DownloadOutputMissingError(FileNotFoundError):
     """Raised when yt-dlp succeeds but does not produce the requested MP3."""
 
 
+_AUTHENTICATED_YOUTUBE_CLIENT_ARGS = [
+    "--extractor-args",
+    "youtube:player_client=default,web_embedded",
+]
+
+
 def _yt_dlp_cookie_args() -> list[str]:
     cookies_file = (
         str(
@@ -160,6 +166,9 @@ def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
     filtered_query = f"{query}"
     source = f"ytsearch1:{filtered_query}" if use_search else filtered_query
     cookie_args = _yt_dlp_cookie_args()
+    authenticated_client_args = (
+        _AUTHENTICATED_YOUTUBE_CLIENT_ARGS if cookie_args else []
+    )
     cmd = [
         sys.executable,
         "-m",
@@ -167,7 +176,10 @@ def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
         source,
         "--remote-components",
         "ejs:github",
+        "--js-runtimes",
+        "node",
         *cookie_args,
+        *authenticated_client_args,
         "-x",
         "--audio-format",
         "mp3",
@@ -199,6 +211,9 @@ def youtube_to_mp3(query: str, outfile: str, *, use_search: bool = True):
 def _yt_dlp_search_has_results(query: str) -> Optional[bool]:
     source = f"ytsearch1:{query}"
     cookie_args = _yt_dlp_cookie_args()
+    authenticated_client_args = (
+        _AUTHENTICATED_YOUTUBE_CLIENT_ARGS if cookie_args else []
+    )
     cmd = [
         sys.executable,
         "-m",
@@ -207,6 +222,7 @@ def _yt_dlp_search_has_results(query: str) -> Optional[bool]:
         "--remote-components",
         "ejs:github",
         *cookie_args,
+        *authenticated_client_args,
         "--flat-playlist",
         "--skip-download",
         "--print",

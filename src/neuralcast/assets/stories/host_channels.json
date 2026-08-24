@@ -22,7 +22,7 @@
       "output_language": "natural Argentinian Spanish",
       "script_guidance": "Write the spoken script exclusively in natural Argentinian Spanish (es-AR), using voseo and restrained Rioplatense phrasing. Preserve artist names, song titles, album names, playlist names, and source names exactly as supplied.",
       "tts_instructions": "prompts/tts_instructions.md",
-      "tts_voice": "Enceladus",
+      "tts_voice": "Charon",
       "presentation": {
         "back_sell": "Puente musical",
         "up_next_tease": "Lo que viene",
@@ -69,7 +69,7 @@
       "output_language": "natural conversational English",
       "script_guidance": "Write the spoken script exclusively in natural conversational English. Use a clear neutral international register, warm radio phrasing, and no Spanish fillers or grammar. Preserve artist names, song titles, album names, playlist names, and source names exactly as supplied. Spanish text elsewhere in the control prompt is instruction only and must never determine the output language.",
       "tts_instructions": "prompts/locales/en/tts_instructions.md",
-      "tts_voice": "Enceladus",
+      "tts_voice": "Charon",
       "presentation": {
         "back_sell": "Music bridge",
         "up_next_tease": "Coming up",
@@ -136,6 +136,7 @@
       "azuracast_station": "neuralforge",
       "brand": "neuralforge",
       "locale": "es-AR",
+      "tts_instructions_override": "prompts/locales/es-AR/neuralforge_tts_instructions.md",
       "media_owner_station": "neuralforge",
       "remote_prefix": "AI Stories/neuralforge/es-AR",
       "legacy_station": "neuralforge"

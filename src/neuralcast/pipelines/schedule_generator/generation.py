@@ -707,10 +707,14 @@ def _neuralcast_reggae_playlists(
 def _neuralcast_evening_playlists(
     playlists: Sequence[StationPlaylist],
 ) -> List[StationPlaylist]:
+    evening_playlist_names = {
+        "aspen vibes",
+        "acoustic singer-songwriter",
+    }
     return _find_neuralcast_reserved_playlists(
         playlists,
-        lambda playlist: _name_key(playlist.name) == "deep house",
-        "Deep House",
+        lambda playlist: _name_key(playlist.name) in evening_playlist_names,
+        "Aspen Vibes or Acoustic Singer-Songwriter",
     )
 
 

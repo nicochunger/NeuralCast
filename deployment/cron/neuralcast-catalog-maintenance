@@ -1,0 +1,9 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=Europe/Berlin
+
+# Sync both stations daily from Sunday through Friday.
+15 3 * * 0-5 root cd /root/projects/NeuralCast && ./deployment/run_catalog_maintenance.sh daily >> runtime/logs/catalog_maintenance.log 2>&1
+
+# On Saturday, refresh NeuralForge New Releases before syncing it; NeuralCast only syncs.
+15 3 * * 6 root cd /root/projects/NeuralCast && ./deployment/run_catalog_maintenance.sh saturday >> runtime/logs/catalog_maintenance.log 2>&1

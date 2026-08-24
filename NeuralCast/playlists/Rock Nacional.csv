@@ -49,12 +49,12 @@ Intoxicados,Fuego,Otro día en el planeta Tierra,2005,True
 La Mancha de Rolando,Arde la ciudad,Viaje,2004,True
 La Mancha de Rolando,Carolina,A cielo abierto / El año del tigre,2010,True
 La Mancha de Rolando,Chino,Espíritu,2006,True
-[https://youtu.be/xVN-XSpOkO0] La Mancha de Rolando,Calavera,Viaje,2004,False
-[https://youtu.be/b7PfL8ZeMaQ] La Mancha de Rolando,Buscar,Viaje,2004,False
-[https://youtu.be/JakWLef0uaU] La Mancha de Rolando,Donde vamos,Viaje,2004,False
-[https://youtu.be/BSlPCXhXgu8] La Mancha de Rolando,Regala,Espíritu,2006,False
-[https://youtu.be/6zQmLMr2RhU] La Mancha de Rolando,Cabrón,Espíritu,2006,False
-[https://youtu.be/1CK9bmv_3cA] La Mancha de Rolando,Viaje,Viaje,2004,False
+La Mancha de Rolando,Calavera,Viaje,2004,True
+La Mancha de Rolando,Buscar,Viaje,2004,True
+La Mancha de Rolando,Donde vamos,Viaje,2004,True
+La Mancha de Rolando,Regala,Espíritu,2006,True
+La Mancha de Rolando,Cabrón,Espíritu,2006,True
+La Mancha de Rolando,Viaje,Viaje,2004,True
 La Renga,El Final es en Donde Parti,Despedazado por mil partes,1996,True
 La Renga,La Balada del Diablo y La Muerte,Despedazado por mil partes,1996,True
 Los Abuelos de la Nada,Costumbres Argentinas,Los Abuelos De La Nada 1,1985,True
@@ -185,10 +185,12 @@ Bersuit Vergarabat,La Soledad,La argentinidad al palo,2004,True
 Las Pelotas,Será,Esperando el milagro,2003,True
 Los Rancheros,Mujer,Ni por todo el oro del mundo,1994,True
 Divididos,El Arriero,La era de la boludez,1993,True
-Gustavo Cerati,Puente,Bocanada,1999,False
-Sumo,Mañana en el Abasto,After Chabón,1987,False
-Patricio Rey y sus Redonditos de Ricota,Todo un Palo,Un baión para el ojo idiota,1988,False
-Divididos,Qué Ves?,La era de la boludez,1993,False
-Fabiana Cantilo,Mi Enfermedad,Algo mejor,1991,False
-GIT,La Calle Es Su Lugar,GIT Vol. 2,1985,False
-Los Twist,Pensé que se trataba de cieguitos,La dicha en movimiento,1983,False
+Gustavo Cerati,Puente,Bocanada,1999,True
+Sumo,Mañana en el Abasto,After Chabón,1987,True
+Patricio Rey y sus Redonditos de Ricota,Todo un Palo,Un baión para el ojo idiota,1988,True
+Divididos,Qué Ves?,La era de la boludez,1993,True
+Fabiana Cantilo,Mi Enfermedad,Algo mejor,1991,True
+GIT,La Calle Es Su Lugar,"GIT, El Album",1985,True
+Los Twist,Pensé que se trataba de cieguitos,La dicha en movimiento,1983,True
+Enanitos Verdes,Lamento Boliviano,Big Bang,1994,True
+Mancha de Rolando,Arde la Ciudad,Viaje,2003,True

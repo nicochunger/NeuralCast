@@ -2,16 +2,18 @@ Artist,Title,Album,Year,Validated
 Trollfest,Day Drinking,Trollywood,2026,True
 Europe,One on One,Come This Madness,2026,True
 Anthrax,It's For The Kids,Cursum Perficio,2026,True
-Anthrax,Everybody's Got A Plan,Cursum Perficio,2026,False
+Anthrax,Everybody's Got A Plan,Cursum Perficio,2026,True
+Airbourne,Alive After Death (Last Plane Out),Airbourne,2026,False
 Airbourne,GUTSY,Airbourne,2026,True
 Russian Circles,Empath,Nine,2026,True
-Marilyn Manson,All The Vilest Things,One Assassination Under God - Chapter 2,2026,False
+Jefferson Starship,Jetpack,Jetpack,2026,False
+Marilyn Manson,All The Vilest Things,One Assassination Under God - Chapter 2,2026,True
 Marilyn Manson,Front Toward Enemy,One Assassination Under God - Chapter 2,2026,True
-Signum Regis,Back to Zero,Back to Zero,2026,False
-Mastodon,In the Ruins,In the Ruins,2026,False
-Gloryhammer,Die with a Sword in My Hand,Die with a Sword in My Hand,2026,False
-Asia,Echo Of You,Echo Of You,2026,False
-Hibria,Fire Away,On the Shortness of Life,2026,False
+Signum Regis,Back to Zero,Back to Zero,2026,True
+Mastodon,In the Ruins,In the Ruins,2026,True
+Gloryhammer,Die with a Sword in My Hand,Die with a Sword in My Hand,2026,True
+Asia,Echo Of You,Echo Of You,2026,True
+Hibria,Fire Away,On the Shortness of Life,2026,True
 Audiomachine,Kingsbane,Kingsbane,2026,True
 Holy Dragons,Time Bomb,Time Bomb,2026,True
 Iron Savior,Back From The Fires Of Hell,Back From The Fires Of Hell,2026,True
@@ -25,22 +27,25 @@ Krampus,Love,Love,2026,True
 Dragonland,Survival of Mankind,Survival of Mankind,2026,True
 Eleine,Watch As We Rise,Watch As We Rise,2026,True
 Finsterforst,Obduktion,Still,2026,True
-Finsterforst,Herbstwanderung,Still,2026,False
+Finsterforst,Herbstwanderung,Still,2026,True
 Dreamtale,Battleheart,Aetherbound,2026,True
 Finsterforst,Stille Nacht,Still,2026,True
 Airbourne,Here She Comes,Here She Comes,2026,True
+Kamelot,Godlike Alchemy,Godlike Alchemy,2026,False
 Frozen Crown,Reborn,Reborn,2026,True
 Lost Horizon,Waves Sunrise Fireworks,Waves Sunrise Fireworks,2026,True
 Lost Horizon,Restless Lights Modern Slowly,Restless Lights Modern Slowly,2026,True
 The Hu,Horsemen,HUN,2026,True
 Insomnium,Gleam in the Black,Gleam in the Black,2026,True
 dArtagnan,Helden X Hymnen,Helden X Hymnen,2026,True
-dArtagnan,My Heart Will Go On,Helden X Hymnen,2026,False
+dArtagnan,My Heart Will Go On,Helden X Hymnen,2026,True
+dArtagnan,Moonlight Shadow,Helden X Hymnen,2026,False
 Tokyo Blade,I'm Gonna Rise,I'm Gonna Rise,2026,True
 Hibria,Against the Wall,Against the Wall,2026,True
 The Hu,Warrior Chant,HUN,2026,True
 Holy Dragons,Armada,Armada,2026,True
 Krampus,Get Up,Get Up,2026,True
+Opus Tenebrae,Negra Sombra,Ocean´s Rage,2026,False
 Opus Tenebrae,Last Sight of a Dead Man,Ocean´s Rage,2026,True
 Amon Amarth,Gjallarhorn,Gjallarhorn,2026,True
 Russian Circles,Eluvial,Eluvial,2026,True
@@ -50,6 +55,7 @@ Cloven Hoof,Iron Mask,Iron Mask,2026,True
 Krampus,The Girl Downstairs,The Girl Downstairs,2026,True
 Gloryhammer,Ultimate Sacrifice,Ultimate Sacrifice,2026,True
 Galneryus,ECHOES OF FATE,A CRY FROM THE SKY ABOVE,2026,True
+Galneryus,LET NO TIME DECAY,A CRY FROM THE SKY ABOVE,2026,False
 Celtian,Maleficio de Sangre (En Directo - La Riviera),Maleficio de Sangre (En Directo - La Riviera),2026,True
 The Ocean,"Belligerence, Pt. II",Belligerence,2026,True
 Schandmaul,An beiden Enden,An beiden Enden,2026,True
@@ -68,14 +74,17 @@ Secession Studios,Angels and Demons,Angels and Demons,2026,True
 Deep Purple,Arrogant Boy,SPLAT!,2026,True
 Deep Purple,The Rider,SPLAT!,2026,True
 Whispered,Ikikaere,Battlecry,2026,True
-Whispered,Battlecry,Battlecry,2026,False
+Whispered,Battlecry,Battlecry,2026,True
 Hibria,Undying,Undying,2026,True
+Kamelot,Ashen World (feat. Ignacia Fernández),Ashen World (feat. Ignacia Fernández),2026,False
 Haken,delirium,delirium,2026,True
 Temperance,"The Devil: Sin, Sin, Sin","The Devil: Sin, Sin, Sin",2026,True
 Odd Logic,Critical Minutiae,Mortal Heirloom,2026,True
+Odd Logic,In Separate Seas,Mortal Heirloom,2026,False
 Noveria,Convicted To Rise,Convicted To Rise,2026,True
 Galneryus,THE LIGHT OF HOPE,THE LIGHT OF HOPE,2026,True
 Eleine,We March,We March,2026,True
+Masterplan,Metalmorphosis,Metalmorphosis,2026,False
 Duir,Del Giorno,Catarsi,2026,True
 Duir,Di Nessuno,Catarsi,2026,True
 Black Forest,My Baby,My Baby,2026,True
@@ -92,8 +101,9 @@ Tarja,Blaze Forever,Frisson Noir,2026,True
 Tarja,I Don't Care,Frisson Noir,2026,True
 Thin Lizzy,Clifton Grange Hotel (Extended),Clifton Grange Hotel (Extended),2026,True
 Marilyn Manson,Exit Wound,Exit Wound,2026,True
+Vanden Plas,Boat On The River,Accult II,2026,False
 Haken,bleeding sky,bleeding sky,2026,True
-Black Rose,White Cat,Electric Dreams,2026,False
+Black Rose,White Cat,Electric Dreams,2026,True
 Evergrey,The Shadow Self,Architects Of A New Weave,2026,True
 Darkest Era,Running With The Wolves,Running With The Wolves,2026,True
 Darkest Era,Roads,Roads,2026,True
@@ -106,6 +116,7 @@ Tokyo Blade,Screaming Evil,Screaming Evil,2026,True
 The Ocean,Light Pollution,Light Pollution,2026,True
 Lars Eric Mattsson,Genie in a Bottle,Genie in a Bottle,2026,True
 Triddana,The Parting Glass,The Parting Glass,2026,True
+Elvenking,Arrival,Rites Of Disclosure,2026,False
 The Darkness,"Masters of the Universe (from ""Masters of the Universe"")","Masters of the Universe (from ""Masters of the Universe"")",2026,True
 The Great Kat,Devil's Mosh,Devil's Mosh,2026,True
 The Great Kat,Lucifer,Lucifer,2026,True
@@ -124,19 +135,20 @@ The Great Kat,First Call,First Call,2026,True
 The Great Kat,Signor Crescendo Rossini,Signor Crescendo Rossini,2026,True
 Peter Frampton,Carry The Light,Carry The Light,2026,True
 Peter Frampton,Islamorada,Carry The Light,2026,True
-Peter Frampton,Breaking The Mold,Carry The Light,2026,False
+Peter Frampton,Breaking The Mold,Carry The Light,2026,True
 Signum Regis,Beyond Spacetime,Beyond Spacetime,2026,True
 Atavistia,Raise all Thy Horns,Old Gods Awaken,2026,True
 Jethro Tull,Lap of Luxury (Original Drums),Under Wraps (The Unwrapped Edition),2026,True
 Inthraced,The Revenant,Constellation Zero,2026,True
+Atavistia,Seeker of Time,Old Gods Awaken,2026,False
 Space Odyssey,Belali,Belali,2026,True
 The Great Kat,Scots Wha Hae,Scots Wha Hae,2026,True
 Atavistia,Mystic Tavern,Old Gods Awaken,2026,True
 Their Dogs Were Astronauts,Volantis,Volantis,2026,True
 Solemnity,Nightmares from the Neighbourhood,Opus Barbariucum,2026,True
 Solemnity,The Last Ghostrider,Opus Barbariucum,2026,True
+Solemnity,Escape from the Matrix,Opus Barbariucum,2026,False
 Thin Lizzy,Eire (Outtake),Eire (Outtake),2026,True
-Parsifal,MELLONTAS,MELLONTAS,2026,True
 Saltatio Mortis,Tanz der Tausend Klingen,Tanz der Tausend Klingen,2026,True
 Eleine,Empire Of Lies,Empire Of Lies,2026,True
 The Great Kat,Beethoven's Drinking Song Trinklied,Beethoven's Drinking Song Trinklied,2026,True
@@ -147,26 +159,13 @@ Blackbriar,A Long Cursed Sleep,A Long Cursed Sleep,2026,True
 White Spirit,Fall Der Moral,Fall der Moral,2026,True
 Evergrey,Leaving The Emptiness,Leaving The Emptiness,2026,True
 Tygers Of Pan Tang,Electrifyed,Electrifyed,2026,True
-Parsifal,PERASTIKOS,PERASTIKOS,2026,True
 Grim Reaper,That's Right,That's Right,2026,True
 Venom,Lay Down Your Soul,Into Oblivion,2026,True
 Venom,Into Oblivion,Into Oblivion,2026,True
-Venom,Kicked Outta Hell,Into Oblivion,2026,False
+Venom,Kicked Outta Hell,Into Oblivion,2026,True
 Black Rose,NEVER NEGATIVITY,NEVER NEGATIVITY,2026,True
 Wolfheart,I Touch Myself,I Touch Myself,2026,True
 Dreamtale,Mirror Mirror,Mirror Mirror,2026,True
 The Great Kat,Ave Maria Bach Gounod,Ave Maria Bach Gounod,2026,True
 The Great Kat,Spotted Pony,Spotted Pony,2026,True
 The Great Kat,Mozart's Confutatis Requiem,Mozart's Confutatis Requiem,2026,True
-dArtagnan,Wake Me Up (feat. Piper.Ally),Wake Me Up (feat. Piper.Ally),2026,True
-The Real McKenzies,Black Agnes,Black Agnes,2026,True
-Plini,Dorénavant,An Unnameable Desire,2026,True
-At the Gates,In Dark Distortion,The Ghost of a Future Dead,2026,True
-Plini,An Unnameable Desire,An Unnameable Desire,2026,True
-Plini,Now & Then,An Unnameable Desire,2026,False
-Loverboy,GOLDENBOY,GOLDENBOY,2026,True
-Parsifal,UEATHS,UEATHS,2026,True
-Korn,Reward the Scars,Reward the Scars,2026,True
-Airbourne,Alive After Death (Last Plane Out),Alive After Death (Last Plane Out),2026,True
-Masterplan,Electric Nights,Electric Nights,2026,True
-Black Rose,Crumbling Into Ashes,Crumbling Into Ashes,2026,True

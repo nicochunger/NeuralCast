@@ -164,9 +164,11 @@ def test_host_orchestrator_run_preserves_argument_validation() -> None:
         verify_tls=False,
         keep_local_days=3,
         keep_remote_days=7,
+        scheduled_block_intros_only=False,
     )
 
     request = host_main._cycle_request_from_args(args)
 
     assert request.station == "neuralforge"
     assert request.force_archetype == Archetype.BACK_SELL
+    assert request.scheduled_block_intros_only is False

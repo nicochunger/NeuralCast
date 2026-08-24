@@ -522,6 +522,20 @@ META (JSON):
         self.assertIn("exclusively in natural conversational English", system_prompt)
         self.assertIn("neutral international accent", tts_instructions)
 
+    def test_channel_tts_override_is_complete_and_skips_personality_append(self) -> None:
+        channel = get_channel_registry().channels["neuralforge-es"]
+        personality = resolve_station_personality("neuralforge")
+
+        tts_instructions = build_tts_instructions(
+            personality,
+            locale=channel.locale,
+            override_path=channel.tts_instructions_override_path,
+        )
+
+        self.assertIn("misma altura tonal", tts_instructions)
+        self.assertNotIn("Station personality adjustment", tts_instructions)
+        self.assertNotIn("Energia alta pero controlada", tts_instructions)
+
     def test_should_enable_search_for_new_archetypes(self) -> None:
         self.assertTrue(should_enable_search(Archetype.ALBUM_SPOTLIGHT, None))
         self.assertTrue(should_enable_search(Archetype.ERA_SNAPSHOT, None))

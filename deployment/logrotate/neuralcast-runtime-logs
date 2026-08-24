@@ -1,0 +1,8 @@
+/root/projects/NeuralCast/runtime/logs/*.log {
+    daily
+    rotate 14
+    compress
+    missingok
+    notifempty
+    copytruncate
+}

@@ -159,6 +159,7 @@ class HostCycleRequest:
     verify_tls: bool = False
     keep_local_days: int = 3
     keep_remote_days: int = 7
+    scheduled_block_intros_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -185,6 +186,14 @@ class PublishResult:
 
 def validate_runtime_args(args: argparse.Namespace) -> TrackFocus | None:
     """Validate cross-argument constraints and return any forced track focus."""
+
+    scheduled_block_intros_only = bool(
+        getattr(args, "scheduled_block_intros_only", False)
+    )
+    if scheduled_block_intros_only and getattr(args, "force_archetype", None):
+        raise ArgumentValidationError(
+            "--scheduled-block-intros-only cannot be combined with --force-archetype."
+        )
 
     force_track_focus = getattr(args, "force_track_focus", None)
     if not force_track_focus:
@@ -280,6 +289,8 @@ def _fetch_playback_context(
     args: argparse.Namespace,
     client: AzuraCastClient,
     state,
+    *,
+    update_seen_state: bool = True,
 ) -> PlaybackContext | None:
     try:
         now_playing_payload = run_with_retries(
@@ -295,7 +306,8 @@ def _fetch_playback_context(
 
     current_track, current_remaining = extract_current_track(now_playing_payload)
     current_key = track_key(current_track.artist, current_track.title)
-    update_track_seen_state(state, current_key, now_ts())
+    if update_seen_state:
+        update_track_seen_state(state, current_key, now_ts())
 
     LOGGER.info(
         "[now-playing] Current track: %s - %s",
@@ -705,6 +717,7 @@ def _args_from_cycle_request(request: HostCycleRequest) -> argparse.Namespace:
         verify_tls=request.verify_tls,
         keep_local_days=request.keep_local_days,
         keep_remote_days=request.keep_remote_days,
+        scheduled_block_intros_only=request.scheduled_block_intros_only,
     )
 
 
@@ -724,6 +737,9 @@ def _cycle_request_from_args(args: argparse.Namespace) -> HostCycleRequest:
         verify_tls=args.verify_tls,
         keep_local_days=args.keep_local_days,
         keep_remote_days=args.keep_remote_days,
+        scheduled_block_intros_only=bool(
+            getattr(args, "scheduled_block_intros_only", False)
+        ),
     )
 
 
@@ -809,7 +825,12 @@ class HostOrchestratorRuntime:
                 schedule_block_mentions=state.schedule_block_mentions,
                 client_factory=deps.create_client,
             )
-            playback = _fetch_playback_context(args, runtime.client, state)
+            playback = _fetch_playback_context(
+                args,
+                runtime.client,
+                state,
+                update_seen_state=not args.scheduled_block_intros_only,
+            )
             if playback is None:
                 return HostCycleResult(
                     status="skipped",
@@ -841,6 +862,18 @@ class HostOrchestratorRuntime:
                 args=args,
                 schedule_context=queue_context.schedule_context,
             )
+            if args.scheduled_block_intros_only and not auto_forced_block_intro:
+                LOGGER.info(
+                    "[schedule] No valid upcoming block intro position; schedule-only cycle is complete."
+                )
+                return HostCycleResult(
+                    status="skipped",
+                    reason="no scheduled block intro due",
+                    station=args.station,
+                    channel=channel.key,
+                    current_track=playback.current_track,
+                    next_track=queue_context.next_track,
+                )
             selected_archetype = _select_archetype(
                 args=args,
                 state=state,
@@ -924,6 +957,7 @@ class HostOrchestratorRuntime:
             tts_instructions = build_tts_instructions(
                 runtime.station_personality,
                 locale=channel.locale,
+                override_path=channel.tts_instructions_override_path,
             )
             assets = run_with_retries(
                 "TTS synthesis",
@@ -1067,6 +1101,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "When used with --force-archetype for short_story, album_spotlight, "
             "era_snapshot, or deep_dive, force the archetype to focus on the "
             "current or next track instead of choosing randomly."
+        ),
+    )
+    parser.add_argument(
+        "--scheduled-block-intros-only",
+        action="store_true",
+        help=(
+            "Run only when schedule context identifies a valid upcoming block start, "
+            "and generate only the automatic block_intro archetype. Intended for a "
+            "frequent companion cron alongside a slower normal host cycle."
         ),
     )
     parser.add_argument(

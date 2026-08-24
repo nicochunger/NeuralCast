@@ -93,6 +93,7 @@ class HostChannel:
     remote_prefix: str
     cadence_profile: str
     archetype_profile: str
+    tts_instructions_override_path: pathlib.Path | None = None
     legacy_station: str | None = None
 
     @property
@@ -280,6 +281,19 @@ def load_channel_registry(
         )
         station_dir_from_slug(cadence_profile)
         station_dir_from_slug(archetype_profile)
+        tts_instructions_override_path: pathlib.Path | None = None
+        tts_instructions_override = str(
+            raw.get("tts_instructions_override") or ""
+        ).strip()
+        if tts_instructions_override:
+            tts_instructions_override_path = (
+                ASSETS_ROOT / "stories" / tts_instructions_override
+            )
+            if not tts_instructions_override_path.is_file():
+                raise FileNotFoundError(
+                    f"Channel '{key}' TTS instructions override not found: "
+                    f"{tts_instructions_override_path}"
+                )
         channels[channel_key] = HostChannel(
             key=channel_key,
             azuracast_station=_required_string(
@@ -293,6 +307,7 @@ def load_channel_registry(
             remote_prefix=remote_prefix.rstrip("/"),
             cadence_profile=cadence_profile,
             archetype_profile=archetype_profile,
+            tts_instructions_override_path=tts_instructions_override_path,
             legacy_station=(str(raw.get("legacy_station") or "").strip() or None),
         )
 

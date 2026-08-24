@@ -61,8 +61,41 @@ Notes:
 # English NeuralCast every two minutes on odd minutes, staggered from NeuralForge
 1-59/2 * * * * cd /root/projects/NeuralCast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator_neuralcast_en.log 2>&1
 
+# Keep the normal NeuralCast host cadence slow while checking every minute for
+# schedule-qualified block introductions. This mode never selects other archetypes.
+* * * * * cd /root/projects/NeuralCast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast --scheduled-block-intros-only >> runtime/logs/host_orchestrator_block_intros.log 2>&1
+
 # Weekly schedule generator every Monday at 02:10
 10 2 * * 1 cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator.log 2>&1
+```
+
+## Automated catalog maintenance
+
+Catalog maintenance is installed from the repository-managed cron definition:
+
+```bash
+sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-catalog-maintenance /etc/cron.d/neuralcast-catalog-maintenance
+sudo chmod 644 /etc/cron.d/neuralcast-catalog-maintenance
+sudo systemctl restart cron
+```
+
+The schedule uses Europe/Berlin time:
+
+- Sunday through Friday at `03:15`: sync NeuralForge, then NeuralCast.
+- Saturday at `03:15`: refresh NeuralForge New Releases, sync NeuralForge only
+  after a successful refresh, then sync NeuralCast.
+
+`deployment/run_catalog_maintenance.sh` holds
+`runtime/catalog-maintenance.lock` for the full run, preventing scheduled modes
+from overlapping. A failed NeuralForge New Releases refresh skips its sync so an
+incomplete playlist is not downloaded; the independent NeuralCast sync still runs.
+Output is appended to `runtime/logs/catalog_maintenance.log`.
+
+Install runtime log rotation with:
+
+```bash
+sudo cp /root/projects/NeuralCast/deployment/logrotate/neuralcast-runtime-logs /etc/logrotate.d/neuralcast-runtime-logs
+sudo chmod 644 /etc/logrotate.d/neuralcast-runtime-logs
 ```
 
 ## Admin API Bridge Repair After AzuraCast Updates

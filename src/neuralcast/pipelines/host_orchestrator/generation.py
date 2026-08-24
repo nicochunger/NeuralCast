@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import pathlib
 import random
 import re
 import unicodedata
@@ -542,9 +543,14 @@ def build_system_prompt(
 def build_tts_instructions(
     personality: StationPersonality,
     locale: Optional[HostLocale] = None,
+    override_path: Optional[pathlib.Path] = None,
 ) -> str:
     locale = _resolved_locale(locale)
-    base = locale.tts_instructions_path.read_text(encoding="utf-8").strip()
+    base = (override_path or locale.tts_instructions_path).read_text(
+        encoding="utf-8"
+    ).strip()
+    if override_path is not None:
+        return base
     if not personality.tts_profile.strip():
         return base
     return f"{base}\n\nStation personality adjustment:\n{personality.tts_profile}\n"

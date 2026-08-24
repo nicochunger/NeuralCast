@@ -55,6 +55,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             "Reggae Argentino",
             "Reggae Rock",
             "Deep House",
+            "Aspen Vibes",
             "Acoustic Singer-Songwriter",
             "Classic Rock",
             "Indie Vibes",
@@ -559,7 +560,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
         self.assertEqual(evening_block.mode, "playlist")
         self.assertEqual(
             set(evening_block.playlist_names),
-            {"Deep House"},
+            {"Aspen Vibes", "Acoustic Singer-Songwriter"},
         )
 
         open_minutes = sum(

@@ -131,6 +131,16 @@ Phil Collins,In the Air Tonight,Face Value,1981,True
 Pink Floyd,"Another Brick in the Wall, Part 2",The Wall,1979,True
 Pink Floyd,Money,The Dark Side of the Moon,1973,True
 Pink Floyd,Wish You Were Here,Wish You Were Here,1975,True
+Pink Floyd,Breathe (In the Air),The Dark Side of the Moon,1973,True
+Pink Floyd,Time,The Dark Side of the Moon,1973,True
+Pink Floyd,The Great Gig in the Sky,The Dark Side of the Moon,1973,True
+Pink Floyd,Brain Damage,The Dark Side of the Moon,1973,True
+Pink Floyd,Eclipse,The Dark Side of the Moon,1973,True
+Pink Floyd,Have a Cigar,Wish You Were Here,1975,True
+Pink Floyd,Shine On You Crazy Diamond (Parts I-V),Wish You Were Here,1975,True
+Pink Floyd,Hey You,The Wall,1979,True
+Pink Floyd,Run Like Hell,The Wall,1979,True
+Pink Floyd,Learning to Fly,A Momentary Lapse of Reason,1987,True
 Procol Harum,A Whiter Shade of Pale,Single,1967,True
 Queen,Bohemian Rhapsody,A Night at the Opera,1975,True
 Queen,Killer Queen,Sheer Heart Attack,1974,True
@@ -269,5 +279,7 @@ Electric Light Orchestra,Evil Woman,Flashback,1972,True
 Berlin,"Take My Breath Away - Love Theme from ""Top Gun""",Top Gun - Motion Picture Soundtrack,1986,True
 Bob Dylan,Hurricane,Desire,1976,True
 Jim Croce,"Bad, Bad Leroy Brown",Life & Times,1973,True
-Free,All Right Now,Fire and Water,1970,False
-Blue Öyster Cult,(Don't Fear) The Reaper,Agents of Fortune,1976,False
+Free,All Right Now,Fire and Water,1970,True
+Blue Öyster Cult,(Don't Fear) The Reaper,Agents of Fortune,1976,True
+Jimi Hendrix,All Along the Watchtower,Electric Ladyland,1968,True
+Jimi Hendrix,Purple Haze,Are You Experienced,1967,True
