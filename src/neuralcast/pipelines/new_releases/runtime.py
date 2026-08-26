@@ -54,6 +54,7 @@ class NewReleasesRuntimeDependencies:
     set_debug_mode: Callable[[bool], None]
     log_debug: Callable[[str], None]
     log_info: Callable[[str], None]
+    load_release_exclusions: Callable[[Path], set[str]] = legacy.load_release_exclusions
 
 
 def default_station_paths(station: str) -> tuple[Path, Path]:
@@ -114,6 +115,7 @@ class NewReleasesRuntime:
 
         cutoff = deps.now() - timedelta(days=request.days)
         existing_releases = deps.load_existing_new_releases(playlists_dir)
+        excluded_keys = deps.load_release_exclusions(playlists_dir)
         valid_existing, outdated_existing = legacy.partition_releases_by_cutoff(
             existing_releases, cutoff
         )
@@ -141,6 +143,7 @@ class NewReleasesRuntime:
             seen_tracks=existing_ids,
             seen_keys=existing_keys,
             existing_artist_counts=existing_artist_counts,
+            excluded_keys=excluded_keys,
         )
         deps.save_artist_id_cache(playlists_dir, artist_cache)
 

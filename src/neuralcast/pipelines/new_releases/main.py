@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import musicbrainzngs
 import os
 import re
@@ -53,6 +54,7 @@ _DEBUG_ENABLED = False
 _PLAYLIST_FILENAME = "New Releases.csv"
 _METADATA_FILENAME = "New Releases.metadata.json"
 _ARTIST_CACHE_FILENAME = "ArtistIDs.json"
+_EXCLUSIONS_FILENAME = "New Releases.exclusions.json"
 _EXCLUDED_PLAYLIST_FILENAMES = {"new releases.csv"}
 _KNOWN_TRACK_SAMPLE_SIZE = 8
 _KNOWN_ALBUM_SAMPLE_SIZE = 3
@@ -317,6 +319,28 @@ def save_artist_id_cache(
         return
     path = save_station_json_dict(playlists_dir, _ARTIST_CACHE_FILENAME, cache.entries)
     log_success(f"Cached {len(cache.entries)} artist IDs → {path}")
+
+
+def load_release_exclusions(playlists_dir: Path) -> set[str]:
+    path = playlists_dir.parent / "metadata" / _EXCLUSIONS_FILENAME
+    if not path.exists():
+        return set()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        log_warning(f"Could not read release exclusions from {path}: {exc}")
+        return set()
+
+    entries = payload.get("entries", []) if isinstance(payload, dict) else []
+    exclusions: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        artist = str(entry.get("Artist") or "").strip()
+        title = str(entry.get("Title") or "").strip()
+        if artist and title:
+            exclusions.add(_normalize_audio_label(artist, title))
+    return exclusions
 
 
 def load_station_artists(
@@ -1505,11 +1529,13 @@ def build_new_releases(
     seen_tracks: Optional[Set[str]] = None,
     seen_keys: Optional[Set[str]] = None,
     existing_artist_counts: Optional[dict[str, int]] = None,
+    excluded_keys: Optional[Set[str]] = None,
 ) -> list[ArtistRelease]:
     cutoff = cutoff or datetime.now(UTC) - timedelta(days=days)
     releases: list[ArtistRelease] = []
     seen_track_ids: Set[str] = set(seen_tracks or set())
     seen_title_keys: Set[str] = set(seen_keys or set())
+    normalized_excluded_keys = set(excluded_keys or set())
     artists_list = list(artists)
     normalized_existing_counts = {
         _normalize_text(artist): max(int(count), 0)
@@ -1531,7 +1557,13 @@ def build_new_releases(
         )
         if not candidates:
             continue
-        filtered = [c for c in candidates if (c.rank or 0) >= min_rank]
+        filtered = [
+            candidate
+            for candidate in candidates
+            if (candidate.rank or 0) >= min_rank
+            and _normalize_audio_label(candidate.artist, candidate.title)
+            not in normalized_excluded_keys
+        ]
         if not filtered:
             continue
 

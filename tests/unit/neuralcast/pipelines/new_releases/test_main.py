@@ -61,6 +61,28 @@ class NewReleasesTest(unittest.TestCase):
                 ["Main.csv"],
             )
 
+    def test_load_release_exclusions_normalizes_artist_and_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            playlists_dir = Path(tmpdir) / "playlists"
+            metadata_dir = Path(tmpdir) / "metadata"
+            playlists_dir.mkdir()
+            metadata_dir.mkdir()
+            (metadata_dir / "New Releases.exclusions.json").write_text(
+                json.dumps(
+                    {
+                        "entries": [
+                            {"Artist": "Black Rose", "Title": "White Cat"},
+                            {"Artist": "", "Title": "Ignored"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            exclusions = new_releases.load_release_exclusions(playlists_dir)
+
+            self.assertEqual(exclusions, {"blackrosewhitecat"})
+
     @patch.object(new_releases, "fetch_recent_releases")
     def test_build_new_releases_ranks_using_single_then_rank_then_date(
         self, fetch_recent_releases
@@ -128,6 +150,30 @@ class NewReleasesTest(unittest.TestCase):
 
         self.assertEqual(releases, [])
         fetch_recent_releases.assert_not_called()
+
+    @patch.object(new_releases, "fetch_recent_releases")
+    def test_build_new_releases_skips_station_exclusions(
+        self, fetch_recent_releases
+    ) -> None:
+        fetch_recent_releases.return_value = [
+            new_releases.ArtistRelease(
+                artist="Black Rose",
+                title="White Cat",
+                album="Electric Dreams",
+                year=2026,
+                release_date=datetime(2026, 6, 9, tzinfo=UTC),
+                track_id="blocked",
+            )
+        ]
+
+        releases = new_releases.build_new_releases(
+            ["Black Rose"],
+            days=120,
+            known_tracks={"Black Rose": {"No Point Runnin'"}},
+            excluded_keys={"blackrosewhitecat"},
+        )
+
+        self.assertEqual(releases, [])
 
     def test_fetch_recent_releases_skips_unreadable_tracks(self) -> None:
         with (
