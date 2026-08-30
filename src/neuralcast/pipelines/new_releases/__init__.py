@@ -1,4 +1,12 @@
-"""New releases pipeline package."""
+"""New Releases pipeline interfaces."""
 
-from .main import *  # noqa: F401,F403
+from .models import ArtistIDCache, ArtistRelease
+from .runtime import NewReleasesRequest, NewReleasesResult, NewReleasesRuntime
 
+__all__ = [
+    "ArtistIDCache",
+    "ArtistRelease",
+    "NewReleasesRequest",
+    "NewReleasesResult",
+    "NewReleasesRuntime",
+]

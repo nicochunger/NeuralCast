@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Callable
 
-legacy = importlib.import_module("neuralcast.pipelines.new_releases.main")
+from neuralcast.config import station_dir_from_slug
+
+from . import operations
+from .models import ArtistIDCache, ArtistRelease
 
 
 @dataclass(frozen=True)
@@ -26,10 +29,10 @@ class NewReleasesRequest:
 class NewReleasesResult:
     station: str
     playlists_dir: Path
-    final_releases: list[legacy.ArtistRelease]
-    new_releases: list[legacy.ArtistRelease]
-    valid_existing: list[legacy.ArtistRelease]
-    outdated_existing: list[legacy.ArtistRelease]
+    final_releases: list[ArtistRelease]
+    new_releases: list[ArtistRelease]
+    valid_existing: list[ArtistRelease]
+    outdated_existing: list[ArtistRelease]
     artist_count: int
     dry_run: bool
 
@@ -44,47 +47,49 @@ class NewReleasesRuntimeDependencies:
     load_station_artists: Callable[
         [Path], tuple[list[str], dict[str, set[str]], dict[str, dict[Path, set[str]]]]
     ]
-    load_artist_id_cache: Callable[[Path], legacy.ArtistIDCache]
-    load_existing_new_releases: Callable[[Path], list[legacy.ArtistRelease]]
-    build_new_releases: Callable[..., list[legacy.ArtistRelease]]
-    save_artist_id_cache: Callable[[Path, legacy.ArtistIDCache], None]
-    move_outdated_releases: Callable[..., list[legacy.ArtistRelease] | None]
-    save_new_releases: Callable[[Path, list[legacy.ArtistRelease]], None]
+    load_artist_id_cache: Callable[[Path], ArtistIDCache]
+    load_existing_new_releases: Callable[[Path], list[ArtistRelease]]
+    build_new_releases: Callable[..., list[ArtistRelease]]
+    save_artist_id_cache: Callable[[Path, ArtistIDCache], None]
+    move_outdated_releases: Callable[..., list[ArtistRelease] | None]
+    save_new_releases: Callable[[Path, list[ArtistRelease]], None]
     now: Callable[[], datetime]
     set_debug_mode: Callable[[bool], None]
     log_debug: Callable[[str], None]
     log_info: Callable[[str], None]
-    load_release_exclusions: Callable[[Path], set[str]] = legacy.load_release_exclusions
+    load_release_exclusions: Callable[
+        [Path], set[str]
+    ] = operations.load_release_exclusions
 
 
 def default_station_paths(station: str) -> tuple[Path, Path]:
-    return legacy._resolve_station_paths(station)
+    station_dir = station_dir_from_slug(station)
+    return station_dir, station_dir / "playlists"
 
 
 def default_dependencies(request: NewReleasesRequest) -> NewReleasesRuntimeDependencies:
     return NewReleasesRuntimeDependencies(
         station_paths=default_station_paths,
-        load_station_artists=legacy.load_station_artists,
-        load_artist_id_cache=legacy.load_artist_id_cache,
-        load_existing_new_releases=legacy.load_existing_new_releases,
-        build_new_releases=legacy.build_new_releases,
-        save_artist_id_cache=lambda playlists_dir, cache: legacy.save_artist_id_cache(
-            playlists_dir, cache, dry_run=request.dry_run
-        ),
-        move_outdated_releases=lambda releases, artist_playlist_map, audio_root, name: legacy.move_outdated_releases(
-            releases,
-            artist_playlist_map,
-            audio_root,
-            name,
+        load_station_artists=operations.load_station_artists,
+        load_artist_id_cache=operations.load_artist_id_cache,
+        load_existing_new_releases=operations.load_existing_new_releases,
+        build_new_releases=operations.build_new_releases,
+        save_artist_id_cache=partial(
+            operations.save_artist_id_cache,
             dry_run=request.dry_run,
         ),
-        save_new_releases=lambda playlists_dir, releases: legacy.save_new_releases(
-            playlists_dir, releases, dry_run=request.dry_run
+        move_outdated_releases=partial(
+            operations.move_outdated_releases,
+            dry_run=request.dry_run,
+        ),
+        save_new_releases=partial(
+            operations.save_new_releases,
+            dry_run=request.dry_run,
         ),
         now=lambda: datetime.now(UTC),
-        set_debug_mode=legacy.set_debug_mode,
-        log_debug=legacy.log_debug,
-        log_info=legacy.log_info,
+        set_debug_mode=operations.set_debug_mode,
+        log_debug=operations.log_debug,
+        log_info=operations.log_info,
     )
 
 
@@ -116,17 +121,17 @@ class NewReleasesRuntime:
         cutoff = deps.now() - timedelta(days=request.days)
         existing_releases = deps.load_existing_new_releases(playlists_dir)
         excluded_keys = deps.load_release_exclusions(playlists_dir)
-        valid_existing, outdated_existing = legacy.partition_releases_by_cutoff(
+        valid_existing, outdated_existing = operations.partition_releases_by_cutoff(
             existing_releases, cutoff
         )
         existing_ids = {release.track_id for release in valid_existing if release.track_id}
         existing_keys = {
-            legacy._normalize_audio_label(release.artist, release.title)
+            operations._normalize_audio_label(release.artist, release.title)
             for release in valid_existing
         }
         existing_artist_counts: dict[str, int] = {}
         for release in valid_existing:
-            artist_key = legacy._normalize_text(release.artist)
+            artist_key = operations._normalize_text(release.artist)
             existing_artist_counts[artist_key] = (
                 existing_artist_counts.get(artist_key, 0) + 1
             )
@@ -147,7 +152,7 @@ class NewReleasesRuntime:
         )
         deps.save_artist_id_cache(playlists_dir, artist_cache)
 
-        blocked_releases: list[legacy.ArtistRelease] = []
+        blocked_releases: list[ArtistRelease] = []
         if outdated_existing:
             blocked_releases = deps.move_outdated_releases(
                 outdated_existing,
@@ -181,18 +186,18 @@ class NewReleasesRuntime:
 
 
 def _dedupe_releases(
-    releases: list[legacy.ArtistRelease],
-) -> list[legacy.ArtistRelease]:
+    releases: list[ArtistRelease],
+) -> list[ArtistRelease]:
     combined = sorted(
         releases,
         key=lambda item: (item.release_date, item.rank or 0),
         reverse=True,
     )
-    final_releases: list[legacy.ArtistRelease] = []
+    final_releases: list[ArtistRelease] = []
     seen_ids: set[str] = set()
     seen_keys: set[str] = set()
     for release in combined:
-        title_key = legacy._normalize_audio_label(release.artist, release.title)
+        title_key = operations._normalize_audio_label(release.artist, release.title)
         if (release.track_id and release.track_id in seen_ids) or title_key in seen_keys:
             continue
         final_releases.append(release)

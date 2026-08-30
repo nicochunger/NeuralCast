@@ -14,7 +14,10 @@ from unittest.mock import patch
 
 import pandas as pd
 
-new_releases = importlib.import_module("neuralcast.pipelines.new_releases.main")
+new_releases = importlib.import_module("neuralcast.pipelines.new_releases.operations")
+new_releases_runtime = importlib.import_module(
+    "neuralcast.pipelines.new_releases.runtime"
+)
 
 
 class NewReleasesTest(unittest.TestCase):
@@ -1082,7 +1085,7 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(release.album, "Skeleta")
         self.assertFalse(release.is_single)
 
-    def test_main_moves_outdated_releases_before_saving_new_releases(self) -> None:
+    def test_runtime_moves_outdated_releases_before_saving_new_releases(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             station_dir = Path(tmpdir) / "Station"
             playlists_dir = station_dir / "playlists"
@@ -1105,8 +1108,8 @@ class NewReleasesTest(unittest.TestCase):
 
             with (
                 patch.object(
-                    new_releases,
-                    "_resolve_station_paths",
+                    new_releases_runtime,
+                    "default_station_paths",
                     return_value=(station_dir, playlists_dir),
                 ),
                 patch.object(
@@ -1128,13 +1131,13 @@ class NewReleasesTest(unittest.TestCase):
                 patch.object(new_releases, "save_artist_id_cache"),
                 patch.object(new_releases, "move_outdated_releases") as move_outdated,
                 patch.object(new_releases, "save_new_releases"),
-                patch.object(
-                    new_releases.sys,
-                    "argv",
-                    ["update_new_releases.py", "-s", "neuralforge", "--dry-run"],
-                ),
             ):
-                new_releases.main()
+                new_releases_runtime.NewReleasesRuntime().run(
+                    new_releases_runtime.NewReleasesRequest(
+                        station="neuralforge",
+                        dry_run=True,
+                    )
+                )
 
             move_outdated.assert_called_once_with(
                 [old_release],

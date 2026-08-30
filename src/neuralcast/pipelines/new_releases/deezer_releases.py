@@ -1,18 +1,17 @@
 """Provider adapter for Deezer-backed New Releases discovery.
 
-The implementation currently delegates to the legacy provider functions in
-``main`` so existing private compatibility imports keep working while callers
-can depend on one provider seam.
+The adapter gives runtime callers one provider seam while the operational
+implementation remains independently testable.
 """
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
 
-legacy = importlib.import_module("neuralcast.pipelines.new_releases.main")
+from . import operations
+from .models import ArtistIDCache, ArtistRelease
 
 
 class ReleaseDiscoveryProvider(Protocol):
@@ -21,8 +20,8 @@ class ReleaseDiscoveryProvider(Protocol):
         artist_name: str,
         cutoff: datetime,
         known_titles: Optional[set[str]] = None,
-        artist_cache: Optional[legacy.ArtistIDCache] = None,
-    ) -> list[legacy.ArtistRelease]:
+        artist_cache: Optional[ArtistIDCache] = None,
+    ) -> list[ArtistRelease]:
         ...
 
 
@@ -35,9 +34,9 @@ class DeezerReleaseDiscoveryProvider:
         artist_name: str,
         cutoff: datetime,
         known_titles: Optional[set[str]] = None,
-        artist_cache: Optional[legacy.ArtistIDCache] = None,
-    ) -> list[legacy.ArtistRelease]:
-        return legacy.fetch_recent_releases(
+        artist_cache: Optional[ArtistIDCache] = None,
+    ) -> list[ArtistRelease]:
+        return operations.fetch_recent_releases(
             artist_name,
             cutoff,
             known_titles,

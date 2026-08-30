@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from datetime import UTC, datetime
 
 from neuralcast.pipelines.new_releases.runtime import (
@@ -10,8 +9,7 @@ from neuralcast.pipelines.new_releases.runtime import (
     NewReleasesRuntime,
     NewReleasesRuntimeDependencies,
 )
-
-legacy = importlib.import_module("neuralcast.pipelines.new_releases.main")
+from neuralcast.pipelines.new_releases.models import ArtistIDCache, ArtistRelease
 
 
 def _release(
@@ -20,8 +18,8 @@ def _release(
     release_date: datetime,
     track_id: str,
     rank: int = 0,
-) -> legacy.ArtistRelease:
-    return legacy.ArtistRelease(
+) -> ArtistRelease:
+    return ArtistRelease(
         artist="Ghost",
         title=title,
         album="Skeleta",
@@ -63,7 +61,7 @@ def test_runtime_migrates_outdated_before_saving_final_playlist(tmp_path) -> Non
                 {"Ghost": {"Rats"}},
                 {"Ghost": {playlists_dir / "Gothic Metal.csv": {"Peacefield"}}},
             ),
-            load_artist_id_cache=lambda _playlists: legacy.ArtistIDCache({}),
+            load_artist_id_cache=lambda _playlists: ArtistIDCache({}),
             load_existing_new_releases=lambda _playlists: [old_release],
             build_new_releases=build_releases,
             save_artist_id_cache=lambda _playlists, _cache: calls.append("cache"),
@@ -96,7 +94,7 @@ def test_runtime_keeps_collision_blocked_release_in_new_releases(tmp_path) -> No
         release_date=datetime(2025, 1, 1, tzinfo=UTC),
         track_id="old",
     )
-    saved: list[list[legacy.ArtistRelease]] = []
+    saved: list[list[ArtistRelease]] = []
 
     def deps_factory(request: NewReleasesRequest) -> NewReleasesRuntimeDependencies:
         return NewReleasesRuntimeDependencies(
@@ -106,7 +104,7 @@ def test_runtime_keeps_collision_blocked_release_in_new_releases(tmp_path) -> No
                 {"Ghost": {"Rats"}},
                 {"Ghost": {playlists_dir / "Gothic Metal.csv": {"Rats"}}},
             ),
-            load_artist_id_cache=lambda _playlists: legacy.ArtistIDCache({}),
+            load_artist_id_cache=lambda _playlists: ArtistIDCache({}),
             load_existing_new_releases=lambda _playlists: [old_release],
             build_new_releases=lambda *_args, **_kwargs: [],
             save_artist_id_cache=lambda _playlists, _cache: None,
@@ -142,13 +140,13 @@ def test_runtime_dedupes_existing_and_new_releases_by_track_id(tmp_path) -> None
         track_id="same",
         rank=10,
     )
-    saved: list[list[legacy.ArtistRelease]] = []
+    saved: list[list[ArtistRelease]] = []
 
     def deps_factory(request: NewReleasesRequest) -> NewReleasesRuntimeDependencies:
         return NewReleasesRuntimeDependencies(
             station_paths=lambda _station: (station_dir, playlists_dir),
             load_station_artists=lambda _playlists: (["Ghost"], {"Ghost": set()}, {}),
-            load_artist_id_cache=lambda _playlists: legacy.ArtistIDCache({}),
+            load_artist_id_cache=lambda _playlists: ArtistIDCache({}),
             load_existing_new_releases=lambda _playlists: [existing],
             build_new_releases=lambda *_args, **_kwargs: [duplicate],
             save_artist_id_cache=lambda _playlists, _cache: None,
