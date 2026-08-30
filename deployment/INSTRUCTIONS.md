@@ -56,18 +56,36 @@ Notes:
 
 ```cron
 # Host orchestrator every hour at minute 5
-5 * * * * cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator.log 2>&1
+5 * * * * cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
 
 # English NeuralCast every two minutes on odd minutes, staggered from NeuralForge
-1-59/2 * * * * cd /root/projects/NeuralCast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator_neuralcast_en.log 2>&1
+1-59/2 * * * * cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast-en && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator/neuralcast-en/cron.log 2>&1
 
 # Keep the normal NeuralCast host cadence slow while checking every minute for
 # schedule-qualified block introductions. This mode never selects other archetypes.
-* * * * * cd /root/projects/NeuralCast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast --scheduled-block-intros-only >> runtime/logs/host_orchestrator_block_intros.log 2>&1
+* * * * * cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast --scheduled-block-intros-only >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1
 
 # Weekly schedule generator every Monday at 02:10
-10 2 * * 1 cd /root/projects/NeuralCast && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator.log 2>&1
+10 2 * * 1 cd /root/projects/NeuralCast && mkdir -p runtime/logs/schedule_generator/neuralforge && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator/neuralforge/schedule_generator.log 2>&1
 ```
+
+## Runtime Log Layout
+
+Runtime logs use service and station/channel directories when a command has more
+than one target:
+
+```text
+runtime/logs/
+├── host_orchestrator/<channel>/cron.log
+├── host_orchestrator/<channel>/ai_host_orchestrator.log
+├── host_orchestrator/<channel>/ai_host_orchestrator_segments.log
+└── schedule_generator/<station>/schedule_generator.log
+```
+
+Host channels use their configured keys, such as `neuralcast`, `neuralcast-en`,
+and `neuralforge`. Single-scope maintenance services may keep one descriptive
+log directly under `runtime/logs/`. Admin API job output remains paired with its
+job records under `runtime/admin_http/logs/`.
 
 ## Automated catalog maintenance
 
@@ -138,5 +156,5 @@ The script:
 Cron output lands in:
 
 ```text
-/var/log/neuralcast-admin-api-bridge-repair.log
+/root/projects/NeuralCast/runtime/logs/admin_api_bridge_repair.log
 ```

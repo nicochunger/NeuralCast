@@ -173,7 +173,7 @@ It runs every Monday at `04:45` Europe/Paris time, after the existing AzuraCast 
 Cron output is written to:
 
 ```text
-/var/log/neuralcast-admin-api-bridge-repair.log
+/root/projects/NeuralCast/runtime/logs/admin_api_bridge_repair.log
 ```
 
 ### Caddy

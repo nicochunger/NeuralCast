@@ -1,4 +1,6 @@
-/root/projects/NeuralCast/runtime/logs/*.log {
+/root/projects/NeuralCast/runtime/logs/*.log
+/root/projects/NeuralCast/runtime/logs/host_orchestrator/*/*.log
+/root/projects/NeuralCast/runtime/logs/schedule_generator/*/*.log {
     daily
     rotate 14
     compress
