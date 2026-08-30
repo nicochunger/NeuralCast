@@ -158,10 +158,10 @@ Install the cron file on the VPS:
 ```bash
 sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
-sudo systemctl reload cron
+sudo systemctl restart cron
 ```
 
-It runs every Monday at `04:45` Europe/Paris time, after the existing AzuraCast `04:00` update window, and it:
+It runs every Monday at `04:45` Europe/Berlin time, after the existing AzuraCast `04:00` update window, and it:
 
 - discovers the current `azuracast_default` bridge
 - removes stale old UFW bridge rules for port `8787`

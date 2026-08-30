@@ -1,0 +1,15 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=Europe/Berlin
+
+# Run the normal NeuralCast host cycle every 30 minutes.
+*/30 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1
+
+# Check every minute for schedule-qualified NeuralCast block introductions.
+* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast --scheduled-block-intros-only >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1
+
+# Run NeuralForge on even-numbered minutes.
+*/2 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
+
+# Run the English NeuralCast channel on odd-numbered minutes.
+1-59/2 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast-en && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator/neuralcast-en/cron.log 2>&1

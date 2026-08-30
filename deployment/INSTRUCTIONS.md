@@ -52,22 +52,28 @@ Notes:
 - `host_orchestrator --dry-run` still reads AzuraCast APIs and requires valid API credentials.
 - Remove `--dry-run` only when you intend to apply changes/upload queue media.
 
-## Cron Examples (VPS)
+## Scheduled Host and Schedule Jobs
 
-```cron
-# Host orchestrator every hour at minute 5
-5 * * * * cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
+Host-orchestrator and schedule-generator jobs are version controlled under
+`deployment/cron/`. Install them instead of maintaining equivalent entries in
+root's personal crontab:
 
-# English NeuralCast every two minutes on odd minutes, staggered from NeuralForge
-1-59/2 * * * * cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast-en && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator/neuralcast-en/cron.log 2>&1
-
-# Keep the normal NeuralCast host cadence slow while checking every minute for
-# schedule-qualified block introductions. This mode never selects other archetypes.
-* * * * * cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast --scheduled-block-intros-only >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1
-
-# Weekly schedule generator every Monday at 02:10
-10 2 * * 1 cd /root/projects/NeuralCast && mkdir -p runtime/logs/schedule_generator/neuralforge && PYTHONPATH=$(pwd)/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator/neuralforge/schedule_generator.log 2>&1
+```bash
+sudo install -m 0644 deployment/cron/neuralcast-host-orchestrator /etc/cron.d/neuralcast-host-orchestrator
+sudo install -m 0644 deployment/cron/neuralcast-schedule-generator /etc/cron.d/neuralcast-schedule-generator
+sudo systemctl restart cron
 ```
+
+Remove any equivalent personal-crontab entries before installing these files so
+the same cycle cannot run twice. Both definitions use Europe/Berlin time. The
+production cadence is:
+
+- NeuralCast normal host cycle every 30 minutes;
+- NeuralCast scheduled-block-intro check every minute;
+- NeuralForge host cycle every two minutes;
+- English NeuralCast host cycle on odd-numbered minutes;
+- NeuralForge weekly schedule generation Monday at `00:05`;
+- NeuralCast weekly schedule generation Monday at `00:15`.
 
 ## Runtime Log Layout
 
@@ -125,10 +131,10 @@ Install the cron file from the VPS checkout:
 ```bash
 sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
-sudo systemctl reload cron
+sudo systemctl restart cron
 ```
 
-The installed cron runs every Monday at `04:45` Europe/Paris time and executes:
+The installed cron runs every Monday at `04:45` Europe/Berlin time and executes:
 
 ```bash
 /root/projects/NeuralCast/deployment/repair_admin_api_bridge_after_azuracast_update.sh
