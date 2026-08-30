@@ -161,7 +161,7 @@ sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo systemctl restart cron
 ```
 
-It runs every Monday at `04:45` Europe/Berlin time, after the existing AzuraCast `04:00` update window, and it:
+It runs every Monday at `04:45` Europe/Zurich time, after the existing AzuraCast `04:00` update window, and it:
 
 - discovers the current `azuracast_default` bridge
 - removes stale old UFW bridge rules for port `8787`

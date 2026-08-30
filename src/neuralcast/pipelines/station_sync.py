@@ -20,6 +20,7 @@ from neuralcast.audio.download import (
     youtube_to_mp3,
 )
 from neuralcast.metadata.album_lookup import guess_album
+from neuralcast.metadata.constants import NEW_RELEASES_METADATA_FILENAME
 from neuralcast.metadata.track_resolution import (
     CallableAlbumResolutionPort,
     CallableTrackValidationPort,
@@ -50,7 +51,6 @@ from neuralcast.services.validation import (
     verified,
     verified_album,
 )
-_METADATA_FILENAME = "New Releases.metadata.json"
 
 
 @dataclass(frozen=True)
@@ -233,7 +233,7 @@ def remove_new_releases_metadata_entries(
         return 0
     return StationPlaylistCatalog(playlists_dir).remove_companion_entries(
         songs_to_remove,
-        filename=_METADATA_FILENAME,
+        filename=NEW_RELEASES_METADATA_FILENAME,
     )
 
 

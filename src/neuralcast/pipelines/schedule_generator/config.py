@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from neuralcast.config import DEFAULT_TIMEZONE_NAME
+
 try:
     import requests
 except ModuleNotFoundError:  # pragma: no cover - dependency guard
@@ -57,7 +59,7 @@ UNSCHEDULED_WINDOW_TOTAL_MINUTES = (
     (24 * 60 - UNSCHEDULED_WINDOW_START_MINUTE) + UNSCHEDULED_WINDOW_END_MINUTE
 )
 
-FALLBACK_TIMEZONE = "Europe/Zurich"
+FALLBACK_TIMEZONE = DEFAULT_TIMEZONE_NAME
 
 NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS = {
     "folklore argentino and chamame": 0.35,

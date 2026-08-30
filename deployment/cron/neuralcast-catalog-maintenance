@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-CRON_TZ=Europe/Berlin
+CRON_TZ=Europe/Zurich
 
 # Sync both stations daily from Sunday through Friday.
 15 3 * * 0-5 root cd /root/projects/NeuralCast && ./deployment/run_catalog_maintenance.sh daily >> runtime/logs/catalog_maintenance.log 2>&1

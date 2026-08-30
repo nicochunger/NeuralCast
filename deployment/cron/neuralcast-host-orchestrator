@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-CRON_TZ=Europe/Berlin
+CRON_TZ=Europe/Zurich
 
 # Run the normal NeuralCast host cycle every 30 minutes.
 */30 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1

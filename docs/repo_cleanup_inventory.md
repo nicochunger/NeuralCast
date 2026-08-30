@@ -4,9 +4,8 @@ This file records the initial cleanup classification so future tidy-ups can cont
 
 ## Kept at Repo Root (Active)
 
-- `readme.md` (primary overview)
+- `README.md` (primary overview)
 - `AGENTS.md` (repository workflow/rules)
-- `GEMINI.md` (assistant-specific summary)
 - Root CLI compatibility shims: `main.py`, `update_new_releases.py`, `inject_host_segment.py`, `schedule_generator.py`
 - Station data directories: `NeuralCast/`, `NeuralForge/`
 
@@ -30,6 +29,7 @@ These files are preserved for history/reference but are not considered current o
 - `*/duplicate_analysis.log`
 - `*/metadata/ai_host_orchestrator_state.json`
 - `*/metadata/ai_schedule_state.json`
+- `*.bak`
 - `src/neuralcast/assets/stories/snippets/` generated snippet outputs
 
 ## Intentionally Tracked Runtime-Adjacent Data

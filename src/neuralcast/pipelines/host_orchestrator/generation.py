@@ -164,7 +164,7 @@ def format_shared_input(
         "ENTRADA",
         f"- Estacion: {station_name}",
         f"- Personalidad de la estacion: {personality.script_profile}",
-        f"- Hora local (Europe/Zurich): {now_local}",
+        f"- Hora local ({SYSTEM_TZ.key}): {now_local}",
     ]
     lines.extend(_compose_track("Tema actual", current, current_meta))
     lines.extend(_compose_track("Proximo tema", next_track, next_meta))

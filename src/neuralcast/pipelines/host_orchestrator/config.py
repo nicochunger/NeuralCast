@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Any, Dict, FrozenSet, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-from neuralcast.config import ASSETS_ROOT, LOGS_ROOT
+from neuralcast.config import ASSETS_ROOT, DEFAULT_TIMEZONE_NAME, LOGS_ROOT
 from .models import Archetype, StationPersonality
 
 STORY_ROOT = ASSETS_ROOT / "stories"
@@ -62,7 +62,7 @@ SCHEDULE_MENTION_RETENTION_DAYS = 14
 SCHEDULE_MENTION_MAX_ENTRIES = 512
 UP_NEXT_TEASE_MIN_SECONDS_BEFORE_BLOCK_CHANGE = 20 * 60
 
-SYSTEM_TZ = ZoneInfo("Europe/Zurich")
+SYSTEM_TZ = ZoneInfo(DEFAULT_TIMEZONE_NAME)
 
 LOGGER = logging.getLogger("host_orchestrator")
 SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")

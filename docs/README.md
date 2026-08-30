@@ -7,4 +7,5 @@
 - `docs/tts_model_experiment_2026-08-29.md`: TTS provider comparison, Argentine-accent results, costs, and decision record.
 - `docs/archive/`: historical design notes, prompt archives, and superseded docs retained for reference.
 
-Repository root keeps only the primary onboarding docs (`readme.md`, `AGENTS.md`, `GEMINI.md`) plus runnable shims and data folders.
+Repository root keeps only the primary onboarding docs (`README.md` and
+`AGENTS.md`) plus runnable shims and data folders.

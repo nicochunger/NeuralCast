@@ -12,6 +12,10 @@ from typing import Any, Callable, Mapping, Sequence
 
 import pandas as pd
 
+from neuralcast.metadata.constants import (
+    NEW_RELEASES_METADATA_FILENAME,
+    NEW_RELEASES_PLAYLIST_NAME,
+)
 from neuralcast.metadata.storage import (
     load_station_entry_mapping,
     metadata_key,
@@ -22,8 +26,7 @@ from neuralcast.models import Song
 from .utils import normalize_year_value, playlist_song_key
 
 DELETE_MARKER = "[DEL]"
-NEW_RELEASES_PLAYLIST = "New Releases"
-NEW_RELEASES_METADATA_FILENAME = "New Releases.metadata.json"
+NEW_RELEASES_PLAYLIST = NEW_RELEASES_PLAYLIST_NAME
 _YOUTUBE_HOST_FRAGMENTS = ("youtube.com", "youtu.be")
 _OVERRIDE_PATTERN = re.compile(r"^\[(https?://[^\]]+)\]\s*(.*)$")
 _STANDARD_COLUMNS = ("Artist", "Title", "Year", "Album", "Validated")

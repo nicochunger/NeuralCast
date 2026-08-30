@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-CRON_TZ=Europe/Berlin
+CRON_TZ=Europe/Zurich
 
 # Repair admin API bridge access after the weekly AzuraCast update and verify health.
 45 4 * * 1 root cd /root/projects/NeuralCast && ./deployment/repair_admin_api_bridge_after_azuracast_update.sh >> runtime/logs/admin_api_bridge_repair.log 2>&1

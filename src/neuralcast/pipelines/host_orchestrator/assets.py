@@ -23,6 +23,7 @@ from .schedule import resolve_station_metadata_file
 from .transport import AzuraCastClient
 from .utils import normalize_component, track_key
 from neuralcast.audio.album_art import embed_local_cover_art
+from neuralcast.metadata.constants import NEW_RELEASES_METADATA_FILENAME
 from neuralcast.services.ai_client import (
     DEFAULT_GEMINI_TTS_MODEL,
     synthesize_speech,
@@ -71,7 +72,7 @@ def load_station_track_metadata(station_dir: pathlib.Path) -> Dict[str, TrackMet
 
     # Optional station metadata cache for New Releases.
     metadata_entries_path = resolve_station_metadata_file(
-        station_dir, "New Releases.metadata.json"
+        station_dir, NEW_RELEASES_METADATA_FILENAME
     )
     if metadata_entries_path.exists():
         try:

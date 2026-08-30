@@ -65,7 +65,7 @@ sudo systemctl restart cron
 ```
 
 Remove any equivalent personal-crontab entries before installing these files so
-the same cycle cannot run twice. Both definitions use Europe/Berlin time. The
+the same cycle cannot run twice. Both definitions use Europe/Zurich time. The
 production cadence is:
 
 - NeuralCast normal host cycle every 30 minutes;
@@ -103,7 +103,7 @@ sudo chmod 644 /etc/cron.d/neuralcast-catalog-maintenance
 sudo systemctl restart cron
 ```
 
-The schedule uses Europe/Berlin time:
+The schedule uses Europe/Zurich time:
 
 - Sunday through Friday at `03:15`: sync NeuralForge, then NeuralCast.
 - Saturday at `03:15`: refresh NeuralForge New Releases, sync NeuralForge only
@@ -134,7 +134,7 @@ sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo systemctl restart cron
 ```
 
-The installed cron runs every Monday at `04:45` Europe/Berlin time and executes:
+The installed cron runs every Monday at `04:45` Europe/Zurich time and executes:
 
 ```bash
 /root/projects/NeuralCast/deployment/repair_admin_api_bridge_after_azuracast_update.sh

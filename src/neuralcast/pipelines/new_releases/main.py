@@ -28,6 +28,12 @@ from neuralcast.config import (
     station_dir_from_slug,
 )
 from neuralcast.metadata.album_lookup import guess_album
+from neuralcast.metadata.constants import (
+    NEW_RELEASES_ARTIST_CACHE_FILENAME,
+    NEW_RELEASES_EXCLUSIONS_FILENAME,
+    NEW_RELEASES_METADATA_FILENAME,
+    NEW_RELEASES_PLAYLIST_FILENAME,
+)
 from neuralcast.metadata.storage import (
     load_station_json_dict,
     metadata_key,
@@ -51,11 +57,7 @@ from neuralcast.playlists.utils import sanitize_filename_component
 from neuralcast.services.validation import verified, verified_album
 
 _DEBUG_ENABLED = False
-_PLAYLIST_FILENAME = "New Releases.csv"
-_METADATA_FILENAME = "New Releases.metadata.json"
-_ARTIST_CACHE_FILENAME = "ArtistIDs.json"
-_EXCLUSIONS_FILENAME = "New Releases.exclusions.json"
-_EXCLUDED_PLAYLIST_FILENAMES = {"new releases.csv"}
+_EXCLUDED_PLAYLIST_FILENAMES = {NEW_RELEASES_PLAYLIST_FILENAME.casefold()}
 _KNOWN_TRACK_SAMPLE_SIZE = 8
 _KNOWN_ALBUM_SAMPLE_SIZE = 3
 _KNOWN_IDENTITY_MATCH_SAMPLE_SIZE = 3
@@ -296,7 +298,7 @@ class ArtistRelease:
 def load_artist_id_cache(playlists_dir: Path) -> ArtistIDCache:
     payload, _resolved = load_station_json_dict(
         playlists_dir,
-        _ARTIST_CACHE_FILENAME,
+        NEW_RELEASES_ARTIST_CACHE_FILENAME,
         log_warning=log_warning,
         warning_label="artist cache",
     )
@@ -317,12 +319,16 @@ def save_artist_id_cache(
     if dry_run:
         log_info("Dry run: not writing artist cache")
         return
-    path = save_station_json_dict(playlists_dir, _ARTIST_CACHE_FILENAME, cache.entries)
+    path = save_station_json_dict(
+        playlists_dir,
+        NEW_RELEASES_ARTIST_CACHE_FILENAME,
+        cache.entries,
+    )
     log_success(f"Cached {len(cache.entries)} artist IDs → {path}")
 
 
 def load_release_exclusions(playlists_dir: Path) -> set[str]:
-    path = playlists_dir.parent / "metadata" / _EXCLUSIONS_FILENAME
+    path = playlists_dir.parent / "metadata" / NEW_RELEASES_EXCLUSIONS_FILENAME
     if not path.exists():
         return set()
     try:
@@ -1173,7 +1179,7 @@ def _coerce_bool(value: object) -> bool:
 
 
 def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
-    path = playlists_dir / _PLAYLIST_FILENAME
+    path = playlists_dir / NEW_RELEASES_PLAYLIST_FILENAME
     if not path.exists():
         log_debug("New Releases.csv not found; starting from empty state")
         return []
@@ -1181,7 +1187,10 @@ def load_existing_new_releases(playlists_dir: Path) -> list[ArtistRelease]:
         tracks = StationPlaylistCatalog(
             playlists_dir,
             log=log_warning,
-        ).load_tracks_with_metadata(path, metadata_filename=_METADATA_FILENAME)
+        ).load_tracks_with_metadata(
+            path,
+            metadata_filename=NEW_RELEASES_METADATA_FILENAME,
+        )
     except Exception as exc:  # noqa: BLE001
         log_error(f"Failed reading {path}: {exc}")
         return []
@@ -1593,7 +1602,7 @@ def build_new_releases(
 
 
 def save_new_releases(playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool) -> None:
-    output_path = playlists_dir / _PLAYLIST_FILENAME
+    output_path = playlists_dir / NEW_RELEASES_PLAYLIST_FILENAME
     if not releases:
         log_info("No new releases to write.")
         print("No new releases to write.", file=sys.stderr)
@@ -1630,7 +1639,7 @@ def save_new_releases(playlists_dir: Path, releases: list[ArtistRelease], dry_ru
     StationPlaylistCatalog(playlists_dir, log=log_debug).replace_with_metadata(
         output_path,
         tracks,
-        metadata_filename=_METADATA_FILENAME,
+        metadata_filename=NEW_RELEASES_METADATA_FILENAME,
     )
     log_success(f"Wrote {len(tracks)} tracks → {output_path}")
     print(f"Wrote {len(tracks)} tracks to {output_path}", flush=True)

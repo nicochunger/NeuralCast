@@ -14,6 +14,7 @@ PACKAGE_ROOT = SRC_ROOT / "neuralcast"
 ASSETS_ROOT = PACKAGE_ROOT / "assets"
 RUNTIME_ROOT = PROJECT_ROOT / "runtime"
 LOGS_ROOT = RUNTIME_ROOT / "logs"
+DEFAULT_TIMEZONE_NAME: Final[str] = "Europe/Zurich"
 
 STATION_DIRECTORY_BY_SLUG: Final[dict[str, str]] = {
     "neuralcast": "NeuralCast",
@@ -50,6 +51,7 @@ __all__ = [
     "STATION_DIRECTORY_BY_SLUG",
     "ALLOWED_STATION_SLUGS",
     "DEFAULT_STATION_SLUG",
+    "DEFAULT_TIMEZONE_NAME",
     "ensure_logs_dir",
     "station_dir_from_slug",
 ]

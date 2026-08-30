@@ -42,11 +42,11 @@ def _assert_entry(
     assert command.endswith(f">> {log_path} 2>&1")
 
 
-def test_all_repository_cron_definitions_use_berlin_time() -> None:
+def test_all_repository_cron_definitions_use_zurich_time() -> None:
     for cron_path in CRON_DIR.iterdir():
         if cron_path.is_file():
             contents = cron_path.read_text(encoding="utf-8")
-            assert "CRON_TZ=Europe/Berlin" in contents
+            assert "CRON_TZ=Europe/Zurich" in contents
 
 
 def test_host_orchestrator_cron_preserves_production_configuration() -> None:

@@ -27,7 +27,7 @@ def _queue_track(
 
 def _open_to_aspen_schedule(date_local: str) -> dict[str, object]:
     return {
-        "timezone": "Europe/Berlin",
+        "timezone": "Europe/Zurich",
         "expanded_blocks": [
             {
                 "block_key": f"{date_local}|0|00:00|19:30|open|open",
@@ -70,7 +70,7 @@ def test_resolve_station_metadata_file_prefers_metadata_then_legacy(tmp_path) ->
 
 
 def test_early_block_intro_requires_three_consecutive_playlist_matches() -> None:
-    timezone = ZoneInfo("Europe/Berlin")
+    timezone = ZoneInfo("Europe/Zurich")
     now_local = dt.datetime(2026, 8, 24, 19, 20, tzinfo=timezone)
     tracks = [
         _queue_track("1", "John Mayer", "Gravity", "Aspen Vibes"),
@@ -93,7 +93,7 @@ def test_early_block_intro_requires_three_consecutive_playlist_matches() -> None
 
 
 def test_early_block_intro_accepts_three_consecutive_playlist_matches() -> None:
-    timezone = ZoneInfo("Europe/Berlin")
+    timezone = ZoneInfo("Europe/Zurich")
     now_local = dt.datetime(2026, 8, 24, 19, 20, tzinfo=timezone)
     tracks = [
         _queue_track("1", "John Mayer", "Gravity", "Aspen Vibes"),
@@ -116,7 +116,7 @@ def test_early_block_intro_accepts_three_consecutive_playlist_matches() -> None:
 
 
 def test_block_intro_after_scheduled_start_does_not_require_three_tracks() -> None:
-    timezone = ZoneInfo("Europe/Berlin")
+    timezone = ZoneInfo("Europe/Zurich")
     now_local = dt.datetime(2026, 8, 24, 19, 31, tzinfo=timezone)
     track = _queue_track("1", "John Mayer", "Gravity", "Aspen Vibes")
 

@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-CRON_TZ=Europe/Berlin
+CRON_TZ=Europe/Zurich
 
 # Generate and apply the NeuralForge schedule every Monday at 00:05.
 5 0 * * 1 root cd /root/projects/NeuralCast && mkdir -p runtime/logs/schedule_generator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.schedule_generator -s neuralforge >> runtime/logs/schedule_generator/neuralforge/schedule_generator.log 2>&1
