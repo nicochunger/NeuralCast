@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Sequence
 
 import uvicorn
 
@@ -31,8 +32,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    args = build_arg_parser().parse_args()
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_arg_parser().parse_args(argv)
 
     if not os.getenv("NEURALCAST_ADMIN_HTTP_TOKEN"):
         raise RuntimeError("NEURALCAST_ADMIN_HTTP_TOKEN must be set before startup.")
@@ -43,7 +44,8 @@ def main() -> None:
         port=args.port,
         log_level="info",
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
 
 
-def run() -> None:
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="AI-assisted local-network radio pipeline."
     )
@@ -28,11 +29,22 @@ def run() -> None:
             "writing them."
         ),
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_arg_parser().parse_args(argv)
     from neuralcast.pipelines.playlist_sync import main
 
     main(args.station, args.dry_run)
+    return 0
+
+
+def run() -> int:
+    """Compatibility alias for the former console-script entrypoint."""
+
+    return main()
 
 
 if __name__ == "__main__":
-    run()
+    raise SystemExit(main())

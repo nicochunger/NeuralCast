@@ -6,12 +6,12 @@ from __future__ import annotations
 from _bootstrap_src import bootstrap_src
 
 
-def main() -> None:
+def main() -> int:
     bootstrap_src()
-    from neuralcast.cli.sync_playlists import run
+    from neuralcast.cli.sync_playlists import main as cli_main
 
-    run()
+    return cli_main()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

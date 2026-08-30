@@ -2,21 +2,49 @@
 
 from __future__ import annotations
 
-import types
+import argparse
 
 from neuralcast.cli import update_new_releases
 
 
-def test_update_new_releases_run_dispatches_to_pipeline(monkeypatch) -> None:
-    calls: list[bool] = []
-    fake_module = types.SimpleNamespace(main=lambda: calls.append(True))
-    monkeypatch.setattr("sys.argv", ["update_new_releases.py", "-s", "neuralforge"])
-    monkeypatch.setitem(
-        __import__("sys").modules,
-        "neuralcast.pipelines.new_releases",
-        fake_module,
+def test_update_new_releases_main_dispatches_explicit_args(monkeypatch) -> None:
+    requests: list[object] = []
+
+    class Runtime:
+        def run(self, request) -> None:
+            requests.append(request)
+
+    monkeypatch.setattr(
+        update_new_releases,
+        "build_arg_parser",
+        lambda: argparse.ArgumentParser(parents=[_request_parser()], add_help=False),
+    )
+    monkeypatch.setattr(
+        "neuralcast.pipelines.new_releases.runtime.NewReleasesRuntime",
+        Runtime,
     )
 
-    update_new_releases.run()
+    exit_code = update_new_releases.main(["-s", "neuralforge", "--dry-run"])
 
-    assert calls == [True]
+    assert exit_code == 0
+    assert len(requests) == 1
+    assert requests[0].station == "neuralforge"
+    assert requests[0].dry_run is True
+
+
+def _request_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-s", "--station")
+    parser.add_argument("--days", type=int, default=120)
+    parser.add_argument("--per-artist", type=int, default=3)
+    parser.add_argument("--min-rank", type=int, default=0)
+    parser.add_argument("--prefer-singles", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
+    return parser
+
+
+def test_update_new_releases_run_remains_a_compatibility_alias(monkeypatch) -> None:
+    monkeypatch.setattr(update_new_releases, "main", lambda: 9)
+
+    assert update_new_releases.run() == 9

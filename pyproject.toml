@@ -33,8 +33,8 @@ dev = [
 ]
 
 [project.scripts]
-neuralcast-sync = "neuralcast.cli.sync_playlists:run"
-neuralcast-new-releases = "neuralcast.cli.update_new_releases:run"
+neuralcast-sync = "neuralcast.cli.sync_playlists:main"
+neuralcast-new-releases = "neuralcast.cli.update_new_releases:main"
 neuralcast-host = "neuralcast.cli.host_orchestrator:main"
 neuralcast-schedule = "neuralcast.cli.schedule_generator:main"
 neuralcast-admin-api = "neuralcast.cli.admin_api:main"
