@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import os
 
 from neuralcast.config import (
     ALLOWED_STATION_SLUGS,
-    DEFAULT_STATION_SLUG,
     PROJECT_ROOT,
+)
+from neuralcast.services.azuracast_config import (
+    load_azuracast_settings,
+    resolve_azuracast_station,
 )
 
 from .config import (
@@ -57,19 +59,15 @@ def run(args: argparse.Namespace) -> None:
     configure_logging()
 
     load_dotenv()
-    base_url = str(args.base_url or os.getenv("AZURACAST_BASE_URL") or "").strip()
-    if not base_url:
-        raise RuntimeError(
-            "AZURACAST_BASE_URL is not set (and --base-url was not provided)."
-        )
-    api_key = os.getenv("AZURACAST_API_KEY")
-    if not api_key:
-        raise RuntimeError("AZURACAST_API_KEY is not set in the environment.")
+    settings = load_azuracast_settings(
+        base_url=args.base_url,
+        station=args.station,
+    )
 
     request = ScheduleRunRequest(
-        station=args.station,
-        base_url=base_url,
-        api_key=api_key,
+        station=settings.station,
+        base_url=settings.base_url,
+        api_key=settings.api_key,
         dry_run=args.dry_run,
         force_apply=args.force_apply,
         verify_tls=args.verify_tls,
@@ -144,7 +142,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "-s",
         "--station",
         choices=ALLOWED_STATION_SLUGS,
-        default=os.getenv("AZURACAST_STATION", DEFAULT_STATION_SLUG),
+        default=resolve_azuracast_station(),
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(

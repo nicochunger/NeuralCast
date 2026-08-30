@@ -7,7 +7,10 @@ import argparse
 import pytest
 
 from neuralcast.cli import host_orchestrator
-from neuralcast.pipelines.host_orchestrator.main import ArgumentValidationError
+from neuralcast.pipelines.host_orchestrator.main import (
+    ArgumentValidationError,
+    build_arg_parser,
+)
 
 
 def test_host_orchestrator_main_dispatches_parsed_args(monkeypatch) -> None:
@@ -46,3 +49,9 @@ def test_host_orchestrator_main_converts_validation_error_to_parser_error(monkey
 
     with pytest.raises(SystemExit, match="bad args"):
         host_orchestrator.main()
+
+
+def test_host_parser_has_no_implicit_base_url(monkeypatch) -> None:
+    monkeypatch.delenv("AZURACAST_BASE_URL", raising=False)
+
+    assert build_arg_parser().parse_args([]).base_url is None

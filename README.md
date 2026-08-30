@@ -34,6 +34,27 @@ Optional dev extras:
 python -m pip install -e '.[dev]'
 ```
 
+## Development Commands
+
+The Makefile uses `.venv/bin/python` by default and accepts a `PYTHON` override:
+
+```bash
+make test
+make test-unit
+make test-boundary
+make test-coverage
+make test-collect
+make clean
+```
+
+Run opt-in external suites only when their required services and credentials are
+available:
+
+```bash
+make test-integration
+make test-live
+```
+
 ## Runtime Dependencies
 
 Install system tools used by the pipeline:

@@ -22,6 +22,17 @@ def test_run_requires_base_url_or_env(monkeypatch) -> None:
         schedule_main.run(args)
 
 
+def test_run_requires_api_key(monkeypatch) -> None:
+    args = schedule_main.build_arg_parser().parse_args(
+        ["--base-url", "https://example.test", "--dry-run"]
+    )
+    monkeypatch.setattr(schedule_main, "load_dotenv", lambda: None)
+    monkeypatch.delenv("AZURACAST_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="AZURACAST_API_KEY"):
+        schedule_main.run(args)
+
+
 def test_neuralcast_resolves_shorter_default_block_duration() -> None:
     args = schedule_main.build_arg_parser().parse_args(
         ["--base-url", "https://example.test", "-s", "neuralcast"]

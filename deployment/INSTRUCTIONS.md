@@ -39,7 +39,7 @@ Use module entrypoints (preferred):
 ```bash
 cd /root/projects/NeuralCast
 source .venv/bin/activate
-pip install -e .
+python -m pip install -e .
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
 
 # Multilingual channel example (shared NeuralCast catalog, English host):
@@ -59,8 +59,8 @@ Host-orchestrator and schedule-generator jobs are version controlled under
 root's personal crontab:
 
 ```bash
-sudo install -m 0644 deployment/cron/neuralcast-host-orchestrator /etc/cron.d/neuralcast-host-orchestrator
-sudo install -m 0644 deployment/cron/neuralcast-schedule-generator /etc/cron.d/neuralcast-schedule-generator
+sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-host-orchestrator /etc/cron.d/neuralcast-host-orchestrator
+sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-schedule-generator /etc/cron.d/neuralcast-schedule-generator
 sudo systemctl restart cron
 ```
 
@@ -98,8 +98,7 @@ job records under `runtime/admin_http/logs/`.
 Catalog maintenance is installed from the repository-managed cron definition:
 
 ```bash
-sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-catalog-maintenance /etc/cron.d/neuralcast-catalog-maintenance
-sudo chmod 644 /etc/cron.d/neuralcast-catalog-maintenance
+sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-catalog-maintenance /etc/cron.d/neuralcast-catalog-maintenance
 sudo systemctl restart cron
 ```
 
@@ -118,8 +117,7 @@ Output is appended to `runtime/logs/catalog_maintenance.log`.
 Install runtime log rotation with:
 
 ```bash
-sudo cp /root/projects/NeuralCast/deployment/logrotate/neuralcast-runtime-logs /etc/logrotate.d/neuralcast-runtime-logs
-sudo chmod 644 /etc/logrotate.d/neuralcast-runtime-logs
+sudo install -m 0644 /root/projects/NeuralCast/deployment/logrotate/neuralcast-runtime-logs /etc/logrotate.d/neuralcast-runtime-logs
 ```
 
 ## Admin API Bridge Repair After AzuraCast Updates
@@ -129,8 +127,7 @@ If the AzuraCast Docker network is recreated during updates, the Linux bridge na
 Install the cron file from the VPS checkout:
 
 ```bash
-sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
-sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
+sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo systemctl restart cron
 ```
 

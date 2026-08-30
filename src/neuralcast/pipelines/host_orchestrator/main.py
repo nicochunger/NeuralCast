@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import random
 import pathlib
 import sys
@@ -24,7 +23,12 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         return False
 
-from neuralcast.config import ALLOWED_STATION_SLUGS, DEFAULT_STATION_SLUG
+from neuralcast.config import ALLOWED_STATION_SLUGS
+from neuralcast.services.azuracast_config import (
+    AzuraCastSettings,
+    load_azuracast_settings,
+    resolve_azuracast_station,
+)
 
 from .channels import HostChannel, host_channel_keys, resolve_host_channel
 from .assets import (
@@ -150,7 +154,7 @@ class GenerationContext:
 @dataclass(frozen=True)
 class HostCycleRequest:
     station: str
-    base_url: str
+    base_url: str | None
     channel: str | None = None
     dry_run: bool = False
     min_listeners: int = 1
@@ -217,12 +221,12 @@ def validate_runtime_args(args: argparse.Namespace) -> TrackFocus | None:
     return TrackFocus(force_track_focus)
 
 
-def _load_required_api_key() -> str:
+def _load_runtime_settings(
+    base_url: str | None,
+    station: str | None,
+) -> AzuraCastSettings:
     load_dotenv()
-    api_key = os.getenv("AZURACAST_API_KEY")
-    if not api_key:
-        raise RuntimeError("AZURACAST_API_KEY is not set in the environment.")
-    return api_key
+    return load_azuracast_settings(base_url=base_url, station=station)
 
 
 def _load_station_runtime(
@@ -668,7 +672,9 @@ def _publish_segment(
 class HostRuntimeDependencies:
     """Coarse side-effect boundaries for one host-orchestrator cycle."""
 
-    load_required_api_key: Callable[[], str] = _load_required_api_key
+    load_settings: Callable[[str | None, str | None], AzuraCastSettings] = (
+        _load_runtime_settings
+    )
     configure_logging: Callable[[], None] = configure_logging
     create_client: Callable[[str, str, bool], AzuraCastClient] = (
         lambda base_url, api_key, verify_tls: AzuraCastClient(
@@ -768,7 +774,10 @@ class HostOrchestratorRuntime:
             forced_track_focus.value if forced_track_focus is not None else "none",
         )
 
-        api_key = deps.load_required_api_key()
+        settings = deps.load_settings(args.base_url, args.station)
+        args.base_url = settings.base_url
+        args.station = settings.station
+        api_key = settings.api_key
         rng = deps.make_rng()
         cycle_ts = deps.now()
         station_dir, state_path, lock_path = deps.station_state_paths(channel.key)
@@ -1055,14 +1064,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--base-url",
-        default=os.getenv("AZURACAST_BASE_URL", "https://192.168.1.226"),
-        help="Base URL for AzuraCast instance (default: %(default)s).",
+        help=(
+            "Base URL for AzuraCast. If omitted, reads AZURACAST_BASE_URL "
+            "from the environment/.env file (required)."
+        ),
     )
     parser.add_argument(
         "-s",
         "--station",
         choices=ALLOWED_STATION_SLUGS,
-        default=os.getenv("AZURACAST_STATION", DEFAULT_STATION_SLUG),
+        default=resolve_azuracast_station(),
         help="AzuraCast station shortcode (default: %(default)s).",
     )
     parser.add_argument(

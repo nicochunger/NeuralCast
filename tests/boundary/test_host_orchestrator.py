@@ -6,6 +6,7 @@ import argparse
 import random
 
 from neuralcast.pipelines.host_orchestrator import main as host_main
+from neuralcast.services.azuracast_config import AzuraCastSettings
 from neuralcast.pipelines.host_orchestrator.models import (
     Archetype,
     QueueTrack,
@@ -98,7 +99,11 @@ def test_host_orchestrator_runtime_dry_run_generates_assets_without_publish(tmp_
 
     deps = host_main.HostRuntimeDependencies(
         configure_logging=lambda: None,
-        load_required_api_key=lambda: "api-key",
+        load_settings=lambda base_url, station: AzuraCastSettings(
+            base_url=base_url or "https://azuracast.local",
+            api_key="api-key",
+            station=station or "neuralforge",
+        ),
         create_client=lambda _base_url, _api_key, _verify_tls: fake_client,
         station_state_paths=lambda _station: (station_dir, state_path, lock_path),
         configure_station_file_logging=lambda _metadata_dir: (

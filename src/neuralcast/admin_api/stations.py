@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, Callable
 
+from neuralcast.services.azuracast_config import (
+    AzuraCastConfigError,
+    load_azuracast_settings,
+)
 from neuralcast.pipelines.host_orchestrator.transport import (
     AzuraCastClient,
     choose_upcoming_tracks,
@@ -19,8 +22,7 @@ from .jobs import SUPPORTED_HOST_CHANNELS, SUPPORTED_STATIONS
 ClientFactory = Callable[[], AzuraCastClient]
 
 
-class StationServiceConfigError(RuntimeError):
-    """Raised when the admin API cannot build its AzuraCast client."""
+StationServiceConfigError = AzuraCastConfigError
 
 
 def _serialize_track(track: Any) -> dict[str, Any]:
@@ -91,16 +93,10 @@ class AdminStationService:
 
     @staticmethod
     def _build_client_from_env() -> AzuraCastClient:
-        base_url = str(os.getenv("AZURACAST_BASE_URL") or "").strip()
-        if not base_url:
-            raise StationServiceConfigError("AZURACAST_BASE_URL is not configured.")
-
-        api_key = os.getenv("AZURACAST_API_KEY")
-        if not api_key:
-            raise StationServiceConfigError("AZURACAST_API_KEY is not configured.")
+        settings = load_azuracast_settings()
 
         return AzuraCastClient(
-            base_url=base_url.rstrip("/"),
-            api_key=api_key,
+            base_url=settings.base_url,
+            api_key=settings.api_key,
             verify_tls=False,
         )

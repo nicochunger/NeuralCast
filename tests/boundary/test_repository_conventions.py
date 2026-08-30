@@ -79,3 +79,41 @@ def test_new_releases_filenames_are_defined_in_one_source_module() -> None:
             continue
         source = source_path.read_text(encoding="utf-8")
         assert all(f'"{filename}"' not in source for filename in canonical_filenames)
+
+
+def test_generated_artifact_patterns_are_ignored() -> None:
+    patterns = set(
+        (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    )
+
+    assert {
+        "*.bak",
+        "*.tmp",
+        "*.catalog-backup",
+        "*/metadata/ai_host_orchestrator.lock",
+    } <= patterns
+
+
+def test_deployment_docs_use_install_for_system_files() -> None:
+    for relative_path in ("deployment/INSTRUCTIONS.md", "docs/admin_api.md"):
+        contents = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "sudo cp " not in contents
+        assert "sudo chmod 644" not in contents
+        assert "/.venv/bin/pip " not in contents
+
+
+def test_makefile_exposes_standard_development_targets() -> None:
+    contents = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "PYTHON ?= .venv/bin/python" in contents
+    for target in (
+        "test",
+        "test-unit",
+        "test-boundary",
+        "test-coverage",
+        "test-integration",
+        "test-live",
+        "test-collect",
+        "clean",
+    ):
+        assert f"{target}:" in contents

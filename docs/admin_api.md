@@ -61,7 +61,7 @@ python -m neuralcast.cli.host_orchestrator \
 Install the unit file:
 
 ```bash
-sudo cp deployment/systemd/neuralcast-admin-api.service /etc/systemd/system/neuralcast-admin-api.service
+sudo install -m 0644 /root/projects/NeuralCast/deployment/systemd/neuralcast-admin-api.service /etc/systemd/system/neuralcast-admin-api.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now neuralcast-admin-api.service
 sudo systemctl status neuralcast-admin-api.service
@@ -156,8 +156,7 @@ Because AzuraCast updates can recreate the Docker network and change the bridge 
 Install the cron file on the VPS:
 
 ```bash
-sudo cp /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
-sudo chmod 644 /etc/cron.d/neuralcast-admin-api-post-azuracast-update
+sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-admin-api-post-azuracast-update /etc/cron.d/neuralcast-admin-api-post-azuracast-update
 sudo systemctl restart cron
 ```
 
@@ -464,7 +463,7 @@ git pull --ff-only
 Install updated requirements in this checkout when dependencies change:
 
 ```bash
-./.venv/bin/pip install -e .
+./.venv/bin/python -m pip install -e .
 ```
 
 Add `NEURALCAST_ADMIN_HTTP_TOKEN` to `.env`.
