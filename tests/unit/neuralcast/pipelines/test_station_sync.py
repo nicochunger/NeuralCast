@@ -10,9 +10,9 @@ from neuralcast.audio.download import DownloadNoResultsError
 from neuralcast.metadata.storage import metadata_key
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
-from neuralcast.pipelines import station_sync_media
-from neuralcast.pipelines import station_sync_resolver
-from neuralcast.pipelines import station_sync_service
+from neuralcast.pipelines.station_sync import media as station_sync_media
+from neuralcast.pipelines.station_sync import resolver as station_sync_resolver
+from neuralcast.pipelines.station_sync import service as station_sync_service
 
 
 def test_remove_new_releases_metadata_entries_removes_matching_keys(tmp_path) -> None:

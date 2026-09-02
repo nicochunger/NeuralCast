@@ -11,8 +11,8 @@ import musicbrainzngs
 import requests
 
 from .models import ArtistIDCache, ArtistRelease
-from .new_releases_logging import log_debug, log_warning
-from .new_releases_matching import (
+from .logging import log_debug, log_warning
+from .matching import (
     _artist_names_match,
     _close_enough,
     _normalize_artist_match_key,

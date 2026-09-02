@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional, Protocol
 
 from .models import ArtistIDCache, ArtistRelease
-from .new_releases_discovery import fetch_recent_releases
+from .discovery import fetch_recent_releases
 
 
 class ReleaseDiscoveryProvider(Protocol):

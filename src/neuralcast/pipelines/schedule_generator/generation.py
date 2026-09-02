@@ -13,7 +13,7 @@ from .template import (
     expand_daily_template_to_week,
     validate_daily_template,
 )
-from .schedule_policy import (
+from .policy import (
     DEFAULT_SCHEDULE_SEED_MODE,
     SCHEDULE_SEED_MODE_CUSTOM,
     SCHEDULE_SEED_MODE_FRESH,
@@ -23,9 +23,9 @@ from .schedule_policy import (
     resolve_schedule_seed,
 )
 
-from .schedule_scaffold import _build_randomized_scaffold, _build_station_scaffold
+from .scaffold import _build_randomized_scaffold, _build_station_scaffold
 
-from .schedule_assignment import (
+from .assignment import (
     _assign_playlists_to_scaffold,
     _candidate_selection_weight,
     _neuralforge_combo_presets,

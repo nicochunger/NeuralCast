@@ -22,8 +22,8 @@ from neuralcast.playlists.utils import sanitize_filename_component
 from neuralcast.services.validation import verified, verified_album
 
 from .models import ArtistRelease
-from .new_releases_logging import log_debug, log_error, log_info, log_warning
-from .new_releases_matching import _normalize_audio_label, _track_titles_match
+from .logging import log_debug, log_error, log_info, log_warning
+from .matching import _normalize_audio_label, _track_titles_match
 
 
 def _resolve_destination_playlist(

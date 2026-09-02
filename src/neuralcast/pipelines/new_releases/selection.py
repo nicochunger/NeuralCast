@@ -9,8 +9,8 @@ from typing import Iterable, Optional, Set
 from tqdm import tqdm
 
 from .models import ArtistIDCache, ArtistRelease
-from .new_releases_discovery import fetch_recent_releases
-from .new_releases_matching import _normalize_audio_label, _normalize_text
+from .discovery import fetch_recent_releases
+from .matching import _normalize_audio_label, _normalize_text
 
 
 def build_new_releases(

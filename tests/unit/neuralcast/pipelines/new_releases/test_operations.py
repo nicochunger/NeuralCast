@@ -19,13 +19,13 @@ new_releases_runtime = importlib.import_module(
     "neuralcast.pipelines.new_releases.runtime"
 )
 new_releases_discovery = importlib.import_module(
-    "neuralcast.pipelines.new_releases.new_releases_discovery"
+    "neuralcast.pipelines.new_releases.discovery"
 )
 new_releases_migration = importlib.import_module(
-    "neuralcast.pipelines.new_releases.new_releases_migration"
+    "neuralcast.pipelines.new_releases.migration"
 )
 new_releases_selection = importlib.import_module(
-    "neuralcast.pipelines.new_releases.new_releases_selection"
+    "neuralcast.pipelines.new_releases.selection"
 )
 
 

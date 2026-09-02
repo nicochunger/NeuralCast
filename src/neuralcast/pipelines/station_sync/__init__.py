@@ -1,12 +1,12 @@
 """Compatibility facade for station playlist synchronization.
 
-New code should import specific ownership modules or station_sync_service.
+New code should import the owning module within this package.
 """
 
 from __future__ import annotations
 
-from .station_sync_media import DefaultMediaLibrary
-from .station_sync_models import (
+from .media import DefaultMediaLibrary
+from .models import (
     MediaLibrary,
     PlaylistLog,
     PlaylistSyncReport,
@@ -14,9 +14,9 @@ from .station_sync_models import (
     SyncRequest,
     TrackResolver,
 )
-from .station_sync_persistence import remove_new_releases_metadata_entries
-from .station_sync_resolver import DefaultTrackResolver
-from .station_sync_service import StationSync, list_playlists, main
+from .persistence import remove_new_releases_metadata_entries
+from .resolver import DefaultTrackResolver
+from .service import StationSync, list_playlists, main
 
 __all__ = [
     "DefaultMediaLibrary",

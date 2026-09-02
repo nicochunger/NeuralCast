@@ -7,8 +7,8 @@ module that owns the behavior it uses.
 from __future__ import annotations
 
 from .models import ArtistIDCache, ArtistRelease
-from .new_releases_discovery import fetch_recent_releases, parse_release_date
-from .new_releases_logging import (
+from .discovery import fetch_recent_releases, parse_release_date
+from .logging import (
     log_debug,
     log_error,
     log_info,
@@ -16,7 +16,7 @@ from .new_releases_logging import (
     log_warning,
     set_debug_mode,
 )
-from .new_releases_matching import (
+from .matching import (
     _artist_names_match,
     _close_enough,
     _metadata_key,
@@ -29,9 +29,9 @@ from .new_releases_matching import (
     _ratio,
     _track_titles_match,
 )
-from .new_releases_migration import move_outdated_releases
-from .new_releases_selection import build_new_releases
-from .new_releases_storage import (
+from .migration import move_outdated_releases
+from .selection import build_new_releases
+from .storage import (
     load_artist_id_cache,
     load_existing_new_releases,
     load_release_exclusions,
@@ -44,17 +44,9 @@ from .new_releases_storage import (
 
 def __getattr__(name: str):
     """Resolve legacy private imports without restoring a monolithic module."""
-    from . import (
-        new_releases_discovery,
-        new_releases_migration,
-        new_releases_storage,
-    )
+    from . import discovery, migration, storage
 
-    for module in (
-        new_releases_discovery,
-        new_releases_migration,
-        new_releases_storage,
-    ):
+    for module in (discovery, migration, storage):
         try:
             return getattr(module, name)
         except AttributeError:

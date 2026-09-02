@@ -11,7 +11,7 @@ import pytest
 from neuralcast.metadata import album_lookup
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
-from neuralcast.pipelines import station_sync_resolver
+from neuralcast.pipelines.station_sync import resolver as station_sync_resolver
 from neuralcast.services import validation
 
 

@@ -10,9 +10,9 @@ from collections import Counter
 from unittest import mock
 
 import neuralcast.pipelines.schedule_generator.generation as schedule_generation  # noqa: E402
-import neuralcast.pipelines.schedule_generator.schedule_assignment as schedule_assignment  # noqa: E402
-import neuralcast.pipelines.schedule_generator.schedule_policy as schedule_policy  # noqa: E402
-import neuralcast.pipelines.schedule_generator.schedule_scaffold as schedule_scaffold  # noqa: E402
+import neuralcast.pipelines.schedule_generator.assignment as schedule_assignment  # noqa: E402
+import neuralcast.pipelines.schedule_generator.policy as schedule_policy  # noqa: E402
+import neuralcast.pipelines.schedule_generator.scaffold as schedule_scaffold  # noqa: E402
 from neuralcast.pipelines.schedule_generator import (  # noqa: E402
     StationPlaylist,
     azuracast_time_for_api,

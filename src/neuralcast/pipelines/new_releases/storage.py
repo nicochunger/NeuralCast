@@ -21,8 +21,8 @@ from neuralcast.models import Song
 from neuralcast.playlists.catalog import CatalogTrack, StationPlaylistCatalog
 
 from .models import ArtistIDCache, ArtistRelease
-from .new_releases_logging import log_debug, log_error, log_info, log_success, log_warning
-from .new_releases_matching import _normalize_audio_label
+from .logging import log_debug, log_error, log_info, log_success, log_warning
+from .matching import _normalize_audio_label
 
 _EXCLUDED_PLAYLIST_FILENAMES = {NEW_RELEASES_PLAYLIST_FILENAME.casefold()}
 

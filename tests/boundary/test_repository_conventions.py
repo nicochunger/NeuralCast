@@ -63,6 +63,25 @@ def test_root_compatibility_shims_and_package_entrypoints_exist() -> None:
         assert callable(attribute)
 
 
+def test_pipeline_packages_use_responsibility_module_names() -> None:
+    pipelines_dir = PROJECT_ROOT / "src" / "neuralcast" / "pipelines"
+    pipeline_packages = (
+        "host_orchestrator",
+        "new_releases",
+        "schedule_generator",
+        "station_sync",
+    )
+
+    assert not (pipelines_dir / "station_sync.py").exists()
+    for package_name in pipeline_packages:
+        package_dir = pipelines_dir / package_name
+        assert (package_dir / "__init__.py").is_file()
+        assert not any(
+            module.stem.startswith(f"{package_name}_")
+            for module in package_dir.glob("*.py")
+        )
+
+
 def test_new_releases_filenames_are_defined_in_one_source_module() -> None:
     constants_path = (
         PROJECT_ROOT / "src" / "neuralcast" / "metadata" / "constants.py"

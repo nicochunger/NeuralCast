@@ -9,7 +9,7 @@ from typing import Dict, List, Mapping, Sequence, Tuple
 
 from .config import NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS
 from .models import ScheduleValidationError, StationPlaylist
-from .schedule_policy import (
+from .policy import (
     NEURALFORGE_MELODIC_DEATH_KEY,
     _is_neuralcast,
     _is_neuralforge,

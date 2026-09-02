@@ -8,7 +8,7 @@ from typing import Dict, List, Sequence, Tuple
 
 from .config import SCHEDULE_TIME_GRID_MINUTES
 from .models import ScheduleValidationError, StationPlaylist
-from .schedule_policy import (
+from .policy import (
     _build_partition_with_specs,
     _build_random_duration_partition,
     _ceil_to_grid,

@@ -11,11 +11,11 @@ from typing import Callable
 from neuralcast.config import station_dir_from_slug
 
 from .models import ArtistIDCache, ArtistRelease
-from .new_releases_logging import log_debug, log_info, set_debug_mode
-from .new_releases_matching import _normalize_audio_label, _normalize_text
-from .new_releases_migration import move_outdated_releases
-from .new_releases_selection import build_new_releases
-from .new_releases_storage import (
+from .logging import log_debug, log_info, set_debug_mode
+from .matching import _normalize_audio_label, _normalize_text
+from .migration import move_outdated_releases
+from .selection import build_new_releases
+from .storage import (
     load_artist_id_cache,
     load_existing_new_releases,
     load_release_exclusions,
