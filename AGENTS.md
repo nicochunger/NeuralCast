@@ -5,7 +5,7 @@
 - Work from the repository root and work directly on `main` unless the user explicitly asks for a branch.
 - Treat station data, generated media, and live AzuraCast state on this VPS as operational data. Inspect the relevant pipeline before deleting files, running sync, or deploying.
 - Preserve unrelated user changes in a dirty worktree.
-- Prefer package entrypoints and code under `src/neuralcast/`; root scripts are compatibility shims.
+- Prefer package entrypoints and code under `src/neuralcast/`; do not add root command shims.
 - The supported station slugs are `neuralcast` and `neuralforge`. The CLI default is `neuralforge`.
 
 ## Current Architecture
@@ -20,7 +20,7 @@ The project is package-first under `src/neuralcast/`:
 - `pipelines/new_releases/`: Deezer-backed new-release discovery and playlist updates.
 - `pipelines/host_orchestrator/`: AzuraCast queue inspection, story generation, TTS, upload, cleanup, and interrupting-request insertion.
 - `pipelines/schedule_generator/`: weekly AzuraCast schedule planning and application.
-- `playlists/catalog.py`: authoritative playlist CSV parsing, round-tripping, deletion markers, YouTube overrides, and New Releases companion metadata.
+- `playlists/catalog.py`: authoritative playlist CSV parsing, round-tripping, deletion markers, YouTube overrides, and New Releases companion metadata. It does not own discovery, validation, audio processing, remote media synchronization, or release-selection policy.
 - `playlists/library.py`: MP3/library reconciliation, filename sanitation, and deletion helpers.
 - `audio/`: yt-dlp download, ID3 tagging, ReplayGain, and album-art handling.
 - `metadata/`: album lookup, track resolution, and station metadata storage.

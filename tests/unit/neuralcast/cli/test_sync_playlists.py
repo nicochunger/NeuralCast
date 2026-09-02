@@ -17,9 +17,3 @@ def test_sync_playlists_main_dispatches_explicit_args(monkeypatch) -> None:
 
     assert exit_code == 0
     assert calls == [("neuralcast", True)]
-
-
-def test_sync_playlists_run_remains_a_compatibility_alias(monkeypatch) -> None:
-    monkeypatch.setattr(sync_playlists, "main", lambda: 7)
-
-    assert sync_playlists.run() == 7

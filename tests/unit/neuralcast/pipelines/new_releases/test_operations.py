@@ -14,7 +14,6 @@ from unittest.mock import patch
 
 import pandas as pd
 
-new_releases = importlib.import_module("neuralcast.pipelines.new_releases.operations")
 new_releases_runtime = importlib.import_module(
     "neuralcast.pipelines.new_releases.runtime"
 )
@@ -26,6 +25,12 @@ new_releases_migration = importlib.import_module(
 )
 new_releases_selection = importlib.import_module(
     "neuralcast.pipelines.new_releases.selection"
+)
+new_releases_storage = importlib.import_module(
+    "neuralcast.pipelines.new_releases.storage"
+)
+new_releases_models = importlib.import_module(
+    "neuralcast.pipelines.new_releases.models"
 )
 
 
@@ -62,7 +67,7 @@ class NewReleasesTest(unittest.TestCase):
                 playlists_dir / "New Releases.csv", index=False
             )
 
-            artists, artist_tracks, artist_map = new_releases.load_station_artists(
+            artists, artist_tracks, artist_map = new_releases_storage.load_station_artists(
                 playlists_dir
             )
 
@@ -91,7 +96,7 @@ class NewReleasesTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            exclusions = new_releases.load_release_exclusions(playlists_dir)
+            exclusions = new_releases_storage.load_release_exclusions(playlists_dir)
 
             self.assertEqual(exclusions, {"blackrosewhitecat"})
 
@@ -100,7 +105,7 @@ class NewReleasesTest(unittest.TestCase):
         self, fetch_recent_releases
     ) -> None:
         fetch_recent_releases.return_value = [
-            new_releases.ArtistRelease(
+            new_releases_models.ArtistRelease(
                 artist="Ghost",
                 title="Album Cut",
                 album="Album",
@@ -111,7 +116,7 @@ class NewReleasesTest(unittest.TestCase):
                 is_single=False,
                 album_type="album",
             ),
-            new_releases.ArtistRelease(
+            new_releases_models.ArtistRelease(
                 artist="Ghost",
                 title="Single Cut",
                 album="Single",
@@ -124,7 +129,7 @@ class NewReleasesTest(unittest.TestCase):
             ),
         ]
 
-        releases = new_releases.build_new_releases(
+        releases = new_releases_selection.build_new_releases(
             ["Ghost"],
             days=120,
             per_artist=1,
@@ -142,7 +147,7 @@ class NewReleasesTest(unittest.TestCase):
         self, fetch_recent_releases
     ) -> None:
         fetch_recent_releases.return_value = [
-            new_releases.ArtistRelease(
+            new_releases_models.ArtistRelease(
                 artist="Ghost",
                 title="New Cut",
                 album="Album",
@@ -152,7 +157,7 @@ class NewReleasesTest(unittest.TestCase):
             )
         ]
 
-        releases = new_releases.build_new_releases(
+        releases = new_releases_selection.build_new_releases(
             ["Ghost"],
             days=120,
             per_artist=3,
@@ -168,7 +173,7 @@ class NewReleasesTest(unittest.TestCase):
         self, fetch_recent_releases
     ) -> None:
         fetch_recent_releases.return_value = [
-            new_releases.ArtistRelease(
+            new_releases_models.ArtistRelease(
                 artist="Black Rose",
                 title="White Cat",
                 album="Electric Dreams",
@@ -178,7 +183,7 @@ class NewReleasesTest(unittest.TestCase):
             )
         ]
 
-        releases = new_releases.build_new_releases(
+        releases = new_releases_selection.build_new_releases(
             ["Black Rose"],
             days=120,
             known_tracks={"Black Rose": {"No Point Runnin'"}},
@@ -854,7 +859,7 @@ class NewReleasesTest(unittest.TestCase):
         self.assertTrue(sleep_mock.called)
 
     def test_resolve_destination_playlist_prefers_exact_title_match(self) -> None:
-        release = new_releases.ArtistRelease(
+        release = new_releases_models.ArtistRelease(
             artist="Ghost",
             title="Peacefield",
             album="Skeleta",
@@ -1102,7 +1107,7 @@ class NewReleasesTest(unittest.TestCase):
             playlists_dir.mkdir(parents=True)
             songs_dir.mkdir()
 
-            old_release = new_releases.ArtistRelease(
+            old_release = new_releases_models.ArtistRelease(
                 artist="Ghost",
                 title="Peacefield",
                 album="Skeleta",
@@ -1113,7 +1118,7 @@ class NewReleasesTest(unittest.TestCase):
             artist_playlist_map = {
                 "Ghost": {playlists_dir / "Gothic Metal.csv": {"Peacefield"}}
             }
-            cache = new_releases.ArtistIDCache(entries={}, dirty=False)
+            cache = new_releases_models.ArtistIDCache(entries={}, dirty=False)
 
             with (
                 patch.object(
@@ -1161,7 +1166,7 @@ class NewReleasesTest(unittest.TestCase):
             station_dir = Path(tmpdir)
             playlists_dir = station_dir / "playlists"
             playlists_dir.mkdir(parents=True)
-            release = new_releases.ArtistRelease(
+            release = new_releases_models.ArtistRelease(
                 artist="Ghost",
                 title="Peacefield",
                 album="Skeletá",
@@ -1174,7 +1179,7 @@ class NewReleasesTest(unittest.TestCase):
                 validated=False,
             )
 
-            new_releases.save_new_releases(playlists_dir, [release], dry_run=False)
+            new_releases_storage.save_new_releases(playlists_dir, [release], dry_run=False)
 
             csv_path = playlists_dir / "New Releases.csv"
             metadata_path = station_dir / "metadata" / "New Releases.metadata.json"
@@ -1201,10 +1206,10 @@ class NewReleasesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             playlists_dir = Path(tmpdir) / "playlists"
             playlists_dir.mkdir(parents=True)
-            cache = new_releases.ArtistIDCache(entries={}, dirty=False)
+            cache = new_releases_models.ArtistIDCache(entries={}, dirty=False)
             cache.set("Ghost", "8506054")
 
-            new_releases.save_artist_id_cache(playlists_dir, cache, dry_run=True)
+            new_releases_storage.save_artist_id_cache(playlists_dir, cache, dry_run=True)
 
             cache_path = Path(tmpdir) / "metadata" / "ArtistIDs.json"
             self.assertFalse(cache_path.exists())

@@ -109,12 +109,6 @@ class PlaylistSnapshot:
     def name(self) -> str:
         return self.path.stem
 
-    def _copy_source_frame(self) -> pd.DataFrame:
-        """Compatibility escape hatch; workflow callers should not need it."""
-
-        return self._source_frame.copy(deep=True)
-
-
 class StationPlaylistCatalog:
     """Own playlist parsing, round-tripping, identity, and companion metadata."""
 
@@ -413,20 +407,6 @@ class StationPlaylistCatalog:
             filename = path.name if path.suffix else f"{path.name}.csv"
             path = self.playlists_dir / filename
         return path
-
-    @staticmethod
-    def save_legacy_frame(
-        playlist_path: pathlib.Path,
-        songs: Sequence[Song],
-        frame: pd.DataFrame,
-        *,
-        log: Callable[[str], None] = print,
-    ) -> None:
-        merged = _merge_songs_into_frame(frame, songs)
-        StationPlaylistCatalog(playlist_path.parent, log=log)._write_csv(
-            playlist_path, merged
-        )
-        log(f"Cleaned and sorted playlist saved to {playlist_path}")
 
     def _write_csv(self, path: pathlib.Path, frame: pd.DataFrame) -> None:
         tmp_path = path.with_suffix(path.suffix + ".tmp")

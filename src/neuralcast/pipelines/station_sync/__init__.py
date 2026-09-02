@@ -1,7 +1,4 @@
-"""Compatibility facade for station playlist synchronization.
-
-New code should import the owning module within this package.
-"""
+"""Public interface for the station playlist synchronization package."""
 
 from __future__ import annotations
 

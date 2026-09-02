@@ -42,9 +42,3 @@ def _request_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     return parser
-
-
-def test_update_new_releases_run_remains_a_compatibility_alias(monkeypatch) -> None:
-    monkeypatch.setattr(update_new_releases, "main", lambda: 9)
-
-    assert update_new_releases.run() == 9

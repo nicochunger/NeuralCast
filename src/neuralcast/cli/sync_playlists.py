@@ -39,12 +39,5 @@ def main(argv: Sequence[str] | None = None) -> int:
     main(args.station, args.dry_run)
     return 0
 
-
-def run() -> int:
-    """Compatibility alias for the former console-script entrypoint."""
-
-    return main()
-
-
 if __name__ == "__main__":
     raise SystemExit(main())

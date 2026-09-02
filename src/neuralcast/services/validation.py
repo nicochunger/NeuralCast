@@ -74,11 +74,6 @@ def deezer_ok(artist: str, title: str) -> bool:
         return False
 
 
-def spotify_ok(artist: str, title: str) -> bool:
-    """Compatibility wrapper for callers that still import spotify_ok."""
-    return deezer_ok(artist, title)
-
-
 @lru_cache(maxsize=2048)
 def mb_ok(artist: str, title: str) -> bool:
     artist = _norm(artist)
@@ -145,11 +140,6 @@ def deezer_album_ok(artist: str, title: str, album: str) -> bool:
         return False
     except Exception:
         return False
-
-
-def spotify_album_ok(artist: str, title: str, album: str) -> bool:
-    """Compatibility wrapper for callers that still import spotify_album_ok."""
-    return deezer_album_ok(artist, title, album)
 
 
 @lru_cache(maxsize=2048)
@@ -241,12 +231,10 @@ def perform_song_validation(song: Song) -> ValidationResult:
 
 __all__ = [
     "deezer_ok",
-    "spotify_ok",
     "mb_ok",
     "itunes_ok",
     "verified",
     "deezer_album_ok",
-    "spotify_album_ok",
     "mb_album_ok",
     "itunes_album_ok",
     "verified_album",
