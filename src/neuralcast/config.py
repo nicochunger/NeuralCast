@@ -9,9 +9,7 @@ from typing import Final
 # Paths anchored to the repository root (three levels up from this file:
 # config.py -> neuralcast -> src -> repo_root)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SRC_ROOT = PROJECT_ROOT / "src"
-PACKAGE_ROOT = SRC_ROOT / "neuralcast"
-ASSETS_ROOT = PACKAGE_ROOT / "assets"
+ASSETS_ROOT = PROJECT_ROOT / "src" / "neuralcast" / "assets"
 RUNTIME_ROOT = PROJECT_ROOT / "runtime"
 LOGS_ROOT = RUNTIME_ROOT / "logs"
 DEFAULT_TIMEZONE_NAME: Final[str] = "Europe/Zurich"
@@ -43,8 +41,6 @@ def station_dir_from_slug(station_slug: str) -> Path:
 
 __all__ = [
     "PROJECT_ROOT",
-    "SRC_ROOT",
-    "PACKAGE_ROOT",
     "RUNTIME_ROOT",
     "ASSETS_ROOT",
     "LOGS_ROOT",

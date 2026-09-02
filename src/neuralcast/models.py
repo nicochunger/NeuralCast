@@ -1,6 +1,6 @@
 """Core data models used across the NeuralCast pipeline."""
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -14,10 +14,6 @@ class Song(BaseModel):
     override_url: Optional[str] = None
 
 
-class Playlist(BaseModel):
-    songs: List[Song]
-
-
 @dataclass
 class ValidationResult:
     song: Optional[Song]
@@ -25,4 +21,4 @@ class ValidationResult:
     album_cleared: bool = False
 
 
-__all__ = ["Song", "Playlist", "ValidationResult"]
+__all__ = ["Song", "ValidationResult"]
