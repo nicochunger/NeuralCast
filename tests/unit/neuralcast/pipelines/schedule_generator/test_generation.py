@@ -10,6 +10,9 @@ from collections import Counter
 from unittest import mock
 
 import neuralcast.pipelines.schedule_generator.generation as schedule_generation  # noqa: E402
+import neuralcast.pipelines.schedule_generator.schedule_assignment as schedule_assignment  # noqa: E402
+import neuralcast.pipelines.schedule_generator.schedule_policy as schedule_policy  # noqa: E402
+import neuralcast.pipelines.schedule_generator.schedule_scaffold as schedule_scaffold  # noqa: E402
 from neuralcast.pipelines.schedule_generator import (  # noqa: E402
     StationPlaylist,
     azuracast_time_for_api,
@@ -44,6 +47,21 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             self.playlist_a.id: self.playlist_a,
             self.playlist_b.id: self.playlist_b,
         }
+
+    def test_generation_facade_reexports_schedule_owners(self) -> None:
+        self.assertIs(
+            schedule_generation.resolve_schedule_seed,
+            schedule_policy.resolve_schedule_seed,
+        )
+        self.assertIs(
+            schedule_generation._build_randomized_scaffold,
+            schedule_scaffold._build_randomized_scaffold,
+        )
+        self.assertIs(
+            schedule_generation._assign_playlists_to_scaffold,
+            schedule_assignment._assign_playlists_to_scaffold,
+        )
+        self.assertFalse(hasattr(schedule_generation, "build_weekly_plan_with_llm"))
 
     def assertQuarterHourBoundary(self, value: str) -> None:
         hour_text, minute_text = value.split(":", 1)
@@ -397,7 +415,7 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             for index in range(1, 13)
         ]
         with mock.patch.object(
-            schedule_generation.secrets,
+            schedule_policy.secrets,
             "token_hex",
             return_value="fresh-seed-01",
         ):
