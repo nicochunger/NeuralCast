@@ -225,3 +225,118 @@ def test_embed_from_release_id_returns_false_on_request_error(monkeypatch, tmp_p
     )
 
     assert album_art.embed_from_release_id(str(tmp_path / "song.mp3"), "release-1") is False
+
+
+def test_collect_release_candidates_combines_group_and_release_searches(monkeypatch) -> None:
+    album_art._CANDIDATE_CACHE.clear()
+    album_art._RELEASE_CACHE.clear()
+
+    monkeypatch.setattr(
+        album_art.musicbrainzngs,
+        "search_release_groups",
+        lambda **_kwargs: {
+            "release-group-list": [
+                {
+                    "id": "group-1",
+                    "score": "100",
+                    "title": "Prequelle",
+                    "artist-credit-phrase": "Ghost",
+                    "primary-type": "Album",
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        album_art.musicbrainzngs,
+        "get_release_group_by_id",
+        lambda *_args, **_kwargs: {
+            "release-group": {
+                "release-list": [{"id": "release-1", "title": "Prequelle", "date": "2018"}]
+            }
+        },
+    )
+    monkeypatch.setattr(
+        album_art.musicbrainzngs,
+        "search_releases",
+        lambda **_kwargs: {
+            "release-list": [
+                {
+                    "id": "release-1",
+                    "title": "Prequelle",
+                    "status": "Official",
+                    "artist-credit-phrase": "Ghost",
+                    "release-group": {"id": "group-1", "title": "Prequelle"},
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        album_art.musicbrainzngs,
+        "get_release_by_id",
+        lambda *_args, **_kwargs: {
+            "release": {
+                "id": "release-1",
+                "title": "Prequelle",
+                "status": "Official",
+                "date": "2018-06-01",
+                "country": "SE",
+                "artist-credit-phrase": "Ghost",
+                "cover-art-archive": {"front": True},
+            }
+        },
+    )
+
+    candidates = album_art._collect_release_candidates("Ghost", "Prequelle")
+
+    assert len(candidates) == 1
+    assert candidates[0]["release"]["id"] == "release-1"
+    assert candidates[0]["sources"] == ["release-group", "release-search"]
+    assert candidates[0]["primary_country"] == "SE"
+    assert album_art._collect_release_candidates("Ghost", "Prequelle") == candidates
+
+
+def test_embed_from_artist_album_uses_best_candidate_before_legacy_fallback(
+    monkeypatch, tmp_path
+) -> None:
+    mp3_path = str(tmp_path / "song.mp3")
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        album_art,
+        "_collect_release_candidates",
+        lambda *_args: [
+            {
+                "release": {"id": "release-1", "title": "Prequelle"},
+                "final_score": 90,
+                "sources": ["release-search"],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        album_art,
+        "embed_from_release_id",
+        lambda path, release_id, *_args, **_kwargs: calls.append((path, release_id)) or True,
+    )
+    monkeypatch.setattr(
+        album_art,
+        "_legacy_exact_match_attempt",
+        lambda *_args, **_kwargs: pytest.fail("legacy fallback should not run"),
+    )
+
+    assert album_art.embed_from_artist_album(mp3_path, "Ghost", "Prequelle") is None
+    assert calls == [(mp3_path, "release-1")]
+
+
+def test_embed_from_artist_album_records_failed_fallback_diagnostics(monkeypatch, tmp_path) -> None:
+    logged: list[dict] = []
+    monkeypatch.setattr(album_art, "_collect_release_candidates", lambda *_args: [])
+    monkeypatch.setattr(
+        album_art,
+        "_legacy_exact_match_attempt",
+        lambda *_args, **_kwargs: (False, {"reason": "no_releases"}),
+    )
+    monkeypatch.setattr(album_art, "_log_skip", logged.append)
+
+    album_art.embed_from_artist_album(str(tmp_path / "song.mp3"), "Ghost", "Prequelle")
+
+    assert logged[0]["reason"] == "no_releases"
+    assert logged[0]["attempted_release_ids"] == []

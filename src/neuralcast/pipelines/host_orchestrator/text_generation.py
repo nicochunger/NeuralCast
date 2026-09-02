@@ -9,6 +9,8 @@ from neuralcast.services.ai_client import (
     get_gemini_client,
 )
 
+from .config import LOGGER
+
 
 def gemini_generate_text(
     prompt: str,
