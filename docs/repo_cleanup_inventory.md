@@ -6,7 +6,6 @@ This file records the initial cleanup classification so future tidy-ups can cont
 
 - `README.md` (primary overview)
 - `AGENTS.md` (repository workflow/rules)
-- Root CLI compatibility shims: `main.py`, `update_new_releases.py`, `inject_host_segment.py`, `schedule_generator.py`
 - Station data directories: `NeuralCast/`, `NeuralForge/`
 
 ## Quarantined to `docs/archive/` (Historical Reference)

@@ -45,8 +45,8 @@ def test_root_documentation_and_dependency_sources_are_canonical() -> None:
     assert not (PROJECT_ROOT / "vps_requirements.txt").exists()
 
 
-def test_root_compatibility_shims_and_package_entrypoints_exist() -> None:
-    expected_shims = {
+def test_root_command_shims_are_absent_and_package_entrypoints_exist() -> None:
+    obsolete_shims = {
         "main.py",
         "update_new_releases.py",
         "inject_host_segment.py",
@@ -55,7 +55,7 @@ def test_root_compatibility_shims_and_package_entrypoints_exist() -> None:
 
     targets = _project_script_targets()
 
-    assert all((PROJECT_ROOT / filename).is_file() for filename in expected_shims)
+    assert not any((PROJECT_ROOT / filename).exists() for filename in obsolete_shims)
     assert len(targets) == 5
     for target in targets:
         module_name, attribute_name = target.split(":", maxsplit=1)

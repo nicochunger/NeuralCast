@@ -2,17 +2,16 @@
 
 NeuralCast is a package-first toolkit for:
 
-- Station playlist synchronization (`main.py` shim -> `neuralcast.cli.sync_playlists`)
-- New Releases updates (`update_new_releases.py` shim -> `neuralcast.cli.update_new_releases`)
-- AI host orchestration for AzuraCast (`inject_host_segment.py` shim -> `neuralcast.cli.host_orchestrator`)
-- Weekly schedule generation for AzuraCast (`schedule_generator.py` shim -> `neuralcast.cli.schedule_generator`)
+- Station playlist synchronization (`neuralcast.cli.sync_playlists`)
+- New Releases updates (`neuralcast.cli.update_new_releases`)
+- AI host orchestration for AzuraCast (`neuralcast.cli.host_orchestrator`)
+- Weekly schedule generation for AzuraCast (`neuralcast.cli.schedule_generator`)
 
 Default station for CLI workflows is `neuralforge` unless overridden.
 
 ## Repository Layout
 
 - `src/neuralcast/`: main Python package
-- Root compatibility shims: `main.py`, `update_new_releases.py`, `inject_host_segment.py`, `schedule_generator.py`
 - Station folders at repo root (for example `NeuralForge/`, `NeuralCast/`)
 - Prompt/media assets: `src/neuralcast/assets/`
 - Deployment helpers: `deployment/`
@@ -81,9 +80,9 @@ Depending on the workflow, configure:
 Playlist sync:
 
 ```bash
-python main.py --dry-run
-python main.py --station neuralcast --dry-run
-python main.py --station neuralforge
+python -m neuralcast.cli.sync_playlists --dry-run
+python -m neuralcast.cli.sync_playlists --station neuralcast --dry-run
+python -m neuralcast.cli.sync_playlists --station neuralforge
 ```
 
 Playlist sync `--dry-run` performs live read-only validation and reports the
@@ -92,28 +91,26 @@ same planned CSV, metadata, tag, and media changes that apply mode would execute
 New releases:
 
 ```bash
-python update_new_releases.py -s neuralforge --dry-run
-python update_new_releases.py -s neuralcast
+python -m neuralcast.cli.update_new_releases -s neuralforge --dry-run
+python -m neuralcast.cli.update_new_releases -s neuralcast
 ```
 
 Host orchestrator:
 
 ```bash
-python inject_host_segment.py --dry-run -s neuralforge
 python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
 ```
 
 Schedule generator:
 
 ```bash
-python schedule_generator.py --dry-run -s neuralforge
 python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
 
 Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.
-- Module entrypoints are preferred for cron and operational usage in this VPS-resident checkout.
+- Use module entrypoints for all operational usage in this VPS-resident checkout.
 - This repository is authoritative: each `<station>/songs/` path is a symlink to its live AzuraCast media directory.
 - The new releases updater writes to `New Releases.csv` plus `metadata/New Releases.metadata.json` and `metadata/ArtistIDs.json`.
 

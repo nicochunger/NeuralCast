@@ -28,7 +28,7 @@ The project is package-first under `src/neuralcast/`:
 - `admin_api/`: authenticated HTTP API and disk-backed jobs for host/schedule operations plus read-only live station views.
 - `assets/`: fallback images and story prompt/style assets.
 
-Root scripts `main.py`, `update_new_releases.py`, `inject_host_segment.py`, and `schedule_generator.py` bootstrap `src/` and dispatch into `neuralcast.cli.*`. Keep them thin and guarded by `if __name__ == "__main__":`.
+Use `python -m neuralcast.cli.<command>` entrypoints; do not add repository-root command shims.
 
 Station directories (`NeuralCast/` and `NeuralForge/`) contain:
 
@@ -141,13 +141,13 @@ Use this syntax to replace a bad recording, live version, cover, or incorrect se
 Preview planned playlist and media changes:
 
 ```bash
-python main.py --station neuralcast --dry-run
+python -m neuralcast.cli.sync_playlists --station neuralcast --dry-run
 ```
 
 Apply changes directly to the live AzuraCast media tree:
 
 ```bash
-python main.py --station neuralcast
+python -m neuralcast.cli.sync_playlists --station neuralcast
 ```
 
 Playlist `--dry-run` performs the same inventory, validation, album lookup, tag
@@ -166,8 +166,8 @@ existing ID3 tags, album art, and ReplayGain.
 Preview/apply with:
 
 ```bash
-python update_new_releases.py -s neuralcast --dry-run
-python update_new_releases.py -s neuralcast
+python -m neuralcast.cli.update_new_releases -s neuralcast --dry-run
+python -m neuralcast.cli.update_new_releases -s neuralcast
 ```
 
 New-release discovery is Deezer-backed and does not require Spotify credentials. Optional Spotify album-lookup fallbacks still use `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
