@@ -10,8 +10,20 @@ from typing import Callable
 
 from neuralcast.config import station_dir_from_slug
 
-from . import operations
 from .models import ArtistIDCache, ArtistRelease
+from .new_releases_logging import log_debug, log_info, set_debug_mode
+from .new_releases_matching import _normalize_audio_label, _normalize_text
+from .new_releases_migration import move_outdated_releases
+from .new_releases_selection import build_new_releases
+from .new_releases_storage import (
+    load_artist_id_cache,
+    load_existing_new_releases,
+    load_release_exclusions,
+    load_station_artists,
+    partition_releases_by_cutoff,
+    save_artist_id_cache,
+    save_new_releases,
+)
 
 
 @dataclass(frozen=True)
@@ -59,7 +71,7 @@ class NewReleasesRuntimeDependencies:
     log_info: Callable[[str], None]
     load_release_exclusions: Callable[
         [Path], set[str]
-    ] = operations.load_release_exclusions
+    ] = load_release_exclusions
 
 
 def default_station_paths(station: str) -> tuple[Path, Path]:
@@ -70,26 +82,26 @@ def default_station_paths(station: str) -> tuple[Path, Path]:
 def default_dependencies(request: NewReleasesRequest) -> NewReleasesRuntimeDependencies:
     return NewReleasesRuntimeDependencies(
         station_paths=default_station_paths,
-        load_station_artists=operations.load_station_artists,
-        load_artist_id_cache=operations.load_artist_id_cache,
-        load_existing_new_releases=operations.load_existing_new_releases,
-        build_new_releases=operations.build_new_releases,
+        load_station_artists=load_station_artists,
+        load_artist_id_cache=load_artist_id_cache,
+        load_existing_new_releases=load_existing_new_releases,
+        build_new_releases=build_new_releases,
         save_artist_id_cache=partial(
-            operations.save_artist_id_cache,
+            save_artist_id_cache,
             dry_run=request.dry_run,
         ),
         move_outdated_releases=partial(
-            operations.move_outdated_releases,
+            move_outdated_releases,
             dry_run=request.dry_run,
         ),
         save_new_releases=partial(
-            operations.save_new_releases,
+            save_new_releases,
             dry_run=request.dry_run,
         ),
         now=lambda: datetime.now(UTC),
-        set_debug_mode=operations.set_debug_mode,
-        log_debug=operations.log_debug,
-        log_info=operations.log_info,
+        set_debug_mode=set_debug_mode,
+        log_debug=log_debug,
+        log_info=log_info,
     )
 
 
@@ -121,17 +133,17 @@ class NewReleasesRuntime:
         cutoff = deps.now() - timedelta(days=request.days)
         existing_releases = deps.load_existing_new_releases(playlists_dir)
         excluded_keys = deps.load_release_exclusions(playlists_dir)
-        valid_existing, outdated_existing = operations.partition_releases_by_cutoff(
+        valid_existing, outdated_existing = partition_releases_by_cutoff(
             existing_releases, cutoff
         )
         existing_ids = {release.track_id for release in valid_existing if release.track_id}
         existing_keys = {
-            operations._normalize_audio_label(release.artist, release.title)
+            _normalize_audio_label(release.artist, release.title)
             for release in valid_existing
         }
         existing_artist_counts: dict[str, int] = {}
         for release in valid_existing:
-            artist_key = operations._normalize_text(release.artist)
+            artist_key = _normalize_text(release.artist)
             existing_artist_counts[artist_key] = (
                 existing_artist_counts.get(artist_key, 0) + 1
             )
@@ -197,7 +209,7 @@ def _dedupe_releases(
     seen_ids: set[str] = set()
     seen_keys: set[str] = set()
     for release in combined:
-        title_key = operations._normalize_audio_label(release.artist, release.title)
+        title_key = _normalize_audio_label(release.artist, release.title)
         if (release.track_id and release.track_id in seen_ids) or title_key in seen_keys:
             continue
         final_releases.append(release)

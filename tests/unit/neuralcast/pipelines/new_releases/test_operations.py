@@ -18,13 +18,22 @@ new_releases = importlib.import_module("neuralcast.pipelines.new_releases.operat
 new_releases_runtime = importlib.import_module(
     "neuralcast.pipelines.new_releases.runtime"
 )
+new_releases_discovery = importlib.import_module(
+    "neuralcast.pipelines.new_releases.new_releases_discovery"
+)
+new_releases_migration = importlib.import_module(
+    "neuralcast.pipelines.new_releases.new_releases_migration"
+)
+new_releases_selection = importlib.import_module(
+    "neuralcast.pipelines.new_releases.new_releases_selection"
+)
 
 
 class NewReleasesTest(unittest.TestCase):
     def setUp(self) -> None:
-        new_releases._KNOWN_TRACK_MATCH_CACHE.clear()
-        new_releases._ALBUM_GENRE_CACHE.clear()
-        new_releases._MB_RECORDING_ARTIST_CACHE.clear()
+        new_releases_discovery._KNOWN_TRACK_MATCH_CACHE.clear()
+        new_releases_discovery._ALBUM_GENRE_CACHE.clear()
+        new_releases_discovery._MB_RECORDING_ARTIST_CACHE.clear()
 
     @staticmethod
     def _fake_response(payload: dict, status_code: int = 200):
@@ -86,7 +95,7 @@ class NewReleasesTest(unittest.TestCase):
 
             self.assertEqual(exclusions, {"blackrosewhitecat"})
 
-    @patch.object(new_releases, "fetch_recent_releases")
+    @patch.object(new_releases_selection, "fetch_recent_releases")
     def test_build_new_releases_ranks_using_single_then_rank_then_date(
         self, fetch_recent_releases
     ) -> None:
@@ -128,7 +137,7 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(len(releases), 1)
         self.assertEqual(releases[0].title, "Single Cut")
 
-    @patch.object(new_releases, "fetch_recent_releases")
+    @patch.object(new_releases_selection, "fetch_recent_releases")
     def test_build_new_releases_counts_existing_tracks_toward_per_artist_limit(
         self, fetch_recent_releases
     ) -> None:
@@ -154,7 +163,7 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(releases, [])
         fetch_recent_releases.assert_not_called()
 
-    @patch.object(new_releases, "fetch_recent_releases")
+    @patch.object(new_releases_selection, "fetch_recent_releases")
     def test_build_new_releases_skips_station_exclusions(
         self, fetch_recent_releases
     ) -> None:
@@ -181,12 +190,12 @@ class NewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_skips_unreadable_tracks(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_resolve_artist",
                 return_value={"id": "13208305", "name": "Atavistia"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -200,7 +209,7 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -222,17 +231,17 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_is_probable_old_catalog_release",
                 return_value=False,
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genre_ids",
                 return_value=frozenset(),
             ),
         ):
-            releases = new_releases.fetch_recent_releases(
+            releases = new_releases_discovery.fetch_recent_releases(
                 "Atavistia",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Timeless Despair"},
@@ -245,12 +254,12 @@ class NewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_prefers_highest_ranked_album_track(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_resolve_artist",
                 return_value={"id": "123", "name": "Ghost"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -265,7 +274,7 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -287,22 +296,22 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genre_ids",
                 return_value=frozenset({464}),
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genres_are_ambiguous",
                 return_value=False,
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_is_probable_old_catalog_release",
                 return_value=False,
             ),
         ):
-            releases = new_releases.fetch_recent_releases(
+            releases = new_releases_discovery.fetch_recent_releases(
                 "Ghost",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Rats"},
@@ -313,22 +322,22 @@ class NewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_rejects_merged_artist_genre_mismatch(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_resolve_artist",
                 return_value={"id": "357887", "name": "Parsifal"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genre_ids",
                 return_value=frozenset({85, 464}),
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genres_are_ambiguous",
                 return_value=False,
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -343,13 +352,13 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_genre_ids",
                 return_value=frozenset({132}),
             ),
-            patch.object(new_releases, "_album_tracks_by_artist") as album_tracks,
+            patch.object(new_releases_discovery, "_album_tracks_by_artist") as album_tracks,
         ):
-            releases = new_releases.fetch_recent_releases(
+            releases = new_releases_discovery.fetch_recent_releases(
                 "Parsifal",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Storming the Reaper"},
@@ -363,32 +372,32 @@ class NewReleasesTest(unittest.TestCase):
     ) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_resolve_artist",
                 return_value={"id": "424248", "name": "Black Rose"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genre_ids",
                 return_value=frozenset({152}),
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genres_are_ambiguous",
                 return_value=True,
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_musicbrainz_artist_ids",
                 return_value=frozenset({"british-band"}),
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_musicbrainz_recording_artist_ids",
                 return_value=frozenset({"swedish-band"}),
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -403,7 +412,7 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -417,12 +426,12 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_is_probable_old_catalog_release",
                 return_value=False,
             ) as old_catalog_check,
         ):
-            releases = new_releases.fetch_recent_releases(
+            releases = new_releases_discovery.fetch_recent_releases(
                 "Black Rose",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"No Point Runnin'", "Sucker For Your Love"},
@@ -434,17 +443,17 @@ class NewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_skips_tracks_already_in_station_catalog(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_resolve_artist",
                 return_value={"id": "123", "name": "Motörhead"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genre_ids",
                 return_value=frozenset(),
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -458,7 +467,7 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -472,7 +481,7 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
         ):
-            releases = new_releases.fetch_recent_releases(
+            releases = new_releases_discovery.fetch_recent_releases(
                 "Motörhead",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Neat Neat Neat"},
@@ -492,19 +501,19 @@ class NewReleasesTest(unittest.TestCase):
         ]
         for title, album in cases:
             with self.subTest(title=title, album=album):
-                self.assertTrue(new_releases._is_alt_or_reissue(title, album))
+                self.assertTrue(new_releases_discovery._is_alt_or_reissue(title, album))
 
     def test_is_probable_old_catalog_release_uses_musicbrainz_dates(self) -> None:
-        new_releases._MB_RELEASE_CACHE.clear()
+        new_releases_discovery._MB_RELEASE_CACHE.clear()
         with patch.object(
-            new_releases,
+            new_releases_discovery,
             "_musicbrainz_earliest_release_date",
             side_effect=[
                 datetime(1996, 9, 1, tzinfo=UTC),
                 None,
             ],
         ):
-            result = new_releases._is_probable_old_catalog_release(
+            result = new_releases_discovery._is_probable_old_catalog_release(
                 "Aerosmith",
                 "Institutional Man",
                 "Angry Machines",
@@ -514,9 +523,9 @@ class NewReleasesTest(unittest.TestCase):
         self.assertTrue(result)
 
     def test_musicbrainz_earliest_release_date_ignores_other_artists(self) -> None:
-        new_releases._MB_RELEASE_CACHE.clear()
+        new_releases_discovery._MB_RELEASE_CACHE.clear()
         with patch.object(
-            new_releases.musicbrainzngs,
+            new_releases_discovery.musicbrainzngs,
             "search_releases",
             return_value={
                 "release-list": [
@@ -533,7 +542,7 @@ class NewReleasesTest(unittest.TestCase):
                 ]
             },
         ):
-            result = new_releases._musicbrainz_earliest_release_date(
+            result = new_releases_discovery._musicbrainz_earliest_release_date(
                 "Atavistia", "Old Gods Awaken", entity="release"
             )
 
@@ -542,12 +551,12 @@ class NewReleasesTest(unittest.TestCase):
     def test_fetch_recent_releases_skips_musicbrainz_old_catalog_release(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_resolve_artist",
                 return_value={"id": "123", "name": "Aerosmith"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_iter_recent_albums",
                 return_value=[
                     (
@@ -561,7 +570,7 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_tracks_by_artist",
                 return_value=[
                     {
@@ -575,17 +584,17 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_is_probable_old_catalog_release",
                 return_value=True,
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_known_artist_genre_ids",
                 return_value=frozenset(),
             ),
         ):
-            releases = new_releases.fetch_recent_releases(
+            releases = new_releases_discovery.fetch_recent_releases(
                 "Aerosmith",
                 cutoff=datetime(2026, 1, 1, tzinfo=UTC),
                 known_titles={"Dream On"},
@@ -594,23 +603,23 @@ class NewReleasesTest(unittest.TestCase):
         self.assertEqual(releases, [])
 
     def test_resolve_artist_revalidates_cached_artist_with_known_track(self) -> None:
-        cache = new_releases.ArtistIDCache(entries={}, dirty=False)
+        cache = new_releases_discovery.ArtistIDCache(entries={}, dirty=False)
         cache.set("Ghost", "8506054")
 
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_fetch_artist_by_id",
                 return_value={"id": "8506054", "name": "Ghost"},
             ) as fetch_artist,
-            patch.object(new_releases, "_exact_artist_matches", return_value=[]),
+            patch.object(new_releases_discovery, "_exact_artist_matches", return_value=[]),
             patch.object(
-                new_releases, "_artist_has_known_track", return_value=True
+                new_releases_discovery, "_artist_has_known_track", return_value=True
             ) as has_track,
-            patch.object(new_releases, "_best_artist_match") as best_match,
-            patch.object(new_releases, "_search_artist_using_known_tracks") as search_known,
+            patch.object(new_releases_discovery, "_best_artist_match") as best_match,
+            patch.object(new_releases_discovery, "_search_artist_using_known_tracks") as search_known,
         ):
-            artist = new_releases._resolve_artist(
+            artist = new_releases_discovery._resolve_artist(
                 "Ghost", {"Rats", "Square Hammer"}, cache
             )
 
@@ -625,20 +634,20 @@ class NewReleasesTest(unittest.TestCase):
     def test_resolve_artist_keeps_name_matching_cache_when_verification_is_down(
         self,
     ) -> None:
-        cache = new_releases.ArtistIDCache(entries={"ghost": "8506054"})
+        cache = new_releases_discovery.ArtistIDCache(entries={"ghost": "8506054"})
 
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_fetch_artist_by_id",
                 return_value={"id": "8506054", "name": "Ghost"},
             ),
             patch.object(
-                new_releases, "_artist_has_known_track", return_value=None
+                new_releases_discovery, "_artist_has_known_track", return_value=None
             ),
-            patch.object(new_releases, "_best_artist_match") as best_match,
+            patch.object(new_releases_discovery, "_best_artist_match") as best_match,
         ):
-            artist = new_releases._resolve_artist("Ghost", {"Rats"}, cache)
+            artist = new_releases_discovery._resolve_artist("Ghost", {"Rats"}, cache)
 
         self.assertEqual(artist, {"id": "8506054", "name": "Ghost"})
         self.assertEqual(cache.get("Ghost"), "8506054")
@@ -647,7 +656,7 @@ class NewReleasesTest(unittest.TestCase):
 
     def test_artist_has_known_track_requires_candidate_artist_id(self) -> None:
         with patch.object(
-            new_releases,
+            new_releases_discovery,
             "_deezer_get",
             return_value={
                 "data": [
@@ -658,7 +667,7 @@ class NewReleasesTest(unittest.TestCase):
                 ]
             },
         ):
-            result = new_releases._artist_has_known_track(
+            result = new_releases_discovery._artist_has_known_track(
                 "59914", "Raven", {"On and On"}
             )
 
@@ -667,7 +676,7 @@ class NewReleasesTest(unittest.TestCase):
     def test_known_artist_genres_use_best_supported_known_album(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_find_known_artist_tracks",
                 return_value=[
                     {"album": {"id": "wrong"}},
@@ -676,14 +685,14 @@ class NewReleasesTest(unittest.TestCase):
                 ],
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_album_genre_ids",
                 side_effect=lambda album_id: (
                     frozenset({152}) if album_id == "correct" else frozenset({116})
                 ),
             ),
         ):
-            genre_ids = new_releases._known_artist_genre_ids(
+            genre_ids = new_releases_discovery._known_artist_genre_ids(
                 "424248",
                 "Black Rose",
                 {"I Don't Believe It", "No Point Runnin'", "Sucker For Your Love"},
@@ -704,28 +713,28 @@ class NewReleasesTest(unittest.TestCase):
 
         with (
             patch.object(
-                new_releases, "_exact_artist_matches", return_value=exact_matches
+                new_releases_discovery, "_exact_artist_matches", return_value=exact_matches
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_artist_has_known_track",
                 side_effect=has_known_track,
             ),
         ):
-            artist = new_releases._best_artist_match("Raven", {"On and On"})
+            artist = new_releases_discovery._best_artist_match("Raven", {"On and On"})
 
         self.assertEqual(artist, {"id": "59914", "name": "Raven"})
 
     def test_best_artist_match_skips_when_known_tracks_do_not_match(self) -> None:
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_exact_artist_matches",
                 return_value=[{"id": "wrong", "name": "Legend"}],
             ),
-            patch.object(new_releases, "_artist_has_known_track", return_value=False),
+            patch.object(new_releases_discovery, "_artist_has_known_track", return_value=False),
         ):
-            artist = new_releases._best_artist_match(
+            artist = new_releases_discovery._best_artist_match(
                 "Legend", {"Death in the Nursery"}
             )
 
@@ -733,7 +742,7 @@ class NewReleasesTest(unittest.TestCase):
 
     def test_exact_artist_matches_are_accent_insensitive(self) -> None:
         with patch.object(
-            new_releases,
+            new_releases_discovery,
             "_deezer_get",
             return_value={
                 "data": [
@@ -743,7 +752,7 @@ class NewReleasesTest(unittest.TestCase):
                 ]
             },
         ):
-            matches = new_releases._exact_artist_matches("Tyr")
+            matches = new_releases_discovery._exact_artist_matches("Tyr")
 
         self.assertEqual(
             matches,
@@ -754,33 +763,33 @@ class NewReleasesTest(unittest.TestCase):
         )
 
     def test_resolve_artist_revalidates_ambiguous_cached_artist(self) -> None:
-        cache = new_releases.ArtistIDCache(entries={"raven": "wrong"}, dirty=False)
+        cache = new_releases_discovery.ArtistIDCache(entries={"raven": "wrong"}, dirty=False)
 
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_fetch_artist_by_id",
                 return_value={"id": "wrong", "name": "Raven"},
             ),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_exact_artist_matches",
                 return_value=[
                     {"id": "wrong", "name": "Raven"},
                     {"id": "59914", "name": "Raven"},
                 ],
             ),
-            patch.object(new_releases, "_artist_has_known_track", return_value=False),
+            patch.object(new_releases_discovery, "_artist_has_known_track", return_value=False),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_best_artist_match",
                 return_value={"id": "59914", "name": "Raven"},
             ) as best_match,
             patch.object(
-                new_releases, "_search_artist_using_known_tracks"
+                new_releases_discovery, "_search_artist_using_known_tracks"
             ) as search_known,
         ):
-            artist = new_releases._resolve_artist("Raven", {"On and On"}, cache)
+            artist = new_releases_discovery._resolve_artist("Raven", {"On and On"}, cache)
 
         self.assertEqual(artist, {"id": "59914", "name": "Raven"})
         self.assertEqual(cache.get("Raven"), "59914")
@@ -788,29 +797,29 @@ class NewReleasesTest(unittest.TestCase):
         search_known.assert_not_called()
 
     def test_resolve_artist_accepts_cached_alias_when_known_tracks_match(self) -> None:
-        cache = new_releases.ArtistIDCache(entries={"rhapsody": "12061"}, dirty=False)
+        cache = new_releases_discovery.ArtistIDCache(entries={"rhapsody": "12061"}, dirty=False)
 
         with (
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_fetch_artist_by_id",
                 return_value={"id": "12061", "name": "Rhapsody of Fire"},
             ),
-            patch.object(new_releases, "_artist_has_known_track", return_value=True),
+            patch.object(new_releases_discovery, "_artist_has_known_track", return_value=True),
             patch.object(
-                new_releases,
+                new_releases_discovery,
                 "_exact_artist_matches",
                 return_value=[
                     {"id": "20", "name": "Rhapsody"},
                     {"id": "290802041", "name": "Rhapsody"},
                 ],
             ),
-            patch.object(new_releases, "_best_artist_match") as best_match,
+            patch.object(new_releases_discovery, "_best_artist_match") as best_match,
             patch.object(
-                new_releases, "_search_artist_using_known_tracks"
+                new_releases_discovery, "_search_artist_using_known_tracks"
             ) as search_known,
         ):
-            artist = new_releases._resolve_artist(
+            artist = new_releases_discovery._resolve_artist(
                 "Rhapsody", {"Emerald Sword"}, cache
             )
 
@@ -829,16 +838,16 @@ class NewReleasesTest(unittest.TestCase):
         success_payload = {"data": [{"id": 1}]}
         with (
             patch.object(
-                new_releases.SESSION,
+                new_releases_discovery.SESSION,
                 "get",
                 side_effect=[
                     self._fake_response(quota_payload),
                     self._fake_response(success_payload),
                 ],
             ) as session_get,
-            patch.object(new_releases.time, "sleep") as sleep_mock,
+            patch.object(new_releases_discovery.time, "sleep") as sleep_mock,
         ):
-            payload = new_releases._deezer_get("/search/artist", params={"q": "Ghost"})
+            payload = new_releases_discovery._deezer_get("/search/artist", params={"q": "Ghost"})
 
         self.assertEqual(payload, success_payload)
         self.assertEqual(session_get.call_count, 2)
@@ -862,7 +871,7 @@ class NewReleasesTest(unittest.TestCase):
             }
         }
 
-        destination = new_releases._resolve_destination_playlist(
+        destination = new_releases_migration._resolve_destination_playlist(
             release, artist_playlist_map
         )
 
@@ -895,7 +904,7 @@ class NewReleasesTest(unittest.TestCase):
             audio_path = source_dir / "Ghost - Peacefield.mp3"
             audio_path.write_bytes(b"fake mp3")
 
-            release = new_releases.ArtistRelease(
+            release = new_releases_migration.ArtistRelease(
                 artist="Ghost",
                 title="Peacefield",
                 album="Skeleta",
@@ -912,10 +921,10 @@ class NewReleasesTest(unittest.TestCase):
                 }
             }
 
-            with patch.object(new_releases, "_promote_release_album", return_value=True), patch.object(
-                new_releases, "tag_mp3"
+            with patch.object(new_releases_migration, "_promote_release_album", return_value=True), patch.object(
+                new_releases_migration, "tag_mp3"
             ) as tag_mp3:
-                new_releases.move_outdated_releases(
+                new_releases_migration.move_outdated_releases(
                     [release],
                     artist_playlist_map,
                     audio_root,
@@ -958,7 +967,7 @@ class NewReleasesTest(unittest.TestCase):
             )
             source = source_dir / "Artist - Song.mp3"
             source.write_bytes(b"fake mp3")
-            release = new_releases.ArtistRelease(
+            release = new_releases_migration.ArtistRelease(
                 artist="Artist",
                 title="Song",
                 album="Album",
@@ -969,9 +978,9 @@ class NewReleasesTest(unittest.TestCase):
             )
 
             with patch.object(
-                new_releases, "_promote_release_album", return_value=False
-            ), patch.object(new_releases, "tag_mp3") as tag_mp3:
-                blocked = new_releases.move_outdated_releases(
+                new_releases_migration, "_promote_release_album", return_value=False
+            ), patch.object(new_releases_migration, "tag_mp3") as tag_mp3:
+                blocked = new_releases_migration.move_outdated_releases(
                     [release],
                     {"Artist": {destination_csv: {"Older Song"}}},
                     station_dir / "songs",
@@ -1015,7 +1024,7 @@ class NewReleasesTest(unittest.TestCase):
             source.write_bytes(b"new recording")
             existing = destination_dir / 'Lyriel - The Skye Boat Song (From "Outlander").mp3'
             existing.write_bytes(b"existing recording")
-            release = new_releases.ArtistRelease(
+            release = new_releases_migration.ArtistRelease(
                 artist="Lyriel",
                 title='The Skye Boat Song (From "Outlander")',
                 album='The Skye Boat Song (From "Outlander")',
@@ -1027,16 +1036,16 @@ class NewReleasesTest(unittest.TestCase):
             )
 
             with patch.object(
-                new_releases, "_promote_release_album", return_value=False
+                new_releases_migration, "_promote_release_album", return_value=False
             ), patch.object(
-                new_releases,
+                new_releases_migration,
                 "EasyID3",
                 return_value={
                     "artist": ["Lyriel"],
                     "title": ['The Skye Boat Song (From "Outlander")'],
                 },
-            ), patch.object(new_releases, "tag_mp3") as tag_mp3:
-                blocked = new_releases.move_outdated_releases(
+            ), patch.object(new_releases_migration, "tag_mp3") as tag_mp3:
+                blocked = new_releases_migration.move_outdated_releases(
                     [release],
                     {"Lyriel": {destination_csv: {"Older Song"}}},
                     station_dir / "songs",
@@ -1051,7 +1060,7 @@ class NewReleasesTest(unittest.TestCase):
             self.assertTrue(pd.read_csv(destination_csv).empty)
 
     def test_promote_release_album_rechecks_track_titled_album(self) -> None:
-        release = new_releases.ArtistRelease(
+        release = new_releases_migration.ArtistRelease(
             artist="Ghost",
             title="Peacefield",
             album="Peacefield",
@@ -1064,7 +1073,7 @@ class NewReleasesTest(unittest.TestCase):
         resolution = SimpleNamespace(
             notes=(),
             album_promoted=True,
-            song=new_releases.Song(
+            song=new_releases_migration.Song(
                 artist="Ghost",
                 title="Peacefield",
                 album="Skeleta",
@@ -1075,10 +1084,10 @@ class NewReleasesTest(unittest.TestCase):
             track_id=None,
         )
 
-        with patch.object(new_releases, "TrackMetadataResolver") as resolver_type:
+        with patch.object(new_releases_migration, "TrackMetadataResolver") as resolver_type:
             resolver_type.return_value.resolve.return_value = resolution
 
-            promoted = new_releases._promote_release_album(release)
+            promoted = new_releases_migration._promote_release_album(release)
 
         self.assertTrue(promoted)
         resolver_type.return_value.resolve.assert_called_once()
@@ -1113,24 +1122,24 @@ class NewReleasesTest(unittest.TestCase):
                     return_value=(station_dir, playlists_dir),
                 ),
                 patch.object(
-                    new_releases,
+                    new_releases_runtime,
                     "load_station_artists",
                     return_value=(["Ghost"], {"Ghost": {"Peacefield"}}, artist_playlist_map),
                 ),
                 patch.object(
-                    new_releases,
+                    new_releases_runtime,
                     "load_artist_id_cache",
                     return_value=cache,
                 ),
                 patch.object(
-                    new_releases,
+                    new_releases_runtime,
                     "load_existing_new_releases",
                     return_value=[old_release],
                 ),
-                patch.object(new_releases, "build_new_releases", return_value=[]),
-                patch.object(new_releases, "save_artist_id_cache"),
-                patch.object(new_releases, "move_outdated_releases") as move_outdated,
-                patch.object(new_releases, "save_new_releases"),
+                patch.object(new_releases_runtime, "build_new_releases", return_value=[]),
+                patch.object(new_releases_runtime, "save_artist_id_cache"),
+                patch.object(new_releases_runtime, "move_outdated_releases") as move_outdated,
+                patch.object(new_releases_runtime, "save_new_releases"),
             ):
                 new_releases_runtime.NewReleasesRuntime().run(
                     new_releases_runtime.NewReleasesRequest(

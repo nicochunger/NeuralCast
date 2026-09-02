@@ -10,8 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
 
-from . import operations
 from .models import ArtistIDCache, ArtistRelease
+from .new_releases_discovery import fetch_recent_releases
 
 
 class ReleaseDiscoveryProvider(Protocol):
@@ -36,7 +36,7 @@ class DeezerReleaseDiscoveryProvider:
         known_titles: Optional[set[str]] = None,
         artist_cache: Optional[ArtistIDCache] = None,
     ) -> list[ArtistRelease]:
-        return operations.fetch_recent_releases(
+        return fetch_recent_releases(
             artist_name,
             cutoff,
             known_titles,
