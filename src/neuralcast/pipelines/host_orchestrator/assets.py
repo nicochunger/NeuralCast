@@ -67,7 +67,7 @@ def load_station_track_metadata(station_dir: pathlib.Path) -> Dict[str, TrackMet
                             item.album = album
                         if genre and not item.genre:
                             item.genre = genre
-            except OSError:
+            except (OSError, UnicodeError):
                 continue
 
     # Optional station metadata cache for New Releases.

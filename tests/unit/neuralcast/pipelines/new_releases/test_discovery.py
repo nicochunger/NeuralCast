@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from neuralcast.pipelines.new_releases import discovery
+from neuralcast.pipelines.new_releases.models import ArtistIDCache
 
 
 def test_parse_release_date_and_album_exclusion_rules() -> None:
@@ -50,3 +51,33 @@ def test_deezer_pagination_and_genre_compatibility(monkeypatch) -> None:
     assert discovery._paginate_deezer("/artist/1/albums") == [{"id": 1}, {"id": 2}]
     assert discovery._genre_sets_are_compatible(frozenset({85}), frozenset({87}))
     assert not discovery._genre_sets_are_compatible(frozenset({85}), frozenset({106}))
+
+
+def test_resolve_artist_uses_verified_cache_and_refreshes_mismatched_cache(monkeypatch) -> None:
+    cache = ArtistIDCache({"ghost": "old"})
+    monkeypatch.setattr(discovery, "_fetch_artist_by_id", lambda artist_id: {"id": artist_id, "name": "Ghost"})
+    monkeypatch.setattr(discovery, "_artist_has_known_track", lambda artist_id, *_args: artist_id == "old")
+
+    assert discovery._resolve_artist("Ghost", {"Rats"}, cache) == {"id": "old", "name": "Ghost"}
+
+    monkeypatch.setattr(discovery, "_artist_has_known_track", lambda *_args: False)
+    monkeypatch.setattr(discovery, "_best_artist_match", lambda *_args: {"id": "new", "name": "Ghost"})
+    assert discovery._resolve_artist("Ghost", {"Rats"}, cache) == {"id": "new", "name": "Ghost"}
+    assert cache.get("Ghost") == "new"
+
+
+def test_album_genre_lookup_cache_and_provider_outage_fallback(monkeypatch) -> None:
+    discovery._ALBUM_GENRE_CACHE.clear()
+    calls: list[str] = []
+
+    def fake_get(resource, **_kwargs):
+        calls.append(resource)
+        return {"genre_id": 85, "genres": {"data": [{"id": "87"}, {"id": "invalid"}]}}
+
+    monkeypatch.setattr(discovery, "_deezer_get", fake_get)
+    assert discovery._album_genre_ids("album") == frozenset({85, 87})
+    assert discovery._album_genre_ids("album") == frozenset({85, 87})
+    assert calls == ["/album/album"]
+
+    monkeypatch.setattr(discovery, "_album_genre_ids", lambda _id: None)
+    assert discovery._album_matches_known_genres({"id": "offline", "genre_id": 106}, frozenset({85}))
