@@ -34,7 +34,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
-    from neuralcast.pipelines.playlist_sync import main
+    from neuralcast.pipelines.station_sync import main
 
     main(args.station, args.dry_run)
     return 0

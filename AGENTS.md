@@ -14,7 +14,6 @@ The project is package-first under `src/neuralcast/`:
 
 - `cli/`: stable command entrypoints for playlist sync, new releases, host orchestration, schedule generation, and the admin API.
 - `pipelines/station_sync/`: authoritative station playlist/media synchronization package.
-- `pipelines/playlist_sync.py`: compatibility facade over `station_sync`; do not add new core behavior here.
 - Every substantial pipeline lives in its own package directory. Module filenames name
   their responsibility (`service.py`, `storage.py`, `discovery.py`), without
   repeating the parent pipeline name.

@@ -11,7 +11,7 @@ def test_sync_playlists_main_dispatches_explicit_args(monkeypatch) -> None:
     def fake_main(station: str, dry_run: bool) -> None:
         calls.append((station, dry_run))
 
-    monkeypatch.setattr("neuralcast.pipelines.playlist_sync.main", fake_main)
+    monkeypatch.setattr("neuralcast.pipelines.station_sync.main", fake_main)
 
     exit_code = sync_playlists.main(["-s", "neuralcast", "--dry-run"])
 
