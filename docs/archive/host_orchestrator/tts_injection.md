@@ -9,8 +9,6 @@ It streams 24/7 on the home network, automatically rotating playlists and managi
 
 This prototype aims to add an **AI-driven storytelling layer** — a system that can generate and **inject short, spoken stories about songs directly into the live broadcast**.
 
-Create and follow an ExecPlan for this feature.
-
 ---
 
 ### **Objective**
