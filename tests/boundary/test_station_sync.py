@@ -19,7 +19,7 @@ from neuralcast.pipelines.station_sync import (
     SyncRequest,
     TrackResolver,
 )
-from neuralcast.playlists import utils as playlist_utils
+from neuralcast.playlists import library as playlist_library
 
 
 class FakeResolver(TrackResolver):
@@ -293,7 +293,7 @@ def test_dry_run_leaves_station_tree_unchanged(tmp_path, monkeypatch) -> None:
                 artist, title = name.split(" - ", 1)
             super().__init__(artist=[artist], title=[title], date=["2020"])
 
-    monkeypatch.setattr(playlist_utils, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(playlist_library, "EasyID3", FakeEasyID3)
     resolver = FakeResolver(
         validations={
             ("Invalid Artist", "Invalid Song"): ValidationResult(song=None),

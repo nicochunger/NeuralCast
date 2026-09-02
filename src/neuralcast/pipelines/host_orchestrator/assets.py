@@ -30,7 +30,7 @@ from neuralcast.services.ai_client import (
 )
 
 try:
-    from neuralcast.playlists.utils import sanitize_filename_component
+    from neuralcast.playlists.library import sanitize_filename_component
 except Exception:  # pragma: no cover - lightweight fallback for environments without pandas
 
     def sanitize_filename_component(value: str) -> str:

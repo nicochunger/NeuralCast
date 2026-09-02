@@ -10,7 +10,7 @@ from mutagen.easyid3 import EasyID3
 
 from neuralcast.audio.download import tag_mp3, youtube_to_mp3
 from neuralcast.models import Song
-from neuralcast.playlists.utils import normalize_year_value
+from neuralcast.playlists.catalog import normalize_year_value
 
 from .models import PlaylistLog
 from .persistence import _capture_output, _emit_captured_lines

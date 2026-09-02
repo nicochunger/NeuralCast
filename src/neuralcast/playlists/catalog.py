@@ -23,14 +23,14 @@ from neuralcast.metadata.storage import (
 )
 from neuralcast.models import Song
 
-from .utils import normalize_year_value, playlist_song_key
-
 DELETE_MARKER = "[DEL]"
 NEW_RELEASES_PLAYLIST = NEW_RELEASES_PLAYLIST_NAME
 _YOUTUBE_HOST_FRAGMENTS = ("youtube.com", "youtu.be")
 _OVERRIDE_PATTERN = re.compile(r"^\[(https?://[^\]]+)\]\s*(.*)$")
 _STANDARD_COLUMNS = ("Artist", "Title", "Year", "Album", "Validated")
 _NEW_RELEASES_COLUMNS = ("Artist", "Title", "Album", "Year", "Validated")
+_FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
+_ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
 
 
 class CatalogFormatError(ValueError):
@@ -44,6 +44,51 @@ class CatalogPersistenceError(OSError):
 class CatalogWritePolicy(str, Enum):
     PERSIST = "persist"
     PREVIEW = "preview"
+
+
+def normalize_year_value(value: object) -> str | None:
+    """Normalize CSV and ID3 year values while preserving unknown years."""
+    if value is None or pd.isna(value):
+        return None
+    text = str(value).strip()
+    if not text or text.casefold() == "nan":
+        return None
+    if text.casefold() == "unknown":
+        return "Unknown"
+    if match := _FLOAT_YEAR_PATTERN.fullmatch(text):
+        return match.group(1)
+    if match := _ZEROED_DATE_YEAR_PATTERN.fullmatch(text):
+        return match.group(1)
+    return text
+
+
+def playlist_song_key(song: Song) -> tuple[str, str]:
+    return (song.artist.lower().strip(), song.title.lower().strip())
+
+
+def deduplicate_and_sort_songs(songs: list[Song]) -> tuple[list[Song], bool, int]:
+    """Return stable playlist identity deduplication in canonical display order."""
+    seen: dict[tuple[str, str], Song] = {}
+    ordered_unique: list[Song] = []
+    for song in songs:
+        key = playlist_song_key(song)
+        if key not in seen:
+            seen[key] = song
+            ordered_unique.append(song)
+    duplicates_removed = len(songs) - len(ordered_unique)
+    sorted_songs = sorted(
+        ordered_unique,
+        key=lambda song: (song.artist.lower().strip(), song.title.lower().strip()),
+    )
+    return sorted_songs, duplicates_removed > 0 or sorted_songs != songs, duplicates_removed
+
+
+def replace_song_entry(songs: list[Song], updated_song: Song) -> None:
+    target_key = playlist_song_key(updated_song)
+    for index, existing in enumerate(songs):
+        if playlist_song_key(existing) == target_key:
+            songs[index] = updated_song
+            return
 
 
 @dataclass(frozen=True)
@@ -633,8 +678,12 @@ __all__ = [
     "CatalogPersistenceError",
     "CatalogTrack",
     "CatalogWritePolicy",
+    "deduplicate_and_sort_songs",
     "NEW_RELEASES_METADATA_FILENAME",
     "NEW_RELEASES_PLAYLIST",
     "PlaylistSnapshot",
+    "playlist_song_key",
+    "normalize_year_value",
+    "replace_song_entry",
     "StationPlaylistCatalog",
 ]

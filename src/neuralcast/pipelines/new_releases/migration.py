@@ -18,7 +18,7 @@ from neuralcast.metadata.track_resolution import (
 )
 from neuralcast.models import Song
 from neuralcast.playlists.catalog import CatalogWritePolicy, StationPlaylistCatalog
-from neuralcast.playlists.utils import sanitize_filename_component
+from neuralcast.playlists.library import sanitize_filename_component
 from neuralcast.services.validation import verified, verified_album
 
 from .models import ArtistRelease
@@ -296,4 +296,3 @@ def move_outdated_releases(
 
 
 __all__ = ["move_outdated_releases"]
-

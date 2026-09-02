@@ -13,15 +13,15 @@ from neuralcast.playlists.catalog import (
     CatalogWritePolicy,
     PlaylistSnapshot,
     StationPlaylistCatalog,
-)
-from neuralcast.playlists.utils import (
-    apply_library_renames,
     deduplicate_and_sort_songs,
+    playlist_song_key,
+    replace_song_entry,
+)
+from neuralcast.playlists.library import (
+    apply_library_renames,
     delete_marked_mp3_files,
     find_marked_mp3_files,
     plan_songs_from_library,
-    playlist_song_key,
-    replace_song_entry,
     sanitize_filename_component,
 )
 

@@ -1,75 +1,19 @@
-"""Playlist parsing and library management helpers."""
+"""MP3 library reconciliation and deletion helpers for station playlists."""
 from __future__ import annotations
 
 import pathlib
-import re
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
-import pandas as pd
 from mutagen.easyid3 import EasyID3
 
 from neuralcast.models import Song
 
-DELETE_MARKER = "[DEL]"
-_FLOAT_YEAR_PATTERN = re.compile(r"^(\d{4})\.0+$")
-_ZEROED_DATE_YEAR_PATTERN = re.compile(r"^(\d{4})-00(?:-00)?$")
-
-
-def _normalize_csv_value(value: object) -> Optional[str]:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        text = value.strip()
-        if not text or text.lower() == "nan":
-            return None
-        return text
-    if pd.isna(value):
-        return None
-    text = str(value).strip()
-    if not text or text.lower() == "nan":
-        return None
-    return text
-
-
-def normalize_year_value(value: object) -> Optional[str]:
-    text = _normalize_csv_value(value)
-    if text is None:
-        return None
-    if text.casefold() == "unknown":
-        return "Unknown"
-
-    float_match = _FLOAT_YEAR_PATTERN.fullmatch(text)
-    if float_match:
-        return float_match.group(1)
-
-    zeroed_date_match = _ZEROED_DATE_YEAR_PATTERN.fullmatch(text)
-    if zeroed_date_match:
-        return zeroed_date_match.group(1)
-
-    return text
+from .catalog import normalize_year_value, playlist_song_key
 
 
 def sanitize_filename_component(value: str) -> str:
     return value.replace("/", " ").replace("\\", " ").strip()
-
-
-def playlist_song_key(song: Song) -> Tuple[str, str]:
-    return (song.artist.lower().strip(), song.title.lower().strip())
-
-
-def load_playlist(
-    playlist_path: pathlib.Path,
-) -> Tuple[List[Song], bool, List[Song], pd.DataFrame]:
-    from .catalog import StationPlaylistCatalog
-
-    snapshot = StationPlaylistCatalog(playlist_path.parent).load(playlist_path)
-    return (
-        snapshot.songs,
-        snapshot.needs_persist,
-        snapshot.deletion_requests,
-        snapshot._copy_source_frame(),
-    )
 
 
 @dataclass(frozen=True)
@@ -218,68 +162,6 @@ def apply_library_renames(
     return existing_paths
 
 
-def backfill_songs_from_library(
-    playlist_name: str,
-    songs: List[Song],
-    music_dir: Optional[pathlib.Path],
-    *,
-    log: Callable[[str], None] = print,
-) -> Tuple[List[Song], bool, int]:
-    """Compatibility wrapper that plans and immediately applies file renames."""
-    plan = plan_songs_from_library(
-        playlist_name,
-        songs,
-        music_dir,
-        ignored_paths=None,
-        log=log,
-    )
-    apply_library_renames(plan, log=log)
-    return plan.songs, plan.changed, plan.added_from_files
-
-
-def deduplicate_and_sort_songs(songs: List[Song]) -> Tuple[List[Song], bool, int]:
-    seen: Dict[Tuple[str, str], Song] = {}
-    ordered_unique: List[Song] = []
-    for song in songs:
-        key = playlist_song_key(song)
-        if key not in seen:
-            seen[key] = song
-            ordered_unique.append(song)
-
-    duplicates_removed = len(songs) - len(ordered_unique)
-    sorted_songs = sorted(
-        ordered_unique,
-        key=lambda s: (s.artist.lower().strip(), s.title.lower().strip()),
-    )
-    changed = duplicates_removed > 0 or sorted_songs != songs
-    return sorted_songs, changed, duplicates_removed
-
-
-def replace_song_entry(songs: List[Song], updated_song: Song) -> None:
-    target_key = playlist_song_key(updated_song)
-    for idx, existing in enumerate(songs):
-        if playlist_song_key(existing) == target_key:
-            songs[idx] = updated_song
-            return
-
-
-def save_playlist_with_validation(
-    playlist_path: pathlib.Path,
-    songs: List[Song],
-    df: pd.DataFrame,
-    *,
-    log: Callable[[str], None] = print,
-):
-    from .catalog import StationPlaylistCatalog
-
-    StationPlaylistCatalog.save_legacy_frame(
-        playlist_path,
-        songs,
-        df,
-        log=log,
-    )
-
-
 def delete_marked_mp3_files(
     delete_targets: Dict[Tuple[str, str], Song],
     songs_root: pathlib.Path,
@@ -330,19 +212,11 @@ def find_marked_mp3_files(
 
 
 __all__ = [
-    "DELETE_MARKER",
-    "load_playlist",
     "LibraryBackfillPlan",
     "LibraryRenameAction",
     "plan_songs_from_library",
     "apply_library_renames",
-    "backfill_songs_from_library",
-    "deduplicate_and_sort_songs",
-    "replace_song_entry",
-    "save_playlist_with_validation",
     "delete_marked_mp3_files",
     "find_marked_mp3_files",
     "sanitize_filename_component",
-    "playlist_song_key",
-    "normalize_year_value",
 ]

@@ -21,7 +21,7 @@ The project is package-first under `src/neuralcast/`:
 - `pipelines/host_orchestrator/`: AzuraCast queue inspection, story generation, TTS, upload, cleanup, and interrupting-request insertion.
 - `pipelines/schedule_generator/`: weekly AzuraCast schedule planning and application.
 - `playlists/catalog.py`: authoritative playlist CSV parsing, round-tripping, deletion markers, YouTube overrides, and New Releases companion metadata.
-- `playlists/utils.py`: MP3/library reconciliation, filename sanitation, deduplication, and deletion helpers.
+- `playlists/library.py`: MP3/library reconciliation, filename sanitation, and deletion helpers.
 - `audio/`: yt-dlp download, ID3 tagging, ReplayGain, and album-art handling.
 - `metadata/`: album lookup, track resolution, and station metadata storage.
 - `services/`: validation and AI/provider clients.
