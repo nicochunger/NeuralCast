@@ -10,6 +10,9 @@ from neuralcast.audio.download import DownloadNoResultsError
 from neuralcast.metadata.storage import metadata_key
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
+from neuralcast.pipelines import station_sync_media
+from neuralcast.pipelines import station_sync_resolver
+from neuralcast.pipelines import station_sync_service
 
 
 def test_remove_new_releases_metadata_entries_removes_matching_keys(tmp_path) -> None:
@@ -33,6 +36,12 @@ def test_remove_new_releases_metadata_entries_removes_matching_keys(tmp_path) ->
     payload = json.loads(metadata_path.read_text(encoding="utf-8"))
     assert removed == 1
     assert sorted(payload["entries"]) == [keep_key]
+
+
+def test_station_sync_facade_reexports_owning_implementations() -> None:
+    assert station_sync.DefaultMediaLibrary is station_sync_media.DefaultMediaLibrary
+    assert station_sync.DefaultTrackResolver is station_sync_resolver.DefaultTrackResolver
+    assert station_sync.StationSync is station_sync_service.StationSync
 
 
 def test_default_media_library_apply_override_rejects_bad_inputs(tmp_path, capsys) -> None:
@@ -77,7 +86,7 @@ def test_default_media_library_apply_override_dry_run_does_not_download(tmp_path
         override_url="https://youtu.be/x",
     )
     monkeypatch.setattr(
-        station_sync,
+        station_sync_media,
         "youtube_to_mp3",
         lambda *_args, **_kwargs: pytest.fail("download should not run in dry-run"),
     )
@@ -109,7 +118,7 @@ def test_default_media_library_apply_override_restores_backup_on_failure(tmp_pat
         song_path.write_bytes(b"partial")
         raise DownloadNoResultsError("not found")
 
-    monkeypatch.setattr(station_sync, "youtube_to_mp3", failing_download)
+    monkeypatch.setattr(station_sync_media, "youtube_to_mp3", failing_download)
 
     changed = library.apply_override(
         song,
@@ -140,9 +149,9 @@ def test_default_media_library_audit_existing_tags_refreshes_mismatches(tmp_path
                 album=["Old Album"],
             )
 
-    monkeypatch.setattr(station_sync, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(station_sync_media, "EasyID3", FakeEasyID3)
     monkeypatch.setattr(
-        station_sync,
+        station_sync_media,
         "tag_mp3",
         lambda *args, **kwargs: tagged.append((args, kwargs)),
     )
@@ -185,9 +194,9 @@ def test_default_media_library_genre_repair_skips_art_and_replaygain(
                 album=["Album"],
             )
 
-    monkeypatch.setattr(station_sync, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(station_sync_media, "EasyID3", FakeEasyID3)
     monkeypatch.setattr(
-        station_sync,
+        station_sync_media,
         "tag_mp3",
         lambda *_args, **kwargs: tagged.append(kwargs),
     )
@@ -220,9 +229,9 @@ def test_default_media_library_tag_audit_is_read_only_without_repair(
         def __init__(self, _path: str) -> None:
             super().__init__(artist=["Wrong"], title=["Song"])
 
-    monkeypatch.setattr(station_sync, "EasyID3", FakeEasyID3)
+    monkeypatch.setattr(station_sync_media, "EasyID3", FakeEasyID3)
     monkeypatch.setattr(
-        station_sync,
+        station_sync_media,
         "tag_mp3",
         lambda *_args, **_kwargs: pytest.fail("read-only tag audit attempted repair"),
     )

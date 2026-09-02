@@ -11,6 +11,7 @@ import pytest
 from neuralcast.metadata import album_lookup
 from neuralcast.models import Song
 from neuralcast.pipelines import station_sync
+from neuralcast.pipelines import station_sync_resolver
 from neuralcast.services import validation
 
 
@@ -168,8 +169,8 @@ class DeezerSyncProviderTest(unittest.TestCase):
             artist_score=1.0,
         )
         with (
-            patch.object(station_sync, "verified_album", return_value=False),
-            patch.object(station_sync, "guess_album", return_value=deezer_match) as guess_album_mock,
+            patch.object(station_sync_resolver, "verified_album", return_value=False),
+            patch.object(station_sync_resolver, "guess_album", return_value=deezer_match) as guess_album_mock,
         ):
             updated_song, changed = station_sync.DefaultTrackResolver().backfill_album(song)
 
@@ -197,8 +198,8 @@ class DeezerSyncProviderTest(unittest.TestCase):
         )
 
         with (
-            patch.object(station_sync, "verified_album", return_value=False),
-            patch.object(station_sync, "guess_album", return_value=None),
+            patch.object(station_sync_resolver, "verified_album", return_value=False),
+            patch.object(station_sync_resolver, "guess_album", return_value=None),
         ):
             updated_song, changed = station_sync.DefaultTrackResolver().backfill_album(song)
 
