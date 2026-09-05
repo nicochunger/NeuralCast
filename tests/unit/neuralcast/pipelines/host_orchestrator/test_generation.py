@@ -583,6 +583,47 @@ META (JSON):
         self.assertIn("Estas generando un era snapshot.", prompt)
         self.assertIn("Era-snapshot lane", prompt)
 
+    def test_build_prompt_formats_real_schedule_context(self) -> None:
+        personality = resolve_station_personality("neuralforge")
+        context_kwargs = {
+            "block_key": "test-block",
+            "genre_labels": ["metal progresivo"],
+            "playlist_name": None,
+            "progress_ratio": 0.25,
+            "phase": "mid",
+            "mention_intent": "mid",
+            "next_section_label": "Open Rotation",
+            "start_local_iso": "2026-09-03T08:00:00+02:00",
+            "end_local_iso": "2026-09-03T09:00:00+02:00",
+        }
+
+        for mode, section_label, expected_label in (
+            ("playlist", "Prog Dawn", "Prog Dawn"),
+            ("open", "Ignored open label", "bloque libre"),
+        ):
+            with self.subTest(mode=mode):
+                prompt = build_prompt(
+                    archetype=Archetype.BACK_SELL,
+                    station_name="NeuralForge",
+                    personality=personality,
+                    current=self._queue_track("Opeth", "The Moor"),
+                    next_track=self._queue_track("Agalloch", "Falling Snow"),
+                    upcoming_tracks=[],
+                    current_meta=self._track_meta(album="Still Life"),
+                    next_meta=self._track_meta(album="The Mantle"),
+                    angle=None,
+                    hook="puente entre temas",
+                    banned_list=[],
+                    recent_scripts=[],
+                    schedule_context=ScheduleContext(
+                        mode=mode,
+                        section_label=section_label,
+                        **context_kwargs,
+                    ),
+                )
+
+                self.assertIn(f"  - Seccion: {expected_label}", prompt)
+
     def test_select_album_spotlight_focus_prefers_track_with_album_metadata(self) -> None:
         rng = __import__("random").Random(17)
         focus = select_album_spotlight_focus(

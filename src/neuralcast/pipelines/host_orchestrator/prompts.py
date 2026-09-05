@@ -51,9 +51,11 @@ def _spoken_section_label(
     locale: Optional[HostLocale] = None,
 ) -> str:
     locale = _resolved_locale(locale)
-    return schedule_context.spoken_section_label(
-        fallback=str(locale.presentation.get("default_section") or "music selection")
-    )
+    if schedule_context.mode == "open":
+        return str(locale.schedule.get("open_label") or "open rotation")
+
+    section = schedule_context.section_label.strip()
+    return section or str(locale.schedule.get("open_label") or "this block")
 
 
 def format_shared_input(
