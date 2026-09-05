@@ -80,9 +80,9 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             "Latin Pop",
             "Rock Nacional",
             "Movie and TV Soundtracks",
-            "International Heritage",
+            "Global Classics",
             "The Modern Frontier",
-            "Global Mid-Century Foundations",
+            "Mid-Century Popular Foundations",
             "Romanticismo Argentino",
         ]
         return [

@@ -84,9 +84,9 @@ Brass-laden, groove-heavy funk and soul classics—James Brown’s fire, Aretha�
 
 *1965 – 1985*
 
-## Global Mid-Century Foundations
+## Mid-Century Popular Foundations
 
-Swing, Big Band, and 1950s Rock. To bridge the gap between classical and modern eras, the NeuralCast map accounts for Big Band swing and 1950s rock & roll—genres that provided the rhythmic blueprints for nearly every pop song that followed.
+Swing, big band, crooners, rhythm and blues, and early rock & roll. These widely recognized recordings bridge the classical and modern eras and supplied much of the vocabulary of later popular music.
 
 *1931 – 1964*
 
@@ -108,11 +108,11 @@ Though NeuralCast covers classic and soft rock, it lacks the heavier metal anthe
 
 *2000 – present*
 
-## International Heritage
+## Global Classics
 
-International Heritage: Chanson, Italian pop, and bossa nova. Given Argentina's history of Italian and Spanish immigration, European musical traditions are an atmospheric necessity. These genres carry a "nostalgic authenticity" that transcends language.
+Globally recognized songs that crossed language and cultural boundaries: European standards, African and Middle Eastern crossover classics, Asian landmarks, and enduring Latin American and Caribbean recordings. Familiarity to a Western audience is the entry point, while geographic breadth keeps the playlist genuinely global.
 
-*1950 – present*
+*1930s – present*
 
 ## Irish Folk & Trad
 

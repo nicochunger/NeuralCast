@@ -1695,7 +1695,7 @@
 - Tower of Power - What Is Hip?
 - War - Low Rider
 
-## Global Mid-Century Foundations
+## Mid-Century Popular Foundations
 
 - Glenn Miller - In the Mood
 - Benny Goodman - Sing, Sing, Sing
@@ -1906,7 +1906,7 @@
 - Vampire Weekend - Diane Young
 - Vampire Weekend - Harmony Hall
 
-## International Heritage
+## Global Classics
 
 - Édith Piaf - La Vie en Rose
 - Domenico Modugno - Volare
