@@ -32,6 +32,46 @@
       "Rank": 530554,
       "Validated": true
     },
+    "cloven hoof|conquistador|conquistador|2026": {
+      "ReleaseDate": "2026-09-04T00:00:00+00:00",
+      "TrackID": "4201385942",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "Validated": false
+    },
+    "huey lewis & the news|the power of love (from “back to the future” soundtrack)|fore! the good times|2026": {
+      "ReleaseDate": "2026-09-04T00:00:00+00:00",
+      "TrackID": "4260220061",
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 100000,
+      "Validated": false
+    },
+    "saxon|gods of thunder|gods of thunder|2026": {
+      "ReleaseDate": "2026-09-02T00:00:00+00:00",
+      "TrackID": "4233059642",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 584937,
+      "Validated": false
+    },
+    "waylander|macha|macha|2026": {
+      "ReleaseDate": "2026-09-02T00:00:00+00:00",
+      "TrackID": "4200722052",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "Validated": false
+    },
+    "black forest|who's been foolin you|okra|2026": {
+      "ReleaseDate": "2026-08-31T00:00:00+00:00",
+      "TrackID": "4263180851",
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 100000,
+      "Validated": false
+    },
     "airbourne|alive after death (last plane out)|airbourne|2026": {
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
       "TrackID": "3935670071",
@@ -39,6 +79,14 @@
       "IsSingle": false,
       "Rank": 581975,
       "Validated": true
+    },
+    "kamelot|sanctuary (feat. clémentine delauney, ignacia fernández)|dark asylum|2026": {
+      "ReleaseDate": "2026-08-28T00:00:00+00:00",
+      "TrackID": "4093808501",
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 521820,
+      "Validated": false
     },
     "airbourne|gutsy|airbourne|2026": {
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
@@ -48,13 +96,29 @@
       "Rank": 521366,
       "Validated": true
     },
-    "dragonland|the prophecy unfolds|the prophecy unfolds|2026": {
+    "tygers of pan tang|rise up!|rise up!|2026": {
+      "ReleaseDate": "2026-08-28T00:00:00+00:00",
+      "TrackID": "4014439601",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 328024,
+      "Validated": false
+    },
+    "jo blankenburg|power play|vector zero|2026": {
+      "ReleaseDate": "2026-08-28T00:00:00+00:00",
+      "TrackID": "4159635552",
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 186509,
+      "Validated": false
+    },
+    "dragonland|the prophecy unfolds|prophecies|2026": {
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
       "TrackID": "4156979012",
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
-      "Validated": false
+      "Validated": true
     },
     "hollow ground|devour the night|devour the night|2026": {
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
@@ -62,7 +126,7 @@
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
-      "Validated": false
+      "Validated": true
     },
     "jo blankenburg|roar|vector zero|2026": {
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
@@ -70,6 +134,14 @@
       "AlbumType": "album",
       "IsSingle": false,
       "Rank": 100000,
+      "Validated": true
+    },
+    "brymir|tempestbound|tempestbound|2026": {
+      "ReleaseDate": "2026-08-27T00:00:00+00:00",
+      "TrackID": "4060449431",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 296285,
       "Validated": false
     },
     "amon amarth|eight legs of thunder|eight legs of thunder|2026": {
@@ -78,15 +150,23 @@
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
+      "Validated": true
+    },
+    "frozen crown|who wants to burn in heaven|who wants to burn in heaven|2026": {
+      "ReleaseDate": "2026-08-26T00:00:00+00:00",
+      "TrackID": "4038625571",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 392784,
       "Validated": false
     },
-    "iron savior|the creature's tale|the creature's tale|2026": {
+    "iron savior|the creature's tale|deathbringer|2026": {
       "ReleaseDate": "2026-08-26T00:00:00+00:00",
       "TrackID": "4199066012",
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
-      "Validated": false
+      "Validated": true
     },
     "russian circles|seventh seal|seventh seal|2026": {
       "ReleaseDate": "2026-08-25T00:00:00+00:00",
@@ -94,7 +174,7 @@
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 507841,
-      "Validated": false
+      "Validated": true
     },
     "russian circles|empath|nine|2026": {
       "ReleaseDate": "2026-08-21T00:00:00+00:00",
@@ -167,6 +247,14 @@
       "IsSingle": false,
       "Rank": 272882,
       "Validated": true
+    },
+    "xandria|eclipse|eclipse|2026": {
+      "ReleaseDate": "2026-08-07T00:00:00+00:00",
+      "TrackID": "4033795211",
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 395859,
+      "Validated": false
     },
     "audiomachine|kingsbane|kingsbane|2026": {
       "ReleaseDate": "2026-08-07T00:00:00+00:00",
@@ -294,7 +382,7 @@
       "AlbumType": "album",
       "IsSingle": false,
       "Rank": 225666,
-      "Validated": false
+      "Validated": true
     },
     "airbourne|here she comes|here she comes|2026": {
       "ReleaseDate": "2026-07-29T00:00:00+00:00",
@@ -488,6 +576,14 @@
       "Rank": 337857,
       "Validated": true
     },
+    "the ocean|belligerence, pt. i|belligerence|2026": {
+      "ReleaseDate": "2026-07-14T00:00:00+00:00",
+      "TrackID": "4153139622",
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 311194,
+      "Validated": false
+    },
     "mastodon|snakes for dinner|snakes for dinner|2026": {
       "ReleaseDate": "2026-07-13T00:00:00+00:00",
       "TrackID": "4134857131",
@@ -679,6 +775,14 @@
       "IsSingle": true,
       "Rank": 331165,
       "Validated": true
+    },
+    "masterplan|pain of yesterday|metalmorphosis|2026": {
+      "ReleaseDate": "2026-06-26T00:00:00+00:00",
+      "TrackID": "3829307801",
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 195742,
+      "Validated": false
     },
     "duir|del giorno|catarsi|2026": {
       "ReleaseDate": "2026-06-26T00:00:00+00:00",
@@ -1166,94 +1270,6 @@
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 602211,
-      "Validated": true
-    },
-    "saltatio mortis|tanz der tausend klingen|tanz der tausend klingen|2026": {
-      "ReleaseDate": "2026-05-08T00:00:00+00:00",
-      "TrackID": "3983482331",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 490690,
-      "Validated": true
-    },
-    "eleine|empire of lies|empire of lies|2026": {
-      "ReleaseDate": "2026-05-08T00:00:00+00:00",
-      "TrackID": "3953793321",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 463054,
-      "Validated": true
-    },
-    "the great kat|beethoven's drinking song trinklied|beethoven's drinking song trinklied|2026": {
-      "ReleaseDate": "2026-05-08T00:00:00+00:00",
-      "TrackID": "4011237971",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 100000,
-      "Validated": true
-    },
-    "the great kat|stephen foster 200|stephen foster 200|2026": {
-      "ReleaseDate": "2026-05-08T00:00:00+00:00",
-      "TrackID": "4011599651",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 100000,
-      "Validated": true
-    },
-    "xandria|the shannon's home|the shannon's home|2026": {
-      "ReleaseDate": "2026-05-07T00:00:00+00:00",
-      "TrackID": "3953711321",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 502161,
-      "Validated": true
-    },
-    "vision divine|a clockwork reverie|a clockwork reverie|2026": {
-      "ReleaseDate": "2026-05-07T00:00:00+00:00",
-      "TrackID": "3916711051",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 420137,
-      "Validated": true
-    },
-    "blackbriar|a long cursed sleep|a long cursed sleep|2026": {
-      "ReleaseDate": "2026-05-07T00:00:00+00:00",
-      "TrackID": "3950488511",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 322386,
-      "Validated": true
-    },
-    "white spirit|fall der moral|fall der moral|2026": {
-      "ReleaseDate": "2026-05-07T00:00:00+00:00",
-      "TrackID": "3953295551",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 117481,
-      "Validated": true
-    },
-    "evergrey|leaving the emptiness|leaving the emptiness|2026": {
-      "ReleaseDate": "2026-05-05T00:00:00+00:00",
-      "TrackID": "3883875801",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 159353,
-      "Validated": true
-    },
-    "tygers of pan tang|electrifyed|electrifyed|2026": {
-      "ReleaseDate": "2026-05-04T00:00:00+00:00",
-      "TrackID": "3920801871",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 205797,
-      "Validated": true
-    },
-    "grim reaper|that's right|that's right|2026": {
-      "ReleaseDate": "2026-05-02T00:00:00+00:00",
-      "TrackID": "4003157201",
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 76650,
       "Validated": true
     },
     "venom|kicked outta hell|into oblivion|2026": {
