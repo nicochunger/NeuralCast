@@ -111,6 +111,54 @@
         "start_section_long": ["{section} starts here, built around {genres}", "we're opening {section} in a {genres} direction"],
         "genre_default": ["in that {genres} direction"]
       }
+    },
+    "fr-CH": {
+      "output_language": "français naturel de Suisse romande",
+      "script_guidance": "Écris le texte parlé exclusivement en français naturel de Suisse romande (fr-CH), avec un registre conversationnel chaleureux et un tutoiement cohérent. Emploie avec modération des tournures idiomatiques de Suisse romande, sans caricature. Conserve exactement tels qu'ils sont fournis les noms d'artistes, titres de morceaux, noms d'albums, noms de playlists et noms de sources. N'utilise ni tournures ni mots de remplissage espagnols.",
+      "prompt_directory": "prompts/locales/fr-CH",
+      "tts_instructions": "prompts/locales/fr-CH/neuralforge_tts_instructions.md",
+      "tts_voice": "Charon",
+      "presentation": {
+        "back_sell": "Transition musicale",
+        "up_next_tease": "À suivre",
+        "short_story": "Histoire du morceau",
+        "album_spotlight": "Album à la loupe",
+        "era_snapshot": "Instantané d'époque",
+        "deep_dive": "Contexte approfondi",
+        "news": "Point d'actualité",
+        "concert_check": "Agenda des concerts",
+        "block_intro": "Début de séquence",
+        "ultra_minimal": "Transition musicale",
+        "default": "Intervention de l'animateur",
+        "current": "À l'instant",
+        "next": "À suivre",
+        "previous_track": "morceau précédent",
+        "next_track": "prochain morceau",
+        "unknown_track": "morceau non identifié",
+        "current_affairs": "actualité",
+        "concerts": "agenda des concerts",
+        "new_section": "nouvelle section",
+        "music": "musique",
+        "and": "et",
+        "fallback_current_next": ["C'était {current_title} ; maintenant, {next_artist} avec {next_title}.", "On vient d'écouter {current_artist} avec {current_title} ; à suivre, {next_artist} avec {next_title}."],
+        "fallback_next": ["À suivre, {next_artist} avec {next_title}."],
+        "fallback_music": "On continue avec la musique."
+      },
+      "schedule": {
+        "block_terms": ["séquence", "section", "segment"],
+        "current_markers": ["on est dans", "on reste dans", "ici dans", "on continue dans"],
+        "open_markers": ["rotation libre", "sans thème", "mélange libre", "tous les genres", "tout le catalogue", "genres croisés"],
+        "open_label": "rotation libre",
+        "mid_open_short": ["on reste en rotation libre, sans thème", "ici en rotation libre, avec un mélange ouvert"],
+        "mid_open_long": ["on reste en rotation libre, sans thème, avec tout le catalogue en jeu", "ici en rotation libre : tous les genres du catalogue peuvent se croiser"],
+        "start_open_short": ["la rotation libre commence ici, sans thème", "le mélange libre commence ici, sans thème"],
+        "start_open_long": ["la rotation libre commence ici : tous les genres du catalogue peuvent passer", "le mélange libre commence ici, avec tout le catalogue et des genres qui se croisent"],
+        "mid_section_short": ["on reste dans {section}", "ici dans {section}", "on continue dans {section}"],
+        "mid_section_long": ["on reste dans {section}, dans cette veine {genres}", "ici dans {section}, avec cette couleur {genres}"],
+        "start_section_short": ["{section} commence ici, avec {genres}", "on ouvre {section} avec {genres}"],
+        "start_section_long": ["{section} commence ici, autour de {genres}", "on ouvre {section} dans une direction {genres}"],
+        "genre_default": ["dans cette direction {genres}"]
+      }
     }
   },
   "channels": {
@@ -140,6 +188,16 @@
       "media_owner_station": "neuralforge",
       "remote_prefix": "AI Stories/neuralforge/es-AR",
       "legacy_station": "neuralforge"
+    },
+    "neuralforge-fr": {
+      "azuracast_station": "neuralforge_fr",
+      "azuracast_station_id": 4,
+      "brand": "neuralforge",
+      "locale": "fr-CH",
+      "script_style_override": "NeuralForge est directe, chaleureuse, conversationnelle, précise sur la musique et résolument énergique sans crier ni devenir théâtrale. Emploie des phrases compactes, faciles à dire, et des observations concrètes plutôt que des critiques ou des cours. Évite les clichés usés du metal, sauf si un fait précis sur le morceau les justifie réellement.",
+      "tts_instructions_override": "prompts/locales/fr-CH/neuralforge_tts_instructions.md",
+      "media_owner_station": "neuralforge",
+      "remote_prefix": "AI Stories/neuralforge/fr-CH"
     }
   },
   "legacy_station_channels": {

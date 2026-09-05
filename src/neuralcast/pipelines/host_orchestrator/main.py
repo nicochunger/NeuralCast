@@ -259,7 +259,7 @@ def _load_station_runtime(
         channel.brand.personality_station, station_name
     )
     station_personality = StationPersonality(
-        script_profile=channel.brand.script_style,
+        script_profile=channel.script_style_override or channel.brand.script_style,
         tts_profile=channel.brand.tts_style,
     )
     LOGGER.info(

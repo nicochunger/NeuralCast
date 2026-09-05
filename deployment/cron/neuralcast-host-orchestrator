@@ -11,5 +11,5 @@ CRON_TZ=Europe/Zurich
 # Run NeuralForge on even-numbered minutes.
 */2 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
 
-# Run the English NeuralCast channel on odd-numbered minutes.
-1-59/2 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast-en && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralcast-en >> runtime/logs/host_orchestrator/neuralcast-en/cron.log 2>&1
+# Run the French NeuralForge channel on odd-numbered minutes.
+1-59/2 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1

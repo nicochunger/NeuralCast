@@ -10,16 +10,19 @@ The host orchestrator separates three reusable configuration layers in
 - a **channel** selects the AzuraCast target station and combines one brand with
   one locale.
 
-`neuralcast-en` currently targets the AzuraCast station shortcode
-`neuralcast_shared_media_test`. It reads NeuralCast playlists and metadata and
-uses NeuralCast's shared AzuraCast media root; it does not create a second music
-catalog.
+`neuralforge-fr` targets the AzuraCast station shortcode `neuralforge_fr`. It
+reads NeuralForge playlists and metadata and uses NeuralForge's shared
+AzuraCast media root; it does not create a second music catalog. Its locale uses
+a complete French prompt pack and a natural Swiss Romand accent direction.
 
-Run an English test cycle with:
+`neuralcast-en` remains configured for the retained AzuraCast station
+`neuralcast_shared_media_test`, but that station and its cron cycle are disabled.
+
+Run a French test cycle with:
 
 ```bash
 python -m neuralcast.cli.host_orchestrator \
-  --channel neuralcast-en \
+  --channel neuralforge-fr \
   --force-archetype back_sell \
   --min-listeners 0 \
   --dry-run
@@ -40,6 +43,6 @@ brand, catalog, language, or target stream. For example, `neuralcast-en` keeps
 the NeuralCast identity and English locale while using NeuralForge's speaking
 cadence, cooldowns, and enabled-archetype policy.
 
-To add a language, add a locale entry and its TTS instruction file, then add one
-or more channel entries that reference it. To add another stream for an existing
-language, only a channel entry is required.
+To add a language, add a locale entry, its complete prompt directory, and its TTS
+instruction file, then add one or more channel entries that reference it. To add
+another stream for an existing language, only a channel entry is required.

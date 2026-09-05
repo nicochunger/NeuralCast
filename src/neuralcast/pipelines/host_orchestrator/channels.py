@@ -75,6 +75,7 @@ class HostLocale:
     tag: str
     output_language: str
     script_guidance: str
+    prompt_directory: pathlib.Path
     tts_instructions_path: pathlib.Path
     tts_voice: str
     presentation: Mapping[str, Any]
@@ -93,6 +94,7 @@ class HostChannel:
     remote_prefix: str
     cadence_profile: str
     archetype_profile: str
+    script_style_override: str | None = None
     tts_instructions_override_path: pathlib.Path | None = None
     legacy_station: str | None = None
 
@@ -214,6 +216,12 @@ def load_channel_registry(
             raise FileNotFoundError(
                 f"Locale '{key}' TTS instructions not found: {instructions_path}"
             )
+        prompt_directory_rel = str(raw.get("prompt_directory") or "prompts").strip()
+        prompt_directory = ASSETS_ROOT / "stories" / prompt_directory_rel
+        if not prompt_directory.is_dir():
+            raise FileNotFoundError(
+                f"Locale '{key}' prompt directory not found: {prompt_directory}"
+            )
         presentation = _mapping(raw, "presentation", f"locale '{key}'")
         schedule = _mapping(raw, "schedule", f"locale '{key}'")
         _require_keys(
@@ -228,6 +236,7 @@ def load_channel_registry(
             script_guidance=_required_string(
                 raw, "script_guidance", f"locale '{key}'"
             ),
+            prompt_directory=prompt_directory,
             tts_instructions_path=instructions_path,
             tts_voice=str(raw.get("tts_voice") or "Enceladus").strip(),
             presentation=presentation,
@@ -307,6 +316,9 @@ def load_channel_registry(
             remote_prefix=remote_prefix.rstrip("/"),
             cadence_profile=cadence_profile,
             archetype_profile=archetype_profile,
+            script_style_override=(
+                str(raw.get("script_style_override") or "").strip() or None
+            ),
             tts_instructions_override_path=tts_instructions_override_path,
             legacy_station=(str(raw.get("legacy_station") or "").strip() or None),
         )

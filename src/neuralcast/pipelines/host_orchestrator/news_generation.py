@@ -12,7 +12,7 @@ from .config import (
     NEWS_MAX_AGE_HOURS,
     NEWS_OUTPUT_RE,
     NEWS_TOPICS,
-    REPAIR_NEWS_CONTRACT,
+    get_prompt_template_from,
 )
 from .models import (
     Archetype,
@@ -93,9 +93,11 @@ def attempt_news_repair(
     locale: Optional[HostLocale] = None,
 ) -> str:
     locale = _resolved_locale(locale)
-    repair_prompt = REPAIR_NEWS_CONTRACT.replace("es-AR", locale.tag).format(
-        original_output=original_output
-    )
+    repair_prompt = get_prompt_template_from(
+        locale.prompt_directory,
+        "repair_news_contract",
+        original_output=original_output,
+    ).replace("es-AR", locale.tag)
     return gemini_generate_text(
         prompt=repair_prompt,
         system_prompt=build_system_prompt(station_name, personality, locale),

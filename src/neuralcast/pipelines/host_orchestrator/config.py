@@ -436,11 +436,13 @@ NEWS_TOPICS: Tuple[str, ...] = (
 CONCERT_TARGET_COUNTRIES: Tuple[str, ...] = ("Argentina", "Switzerland")
 CONCERT_COUNTRY_ALIASES: Dict[str, str] = {
     "argentina": "argentina",
+    "argentine": "argentina",
     "ar": "argentina",
     "arg": "argentina",
     "switzerland": "switzerland",
     "swiss": "switzerland",
     "suiza": "switzerland",
+    "suisse": "switzerland",
     "ch": "switzerland",
     "schweiz": "switzerland",
 }
@@ -493,28 +495,55 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
 }
 
 
-@lru_cache(maxsize=1)
-def load_prompt_templates() -> Dict[str, str]:
+@lru_cache(maxsize=None)
+def load_prompt_templates_from(prompt_directory: pathlib.Path) -> Dict[str, str]:
     templates: Dict[str, str] = {}
     for template_name, filename in PROMPT_TEMPLATE_FILES.items():
-        path = PROMPTS_DIR / filename
+        path = prompt_directory / filename
         if not path.is_file():
             raise FileNotFoundError(f"Missing prompt template file: {path}")
         templates[template_name] = path.read_text(encoding="utf-8").strip()
     return templates
 
 
-@lru_cache(maxsize=1)
-def load_personality_guide() -> str:
-    if not PERSONALITY_GUIDE_PATH.is_file():
+def load_prompt_templates() -> Dict[str, str]:
+    return load_prompt_templates_from(PROMPTS_DIR)
+
+
+@lru_cache(maxsize=None)
+def load_personality_guide_from(prompt_directory: pathlib.Path) -> str:
+    personality_path = prompt_directory / "personality.md"
+    if not personality_path.is_file():
         raise FileNotFoundError(
-            f"Missing personality guide file: {PERSONALITY_GUIDE_PATH}"
+            f"Missing personality guide file: {personality_path}"
         )
-    return PERSONALITY_GUIDE_PATH.read_text(encoding="utf-8").strip()
+    return personality_path.read_text(encoding="utf-8").strip()
+
+
+def load_personality_guide() -> str:
+    return load_personality_guide_from(PROMPTS_DIR)
 
 
 def get_prompt_template(template_name: str, **template_vars: Any) -> str:
-    templates = load_prompt_templates()
+    return _render_prompt_template(
+        load_prompt_templates(), template_name, template_vars
+    )
+
+
+def get_prompt_template_from(
+    prompt_directory: pathlib.Path,
+    template_name: str,
+    **template_vars: Any,
+) -> str:
+    templates = load_prompt_templates_from(prompt_directory)
+    return _render_prompt_template(templates, template_name, template_vars)
+
+
+def _render_prompt_template(
+    templates: Dict[str, str],
+    template_name: str,
+    template_vars: Dict[str, Any],
+) -> str:
     if template_name not in templates:
         available = ", ".join(sorted(templates))
         raise KeyError(

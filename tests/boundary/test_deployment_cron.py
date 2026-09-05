@@ -77,8 +77,8 @@ def test_host_orchestrator_cron_preserves_production_configuration() -> None:
     _assert_entry(
         entries[3],
         schedule=("1-59/2", "*", "*", "*", "*"),
-        invocation="-m neuralcast.cli.host_orchestrator --channel neuralcast-en",
-        log_path="runtime/logs/host_orchestrator/neuralcast-en/cron.log",
+        invocation="-m neuralcast.cli.host_orchestrator --channel neuralforge-fr",
+        log_path="runtime/logs/host_orchestrator/neuralforge-fr/cron.log",
     )
 
 

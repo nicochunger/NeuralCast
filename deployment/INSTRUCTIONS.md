@@ -42,8 +42,8 @@ source .venv/bin/activate
 python -m pip install -e .
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
 
-# Multilingual channel example (shared NeuralCast catalog, English host):
-PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run --channel neuralcast-en --min-listeners 0
+# Multilingual channel example (shared NeuralForge catalog, French host):
+PYTHONPATH=$(pwd)/src python -m neuralcast.cli.host_orchestrator --dry-run --channel neuralforge-fr --min-listeners 0
 PYTHONPATH=$(pwd)/src python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
 
@@ -71,7 +71,7 @@ production cadence is:
 - NeuralCast normal host cycle every 30 minutes;
 - NeuralCast scheduled-block-intro check every minute;
 - NeuralForge host cycle every two minutes;
-- English NeuralCast host cycle on odd-numbered minutes;
+- French NeuralForge host cycle on odd-numbered minutes;
 - NeuralForge weekly schedule generation Monday at `00:05`;
 - NeuralCast weekly schedule generation Monday at `00:15`.
 
@@ -88,10 +88,10 @@ runtime/logs/
 └── schedule_generator/<station>/schedule_generator.log
 ```
 
-Host channels use their configured keys, such as `neuralcast`, `neuralcast-en`,
-and `neuralforge`. Single-scope maintenance services may keep one descriptive
-log directly under `runtime/logs/`. Admin API job output remains paired with its
-job records under `runtime/admin_http/logs/`.
+Host logs use legacy station slugs such as `neuralcast` and `neuralforge`, or
+configured channel keys such as `neuralforge-fr`. Single-scope maintenance
+services may keep one descriptive log directly under `runtime/logs/`. Admin API
+job output remains paired with its job records under `runtime/admin_http/logs/`.
 
 ## Automated catalog maintenance
 

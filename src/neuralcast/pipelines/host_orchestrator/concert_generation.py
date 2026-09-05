@@ -15,8 +15,8 @@ from .config import (
     CONCERT_OUTPUT_RE,
     CONCERT_TARGET_COUNTRY_KEYS,
     LOGGER,
-    REPAIR_CONCERT_CONTRACT,
     SYSTEM_TZ,
+    get_prompt_template_from,
 )
 from .models import (
     Archetype,
@@ -98,9 +98,11 @@ def attempt_concert_repair(
     locale: Optional[HostLocale] = None,
 ) -> str:
     locale = _resolved_locale(locale)
-    repair_prompt = REPAIR_CONCERT_CONTRACT.replace("es-AR", locale.tag).format(
-        original_output=original_output
-    )
+    repair_prompt = get_prompt_template_from(
+        locale.prompt_directory,
+        "repair_concert_contract",
+        original_output=original_output,
+    ).replace("es-AR", locale.tag)
     return gemini_generate_text(
         prompt=repair_prompt,
         system_prompt=build_system_prompt(station_name, personality, locale),

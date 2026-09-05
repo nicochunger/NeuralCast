@@ -24,6 +24,7 @@ from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
     build_tts_instructions,
     ensure_schedule_genre_reference,
     generate_archetype_script,
+    normalize_concert_country,
     parse_news_output,
     resolve_station_personality,
     select_album_spotlight_focus,
@@ -36,6 +37,7 @@ from neuralcast.pipelines.host_orchestrator.models import (  # noqa: E402
     OrchestratorState,
     QueueTrack,
     ScheduleContext,
+    StationPersonality,
     TrackFocus,
     TrackMetadata,
 )
@@ -536,9 +538,54 @@ META (JSON):
         self.assertNotIn("Station personality adjustment", tts_instructions)
         self.assertNotIn("Energia alta pero controlada", tts_instructions)
 
+    def test_french_locale_uses_complete_swiss_romand_prompt_pack(self) -> None:
+        channel = get_channel_registry().channels["neuralforge-fr"]
+        personality = StationPersonality(
+            script_profile=channel.script_style_override or channel.brand.script_style,
+            tts_profile=channel.brand.tts_style,
+        )
+
+        system_prompt = build_system_prompt(
+            "NeuralForge", personality, locale=channel.locale
+        )
+        prompt = build_prompt(
+            archetype=Archetype.BACK_SELL,
+            station_name="NeuralForge",
+            personality=personality,
+            current=self._queue_track("Gojira", "Silvera"),
+            next_track=self._queue_track("Alcest", "Protection"),
+            upcoming_tracks=[],
+            current_meta=TrackMetadata(),
+            next_meta=TrackMetadata(),
+            angle="Connector",
+            hook="detalle del cierre que quedó sonando",
+            banned_list=["Bueno gente", "overused style cliche: acero"],
+            recent_scripts=[],
+            schedule_context=None,
+            locale=channel.locale,
+        )
+        tts_instructions = build_tts_instructions(
+            personality,
+            locale=channel.locale,
+            override_path=channel.tts_instructions_override_path,
+        )
+
+        self.assertIn("français naturel de Suisse romande", system_prompt)
+        self.assertIn("Tu génères une transition", prompt)
+        self.assertIn("Personnalité de la station", prompt)
+        self.assertIn("Connexion", prompt)
+        self.assertNotIn("Idea de gancho", prompt)
+        self.assertNotIn("Bueno gente", prompt)
+        self.assertIn("accent naturel et modéré de Suisse romande", tts_instructions)
+        self.assertIn("Ne pas glisser progressivement", tts_instructions)
+
     def test_should_enable_search_for_new_archetypes(self) -> None:
         self.assertTrue(should_enable_search(Archetype.ALBUM_SPOTLIGHT, None))
         self.assertTrue(should_enable_search(Archetype.ERA_SNAPSHOT, None))
+
+    def test_french_concert_country_names_are_accepted(self) -> None:
+        self.assertEqual(normalize_concert_country("Argentine"), "argentina")
+        self.assertEqual(normalize_concert_country("Suisse"), "switzerland")
 
     def test_build_prompt_routes_album_spotlight_wrapper(self) -> None:
         personality = resolve_station_personality("neuralforge")

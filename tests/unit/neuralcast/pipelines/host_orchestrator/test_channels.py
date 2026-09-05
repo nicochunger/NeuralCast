@@ -43,6 +43,22 @@ def test_english_channel_uses_neuralforge_runtime_policies() -> None:
     ) == archetype_settings_for_station("neuralforge")
 
 
+def test_french_channel_reuses_neuralforge_content_and_media_root() -> None:
+    channel = resolve_host_channel(channel_key="neuralforge-fr")
+
+    assert channel.azuracast_station == "neuralforge_fr"
+    assert channel.azuracast_station_id == 4
+    assert channel.content_station == "neuralforge"
+    assert channel.locale.tag == "fr-CH"
+    assert channel.locale.prompt_directory.name == "fr-CH"
+    assert channel.liquidsoap_media_root == (
+        "/var/azuracast/stations/neuralforge/media"
+    )
+    assert channel.remote_prefix == "AI Stories/neuralforge/fr-CH"
+    assert channel.script_style_override is not None
+    assert channel.tts_instructions_override_path is not None
+
+
 def test_legacy_station_resolution_preserves_spanish_channels() -> None:
     assert resolve_host_channel(station_slug="neuralcast").key == "neuralcast-es"
     assert resolve_host_channel(station_slug="neuralforge").key == "neuralforge-es"
@@ -94,6 +110,7 @@ def test_all_configured_channels_reference_loaded_brand_and_locale() -> None:
         "neuralcast-es",
         "neuralcast-en",
         "neuralforge-es",
+        "neuralforge-fr",
     }
     for channel in registry.channels.values():
         assert channel.brand.key in registry.brands
