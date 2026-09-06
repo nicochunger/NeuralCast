@@ -93,6 +93,7 @@ class NewsStoryMeta:
     headline: str
     source_url: str
     published_at: Optional[str] = None
+    topic_id: Optional[str] = None
 
 
 @dataclass
@@ -110,6 +111,7 @@ class ConcertEventMeta:
     venue: str
     event_date: str
     source_url: str
+    country_code: Optional[str] = None
 
 
 @dataclass

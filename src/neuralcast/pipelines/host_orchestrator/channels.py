@@ -10,6 +10,11 @@ from typing import Any, Mapping
 
 from neuralcast.config import ASSETS_ROOT, station_dir_from_slug
 
+from .archetype_policies import (
+    ResolvedArchetypeProfile,
+    get_archetype_policy_registry,
+)
+
 
 CHANNEL_CONFIG_PATH = ASSETS_ROOT / "stories" / "host_channels.json"
 REQUIRED_PRESENTATION_KEYS = frozenset(
@@ -94,6 +99,7 @@ class HostChannel:
     remote_prefix: str
     cadence_profile: str
     archetype_profile: str
+    archetype_policy: ResolvedArchetypeProfile
     script_style_override: str | None = None
     tts_instructions_override_path: pathlib.Path | None = None
     legacy_station: str | None = None
@@ -244,6 +250,7 @@ def load_channel_registry(
         )
 
     raw_channels = _mapping(payload, "channels", "host-channel configuration")
+    policy_registry = get_archetype_policy_registry()
     channels: dict[str, HostChannel] = {}
     remote_scopes: set[tuple[str, str]] = set()
     for key, raw in raw_channels.items():
@@ -289,7 +296,11 @@ def load_channel_registry(
             raw.get("archetype_profile") or brands[brand_key].content_station
         )
         station_dir_from_slug(cadence_profile)
-        station_dir_from_slug(archetype_profile)
+        archetype_policy = policy_registry.resolve(
+            archetype_profile,
+            raw.get("archetype_overrides"),
+            resolved_name=channel_key,
+        )
         tts_instructions_override_path: pathlib.Path | None = None
         tts_instructions_override = str(
             raw.get("tts_instructions_override") or ""
@@ -316,6 +327,7 @@ def load_channel_registry(
             remote_prefix=remote_prefix.rstrip("/"),
             cadence_profile=cadence_profile,
             archetype_profile=archetype_profile,
+            archetype_policy=archetype_policy,
             script_style_override=(
                 str(raw.get("script_style_override") or "").strip() or None
             ),

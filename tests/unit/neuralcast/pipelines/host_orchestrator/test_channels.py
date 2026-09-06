@@ -14,6 +14,7 @@ from neuralcast.pipelines.host_orchestrator.main import (
     HostCycleRequest,
     _args_from_cycle_request,
 )
+from neuralcast.pipelines.host_orchestrator.models import Archetype
 from neuralcast.pipelines.host_orchestrator.utils import station_state_paths
 
 
@@ -57,6 +58,27 @@ def test_french_channel_reuses_neuralforge_content_and_media_root() -> None:
     assert channel.remote_prefix == "AI Stories/neuralforge/fr-CH"
     assert channel.script_style_override is not None
     assert channel.tts_instructions_override_path is not None
+    news_policy = channel.archetype_policy.for_archetype(Archetype.NEWS).news
+    concert_policy = channel.archetype_policy.for_archetype(
+        Archetype.CONCERT_CHECK
+    ).concert_check
+    assert news_policy is not None
+    assert concert_policy is not None
+    assert "argentina_politics_general" not in news_policy.topic_ids
+    assert concert_policy.country_codes == ("CH",)
+
+
+def test_spanish_neuralforge_channel_keeps_base_news_and_concert_scope() -> None:
+    channel = resolve_host_channel(channel_key="neuralforge-es")
+    news_policy = channel.archetype_policy.for_archetype(Archetype.NEWS).news
+    concert_policy = channel.archetype_policy.for_archetype(
+        Archetype.CONCERT_CHECK
+    ).concert_check
+
+    assert news_policy is not None
+    assert concert_policy is not None
+    assert "argentina_politics_general" in news_policy.topic_ids
+    assert concert_policy.country_codes == ("AR", "CH")
 
 
 def test_legacy_station_resolution_preserves_spanish_channels() -> None:

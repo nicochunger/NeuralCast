@@ -15,8 +15,8 @@ Esta carpeta contiene plantillas de prompts usadas por:
 - `wrapper_up_next_tease.md`: wrapper para `up_next_tease`.
 - `wrapper_deep_dive.md`: wrapper para `deep_dive`.
 - `wrapper_short_story.md`: wrapper para `short_story`.
-- `wrapper_news.md`: wrapper para `news` (usa placeholders como `{story_count}`, `{news_topics}`).
-- `wrapper_concert_check.md`: wrapper para `concert_check` (usa `{concert_countries}`).
+- `wrapper_news.md`: wrapper para `news` (usa placeholders como `{story_count}`, `{news_topics}`, `{news_topic_ids}`).
+- `wrapper_concert_check.md`: wrapper para `concert_check` (usa `{concert_countries}` y `{concert_country_codes}`).
 - `wrapper_block_intro.md`: wrapper para `block_intro`.
 - `wrapper_ultra_minimal.md`: wrapper para fallback ultra minimo.
 
@@ -51,15 +51,32 @@ Esta carpeta contiene plantillas de prompts usadas por:
 
 ## Perillas de comportamiento
 
-- `sample_generation_settings(...)` ajusta `temperature/top-p` por arquetipo.
-- `should_enable_search(...)` habilita grounding de busqueda para:
-  - `deep_dive`
-  - `short_story`
-  - `news`
-  - `concert_check`
+- `sample_generation_settings(...)` toma `temperature/top-p` del perfil de
+  arquetipos efectivo para el canal.
+- `should_enable_search(...)` toma `search_enabled` del mismo perfil.
 - Si `news`/`concert_check` salen con formato invalido, se aplica pase de reparacion con `repair_*.md`.
+- Temas de noticias, paises de conciertos y las demas perillas por arquetipo se
+  resuelven desde `../archetype_profiles.json`. Los prompts muestran etiquetas
+  localizadas, pero los contratos META usan IDs/codigos canonicos para poder
+  validar el alcance de cada canal despues de generar.
+
+## Alcance configurable de noticias y conciertos
+
+- No escribir paises ni temas permitidos de forma literal en los wrappers. Usar
+  `{news_topics}`, `{news_topic_ids}`, `{concert_countries}` y
+  `{concert_country_codes}`.
+- `news_topics` y `concert_countries` contienen etiquetas localizadas para que
+  el modelo entienda el pedido; `news_topic_ids` y `concert_country_codes` son
+  los valores estables que debe devolver en META.
+- Cada historia de noticias debe devolver `topic_id` ademas del texto `topic`.
+- Cada evento debe devolver `country_code` ademas del texto `country`.
+- Los templates de reparacion deben conservar los mismos placeholders y
+  contratos que sus wrappers. El validador rechaza hechos fuera del perfil del
+  canal aunque el texto hablado parezca valido.
 
 ## Notas de edicion
 
 - Mantener placeholders exactamente como estan (`{station_name}`, `{story_count}`, etc.).
 - En templates con `.format(...)`, llaves literales de JSON deben ir dobladas (`{{` y `}}`).
+- Al agregar un locale, traducir instrucciones y ejemplos, pero no traducir los
+  IDs/codigos canonicos ni duplicar la politica de alcance dentro del prompt.

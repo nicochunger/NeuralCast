@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "news_topics": {
+    "tech_ai": {
+      "labels": {
+        "en": "Tech/AI",
+        "es-AR": "Tecnología e IA",
+        "fr-CH": "Technologie et IA"
+      }
+    },
+    "science": {
+      "labels": {
+        "en": "Science",
+        "es-AR": "Ciencia",
+        "fr-CH": "Science"
+      }
+    },
+    "absurd_odd": {
+      "labels": {
+        "en": "Absurd/odd",
+        "es-AR": "Insólito",
+        "fr-CH": "Insolite"
+      }
+    },
+    "argentina_politics_general": {
+      "labels": {
+        "en": "Argentina (politics/general)",
+        "es-AR": "Argentina, política y actualidad general",
+        "fr-CH": "Argentine, politique et actualité générale"
+      }
+    },
+    "switzerland_general": {
+      "labels": {
+        "en": "Switzerland (general)",
+        "es-AR": "Suiza, actualidad general",
+        "fr-CH": "Suisse, actualité générale"
+      }
+    },
+    "important_global": {
+      "labels": {
+        "en": "Important global news",
+        "es-AR": "Noticias globales importantes",
+        "fr-CH": "Actualité internationale importante"
+      }
+    }
+  },
+  "concert_countries": {
+    "AR": {
+      "labels": {
+        "en": "Argentina",
+        "es-AR": "Argentina",
+        "fr-CH": "Argentine"
+      },
+      "aliases": ["argentina", "argentine", "ar", "arg"]
+    },
+    "CH": {
+      "labels": {
+        "en": "Switzerland",
+        "es-AR": "Suiza",
+        "fr-CH": "Suisse"
+      },
+      "aliases": ["switzerland", "swiss", "suiza", "suisse", "ch", "schweiz"]
+    }
+  },
+  "profiles": {
+    "base": {
+      "archetypes": {
+        "back_sell": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.22,
+          "cooldown_seconds": 1800,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.4, 0.7],
+          "top_p_range": [0.7, 0.9],
+          "hook_free_probability": 0.4,
+          "search_enabled": false
+        },
+        "up_next_tease": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.18,
+          "cooldown_seconds": 2400,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.4, 0.7],
+          "top_p_range": [0.7, 0.9],
+          "hook_free_probability": 0.35,
+          "search_enabled": false
+        },
+        "short_story": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.17,
+          "cooldown_seconds": 3600,
+          "lead_time_seconds": 90,
+          "temperature_range": [1.0, 1.5],
+          "top_p_range": [0.9, 0.98],
+          "hook_free_probability": 0.35,
+          "search_enabled": true
+        },
+        "album_spotlight": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.12,
+          "cooldown_seconds": 5400,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.75, 1.05],
+          "top_p_range": [0.88, 0.96],
+          "hook_free_probability": 0.3,
+          "search_enabled": true
+        },
+        "era_snapshot": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.08,
+          "cooldown_seconds": 14400,
+          "lead_time_seconds": 120,
+          "temperature_range": [0.75, 1.0],
+          "top_p_range": [0.88, 0.95],
+          "hook_free_probability": 0.2,
+          "search_enabled": true
+        },
+        "deep_dive": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.08,
+          "cooldown_seconds": 21600,
+          "lead_time_seconds": 120,
+          "temperature_range": [0.8, 1.2],
+          "top_p_range": [0.88, 0.96],
+          "hook_free_probability": 0.15,
+          "search_enabled": true
+        },
+        "news": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.15,
+          "cooldown_seconds": 7200,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.45, 0.85],
+          "top_p_range": [0.88, 0.95],
+          "hook_free_probability": 0.25,
+          "search_enabled": true,
+          "news": {
+            "topic_ids": [
+              "tech_ai",
+              "science",
+              "absurd_odd",
+              "argentina_politics_general",
+              "switzerland_general",
+              "important_global"
+            ],
+            "max_age_hours": 168,
+            "preferred_max_age_hours": 72
+          }
+        },
+        "concert_check": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.15,
+          "cooldown_seconds": 10800,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.6, 1.0],
+          "top_p_range": [0.85, 0.95],
+          "hook_free_probability": 0.25,
+          "search_enabled": true,
+          "concert_check": {
+            "country_codes": ["AR", "CH"]
+          }
+        },
+        "block_intro": {
+          "enabled": true,
+          "automatic": false,
+          "weight": 0.0,
+          "cooldown_seconds": 0,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.4, 0.7],
+          "top_p_range": [0.75, 0.9],
+          "hook_free_probability": 0.3,
+          "search_enabled": false
+        },
+        "ultra_minimal": {
+          "enabled": true,
+          "automatic": false,
+          "weight": 0.0,
+          "cooldown_seconds": 0,
+          "lead_time_seconds": 90,
+          "temperature_range": [0.3, 0.6],
+          "top_p_range": [0.7, 0.9],
+          "hook_free_probability": 0.2,
+          "search_enabled": false
+        }
+      }
+    },
+    "neuralforge": {
+      "extends": "base"
+    },
+    "neuralcast": {
+      "extends": "base",
+      "archetype_overrides": {
+        "deep_dive": {"enabled": false},
+        "era_snapshot": {"enabled": false},
+        "concert_check": {"enabled": false},
+        "album_spotlight": {"enabled": false}
+      }
+    }
+  }
+}

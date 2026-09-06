@@ -7,11 +7,18 @@ import pathlib
 import re
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Dict, FrozenSet, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from neuralcast.config import ASSETS_ROOT, DEFAULT_TIMEZONE_NAME, LOGS_ROOT
+from .archetype_policies import (
+    ResolvedArchetypeProfile,
+    get_archetype_policy_registry,
+)
 from .models import Archetype, StationPersonality
+
+_ARCHETYPE_POLICY_REGISTRY = get_archetype_policy_registry()
+_BASE_ARCHETYPE_POLICY = _ARCHETYPE_POLICY_REGISTRY.profiles["base"]
 
 STORY_ROOT = ASSETS_ROOT / "stories"
 STORY_OUTPUT_DIR = STORY_ROOT / "snippets"
@@ -39,16 +46,19 @@ LOCK_STALE_SECONDS = 10 * 60
 
 LEAD_TIME_SECONDS = 90
 ARCHETYPE_LEAD_TIME_SECONDS: Dict[Archetype, int] = {
-    Archetype.ERA_SNAPSHOT: 120,
-    Archetype.DEEP_DIVE: 120,
+    archetype: policy.lead_time_seconds
+    for archetype, policy in _BASE_ARCHETYPE_POLICY.archetypes.items()
+    if policy.lead_time_seconds != LEAD_TIME_SECONDS
 }
 SPEAK_DEADLINE_MINUTES = 45
 WAIT_RANGE_SONGS = (2, 5)
 NEURALCAST_WAIT_RANGE_SONGS = (7, 12)
 NEURALCAST_SPEAK_DEADLINE_MINUTES = 120
 NEURALCAST_COOLDOWN_MULTIPLIER = 2.0
-NEWS_MAX_AGE_HOURS = 7 * 24
-NEWS_PREFERRED_MAX_AGE_HOURS = 72
+_BASE_NEWS_POLICY = _BASE_ARCHETYPE_POLICY.for_archetype(Archetype.NEWS).news
+assert _BASE_NEWS_POLICY is not None
+NEWS_MAX_AGE_HOURS = _BASE_NEWS_POLICY.max_age_hours
+NEWS_PREFERRED_MAX_AGE_HOURS = _BASE_NEWS_POLICY.preferred_max_age_hours
 NEWS_DUPLICATE_WINDOW_DAYS = 7
 NEWS_DEDUP_MAX_ENTRIES = 50
 RECENT_SCRIPT_MEMORY_SIZE = 3
@@ -77,16 +87,11 @@ class StationCadenceSettings:
     cooldown_multiplier: float = 1.0
 
 
-@dataclass(frozen=True)
-class StationArchetypeSettings:
-    disabled_archetypes: FrozenSet[Archetype] = frozenset()
-
-
 DEFAULT_CADENCE_SETTINGS = StationCadenceSettings(
     wait_range_songs=WAIT_RANGE_SONGS,
     speak_deadline_minutes=SPEAK_DEADLINE_MINUTES,
 )
-DEFAULT_ARCHETYPE_SETTINGS = StationArchetypeSettings()
+DEFAULT_ARCHETYPE_SETTINGS = _BASE_ARCHETYPE_POLICY
 STATION_CADENCE_SETTINGS: Dict[str, StationCadenceSettings] = {
     "neuralcast": StationCadenceSettings(
         wait_range_songs=NEURALCAST_WAIT_RANGE_SONGS,
@@ -94,17 +99,9 @@ STATION_CADENCE_SETTINGS: Dict[str, StationCadenceSettings] = {
         cooldown_multiplier=NEURALCAST_COOLDOWN_MULTIPLIER,
     ),
 }
-STATION_ARCHETYPE_SETTINGS: Dict[str, StationArchetypeSettings] = {
-    "neuralcast": StationArchetypeSettings(
-        disabled_archetypes=frozenset(
-            {
-                Archetype.DEEP_DIVE,
-                Archetype.ERA_SNAPSHOT,
-                Archetype.CONCERT_CHECK,
-                Archetype.ALBUM_SPOTLIGHT,
-            }
-        )
-    ),
+STATION_ARCHETYPE_SETTINGS: Dict[str, ResolvedArchetypeProfile] = {
+    "neuralcast": _ARCHETYPE_POLICY_REGISTRY.profiles["neuralcast"],
+    "neuralforge": _ARCHETYPE_POLICY_REGISTRY.profiles["neuralforge"],
 }
 
 
@@ -115,7 +112,7 @@ def cadence_settings_for_station(station_slug: str) -> StationCadenceSettings:
     )
 
 
-def archetype_settings_for_station(station_slug: str) -> StationArchetypeSettings:
+def archetype_settings_for_station(station_slug: str) -> ResolvedArchetypeProfile:
     return STATION_ARCHETYPE_SETTINGS.get(
         str(station_slug or "").strip().lower(),
         DEFAULT_ARCHETYPE_SETTINGS,
@@ -125,17 +122,20 @@ def archetype_settings_for_station(station_slug: str) -> StationArchetypeSetting
 def cooldown_seconds_for_archetype(
     archetype: Archetype,
     cadence_settings: Optional[StationCadenceSettings] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> int:
-    base_cooldown = int(COOLDOWN_SECONDS[archetype])
+    profile = archetype_policy or DEFAULT_ARCHETYPE_SETTINGS
+    base_cooldown = profile.for_archetype(archetype).cooldown_seconds
     settings = cadence_settings or DEFAULT_CADENCE_SETTINGS
     return max(0, int(round(base_cooldown * settings.cooldown_multiplier)))
 
 
-def lead_time_seconds_for_archetype(archetype: Archetype) -> int:
-    return max(
-        LEAD_TIME_SECONDS,
-        int(ARCHETYPE_LEAD_TIME_SECONDS.get(archetype, LEAD_TIME_SECONDS)),
-    )
+def lead_time_seconds_for_archetype(
+    archetype: Archetype,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+) -> int:
+    profile = archetype_policy or DEFAULT_ARCHETYPE_SETTINGS
+    return profile.for_archetype(archetype).lead_time_seconds
 
 
 def configure_logging(level: int = logging.INFO) -> None:
@@ -253,41 +253,22 @@ ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
 }
 
 WEIGHTED_ARCHETYPES: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.22,
-    Archetype.UP_NEXT_TEASE: 0.18,
-    Archetype.SHORT_STORY: 0.17,
-    Archetype.ALBUM_SPOTLIGHT: 0.12,
-    Archetype.ERA_SNAPSHOT: 0.08,
-    Archetype.DEEP_DIVE: 0.08,
-    Archetype.NEWS: 0.15,
-    Archetype.CONCERT_CHECK: 0.15,
+    archetype: policy.weight
+    for archetype, policy in _BASE_ARCHETYPE_POLICY.archetypes.items()
+    if policy.automatic
 }
 
 COOLDOWN_SECONDS: Dict[Archetype, int] = {
-    Archetype.BACK_SELL: 30 * 60,
-    Archetype.UP_NEXT_TEASE: 40 * 60,
-    Archetype.SHORT_STORY: 60 * 60,
-    Archetype.ALBUM_SPOTLIGHT: 90 * 60,
-    Archetype.ERA_SNAPSHOT: 4 * 60 * 60,
-    Archetype.DEEP_DIVE: 6 * 60 * 60,
-    Archetype.NEWS: 120 * 60,
-    Archetype.CONCERT_CHECK: 180 * 60,
+    archetype: policy.cooldown_seconds
+    for archetype, policy in _BASE_ARCHETYPE_POLICY.archetypes.items()
+    if policy.automatic
 }
 
 TEMPERATURE_TOP_P_RANGES: Dict[
     Archetype, Tuple[Tuple[float, float], Tuple[float, float]]
 ] = {
-    Archetype.BACK_SELL: ((0.4, 0.7), (0.7, 0.9)),
-    Archetype.UP_NEXT_TEASE: ((0.4, 0.7), (0.7, 0.9)),
-    Archetype.SHORT_STORY: ((1.0, 1.5), (0.9, 0.98)),
-    Archetype.ALBUM_SPOTLIGHT: ((0.75, 1.05), (0.88, 0.96)),
-    Archetype.ERA_SNAPSHOT: ((0.75, 1.0), (0.88, 0.95)),
-    Archetype.DEEP_DIVE: ((0.8, 1.2), (0.88, 0.96)),
-    # NEWS uses a strict grounded + structured contract; lower variance is more reliable.
-    Archetype.NEWS: ((0.45, 0.85), (0.88, 0.95)),
-    Archetype.CONCERT_CHECK: ((0.6, 1.0), (0.85, 0.95)),
-    Archetype.BLOCK_INTRO: ((0.4, 0.7), (0.75, 0.9)),
-    Archetype.ULTRA_MINIMAL: ((0.3, 0.6), (0.7, 0.9)),
+    archetype: (policy.temperature_range, policy.top_p_range)
+    for archetype, policy in _BASE_ARCHETYPE_POLICY.archetypes.items()
 }
 
 HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
@@ -412,41 +393,29 @@ HOOKS_BY_ARCHETYPE: Dict[Archetype, Tuple[str, ...]] = {
 
 # Probability that a segment receives no hook cue at all, allowing a free opener.
 HOOK_FREE_OPEN_PROB_BY_ARCHETYPE: Dict[Archetype, float] = {
-    Archetype.BACK_SELL: 0.40,
-    Archetype.UP_NEXT_TEASE: 0.35,
-    Archetype.SHORT_STORY: 0.35,
-    Archetype.ALBUM_SPOTLIGHT: 0.30,
-    Archetype.ERA_SNAPSHOT: 0.20,
-    Archetype.DEEP_DIVE: 0.15,
-    Archetype.NEWS: 0.25,
-    Archetype.CONCERT_CHECK: 0.25,
-    Archetype.BLOCK_INTRO: 0.30,
-    Archetype.ULTRA_MINIMAL: 0.20,
+    archetype: policy.hook_free_probability
+    for archetype, policy in _BASE_ARCHETYPE_POLICY.archetypes.items()
 }
 
-NEWS_TOPICS: Tuple[str, ...] = (
-    "Tech/AI",
-    "Science",
-    "Absurd/odd",
-    "Argentina (politics/general)",
-    "Switzerland (general)",
-    "Important global news",
+NEWS_TOPICS: Tuple[str, ...] = tuple(
+    _BASE_ARCHETYPE_POLICY.news_topic_label(topic_id, "en")
+    for topic_id in _BASE_NEWS_POLICY.topic_ids
 )
 
-CONCERT_TARGET_COUNTRIES: Tuple[str, ...] = ("Argentina", "Switzerland")
+_BASE_CONCERT_POLICY = _BASE_ARCHETYPE_POLICY.for_archetype(
+    Archetype.CONCERT_CHECK
+).concert_check
+assert _BASE_CONCERT_POLICY is not None
+CONCERT_TARGET_COUNTRIES: Tuple[str, ...] = tuple(
+    _BASE_ARCHETYPE_POLICY.concert_country_label(country_code, "en")
+    for country_code in _BASE_CONCERT_POLICY.country_codes
+)
 CONCERT_COUNTRY_ALIASES: Dict[str, str] = {
-    "argentina": "argentina",
-    "argentine": "argentina",
-    "ar": "argentina",
-    "arg": "argentina",
-    "switzerland": "switzerland",
-    "swiss": "switzerland",
-    "suiza": "switzerland",
-    "suisse": "switzerland",
-    "ch": "switzerland",
-    "schweiz": "switzerland",
+    alias: country_code
+    for country_code, definition in _BASE_ARCHETYPE_POLICY.concert_countries.items()
+    for alias in definition.aliases
 }
-CONCERT_TARGET_COUNTRY_KEYS = frozenset({"argentina", "switzerland"})
+CONCERT_TARGET_COUNTRY_KEYS = frozenset(_BASE_CONCERT_POLICY.country_codes)
 
 BANNED_OPENERS: Tuple[str, ...] = (
     "Alright folks",

@@ -1,7 +1,7 @@
 Tu génères un point sur les concerts.
 
 Objectif de l'archétype :
-- Vérifier si l'artiste qui vient de passer ou celui qui arrive a des concerts programmés en Argentine ou en Suisse.
+- Vérifier si l'artiste qui vient de passer ou celui qui arrive a des concerts programmés dans les pays suivants : {concert_countries}.
 - S'il existe au moins un concert valide, donner un résumé compact sur un ton d'animateur puis revenir à la musique.
 
 Exigences d'entrée :
@@ -48,7 +48,8 @@ META (JSON):
   "events": [
     {{
       "artist": "...",
-      "country": "Argentina|Switzerland",
+      "country_code": "{concert_country_codes}",
+      "country": "...",
       "city": "...",
       "venue": "...",
       "event_date": "YYYY-MM-DD",

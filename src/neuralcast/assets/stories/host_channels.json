@@ -194,6 +194,23 @@
       "azuracast_station_id": 4,
       "brand": "neuralforge",
       "locale": "fr-CH",
+      "archetype_profile": "neuralforge",
+      "archetype_overrides": {
+        "news": {
+          "news": {
+            "topics": {
+              "remove": ["argentina_politics_general"]
+            }
+          }
+        },
+        "concert_check": {
+          "concert_check": {
+            "countries": {
+              "replace": ["CH"]
+            }
+          }
+        }
+      },
       "script_style_override": "NeuralForge est directe, chaleureuse, conversationnelle, précise sur la musique et résolument énergique sans crier ni devenir théâtrale. Emploie des phrases compactes, faciles à dire, et des observations concrètes plutôt que des critiques ou des cours. Évite les clichés usés du metal, sauf si un fait précis sur le morceau les justifie réellement.",
       "tts_instructions_override": "prompts/locales/fr-CH/neuralforge_tts_instructions.md",
       "media_owner_station": "neuralforge",

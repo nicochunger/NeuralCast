@@ -6,13 +6,13 @@ import datetime as dt
 import pathlib
 from typing import List, Optional, Sequence
 
+from .archetype_policies import (
+    ResolvedArchetypeProfile,
+    get_archetype_policy_registry,
+)
 from .channels import HostLocale, get_channel_registry
 from .config import (
-    CONCERT_TARGET_COUNTRIES,
     HOOKS_BY_ARCHETYPE,
-    NEWS_MAX_AGE_HOURS,
-    NEWS_PREFERRED_MAX_AGE_HOURS,
-    NEWS_TOPICS,
     STATION_GENERATION_NAMES,
     STATION_PERSONALITIES,
     SYSTEM_TZ,
@@ -884,48 +884,52 @@ def build_prompt(
     story_count: Optional[int] = None,
     news_topics: Optional[Sequence[str]] = None,
     locale: Optional[HostLocale] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> str:
     locale = _resolved_locale(locale)
+    profile = archetype_policy or get_archetype_policy_registry().profiles["base"]
     if archetype == Archetype.NEWS:
         now_utc = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
-        selected_news_topics = list(news_topics or NEWS_TOPICS)
-        if locale.tag == "fr-CH":
-            topic_translations = {
-                "Tech/AI": "Technologie et IA",
-                "Science": "Science",
-                "Absurd/odd": "Insolite",
-                "Argentina (politics/general)": "Argentine, politique et actualité générale",
-                "Switzerland (general)": "Suisse, actualité générale",
-                "Important global news": "Actualité internationale importante",
-            }
-            selected_news_topics = [
-                topic_translations.get(topic, topic) for topic in selected_news_topics
-            ]
+        news_policy = profile.for_archetype(Archetype.NEWS).news
+        if news_policy is None:
+            raise ValueError("The news archetype requires a news policy.")
+        selected_news_topic_ids = list(news_topics or news_policy.topic_ids)
+        selected_news_topics = [
+            f"{topic_id} ({profile.news_topic_label(topic_id, locale.tag)})"
+            for topic_id in selected_news_topic_ids
+        ]
+        max_age_hours = news_policy.max_age_hours
+        preferred_max_age_hours = news_policy.preferred_max_age_hours
         wrapper = get_prompt_template_from(
             locale.prompt_directory, "wrapper_news"
         ).replace("es-AR", locale.tag).format(
             story_count=story_count or 1,
             news_topics=", ".join(selected_news_topics),
-            news_max_age_hours=NEWS_MAX_AGE_HOURS,
-            news_preferred_max_age_hours=NEWS_PREFERRED_MAX_AGE_HOURS,
+            news_topic_ids=", ".join(selected_news_topic_ids),
+            news_max_age_hours=max_age_hours,
+            news_preferred_max_age_hours=preferred_max_age_hours,
             news_now_utc=now_utc.isoformat().replace("+00:00", "Z"),
             news_cutoff_utc=(
-                now_utc - dt.timedelta(hours=NEWS_MAX_AGE_HOURS)
+                now_utc - dt.timedelta(hours=max_age_hours)
             ).isoformat().replace("+00:00", "Z"),
             news_preferred_cutoff_utc=(
-                now_utc - dt.timedelta(hours=NEWS_PREFERRED_MAX_AGE_HOURS)
+                now_utc - dt.timedelta(hours=preferred_max_age_hours)
             ).isoformat().replace("+00:00", "Z"),
         )
     elif archetype == Archetype.CONCERT_CHECK:
-        concert_countries = (
-            "Argentine, Suisse"
-            if locale.tag == "fr-CH"
-            else ", ".join(CONCERT_TARGET_COUNTRIES)
+        concert_policy = profile.for_archetype(Archetype.CONCERT_CHECK).concert_check
+        if concert_policy is None:
+            raise ValueError("The concert_check archetype requires a concert policy.")
+        country_codes = concert_policy.country_codes
+        concert_countries = ", ".join(
+            f"{profile.concert_country_label(code, locale.tag)} ({code})"
+            for code in country_codes
         )
         wrapper = get_prompt_template_from(
             locale.prompt_directory, "wrapper_concert_check"
         ).replace("es-AR", locale.tag).format(
             concert_countries=concert_countries,
+            concert_country_codes="|".join(country_codes),
         )
     else:
         template_name = {

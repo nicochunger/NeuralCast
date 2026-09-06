@@ -15,6 +15,7 @@ Exigences d'entrée :
 - Limite préférée, UTC : {news_preferred_cutoff_utc}
 - Nombre de sujets : {story_count}, soit 1 ou 2.
 - Thèmes : {news_topics}
+- Le champ `topic_id` de chaque sujet doit correspondre exactement à l'une de ces valeurs : {news_topic_ids}.
 - Chaque sujet doit inclure un source_url direct et le published_at ISO-8601 fourni par cette source.
 - Si seuls des titres trop anciens apparaissent, par exemple de 2024, ou si leur date n'est pas vérifiable dans la source, retourner exactement NO_SCRIPT.
 
@@ -61,6 +62,7 @@ META (JSON):
   "language": "fr-CH",
   "stories": [
     {{
+      "topic_id": "...",
       "topic": "...",
       "headline": "...",
       "source_url": "...",

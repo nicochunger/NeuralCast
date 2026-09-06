@@ -40,6 +40,7 @@ from .models import (
     OrchestratorState,
     ScheduleContext,
 )
+from .archetype_policies import ResolvedArchetypeProfile
 from .schedule import prune_schedule_block_mentions
 from .utils import iso_utc
 
@@ -458,25 +459,32 @@ def legal_archetypes_for_remaining(
     current_remaining: Optional[int],
     seconds_until_block_change: Optional[float] = None,
     disabled_archetypes: Optional[Sequence[Archetype]] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> List[Archetype]:
     legal: List[Archetype] = []
     disabled = set(disabled_archetypes or ())
-    for archetype in (
-        Archetype.BACK_SELL,
-        Archetype.UP_NEXT_TEASE,
-        Archetype.SHORT_STORY,
-        Archetype.ALBUM_SPOTLIGHT,
-        Archetype.ERA_SNAPSHOT,
-        Archetype.DEEP_DIVE,
-        Archetype.NEWS,
-        Archetype.CONCERT_CHECK,
-    ):
+    candidates = (
+        archetype_policy.automatic_archetypes
+        if archetype_policy is not None
+        else (
+            Archetype.BACK_SELL,
+            Archetype.UP_NEXT_TEASE,
+            Archetype.SHORT_STORY,
+            Archetype.ALBUM_SPOTLIGHT,
+            Archetype.ERA_SNAPSHOT,
+            Archetype.DEEP_DIVE,
+            Archetype.NEWS,
+            Archetype.CONCERT_CHECK,
+        )
+    )
+    for archetype in candidates:
         if archetype in disabled:
             continue
         cooldown_until = float(state.cooldown_until.get(archetype.value, 0.0))
         if ts >= cooldown_until:
             if current_remaining is not None and (
-                current_remaining < lead_time_seconds_for_archetype(archetype)
+                current_remaining
+                < lead_time_seconds_for_archetype(archetype, archetype_policy)
             ):
                 continue
             if (
@@ -494,6 +502,7 @@ def choose_weighted_archetype(
     legal: Sequence[Archetype],
     state: OrchestratorState,
     rng: random.Random,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> Archetype:
     if not legal:
         return Archetype.ULTRA_MINIMAL
@@ -508,7 +517,11 @@ def choose_weighted_archetype(
 
     weighted: List[Tuple[Archetype, float]] = []
     for archetype in selectable:
-        weight = WEIGHTED_ARCHETYPES.get(archetype, 0.0)
+        weight = (
+            archetype_policy.for_archetype(archetype).weight
+            if archetype_policy is not None
+            else WEIGHTED_ARCHETYPES.get(archetype, 0.0)
+        )
         if weight > 0:
             weighted.append((archetype, weight))
 
@@ -539,7 +552,10 @@ def choose_angle(
 
 
 def choose_hook(
-    archetype: Archetype, state: OrchestratorState, rng: random.Random
+    archetype: Archetype,
+    state: OrchestratorState,
+    rng: random.Random,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> str:
     options = list(HOOKS_BY_ARCHETYPE.get(archetype, ()))
     if not options:
@@ -551,7 +567,11 @@ def choose_hook(
         if filtered:
             options = filtered
 
-    free_open_prob = HOOK_FREE_OPEN_PROB_BY_ARCHETYPE.get(archetype, 0.0)
+    free_open_prob = (
+        archetype_policy.for_archetype(archetype).hook_free_probability
+        if archetype_policy is not None
+        else HOOK_FREE_OPEN_PROB_BY_ARCHETYPE.get(archetype, 0.0)
+    )
     if free_open_prob > 0 and rng.random() < free_open_prob:
         return ""
 
@@ -561,8 +581,13 @@ def choose_hook(
 def sample_generation_settings(
     archetype: Archetype,
     rng: random.Random,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> Tuple[float, float]:
-    temp_range, top_p_range = TEMPERATURE_TOP_P_RANGES[archetype]
+    if archetype_policy is not None:
+        policy = archetype_policy.for_archetype(archetype)
+        temp_range, top_p_range = policy.temperature_range, policy.top_p_range
+    else:
+        temp_range, top_p_range = TEMPERATURE_TOP_P_RANGES[archetype]
     return (
         rng.uniform(*temp_range),
         rng.uniform(*top_p_range),
@@ -629,6 +654,7 @@ def apply_success_state_update(
     schedule_context: Optional[ScheduleContext],
     rng: random.Random,
     cadence_settings: Optional[StationCadenceSettings] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> None:
     settings = _coerce_cadence_settings(cadence_settings)
     previous_songs_since = state.songs_since_last_spoken
@@ -648,8 +674,15 @@ def apply_success_state_update(
         iso_utc(state.next_speak_deadline_ts),
     )
 
-    if archetype_used in COOLDOWN_SECONDS:
-        cooldown = cooldown_seconds_for_archetype(archetype_used, settings)
+    has_cooldown = (
+        archetype_policy.for_archetype(archetype_used).cooldown_seconds > 0
+        if archetype_policy is not None
+        else archetype_used in COOLDOWN_SECONDS
+    )
+    if has_cooldown:
+        cooldown = cooldown_seconds_for_archetype(
+            archetype_used, settings, archetype_policy
+        )
         state.cooldown_until[archetype_used.value] = ts + cooldown
 
     state.recent_archetypes = [archetype_used.value]

@@ -19,6 +19,7 @@ The project is package-first under `src/neuralcast/`:
   repeating the parent pipeline name.
 - `pipelines/new_releases/`: Deezer-backed new-release discovery and playlist updates.
 - `pipelines/host_orchestrator/`: AzuraCast queue inspection, story generation, TTS, upload, cleanup, and interrupting-request insertion.
+- `pipelines/host_orchestrator/archetype_policies.py`: authoritative validation and resolution for reusable archetype profiles and per-channel overrides.
 - `pipelines/schedule_generator/`: weekly AzuraCast schedule planning and application.
 - `playlists/catalog.py`: authoritative playlist CSV parsing, round-tripping, deletion markers, YouTube overrides, and New Releases companion metadata. It does not own discovery, validation, audio processing, remote media synchronization, or release-selection policy.
 - `playlists/library.py`: MP3/library reconciliation, filename sanitation, and deletion helpers.
@@ -37,7 +38,7 @@ Station directories (`NeuralCast/` and `NeuralForge/`) contain:
 - `metadata/`: New Releases metadata/artist caches and host/schedule runtime state.
 - `tts_snippets/`: station-local scripted/generated drops.
 
-Story assets shared by both stations live under `src/neuralcast/assets/stories/`. Generated host snippets live under `src/neuralcast/assets/stories/snippets/<station>/<YYYY-MM-DD>/`. Do not move these paths; deployment and cleanup code depend on them.
+Story assets shared by both stations live under `src/neuralcast/assets/stories/`. Host brands, locales, and channels are configured in `host_channels.json`; reusable archetype behavior is configured separately in `archetype_profiles.json`. Generated host snippets live under `src/neuralcast/assets/stories/snippets/<station>/<YYYY-MM-DD>/`. Do not move these paths; deployment and cleanup code depend on them.
 
 ## Installation and Tests
 
@@ -191,7 +192,26 @@ python -m neuralcast.cli.admin_api
 
 Host and schedule dry-runs still read live AzuraCast APIs and require valid credentials. Remove `--dry-run` only when uploads, queue changes, or schedule application are intended.
 
-The host orchestrator uses prompts under `src/neuralcast/assets/stories/prompts/`, persistent style history at `src/neuralcast/assets/stories/style_history.json`, and generated snippets under `src/neuralcast/assets/stories/snippets/`. Keep `style_history.json` checked in and preserve generated snippet directories during deployment.
+The host orchestrator uses prompts under `src/neuralcast/assets/stories/prompts/`, channel/locale definitions in `src/neuralcast/assets/stories/host_channels.json`, archetype policies in `src/neuralcast/assets/stories/archetype_profiles.json`, persistent style history at `src/neuralcast/assets/stories/style_history.json`, and generated snippets under `src/neuralcast/assets/stories/snippets/`. Keep `style_history.json` checked in and preserve generated snippet directories during deployment.
+
+### Host Archetype Policy Configuration
+
+Treat `archetype_profiles.json` as the source of truth for configurable host-archetype behavior. It owns:
+
+- canonical news-topic IDs and their localized display labels;
+- canonical concert-country codes, localized labels, and accepted aliases;
+- reusable profiles and inheritance;
+- enabled/automatic state, selection weight, cooldown, lead time, generation ranges, hook-free probability, and search behavior;
+- news topic scope and freshness windows;
+- concert country scope.
+
+Channels select a reusable policy with `archetype_profile` in `host_channels.json`. Use `archetype_overrides` for channel-specific differences. List-valued settings use explicit `add`, `remove`, or `replace` operations; do not copy an entire inherited list merely to remove one item. Resolution order is root profile, inherited profile overrides, then channel overrides.
+
+Use stable IDs in configuration and structured model metadata, not translated labels. News uses IDs such as `switzerland_general`; concerts use uppercase country codes such as `CH`. Localized labels belong in the catalogs in `archetype_profiles.json`. When adding a topic or country, add every required locale label and, for countries, unambiguous normalized aliases.
+
+Do not reintroduce station- or language-specific topic/country constants in Python or hardcode geographic scope in prompt templates. Effective policy must flow through archetype selection, prompt construction, repair prompts, validation, state updates, and logging. Prompt instructions are not sufficient enforcement: generated news and concert metadata must be checked against the resolved channel policy.
+
+Configuration loading is intentionally fail-fast. Preserve validation for unknown fields/IDs, inheritance cycles, invalid ranges, duplicate aliases, and empty effective topic/country lists. Add focused tests for profile inheritance, channel resolution, localized prompt rendering, and rejection of out-of-scope generated facts whenever this format changes. See `docs/host_channels.md` for examples.
 
 The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also require `AZURACAST_BASE_URL` and `AZURACAST_API_KEY`. Its persistent jobs/logs live under `runtime/admin_http/`. The canonical service unit is `deployment/systemd/neuralcast-admin-api.service`.
 

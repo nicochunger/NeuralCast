@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import datetime as dt
 import random
-from typing import Any, List, Mapping, Optional, Tuple
+from typing import Any, List, Mapping, Optional, Sequence, Tuple
 
+from .archetype_policies import (
+    ResolvedArchetypeProfile,
+    get_archetype_policy_registry,
+)
 from .channels import HostLocale, get_channel_registry
 from .config import (
     LOGGER,
-    NEWS_MAX_AGE_HOURS,
     NEWS_OUTPUT_RE,
-    NEWS_TOPICS,
     get_prompt_template_from,
 )
 from .models import (
@@ -64,6 +66,7 @@ def parse_news_output(
         if not isinstance(entry, Mapping):
             return None, "story entry must be object"
         topic = str(entry.get("topic") or "").strip()
+        topic_id = str(entry.get("topic_id") or "").strip() or None
         headline = str(entry.get("headline") or "").strip()
         source_url = str(entry.get("source_url") or "").strip()
         published_at = str(entry.get("published_at") or "").strip() or None
@@ -76,6 +79,7 @@ def parse_news_output(
                 headline=headline,
                 source_url=source_url,
                 published_at=published_at,
+                topic_id=topic_id,
             )
         )
 
@@ -91,12 +95,14 @@ def attempt_news_repair(
     station_name: str,
     personality: StationPersonality,
     locale: Optional[HostLocale] = None,
+    allowed_topic_ids: Optional[Sequence[str]] = None,
 ) -> str:
     locale = _resolved_locale(locale)
     repair_prompt = get_prompt_template_from(
         locale.prompt_directory,
         "repair_news_contract",
         original_output=original_output,
+        news_topic_ids=", ".join(allowed_topic_ids or ()),
     ).replace("es-AR", locale.tag)
     return gemini_generate_text(
         prompt=repair_prompt,
@@ -111,12 +117,28 @@ def validate_news_freshness_and_dedup(
     segment: NewsSegment,
     state: OrchestratorState,
     ts: float,
+    *,
+    allowed_topic_ids: Optional[Sequence[str]] = None,
+    max_age_hours: Optional[int] = None,
 ) -> Tuple[bool, str]:
     recent = prune_news_history(state.recent_news_dedup, ts)
     recent_keys = {str(entry.get("key") or "") for entry in recent}
     now_utc = dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc)
+    allowed_topics = set(allowed_topic_ids or ())
+    effective_max_age = max_age_hours
+    if effective_max_age is None:
+        base_news = (
+            get_archetype_policy_registry()
+            .profiles["base"]
+            .for_archetype(Archetype.NEWS)
+            .news
+        )
+        assert base_news is not None
+        effective_max_age = base_news.max_age_hours
 
     for story in segment.stories:
+        if allowed_topics and story.topic_id not in allowed_topics:
+            return False, f"news topic not allowed: {story.topic_id or story.topic}"
         dedup_key = build_news_dedup_key(story.topic, story.headline, story.source_url)
         if dedup_key in recent_keys:
             return False, f"duplicate headline detected: {story.headline}"
@@ -126,17 +148,30 @@ def validate_news_freshness_and_dedup(
             return False, f"missing/invalid published_at for headline: {story.headline}"
 
         age_hours = (now_utc - published).total_seconds() / 3600.0
-        if age_hours > NEWS_MAX_AGE_HOURS:
+        if age_hours > effective_max_age:
             return False, (
-                f"headline too old ({age_hours:.1f}h > {NEWS_MAX_AGE_HOURS}h): "
+                f"headline too old ({age_hours:.1f}h > {effective_max_age}h): "
                 f"{story.headline}"
             )
 
     return True, "ok"
 
 
-def pick_news_topics(story_count: int, rng: random.Random) -> List[str]:
-    topics = list(NEWS_TOPICS)
+def pick_news_topics(
+    story_count: int,
+    rng: random.Random,
+    topic_ids: Optional[Sequence[str]] = None,
+) -> List[str]:
+    if topic_ids is None:
+        base_news = (
+            get_archetype_policy_registry()
+            .profiles["base"]
+            .for_archetype(Archetype.NEWS)
+            .news
+        )
+        assert base_news is not None
+        topic_ids = base_news.topic_ids
+    topics = list(topic_ids)
     if story_count <= 1:
         return [rng.choice(topics)]
     if len(topics) < story_count:
@@ -159,6 +194,13 @@ def _generate_news_script(
     fallback,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     locale = _resolved_locale(prompt_kwargs.get("locale"))
+    profile: ResolvedArchetypeProfile = prompt_kwargs.get(
+        "archetype_policy"
+    ) or get_archetype_policy_registry().profiles["base"]
+    news_policy = profile.for_archetype(Archetype.NEWS).news
+    search_enabled = profile.for_archetype(Archetype.NEWS).search_enabled
+    if news_policy is None:
+        raise ValueError("The news archetype requires a news policy.")
     story_count = rng.randint(1, 2)
     topic_attempts = 3
     conservative_news_temperature = min(0.65, temperature)
@@ -171,7 +213,7 @@ def _generate_news_script(
         top_p,
     )
     for topic_attempt in range(topic_attempts):
-        topics = pick_news_topics(story_count, rng)
+        topics = pick_news_topics(story_count, rng, news_policy.topic_ids)
         LOGGER.info(
             "[news] Topic roll %s/%s | topics=%s",
             topic_attempt + 1,
@@ -187,7 +229,7 @@ def _generate_news_script(
         generated = generate_with_retries(
             prompt=prompt,
             label="Gemini generation (news)",
-            with_search=True,
+            with_search=search_enabled,
         )
 
         segment, reason = parse_news_output(generated, locale.tag)
@@ -210,7 +252,7 @@ def _generate_news_script(
                 generated = generate_with_retries(
                     prompt=prompt,
                     label="Gemini generation (news, conservative retry)",
-                    with_search=True,
+                    with_search=search_enabled,
                     temperature_override=conservative_news_temperature,
                     top_p_override=conservative_news_top_p,
                 )
@@ -247,6 +289,7 @@ def _generate_news_script(
                     station_name=station_name,
                     personality=personality,
                     locale=locale,
+                    allowed_topic_ids=topics,
                 ),
             )
             segment, reason = parse_news_output(repaired, locale.tag)
@@ -261,7 +304,11 @@ def _generate_news_script(
                 return fallback()
 
         ok, freshness_reason = validate_news_freshness_and_dedup(
-            segment, state, now_ts()
+            segment,
+            state,
+            now_ts(),
+            allowed_topic_ids=topics,
+            max_age_hours=news_policy.max_age_hours,
         )
         if ok:
             LOGGER.info(

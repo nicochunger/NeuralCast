@@ -584,8 +584,37 @@ META (JSON):
         self.assertTrue(should_enable_search(Archetype.ERA_SNAPSHOT, None))
 
     def test_french_concert_country_names_are_accepted(self) -> None:
-        self.assertEqual(normalize_concert_country("Argentine"), "argentina")
-        self.assertEqual(normalize_concert_country("Suisse"), "switzerland")
+        self.assertEqual(normalize_concert_country("Argentine"), "AR")
+        self.assertEqual(normalize_concert_country("Suisse"), "CH")
+
+    def test_french_channel_policy_scopes_news_and_concert_prompts(self) -> None:
+        channel = get_channel_registry().channels["neuralforge-fr"]
+        personality = resolve_station_personality("neuralforge")
+        common = {
+            "station_name": "NeuralForge",
+            "personality": personality,
+            "current": self._queue_track("Gojira", "Silvera"),
+            "next_track": self._queue_track("Alcest", "Protection"),
+            "upcoming_tracks": [],
+            "current_meta": TrackMetadata(),
+            "next_meta": TrackMetadata(),
+            "angle": None,
+            "hook": "",
+            "banned_list": [],
+            "recent_scripts": [],
+            "schedule_context": None,
+            "locale": channel.locale,
+            "archetype_policy": channel.archetype_policy,
+        }
+
+        news_prompt = build_prompt(archetype=Archetype.NEWS, **common)
+        concert_prompt = build_prompt(archetype=Archetype.CONCERT_CHECK, **common)
+
+        self.assertNotIn("argentina_politics_general", news_prompt)
+        self.assertNotIn("Argentine, politique", news_prompt)
+        self.assertIn("switzerland_general (Suisse, actualité générale)", news_prompt)
+        self.assertIn("Suisse (CH)", concert_prompt)
+        self.assertNotIn("Argentine", concert_prompt)
 
     def test_build_prompt_routes_album_spotlight_wrapper(self) -> None:
         personality = resolve_station_personality("neuralforge")

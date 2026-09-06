@@ -1,7 +1,7 @@
 Estas generando un chequeo de conciertos.
 
 Objetivo del arquetipo:
-- Verificar si el artista que acaba de sonar o el que viene tiene conciertos programados en Argentina o Suiza.
+- Verificar si el artista que acaba de sonar o el que viene tiene conciertos programados en: {concert_countries}.
 - Si existe al menos un concierto valido, dar un resumen compacto en tono de locutor y volver a la musica.
 
 Requisitos de entrada:
@@ -48,7 +48,8 @@ META (JSON):
   "events": [
     {{
       "artist": "...",
-      "country": "Argentina|Switzerland",
+      "country_code": "{concert_country_codes}",
+      "country": "...",
       "city": "...",
       "venue": "...",
       "event_date": "YYYY-MM-DD",

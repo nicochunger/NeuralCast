@@ -15,6 +15,7 @@ Requisitos de entrada:
 - Corte preferido (UTC): {news_preferred_cutoff_utc}
 - Cantidad de historias: {story_count} (1-2).
 - Temas: {news_topics}
+- El campo `topic_id` de cada historia debe ser exactamente uno de: {news_topic_ids}.
 - Cada historia debe incluir source_url directo y published_at en ISO-8601 desde esa fuente.
 - Si solo aparecen titulares viejos (por ejemplo de 2024), o sin fecha verificable en la fuente, devolver exactamente NO_SCRIPT.
 
@@ -61,6 +62,7 @@ META (JSON):
   "language": "es-AR",
   "stories": [
     {{
+      "topic_id": "...",
       "topic": "...",
       "headline": "...",
       "source_url": "...",

@@ -51,6 +51,12 @@ Notes:
 
 - `host_orchestrator --dry-run` still reads AzuraCast APIs and requires valid API credentials.
 - Remove `--dry-run` only when you intend to apply changes/upload queue media.
+- Host channels are defined in `src/neuralcast/assets/stories/host_channels.json`.
+  Their effective behavior is resolved from
+  `src/neuralcast/assets/stories/archetype_profiles.json`, including news scope,
+  concert countries, selection weights, cooldowns, and generation settings.
+  Put channel-specific differences in `archetype_overrides`; do not encode
+  language or geography policy in cron commands or prompt templates.
 
 ## Scheduled Host and Schedule Jobs
 

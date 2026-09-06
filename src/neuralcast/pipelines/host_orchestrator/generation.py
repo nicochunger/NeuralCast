@@ -6,8 +6,8 @@ import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from .archetype_policies import ResolvedArchetypeProfile
 from .channels import HostLocale, get_channel_registry
-
 from .config import LOGGER
 from .concert_generation import (
     _generate_concert_check_script,
@@ -27,10 +27,7 @@ from .models import (
     TrackFocus,
     TrackMetadata,
 )
-from .state import (
-    choose_hook,
-    sample_generation_settings,
-)
+from .state import choose_hook, sample_generation_settings
 from .news_generation import (
     _generate_news_script,
     parse_news_output,
@@ -92,7 +89,13 @@ def _segment_metadata_for_archetype(
     return GeneratedSegmentMetadata(track_focus=focus)
 
 
-def should_enable_search(archetype: Archetype, _angle: Optional[str]) -> bool:
+def should_enable_search(
+    archetype: Archetype,
+    _angle: Optional[str],
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+) -> bool:
+    if archetype_policy is not None:
+        return archetype_policy.for_archetype(archetype).search_enabled
     return archetype in {
         Archetype.NEWS,
         Archetype.SHORT_STORY,
@@ -187,9 +190,12 @@ def fallback_to_ultra_minimal(
     state: OrchestratorState,
     rng: random.Random,
     locale: Optional[HostLocale] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     locale = _resolved_locale(locale)
-    fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng)
+    fallback_hook = choose_hook(
+        Archetype.ULTRA_MINIMAL, state, rng, archetype_policy
+    )
     fallback_script, _, fallback_arch = generate_archetype_script(
         archetype=Archetype.ULTRA_MINIMAL,
         station_name=station_name,
@@ -208,6 +214,7 @@ def fallback_to_ultra_minimal(
         forced_mode=False,
         allow_ultra_minimal_fallback=False,
         locale=locale,
+        archetype_policy=archetype_policy,
     )
     return fallback_script, GeneratedSegmentMetadata(), fallback_arch
 
@@ -301,6 +308,7 @@ def _build_prompt_kwargs(
     state: OrchestratorState,
     variants: ArchetypePromptVariants,
     locale: Optional[HostLocale] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> Dict[str, Any]:
     return {
         "station_name": station_name,
@@ -322,6 +330,7 @@ def _build_prompt_kwargs(
         "deep_dive_lane": variants.deep_dive_lane,
         "deep_dive_focus": variants.deep_dive_focus,
         "locale": _resolved_locale(locale),
+        "archetype_policy": archetype_policy,
     }
 
 
@@ -341,7 +350,9 @@ def _generate_standard_archetype_script(
     generated = generate_with_retries(
         prompt=prompt,
         label=f"Gemini generation ({archetype.value})",
-        with_search=should_enable_search(archetype, angle),
+        with_search=should_enable_search(
+            archetype, angle, prompt_kwargs.get("archetype_policy")
+        ),
     )
     if generated.strip() == "NO_SCRIPT":
         LOGGER.info(
@@ -390,6 +401,7 @@ def generate_archetype_script(
     forced_track_focus: Optional[TrackFocus] = None,
     allow_ultra_minimal_fallback: bool = True,
     locale: Optional[HostLocale] = None,
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     """Generate script and structured presentation metadata.
 
@@ -400,7 +412,9 @@ def generate_archetype_script(
     """
 
     locale = _resolved_locale(locale)
-    temperature, top_p = sample_generation_settings(archetype, rng)
+    temperature, top_p = sample_generation_settings(
+        archetype, rng, archetype_policy
+    )
     system_prompt = build_system_prompt(station_name, personality, locale=locale)
     variants = _resolve_prompt_variants(
         archetype=archetype,
@@ -424,6 +438,7 @@ def generate_archetype_script(
         state=state,
         variants=variants,
         locale=locale,
+        archetype_policy=archetype_policy,
     )
 
     def generate_with_retries(
@@ -462,6 +477,7 @@ def generate_archetype_script(
             state=state,
             rng=rng,
             locale=locale,
+            archetype_policy=archetype_policy,
         )
 
     def terminal_ultra_minimal_fallback() -> Tuple[str, GeneratedSegmentMetadata, Archetype]:

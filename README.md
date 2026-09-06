@@ -99,6 +99,7 @@ Host orchestrator:
 
 ```bash
 python -m neuralcast.cli.host_orchestrator --dry-run -s neuralforge
+python -m neuralcast.cli.host_orchestrator --dry-run --channel neuralforge-fr
 ```
 
 Schedule generator:
@@ -113,6 +114,29 @@ Notes:
 - Use module entrypoints for all operational usage in this VPS-resident checkout.
 - This repository is authoritative: each `<station>/songs/` path is a symlink to its live AzuraCast media directory.
 - The new releases updater writes to `New Releases.csv` plus `metadata/New Releases.metadata.json` and `metadata/ArtistIDs.json`.
+
+## Host Channels and Archetype Policies
+
+The host configuration is split by responsibility:
+
+- `src/neuralcast/assets/stories/host_channels.json` defines brands, locales,
+  AzuraCast channels, and which cadence/archetype profile each channel uses.
+- `src/neuralcast/assets/stories/archetype_profiles.json` defines reusable
+  archetype profiles, news-topic catalogs, concert-country catalogs, generation
+  settings, cooldowns, and geographic/content scope.
+- `src/neuralcast/assets/stories/prompts/` contains the localized prompt packs;
+  prompts receive their allowed topics and countries from the resolved policy.
+
+Profiles can inherit from another profile. Channels can apply small
+`archetype_overrides` using `add`, `remove`, or `replace` for list settings. Use
+canonical news IDs and country codes in configuration; localized labels are
+kept in the policy catalog and model output is validated against the effective
+channel policy.
+
+The French NeuralForge channel currently inherits `neuralforge`, removes
+Argentine political/general news, and replaces the concert-country list with
+Switzerland (`CH`) only. See [docs/host_channels.md](docs/host_channels.md) for
+the schema, precedence rules, and extension examples.
 
 ## Station Data Layout
 

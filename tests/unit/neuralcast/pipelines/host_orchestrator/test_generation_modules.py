@@ -160,6 +160,44 @@ def test_concert_output_and_validation_accepts_future_target_artist() -> None:
     )[0] is False
 
 
+def test_channel_scoped_news_and_concert_validation_rejects_out_of_scope_facts() -> None:
+    news_raw = (
+        "SCRIPT: Une information. META (JSON): "
+        '{"story_count": 1, "language": "fr-CH", "stories": ['
+        '{"topic_id": "argentina_politics_general", "topic": "Argentine", '
+        '"headline": "Actualité", "source_url": "https://example.test/news", '
+        '"published_at": "2026-09-01T11:00:00Z"}]}'
+    )
+    news_segment, reason = news_generation.parse_news_output(news_raw, "fr-CH")
+    assert reason == "ok"
+    assert news_segment is not None
+    assert news_generation.validate_news_freshness_and_dedup(
+        news_segment,
+        _state(),
+        dt.datetime(2026, 9, 1, 12, tzinfo=dt.timezone.utc).timestamp(),
+        allowed_topic_ids=("science", "switzerland_general"),
+    )[0] is False
+
+    concert_raw = (
+        "SCRIPT: Un concert. META (JSON): "
+        '{"language": "fr-CH", "events": [{"artist": "Ghost", '
+        '"country_code": "AR", "country": "Argentine", "city": "Buenos Aires", '
+        '"venue": "Arena", "event_date": "2099-01-02", '
+        '"source_url": "https://example.test/event"}]}'
+    )
+    concert_segment, reason = concert_generation.parse_concert_output(
+        concert_raw, "fr-CH"
+    )
+    assert reason == "ok"
+    assert concert_segment is not None
+    assert concert_generation.validate_concert_segment(
+        concert_segment,
+        QueueTrack("1", None, "Ghost", "Rats", 200),
+        QueueTrack("2", None, "Opeth", "Harvest", 300),
+        allowed_country_codes=("CH",),
+    )[0] is False
+
+
 def test_gemini_text_generation_handles_text_empty_and_grounded_no_script(monkeypatch) -> None:
     calls: list[dict] = []
 

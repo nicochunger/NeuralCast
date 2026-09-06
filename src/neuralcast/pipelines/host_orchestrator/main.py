@@ -40,7 +40,6 @@ from .assets import (
 from .config import (
     LEAD_TIME_SECONDS,
     LOGGER,
-    archetype_settings_for_station,
     cadence_settings_for_station,
     configure_station_file_logging,
     configure_logging,
@@ -441,9 +440,13 @@ def _select_archetype(
     auto_forced_block_intro: bool,
     forced_track_focus: TrackFocus | None,
     rng: random.Random,
+    runtime: StationRuntime | None = None,
 ) -> Archetype | None:
+    archetype_policy = runtime.channel.archetype_policy if runtime else None
     if forced_archetype is not None:
-        required_lead_time = lead_time_seconds_for_archetype(forced_archetype)
+        required_lead_time = lead_time_seconds_for_archetype(
+            forced_archetype, archetype_policy
+        )
         if playback.current_remaining < required_lead_time:
             LOGGER.info(
                 "[gate] Forced archetype %s requires %ss lead time; current track has %ss remaining. Skipping cycle.",
@@ -486,12 +489,12 @@ def _select_archetype(
         now_ts(),
         current_remaining=playback.current_remaining,
         seconds_until_block_change=seconds_until_block_change,
-        disabled_archetypes=archetype_settings_for_station(
-            args.archetype_profile
-        ).disabled_archetypes,
+        archetype_policy=archetype_policy,
     )
     if legal:
-        selected_archetype = choose_weighted_archetype(legal, state, rng)
+        selected_archetype = choose_weighted_archetype(
+            legal, state, rng, archetype_policy
+        )
         LOGGER.info(
             "[archetype] Legal archetypes: %s (seconds_until_block_change=%s)",
             [item.value for item in legal],
@@ -521,7 +524,9 @@ def _build_generation_context(
     rng: random.Random,
 ) -> GenerationContext:
     angle = choose_angle(selected_archetype, state, rng)
-    hook = choose_hook(selected_archetype, state, rng)
+    hook = choose_hook(
+        selected_archetype, state, rng, runtime.channel.archetype_policy
+    )
     banned_list = assemble_banned_list(state)
 
     metadata_cache = load_station_track_metadata(runtime.station_dir)
@@ -618,6 +623,7 @@ def _publish_segment(
         cadence_settings=cadence_settings_for_station(
             runtime.channel.cadence_profile
         ),
+        archetype_policy=runtime.channel.archetype_policy,
     )
 
     expected_play_at_utc = iso_utc(success_ts + max(0, playback.current_remaining))
@@ -803,6 +809,21 @@ class HostOrchestratorRuntime:
                 args.dry_run,
             )
             LOGGER.info(
+                "[policy] Archetype profile=%s | effective_policy=%s | news_topics=%s | concert_countries=%s",
+                channel.archetype_profile,
+                channel.archetype_policy.name,
+                list(
+                    channel.archetype_policy.for_archetype(
+                        Archetype.NEWS
+                    ).news.topic_ids
+                ),
+                list(
+                    channel.archetype_policy.for_archetype(
+                        Archetype.CONCERT_CHECK
+                    ).concert_check.country_codes
+                ),
+            )
+            LOGGER.info(
                 "[log] File logs active | main=%s | segments=%s",
                 main_log_path,
                 segment_log_path,
@@ -886,6 +907,7 @@ class HostOrchestratorRuntime:
                 )
             selected_archetype = _select_archetype(
                 args=args,
+                runtime=runtime,
                 state=state,
                 playback=playback,
                 queue_context=queue_context,
@@ -934,6 +956,7 @@ class HostOrchestratorRuntime:
                 forced_mode=generation_context.forced_news_mode,
                 forced_track_focus=forced_track_focus,
                 locale=channel.locale,
+                archetype_policy=channel.archetype_policy,
             )
 
             if isinstance(segment_metadata_raw, GeneratedSegmentMetadata):
