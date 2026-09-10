@@ -71,14 +71,20 @@ def weekly_plan_factory(
 
 class FakeRemote:
     def __init__(self) -> None:
-        self.playlists = [station_playlist_factory()]
+        self.playlists = [station_playlist_factory(name="Prog")]
+        self.mirror_playlists = [station_playlist_factory(playlist_id="20", name="Prog")]
         self.apply_calls: list[tuple[str, Sequence[StationPlaylist]]] = []
+        self.applied_templates: list[tuple[str, Sequence[DailyTemplateBlock]]] = []
 
     def load_station_context(self, station_slug: str) -> StationScheduleContext:
         return StationScheduleContext(
             station_name="NeuralForge",
             timezone_name="Europe/Zurich",
-            playlists=list(self.playlists),
+            playlists=list(
+                self.mirror_playlists
+                if station_slug == "neuralforge_fr"
+                else self.playlists
+            ),
         )
 
     def apply_weekly_schedule(
@@ -89,6 +95,7 @@ class FakeRemote:
         daily_template: Sequence[DailyTemplateBlock],
     ) -> tuple[int, int]:
         self.apply_calls.append((station_slug, list(playlists)))
+        self.applied_templates.append((station_slug, list(daily_template)))
         return len(playlists), len(daily_template)
 
 
@@ -170,7 +177,10 @@ def test_runtime_skips_unchanged_plan_but_saves_state(tmp_path) -> None:
     remote = FakeRemote()
     state = MemoryStateStore(
         path=tmp_path / "state.json",
-        payload={"plan_hash": "hash-same"},
+        payload={
+            "plan_hash": "hash-same",
+            "applied_station_slugs": ["neuralforge", "neuralforge_fr"],
+        },
     )
     runtime = ScheduleGeneratorRuntime(
         remote=remote,
@@ -201,9 +211,18 @@ def test_runtime_applies_changed_plan_then_saves_state(tmp_path) -> None:
     result = runtime.run(request_factory(tmp_path))
 
     assert result.status == "applied"
-    assert result.updated_playlists == 1
-    assert result.updated_items == 1
-    assert remote.apply_calls == [("neuralforge", remote.playlists)]
+    assert result.updated_playlists == 2
+    assert result.updated_items == 2
+    assert remote.apply_calls == [
+        ("neuralforge", remote.playlists),
+        ("neuralforge_fr", remote.mirror_playlists),
+    ]
+    assert remote.applied_templates[0][1][0].playlist_ids == ["10"]
+    assert remote.applied_templates[1][1][0].playlist_ids == ["20"]
+    assert state.saved_payloads[-1]["applied_station_slugs"] == [
+        "neuralforge",
+        "neuralforge_fr",
+    ]
     assert state.saved_payloads[-1]["plan_hash"] == "hash-new"
 
 
@@ -223,6 +242,49 @@ def test_runtime_force_apply_overrides_unchanged_hash(tmp_path) -> None:
 
     assert result.status == "applied"
     assert remote.apply_calls
+
+
+def test_runtime_repairs_existing_neuralforge_state_without_mirror_marker(
+    tmp_path,
+) -> None:
+    remote = FakeRemote()
+    state = MemoryStateStore(
+        path=tmp_path / "state.json",
+        payload={"plan_hash": "hash-same"},
+    )
+    runtime = ScheduleGeneratorRuntime(
+        remote=remote,
+        state_store=state,
+        planner=lambda **kwargs: weekly_plan_factory(plan_hash="hash-same"),
+    )
+
+    result = runtime.run(request_factory(tmp_path))
+
+    assert result.status == "applied"
+    assert [station for station, _ in remote.apply_calls] == [
+        "neuralforge",
+        "neuralforge_fr",
+    ]
+
+
+def test_runtime_validates_mirror_playlists_before_applying_primary(tmp_path) -> None:
+    remote = FakeRemote()
+    remote.mirror_playlists = [
+        station_playlist_factory(playlist_id="20", name="Power Metal")
+    ]
+    runtime = ScheduleGeneratorRuntime(
+        remote=remote,
+        state_store=MemoryStateStore(path=tmp_path / "state.json"),
+        planner=lambda **kwargs: weekly_plan_factory(),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="neuralforge_fr.*missing enabled playlists: prog",
+    ):
+        runtime.run(request_factory(tmp_path))
+
+    assert remote.apply_calls == []
 
 
 def test_runtime_resolves_week_and_station_defaults_for_planner(tmp_path) -> None:

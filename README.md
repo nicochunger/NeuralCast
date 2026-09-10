@@ -108,6 +108,10 @@ Schedule generator:
 python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
 
+Applying a generated `neuralforge` schedule updates both the Spanish
+`neuralforge` station and the French `neuralforge_fr` station. Playlist IDs are
+matched by name so both streams follow the same weekly plan.
+
 Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.

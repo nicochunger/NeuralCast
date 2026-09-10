@@ -102,6 +102,7 @@ class WeeklySchedulePlan:
     rationale: str
     plan_hash: str
     presentation: Dict[str, Any] | None = None
+    applied_station_slugs: List[str] | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         payload = {
@@ -124,4 +125,6 @@ class WeeklySchedulePlan:
         }
         if self.presentation is not None:
             payload["presentation"] = self.presentation
+        if self.applied_station_slugs is not None:
+            payload["applied_station_slugs"] = list(self.applied_station_slugs)
         return payload

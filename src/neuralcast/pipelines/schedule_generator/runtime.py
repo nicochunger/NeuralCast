@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import pathlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
 
@@ -42,6 +42,9 @@ from .state import (
 from .template import compute_week_start
 
 VPS_SCHEDULER_PROJECT_ROOT = "/root/projects/NeuralCast"
+SCHEDULE_MIRROR_STATIONS: Mapping[str, tuple[str, ...]] = {
+    "neuralforge": ("neuralforge_fr",),
+}
 ScheduleRunStatus = Literal["dry_run", "skipped_unchanged", "applied"]
 PlanBuilder = Callable[..., WeeklySchedulePlan]
 
@@ -260,6 +263,10 @@ class ScheduleGeneratorRuntime:
             if isinstance(existing_state, Mapping)
             else None
         )
+        apply_station_slugs = (
+            request.station,
+            *SCHEDULE_MIRROR_STATIONS.get(request.station.strip().lower(), ()),
+        )
 
         if request.dry_run:
             return ScheduleRunResult(
@@ -270,7 +277,22 @@ class ScheduleGeneratorRuntime:
                 playlist_count=len(context.playlists),
             )
 
-        if previous_hash and previous_hash == plan.plan_hash and not request.force_apply:
+        previously_applied_slugs = (
+            existing_state.get("applied_station_slugs", [])
+            if isinstance(existing_state, Mapping)
+            else []
+        )
+        all_stations_already_applied = (
+            isinstance(previously_applied_slugs, list)
+            and set(apply_station_slugs).issubset(previously_applied_slugs)
+        )
+
+        if (
+            previous_hash
+            and previous_hash == plan.plan_hash
+            and all_stations_already_applied
+            and not request.force_apply
+        ):
             existing_presentation = (
                 existing_state.get("presentation")
                 if isinstance(existing_state, Mapping)
@@ -281,6 +303,7 @@ class ScheduleGeneratorRuntime:
                 if presentation_matches_plan(existing_presentation, plan.plan_hash)
                 else build_schedule_presentation(plan)
             )
+            plan.applied_station_slugs = list(apply_station_slugs)
             self._state_store.save(request.station, plan)
             return ScheduleRunResult(
                 status="skipped_unchanged",
@@ -290,12 +313,32 @@ class ScheduleGeneratorRuntime:
                 playlist_count=len(context.playlists),
             )
 
-        updated_playlists, updated_items = self._remote.apply_weekly_schedule(
-            station_slug=request.station,
-            playlists=context.playlists,
-            daily_template=plan.daily_template,
-        )
+        apply_contexts = [(request.station, context, plan.daily_template)]
+        for mirror_slug in apply_station_slugs[1:]:
+            mirror_context = self._remote.load_station_context(mirror_slug)
+            mirror_template = remap_daily_template_for_station(
+                plan.daily_template,
+                context.playlists,
+                mirror_context.playlists,
+                station_slug=mirror_slug,
+            )
+            apply_contexts.append((mirror_slug, mirror_context, mirror_template))
+
+        updated_playlists = 0
+        updated_items = 0
+        for station_slug, apply_context, daily_template in apply_contexts:
+            station_updated_playlists, station_updated_items = (
+                self._remote.apply_weekly_schedule(
+                    station_slug=station_slug,
+                    playlists=apply_context.playlists,
+                    daily_template=daily_template,
+                )
+            )
+            updated_playlists += station_updated_playlists
+            updated_items += station_updated_items
+
         plan.presentation = build_schedule_presentation(plan)
+        plan.applied_station_slugs = list(apply_station_slugs)
         self._state_store.save(request.station, plan)
         return ScheduleRunResult(
             status="applied",
@@ -329,3 +372,76 @@ class ScheduleGeneratorRuntime:
             )
         if request.seed_mode == "custom" and not request.seed_salt:
             raise ValueError("seed_salt is required when --seed-mode custom is used.")
+
+
+def remap_daily_template_for_station(
+    daily_template: Sequence[DailyTemplateBlock],
+    source_playlists: Sequence[StationPlaylist],
+    target_playlists: Sequence[StationPlaylist],
+    *,
+    station_slug: str,
+) -> list[DailyTemplateBlock]:
+    """Map a generated plan onto another station's playlist IDs by name."""
+    playlist_ids_by_name: dict[str, str] = {}
+    duplicate_names: set[str] = set()
+    for playlist in target_playlists:
+        normalized_name = playlist.name.strip().casefold()
+        if normalized_name in playlist_ids_by_name:
+            duplicate_names.add(playlist.name)
+        playlist_ids_by_name[normalized_name] = playlist.id
+
+    if duplicate_names:
+        names = ", ".join(sorted(duplicate_names))
+        raise RuntimeError(
+            f"Station '{station_slug}' has duplicate playlist names: {names}."
+        )
+
+    source_enabled_names = {
+        playlist.name.strip().casefold()
+        for playlist in source_playlists
+        if playlist.is_enabled
+    }
+    target_enabled_names = {
+        playlist.name.strip().casefold()
+        for playlist in target_playlists
+        if playlist.is_enabled
+    }
+    if source_enabled_names != target_enabled_names:
+        missing = sorted(source_enabled_names - target_enabled_names)
+        extra = sorted(target_enabled_names - source_enabled_names)
+        details = []
+        if missing:
+            details.append(f"missing enabled playlists: {', '.join(missing)}")
+        if extra:
+            details.append(f"extra enabled playlists: {', '.join(extra)}")
+        raise RuntimeError(
+            f"Station '{station_slug}' cannot mirror the source schedule ({'; '.join(details)})."
+        )
+
+    remapped_blocks: list[DailyTemplateBlock] = []
+    missing_names: set[str] = set()
+    for block in daily_template:
+        if block.mode != "playlist":
+            remapped_blocks.append(block)
+            continue
+
+        target_ids: list[str] = []
+        for playlist_name in block.playlist_names:
+            target_id = playlist_ids_by_name.get(playlist_name.strip().casefold())
+            if target_id is None:
+                missing_names.add(playlist_name)
+            else:
+                target_ids.append(target_id)
+
+        target_id = target_ids[0] if len(target_ids) == 1 else None
+        remapped_blocks.append(
+            replace(block, playlist_ids=target_ids, playlist_id=target_id)
+        )
+
+    if missing_names:
+        names = ", ".join(sorted(missing_names))
+        raise RuntimeError(
+            f"Station '{station_slug}' is missing scheduled playlists: {names}."
+        )
+
+    return remapped_blocks
