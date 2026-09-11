@@ -65,6 +65,25 @@
   "profiles": {
     "base": {
       "archetypes": {
+        "recently_played": {
+          "enabled": true,
+          "automatic": true,
+          "weight": 0.8,
+          "cooldown_seconds": 1800,
+          "lead_time_seconds": 90,
+          "temperature_range": [
+            0.4,
+            0.7
+          ],
+          "top_p_range": [
+            0.7,
+            0.9
+          ],
+          "hook_free_probability": 1.0,
+          "search_enabled": false,
+          "min_songs_since_host": 4,
+          "allow_after_up_next_tease": false
+        },
         "back_sell": {
           "enabled": true,
           "automatic": true,

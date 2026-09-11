@@ -18,6 +18,7 @@ from .config import (
     BANNED_OPENERS,
     COOLDOWN_SECONDS,
     DEFAULT_CADENCE_SETTINGS,
+    DEFAULT_ARCHETYPE_SETTINGS,
     HOOKS_BY_ARCHETYPE,
     HOOK_FREE_OPEN_PROB_BY_ARCHETYPE,
     lead_time_seconds_for_archetype,
@@ -38,6 +39,7 @@ from .models import (
     Archetype,
     NewsSegment,
     OrchestratorState,
+    QueueTrack,
     ScheduleContext,
 )
 from .archetype_policies import ResolvedArchetypeProfile
@@ -449,6 +451,29 @@ def should_speak_now(
     )
 
 
+def meets_archetype_conditions(
+    archetype: Archetype,
+    state: OrchestratorState,
+    recent_tracks: Sequence[QueueTrack],
+    archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+) -> bool:
+    profile = archetype_policy or DEFAULT_ARCHETYPE_SETTINGS
+    policy = profile.for_archetype(archetype)
+    if (
+        not policy.allow_after_up_next_tease
+        and state.recent_archetypes
+        and state.recent_archetypes[-1] == Archetype.UP_NEXT_TEASE.value
+    ):
+        return False
+    minimum = policy.min_songs_since_host
+    if archetype == Archetype.RECENTLY_PLAYED:
+        # Always leave the first post-host song outside the three-song recap.
+        minimum = max(4, minimum)
+        if len(recent_tracks) < minimum:
+            return False
+    return state.songs_since_last_spoken >= minimum
+
+
 def legal_archetypes(state: OrchestratorState, ts: float) -> List[Archetype]:
     return legal_archetypes_for_remaining(state, ts, current_remaining=None)
 
@@ -460,6 +485,7 @@ def legal_archetypes_for_remaining(
     seconds_until_block_change: Optional[float] = None,
     disabled_archetypes: Optional[Sequence[Archetype]] = None,
     archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+    recent_tracks: Sequence[QueueTrack] = (),
 ) -> List[Archetype]:
     legal: List[Archetype] = []
     disabled = set(disabled_archetypes or ())
@@ -467,6 +493,7 @@ def legal_archetypes_for_remaining(
         archetype_policy.automatic_archetypes
         if archetype_policy is not None
         else (
+            Archetype.RECENTLY_PLAYED,
             Archetype.BACK_SELL,
             Archetype.UP_NEXT_TEASE,
             Archetype.SHORT_STORY,
@@ -478,6 +505,8 @@ def legal_archetypes_for_remaining(
         )
     )
     for archetype in candidates:
+        if not meets_archetype_conditions(archetype, state, recent_tracks, archetype_policy):
+            continue
         if archetype in disabled:
             continue
         cooldown_until = float(state.cooldown_until.get(archetype.value, 0.0))

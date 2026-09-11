@@ -885,6 +885,7 @@ def build_prompt(
     news_topics: Optional[Sequence[str]] = None,
     locale: Optional[HostLocale] = None,
     archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+    recent_tracks: Sequence[QueueTrack] = (),
 ) -> str:
     locale = _resolved_locale(locale)
     profile = archetype_policy or get_archetype_policy_registry().profiles["base"]
@@ -933,6 +934,7 @@ def build_prompt(
         )
     else:
         template_name = {
+            Archetype.RECENTLY_PLAYED: "wrapper_recently_played",
             Archetype.BACK_SELL: "wrapper_back_sell",
             Archetype.UP_NEXT_TEASE: "wrapper_up_next_tease",
             Archetype.DEEP_DIVE: "wrapper_deep_dive",
@@ -946,28 +948,38 @@ def build_prompt(
             locale.prompt_directory, template_name
         ).replace("es-AR", locale.tag)
 
-    shared_input = format_shared_input(
-        archetype=archetype,
-        station_name=station_name,
-        personality=personality,
-        current=current,
-        next_track=next_track,
-        upcoming_tracks=upcoming_tracks,
-        current_meta=current_meta,
-        next_meta=next_meta,
-        angle=angle,
-        hook=hook,
-        banned_list=banned_list,
-        recent_scripts=recent_scripts,
-        schedule_context=schedule_context,
-        short_story_focus=short_story_focus,
-        album_spotlight_focus=album_spotlight_focus,
-        era_snapshot_lane=era_snapshot_lane,
-        era_snapshot_focus=era_snapshot_focus,
-        deep_dive_lane=deep_dive_lane,
-        deep_dive_focus=deep_dive_focus,
-        locale=locale,
-    )
+    if archetype == Archetype.RECENTLY_PLAYED:
+        if not recent_tracks:
+            raise ValueError("Recently played requires a verified song.")
+        shared_input = (
+            f"Station: {station_name}\n"
+            + "Mention up to three supplied songs; if only one is available, recap only that song.\n"
+            + "Verified recently played songs (oldest to newest; final song ends before this segment):\n"
+            + "\n".join(f"- {track.artist} — {track.title}" for track in recent_tracks[-3:])
+        )
+    else:
+        shared_input = format_shared_input(
+            archetype=archetype,
+            station_name=station_name,
+            personality=personality,
+            current=current,
+            next_track=next_track,
+            upcoming_tracks=upcoming_tracks,
+            current_meta=current_meta,
+            next_meta=next_meta,
+            angle=angle,
+            hook=hook,
+            banned_list=banned_list,
+            recent_scripts=recent_scripts,
+            schedule_context=schedule_context,
+            short_story_focus=short_story_focus,
+            album_spotlight_focus=album_spotlight_focus,
+            era_snapshot_lane=era_snapshot_lane,
+            era_snapshot_focus=era_snapshot_focus,
+            deep_dive_lane=deep_dive_lane,
+            deep_dive_focus=deep_dive_focus,
+            locale=locale,
+        )
 
     language_heading = (
         "RÈGLE DE LANGUE (priorité absolue) :"

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 
 class Archetype(str, Enum):
+    RECENTLY_PLAYED = "recently_played"
     BACK_SELL = "back_sell"
     UP_NEXT_TEASE = "up_next_tease"
     SHORT_STORY = "short_story"

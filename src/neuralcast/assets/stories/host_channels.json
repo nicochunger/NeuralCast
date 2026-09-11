@@ -24,6 +24,7 @@
       "tts_instructions": "prompts/tts_instructions.md",
       "tts_voice": "Charon",
       "presentation": {
+        "recently_played": "Lo que escuchamos",
         "back_sell": "Puente musical",
         "up_next_tease": "Lo que viene",
         "short_story": "Historia del tema",
@@ -71,6 +72,7 @@
       "tts_instructions": "prompts/locales/en/tts_instructions.md",
       "tts_voice": "Charon",
       "presentation": {
+        "recently_played": "Recently played",
         "back_sell": "Music bridge",
         "up_next_tease": "Coming up",
         "short_story": "Track story",
@@ -119,6 +121,7 @@
       "tts_instructions": "prompts/locales/fr-CH/neuralforge_tts_instructions.md",
       "tts_voice": "Charon",
       "presentation": {
+        "recently_played": "Les derniers titres",
         "back_sell": "Transition musicale",
         "up_next_tease": "À suivre",
         "short_story": "Histoire du morceau",

@@ -149,3 +149,29 @@ instruction file, then add one or more channel entries that reference it. To add
 another stream for an existing language, only a channel entry is required. Add a
 new shared archetype policy only when several channels need the same behavior;
 otherwise prefer a small channel override.
+
+### Recently played recap
+
+`recently_played` names two or three of the latest three songs, in retrospect.
+It becomes eligible after at least four songs since the last host insertion,
+provided the previous successfully published archetype was not `up_next_tease`.
+These eligibility conditions apply only to automatic selection. Manual forcing
+bypasses the song gap and previous-archetype restriction, and can use music
+from before the last host snippet. It skips host snippets and recaps up to three
+available songs, including just one when that is all that is known. Existing
+lead-time safety checks still apply.
+
+The base policy sets `min_songs_since_host: 4` and
+`allow_after_up_next_tease: false`. Both fields are inherited and support scalar
+channel overrides. Other archetypes default to zero and true respectively.
+Automatic recaps require at least four verified songs, even if its configured
+minimum is lower; raising the minimum requires that many verified history entries.
+
+The now-playing song and AzuraCast song history establish the recent sequence.
+The current song is included because the host is inserted after it finishes.
+Only songs after the previous insertion's expected boundary are considered;
+an encountered host snippet or malformed history stops the sequence. Missing
+history or an unknown previous insertion boundary makes automatic recaps ineligible.
+The generator receives only the latest three eligible songs, leaving the first
+song of a four-song gap outside the recap, and receives no upcoming song names.
+Prompts support the existing Spanish, English, and Swiss French locales.

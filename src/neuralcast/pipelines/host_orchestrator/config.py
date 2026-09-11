@@ -450,6 +450,7 @@ PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "host_constitution": "host_constitution.md",
     "script_style_baseline": "script_style_baseline.md",
     "wrapper_back_sell": "wrapper_back_sell.md",
+    "wrapper_recently_played": "wrapper_recently_played.md",
     "wrapper_up_next_tease": "wrapper_up_next_tease.md",
     "wrapper_deep_dive": "wrapper_deep_dive.md",
     "wrapper_short_story": "wrapper_short_story.md",

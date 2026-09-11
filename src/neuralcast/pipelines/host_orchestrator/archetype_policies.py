@@ -73,6 +73,8 @@ class ArchetypePolicy:
     top_p_range: tuple[float, float]
     hook_free_probability: float
     search_enabled: bool
+    allow_after_up_next_tease: bool = True
+    min_songs_since_host: int = 0
     news: NewsPolicy | None = None
     concert_check: ConcertCheckPolicy | None = None
 
@@ -333,6 +335,8 @@ def _parse_archetype_policy(
         "top_p_range",
         "hook_free_probability",
         "search_enabled",
+        "min_songs_since_host",
+        "allow_after_up_next_tease",
         "news",
         "concert_check",
     }
@@ -382,6 +386,13 @@ def _parse_archetype_policy(
         hook_free_probability=hook_free,
         search_enabled=_require_bool(
             raw.get("search_enabled"), f"{context}.search_enabled"
+        ),
+        allow_after_up_next_tease=_require_bool(
+            raw.get("allow_after_up_next_tease", True),
+            f"{context}.allow_after_up_next_tease"
+        ),
+        min_songs_since_host=_require_int(
+            raw.get("min_songs_since_host", 0), f"{context}.min_songs_since_host"
         ),
         news=news,
         concert_check=concert,
@@ -448,6 +459,8 @@ def _apply_single_archetype_override(
         "top_p_range",
         "hook_free_probability",
         "search_enabled",
+        "min_songs_since_host",
+        "allow_after_up_next_tease",
         "news",
         "concert_check",
     }
@@ -460,6 +473,14 @@ def _apply_single_archetype_override(
     if "automatic" in raw:
         updates["automatic"] = _require_bool(
             raw["automatic"], f"{context}.automatic"
+        )
+    if "allow_after_up_next_tease" in raw:
+        updates["allow_after_up_next_tease"] = _require_bool(
+            raw["allow_after_up_next_tease"], f"{context}.allow_after_up_next_tease"
+        )
+    if "min_songs_since_host" in raw:
+        updates["min_songs_since_host"] = _require_int(
+            raw["min_songs_since_host"], f"{context}.min_songs_since_host"
         )
     if "weight" in raw:
         updates["weight"] = _require_number(raw["weight"], f"{context}.weight")

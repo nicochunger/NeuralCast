@@ -402,6 +402,7 @@ def generate_archetype_script(
     allow_ultra_minimal_fallback: bool = True,
     locale: Optional[HostLocale] = None,
     archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+    recent_tracks: Sequence[QueueTrack] = (),
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     """Generate script and structured presentation metadata.
 
@@ -440,6 +441,8 @@ def generate_archetype_script(
         locale=locale,
         archetype_policy=archetype_policy,
     )
+
+    prompt_kwargs["recent_tracks"] = recent_tracks
 
     def generate_with_retries(
         prompt: str,

@@ -188,6 +188,65 @@ def extract_current_track(
     return track, remaining
 
 
+def extract_recent_music(
+    payload: Mapping[str, Any], after_ts: Optional[float],
+    *, ignore_host_boundary: bool = False,
+) -> List[QueueTrack]:
+    """Return a verified uninterrupted run, oldest first, including current music.
+
+    The current song will finish before the requested host segment airs. Missing
+    history or an unknown previous host boundary makes automatic recaps ineligible.
+    Forced recaps may cross host boundaries, skipping snippets themselves.
+    """
+    if ignore_host_boundary:
+        after_ts = 0
+    if after_ts is None:
+        return []
+    history = payload.get("song_history")
+    if not isinstance(history, list):
+        if not ignore_host_boundary:
+            return []
+        history = []
+    result: List[QueueTrack] = []
+    previous_ts = float("inf")
+    for entry in [payload.get("now_playing"), *history]:
+        if not isinstance(entry, Mapping):
+            break
+        try:
+            played_at = float(entry["played_at"])
+        except (KeyError, TypeError, ValueError):
+            break
+        if not after_ts < played_at < previous_ts:
+            break
+        previous_ts = played_at
+        song = entry.get("song")
+        if not isinstance(song, Mapping):
+            break
+        artist = str(song.get("artist") or "").strip()
+        title = str(song.get("title") or "").strip()
+        identity = f"{artist} {title}".casefold()
+        if not artist or not title:
+            break
+        if (
+            artist.casefold() == HOST_ARTIST_NAME.casefold()
+            or "ai host" in identity
+        ):
+            if ignore_host_boundary:
+                continue
+            break
+        result.append(
+            QueueTrack(
+                queue_id=str(entry.get("sh_id") or song.get("id") or played_at),
+                song_id=str(song["id"]) if song.get("id") else None,
+                artist=artist,
+                title=title,
+                duration=None,
+                raw=dict(entry),
+            )
+        )
+    return list(reversed(result))
+
+
 def tracks_match(a: QueueTrack, b: QueueTrack) -> bool:
     if a.song_id and b.song_id and a.song_id == b.song_id:
         return True

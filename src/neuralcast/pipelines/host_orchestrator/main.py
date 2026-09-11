@@ -92,6 +92,7 @@ from .transport import (
     derive_station_display_name,
     extract_current_listeners,
     extract_current_track,
+    extract_recent_music,
     extract_telnet_request_id,
     extract_upload_duration,
     extract_upload_media_id,
@@ -129,6 +130,7 @@ class PlaybackContext:
     current_remaining: int
     current_key: str
     listener_count: int | None
+    recent_tracks: Sequence[QueueTrack] = ()
 
 
 @dataclass(frozen=True)
@@ -357,6 +359,13 @@ def _fetch_playback_context(
         current_remaining=current_remaining,
         current_key=current_key,
         listener_count=listener_count,
+        recent_tracks=extract_recent_music(
+            now_playing_payload,
+            state.last_spoken_expected_end_ts,
+            ignore_host_boundary=(
+                getattr(args, "force_archetype", None) == Archetype.RECENTLY_PLAYED
+            ),
+        ),
     )
 
 
@@ -489,6 +498,7 @@ def _select_archetype(
         now_ts(),
         current_remaining=playback.current_remaining,
         seconds_until_block_change=seconds_until_block_change,
+        recent_tracks=playback.recent_tracks,
         archetype_policy=archetype_policy,
     )
     if legal:
@@ -940,6 +950,7 @@ class HostOrchestratorRuntime:
 
             script_text, segment_metadata_raw, archetype_used = deps.generate_script(
                 archetype=generation_context.selected_archetype,
+                recent_tracks=playback.recent_tracks,
                 station_name=runtime.generation_station_name,
                 personality=runtime.station_personality,
                 current_track=playback.current_track,
