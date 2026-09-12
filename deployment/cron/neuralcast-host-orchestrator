@@ -13,3 +13,7 @@ CRON_TZ=Europe/Zurich
 
 # Run the French NeuralForge channel on odd-numbered minutes.
 1-59/2 * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1
+
+# Prepare/check pending block intros every minute on both NeuralForge channels.
+* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge --scheduled-block-intros-only >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
+* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr --scheduled-block-intros-only >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1

@@ -10,11 +10,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 from .config import (
-    SCHEDULE_BLOCK_INTRO_CONFIRMATION_TRACKS,
     LOGGER,
-    SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES,
-    SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS,
-    SCHEDULE_BLOCK_INTRO_LATE_START_WINDOW_MINUTES,
     SCHEDULE_MENTION_MAX_ENTRIES,
     SCHEDULE_MENTION_RETENTION_DAYS,
     SCHEDULE_MID_PROGRESS_RANGE,
@@ -281,56 +277,6 @@ def _normalize_playlist_token(value: Any) -> str:
     return re.sub(r"\s+", " ", text)
 
 
-def _extract_queue_track_playlist_refs(track: Optional[QueueTrack]) -> Tuple[set[str], set[str]]:
-    if track is None:
-        return set(), set()
-
-    ids: set[str] = set()
-    names: set[str] = set()
-
-    def _add_id(value: Any) -> None:
-        token = _normalize_playlist_token(value)
-        if token:
-            ids.add(token)
-
-    def _add_name(value: Any) -> None:
-        token = _normalize_playlist_token(value)
-        if token:
-            names.add(token)
-
-    def _consume_mapping(payload: Mapping[str, Any]) -> None:
-        playlist_value = payload.get("playlist")
-        if isinstance(playlist_value, Mapping):
-            _add_id(playlist_value.get("id"))
-            _add_name(playlist_value.get("name"))
-            _add_name(playlist_value.get("playlist_name"))
-        elif playlist_value is not None:
-            _add_name(playlist_value)
-
-        _add_id(payload.get("playlist_id"))
-        _add_name(payload.get("playlist_name"))
-
-        playlists_value = payload.get("playlists")
-        if isinstance(playlists_value, Sequence) and not isinstance(
-            playlists_value, (str, bytes)
-        ):
-            for item in playlists_value:
-                if isinstance(item, Mapping):
-                    _add_id(item.get("id"))
-                    _add_name(item.get("name"))
-                    _add_name(item.get("playlist_name"))
-                elif item is not None:
-                    _add_name(item)
-
-    if isinstance(track.raw, Mapping):
-        _consume_mapping(track.raw)
-        song_payload = track.raw.get("song")
-        if isinstance(song_payload, Mapping):
-            _consume_mapping(song_payload)
-
-    return ids, names
-
-
 def _extract_block_playlist_refs(entry: Mapping[str, Any]) -> Tuple[set[str], set[str]]:
     ids: set[str] = set()
     names: set[str] = set()
@@ -359,31 +305,6 @@ def _extract_block_playlist_refs(entry: Mapping[str, Any]) -> Tuple[set[str], se
         names.add(legacy_playlist_name)
 
     return ids, names
-
-
-def _track_matches_block_playlist(
-    track: Optional[QueueTrack],
-    block_entry: Mapping[str, Any],
-) -> Optional[bool]:
-    block_mode = str(block_entry.get("mode") or "open").strip().lower()
-    if block_mode == "open":
-        return None
-
-    block_ids, block_names = _extract_block_playlist_refs(block_entry)
-    if not block_ids and not block_names:
-        return None
-
-    track_ids, track_names = _extract_queue_track_playlist_refs(track)
-    if not track_ids and not track_names:
-        return None
-
-    result = False
-    if block_ids and track_ids and block_ids.intersection(track_ids):
-        result = True
-    if block_names and track_names and block_names.intersection(track_names):
-        result = True
-
-    return result
 
 
 def load_schedule_state_payload(
@@ -483,32 +404,13 @@ def resolve_schedule_context(
     mention_entry = mention_state.get(block_key, {})
     mention_intent: Optional[str] = None
     elapsed_minutes = max(0.0, (now_local - start_dt).total_seconds() / 60.0)
-    elapsed_seconds = max(0.0, (now_local - start_dt).total_seconds())
-    start_window_minutes_ok = elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES
-    start_window_grace_ok = (
-        elapsed_seconds <= SCHEDULE_BLOCK_INTRO_BOUNDARY_GRACE_SECONDS
-    )
-    late_start_window_seconds = (
-        SCHEDULE_BLOCK_INTRO_LATE_START_WINDOW_MINUTES * 60
-    )
-    late_start_window_ok = elapsed_seconds <= late_start_window_seconds
     start_already_mentioned = bool(mention_entry.get("start"))
     mid_window_ok = (
         SCHEDULE_MID_PROGRESS_RANGE[0]
         <= progress_ratio
         <= SCHEDULE_MID_PROGRESS_RANGE[1]
     )
-    if (
-        start_window_minutes_ok
-        and start_window_grace_ok
-        and not start_already_mentioned
-    ):
-        mention_intent = "start"
-    elif (
-        phase == "start"
-        and not start_already_mentioned
-        and late_start_window_ok
-    ):
+    if elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES and not start_already_mentioned:
         mention_intent = "start"
     elif (
         mid_window_ok
@@ -581,117 +483,8 @@ def resolve_schedule_context_for_upcoming_break(
     next_track: Optional[QueueTrack],
     upcoming_tracks: Sequence[QueueTrack] = (),
 ) -> Optional[ScheduleContext]:
-    boundary_context = resolve_schedule_context(
-        schedule_state=schedule_state,
-        ts=ts_break,
-        mention_state=mention_state,
-    )
-    if (
-        boundary_context is not None
-        and boundary_context.mention_intent == "start"
-    ):
-        return boundary_context
-
-    if not isinstance(schedule_state, Mapping):
-        return boundary_context
-
-    schedule_tz = _resolve_schedule_timezone(schedule_state)
-    now_local = dt.datetime.fromtimestamp(ts_now, tz=schedule_tz)
-    break_local = dt.datetime.fromtimestamp(ts_break, tz=schedule_tz)
-    parsed_blocks = _parse_schedule_blocks(schedule_state, now_local, schedule_tz)
-    if not parsed_blocks:
-        return boundary_context
-
-    next_block_index: Optional[int] = None
-    for idx, (start_dt, _, _, _, _) in enumerate(parsed_blocks):
-        if start_dt > now_local:
-            next_block_index = idx
-            break
-    if next_block_index is None:
-        return boundary_context
-
-    next_start_dt, _, next_block_key, next_entry, _ = parsed_blocks[next_block_index]
-    starts_in_seconds = (next_start_dt - now_local).total_seconds()
-    if starts_in_seconds < 0:
-        return boundary_context
-    if starts_in_seconds > SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES * 60:
-        return boundary_context
-
-    mention_entry = mention_state.get(next_block_key, {})
-    if bool(mention_entry.get("start")):
-        return boundary_context
-
-    playlist_match = _track_matches_block_playlist(next_track, next_entry)
-    break_after_start = break_local >= next_start_dt
-
-    should_force_recovery_start = False
-    reason = ""
-    if break_after_start:
-        if playlist_match is False:
-            LOGGER.info(
-                "[schedule] Skipping block intro recovery for '%s': next track playlist does not match next block.",
-                str(next_entry.get("section_label") or next_entry.get("playlist_name") or "n/d"),
-            )
-            return boundary_context
-        should_force_recovery_start = True
-        reason = "break_after_block_start_recovery"
-    elif playlist_match is True:
-        confirmation_tracks = list(
-            upcoming_tracks[:SCHEDULE_BLOCK_INTRO_CONFIRMATION_TRACKS]
-        )
-        confirmation_matches = [
-            _track_matches_block_playlist(track, next_entry)
-            for track in confirmation_tracks
-        ]
-        confirmed_count = sum(match is True for match in confirmation_matches)
-        required_count = SCHEDULE_BLOCK_INTRO_CONFIRMATION_TRACKS
-        if len(confirmation_tracks) < required_count:
-            LOGGER.info(
-                "[schedule] Deferring early block intro for '%s': "
-                "only %s/%s upcoming tracks available for confirmation.",
-                str(
-                    next_entry.get("section_label")
-                    or next_entry.get("playlist_name")
-                    or "n/d"
-                ),
-                len(confirmation_tracks),
-                required_count,
-            )
-            return boundary_context
-        if confirmed_count < required_count:
-            LOGGER.info(
-                "[schedule] Deferring early block intro for '%s': "
-                "upcoming playlist matches=%s/%s.",
-                str(
-                    next_entry.get("section_label")
-                    or next_entry.get("playlist_name")
-                    or "n/d"
-                ),
-                confirmed_count,
-                required_count,
-            )
-            return boundary_context
-        should_force_recovery_start = True
-        reason = f"next_{required_count}_tracks_match_upcoming_block"
-
-    if not should_force_recovery_start:
-        return boundary_context
-
-    intro_context = resolve_schedule_context(
-        schedule_state=schedule_state,
-        ts=next_start_dt.timestamp(),
-        mention_state=mention_state,
-    )
-    if intro_context is None:
-        return boundary_context
-
-    LOGGER.info(
-        "[schedule] Robust block intro trigger for '%s' (%s; starts in %ss).",
-        intro_context.section_label,
-        reason,
-        int(starts_in_seconds),
-    )
-    return intro_context
+    # Playlist membership does not determine when an intro belongs on air.
+    return resolve_schedule_context(schedule_state, ts_break, mention_state)
 
 
 def should_force_block_intro(

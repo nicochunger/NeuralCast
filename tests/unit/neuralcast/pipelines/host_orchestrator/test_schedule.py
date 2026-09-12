@@ -69,7 +69,7 @@ def test_resolve_station_metadata_file_prefers_metadata_then_legacy(tmp_path) ->
     assert schedule.resolve_station_metadata_file(station_dir, "state.json") == current
 
 
-def test_early_block_intro_requires_three_consecutive_playlist_matches() -> None:
+def test_early_break_does_not_introduce_upcoming_block() -> None:
     timezone = ZoneInfo("Europe/Zurich")
     now_local = dt.datetime(2026, 8, 24, 19, 20, tzinfo=timezone)
     tracks = [
@@ -92,7 +92,7 @@ def test_early_block_intro_requires_three_consecutive_playlist_matches() -> None
     assert context.mention_intent is None
 
 
-def test_early_block_intro_accepts_three_consecutive_playlist_matches() -> None:
+def test_early_break_ignores_even_three_matching_playlists() -> None:
     timezone = ZoneInfo("Europe/Zurich")
     now_local = dt.datetime(2026, 8, 24, 19, 20, tzinfo=timezone)
     tracks = [
@@ -111,8 +111,8 @@ def test_early_block_intro_accepts_three_consecutive_playlist_matches() -> None:
     )
 
     assert context is not None
-    assert context.section_label == "Acoustic Singer-Songwriter + Aspen Vibes"
-    assert context.mention_intent == "start"
+    assert context.section_label == "Bloque libre"
+    assert context.mention_intent is None
 
 
 def test_block_intro_after_scheduled_start_does_not_require_three_tracks() -> None:

@@ -152,6 +152,8 @@ class OrchestratorState:
     recent_scripts: List[str]
     schedule_block_mentions: Dict[str, Dict[str, Any]]
 
+    pending_block_intro: Optional[Dict[str, Any]] = None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "state_version": self.state_version,
@@ -170,4 +172,5 @@ class OrchestratorState:
             "recent_news_dedup": self.recent_news_dedup,
             "recent_scripts": self.recent_scripts,
             "schedule_block_mentions": self.schedule_block_mentions,
+            "pending_block_intro": self.pending_block_intro,
         }

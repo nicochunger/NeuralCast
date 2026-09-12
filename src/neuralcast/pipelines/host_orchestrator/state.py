@@ -380,6 +380,10 @@ def migrate_state(
             ts,
         )
 
+    pending = raw.get("pending_block_intro")
+    if isinstance(pending, dict):
+        state.pending_block_intro = pending
+
     state.state_version = STATE_VERSION
     return state
 

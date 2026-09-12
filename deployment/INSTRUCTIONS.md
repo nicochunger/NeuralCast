@@ -75,11 +75,37 @@ the same cycle cannot run twice. Both definitions use Europe/Zurich time. The
 production cadence is:
 
 - NeuralCast normal host cycle every two minutes (temporary NeuralForge cadence);
-- NeuralCast scheduled-block-intro check every minute;
+- scheduled-block-intro check every minute on all three host channels;
 - NeuralForge host cycle every two minutes;
 - French NeuralForge host cycle on odd-numbered minutes;
 - NeuralForge weekly schedule generation Monday at `00:05`;
 - NeuralCast weekly schedule generation Monday at `00:15`.
+
+### Block intro preparation and insertion
+
+Automatic block intros use the first queue entry whose predicted `played_at`
+is at or after the block's scheduled start. Playlist membership is not checked.
+Within ten minutes of the start, once the queue reaches that boundary, a host
+cycle generates the intro using the target song and its preceding song. The
+audio and script stay in the existing snippet directories; a `pending_block_intro`
+record in the channel's orchestrator state carries the preparation across cron runs.
+
+Subsequent normal or schedule-only cycles reuse that audio. They reserve the
+pending intro's window instead of generating ordinary host breaks, and submit
+it through `requests.push` only when its target is next. Playback and target
+identity are checked again after upload, with a 15-second minimum remaining
+time for insertion. A changed target, preceding song, or block description
+requires fresh generation. Preparation does not consume cadence or mark the
+block introduced; successful submission does. The channel lock serializes
+normal and schedule-only jobs. Submission attempts are persisted before the
+non-idempotent queue command; an ambiguous timeout is not retried, to avoid
+playing the same introduction twice.
+
+If polling misses the first boundary, the intro is discarded instead of
+announcing the block over a later song. Missing queue playback timestamps defer
+preparation. The timing rule intentionally allows an old-block song delayed
+past the scheduled start to be the introduced song. Dry runs do not persist
+prepared intros or submit audio.
 
 ## Runtime Log Layout
 

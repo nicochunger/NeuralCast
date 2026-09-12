@@ -52,10 +52,10 @@ def test_all_repository_cron_definitions_use_zurich_time() -> None:
 def test_host_orchestrator_cron_preserves_production_configuration() -> None:
     entries = _cron_entries("neuralcast-host-orchestrator")
 
-    assert len(entries) == 4
+    assert len(entries) == 6
     _assert_entry(
         entries[0],
-        schedule=("*/30", "*", "*", "*", "*"),
+        schedule=("*/2", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator -s neuralcast",
         log_path="runtime/logs/host_orchestrator/neuralcast/cron.log",
     )
@@ -80,6 +80,16 @@ def test_host_orchestrator_cron_preserves_production_configuration() -> None:
         invocation="-m neuralcast.cli.host_orchestrator --channel neuralforge-fr",
         log_path="runtime/logs/host_orchestrator/neuralforge-fr/cron.log",
     )
+    for entry, channel, selector in [
+        (entries[4], "neuralforge", "-s neuralforge"),
+        (entries[5], "neuralforge-fr", "--channel neuralforge-fr"),
+    ]:
+        _assert_entry(
+            entry,
+            schedule=("*", "*", "*", "*", "*"),
+            invocation=f"-m neuralcast.cli.host_orchestrator {selector} --scheduled-block-intros-only",
+            log_path=f"runtime/logs/host_orchestrator/{channel}/cron.log",
+        )
 
 
 def test_schedule_generator_cron_preserves_production_configuration() -> None:
