@@ -42,10 +42,6 @@ def _station_label_map(station_slug: str) -> Mapping[str, Tuple[str, Tuple[str, 
         _name_key("Folk Metal"): ("Folk metal", ("folk metal",)),
         _name_key("Folk Rock"): ("Folk rock", ("folk rock",)),
         _name_key("Hard Rock"): ("Hard rock", ("hard rock",)),
-        _name_key("Instrumental Prog Metal"): (
-            "Prog instrumental",
-            ("prog instrumental", "metal progresivo"),
-        ),
         _name_key("Melodic Death Metal"): (
             "Death melodico",
             ("death melodico", "metal extremo"),
@@ -74,12 +70,6 @@ def _neuralforge_combo_presets(
             "Hard y heavy",
             ("hard rock", "metal clasico"),
             1.08,
-        ),
-        (
-            ("Prog Metal", "Instrumental Prog Metal"),
-            "Progresivo e instrumental",
-            ("metal progresivo", "prog instrumental"),
-            1.10,
         ),
         (
             ("Power Metal", "Symphonic Metal"),
