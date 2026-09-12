@@ -80,6 +80,9 @@ class ScheduleContext:
     next_section_label: Optional[str]
     start_local_iso: str
     end_local_iso: str
+    playlist_names: List[str] = field(default_factory=list)
+    official_titles: Dict[str, str] = field(default_factory=dict)
+    next_official_titles: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

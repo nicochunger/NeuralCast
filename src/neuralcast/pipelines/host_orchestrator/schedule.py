@@ -405,6 +405,45 @@ def load_schedule_state_payload(
     return None
 
 
+def _official_block_titles(
+    state: Mapping[str, Any], entry: Mapping[str, Any]
+) -> Dict[str, str]:
+    """Match cached editorial copy by the complete playlist set, never overlap."""
+    if entry.get("mode") == "open":
+        return {}
+    presentation = state.get("presentation")
+    if not isinstance(presentation, Mapping):
+        return {}
+    if presentation.get("plan_hash") != state.get("plan_hash"):
+        return {}
+    blocks = presentation.get("blocks")
+    if not isinstance(blocks, list):
+        return {}
+    ids, names = _extract_block_playlist_refs(entry)
+    for block in blocks:
+        if not isinstance(block, Mapping) or block.get("kind") != "combo":
+            continue
+        candidate_ids, candidate_names = _extract_block_playlist_refs(block)
+        matches = (
+            ids == candidate_ids
+            if ids and candidate_ids
+            else bool(names) and names == candidate_names
+        )
+        if not matches:
+            continue
+        translations = block.get("translations")
+        if not isinstance(translations, Mapping):
+            continue
+        return {
+            language: copy["title"].strip()
+            for language, copy in translations.items()
+            if isinstance(copy, Mapping)
+            and isinstance(copy.get("title"), str)
+            and copy["title"].strip()
+        }
+    return {}
+
+
 def resolve_schedule_context(
     schedule_state: Optional[Mapping[str, Any]],
     ts: float,
@@ -482,14 +521,17 @@ def resolve_schedule_context(
         mention_intent = "mid"
 
     next_section_label: Optional[str] = None
+    next_official_titles: Dict[str, str] = {}
     for start_candidate, _, _, entry_candidate, _ in parsed_blocks:
         if start_candidate > now_local:
             candidate_label = str(entry_candidate.get("section_label") or "").strip()
             next_section_label = candidate_label or None
+            next_official_titles = _official_block_titles(schedule_state, entry_candidate)
             break
     if next_section_label is None and parsed_blocks:
         candidate_label = str(parsed_blocks[0][3].get("section_label") or "").strip()
         next_section_label = candidate_label or None
+        next_official_titles = _official_block_titles(schedule_state, parsed_blocks[0][3])
 
     section_label = str(current_entry.get("section_label") or "").strip()
     if not section_label:
@@ -516,6 +558,17 @@ def resolve_schedule_context(
         next_section_label=next_section_label,
         start_local_iso=start_dt.isoformat(),
         end_local_iso=end_dt.isoformat(),
+        playlist_names=(
+            [
+                str(name).strip()
+                for name in current_entry["playlist_names"]
+                if str(name).strip()
+            ]
+            if isinstance(current_entry.get("playlist_names"), list)
+            else []
+        ),
+        official_titles=_official_block_titles(schedule_state, current_entry),
+        next_official_titles=next_official_titles,
     )
     return context
 

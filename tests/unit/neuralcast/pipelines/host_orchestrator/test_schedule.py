@@ -132,3 +132,57 @@ def test_block_intro_after_scheduled_start_does_not_require_three_tracks() -> No
     assert context is not None
     assert context.section_label == "Acoustic Singer-Songwriter + Aspen Vibes"
     assert context.mention_intent == "start"
+
+
+def test_editorial_combo_title_reaches_localized_host_prompt() -> None:
+    from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
+    from neuralcast.pipelines.host_orchestrator.models import (
+        Archetype, StationPersonality, TrackMetadata,
+    )
+    from neuralcast.pipelines.host_orchestrator.prompts import format_shared_input
+
+    state = _open_to_aspen_schedule("2026-08-24")
+    state["plan_hash"] = "current"
+    entry = state["expanded_blocks"][1]
+    entry["playlist_ids"] = ["20", "21"]
+    entry["playlist_names"] = ["Aspen Vibes", "Acoustic Singer-Songwriter"]
+    state["presentation"] = {
+        "plan_hash": "current",
+        "blocks": [{
+            "kind": "combo", "playlist_ids": ["21", "20"],
+            "translations": {
+                "es": {"title": "Refugio Acustico"},
+                "en": {"title": "Acoustic Retreat"},
+            },
+        }],
+    }
+    timestamp = dt.datetime(2026, 8, 24, 19, 30, tzinfo=ZoneInfo("Europe/Zurich")).timestamp()
+    context = schedule.resolve_schedule_context(state, timestamp, {})
+    assert context.official_titles["es"] == "Refugio Acustico"
+    assert context.playlist_names == entry["playlist_names"]
+    track = _queue_track("1", "Artist", "Song", "Aspen Vibes")
+    for tag, title, rule in [
+        ("es-AR", "Refugio Acustico", "No enumerar ni recitar"),
+        ("fr-CH", "Acoustic Retreat", "Ne pas énumérer ni réciter"),
+    ]:
+        prompt = format_shared_input(
+            archetype=Archetype.BLOCK_INTRO, station_name="NeuralForge",
+            personality=StationPersonality("warm", "warm"),
+            current=track, next_track=track, upcoming_tracks=[],
+            current_meta=TrackMetadata(), next_meta=TrackMetadata(),
+            angle=None, hook="", banned_list=[], recent_scripts=[],
+            schedule_context=context, locale=get_channel_registry().locales[tag],
+        )
+        assert title in prompt
+        assert rule in prompt
+        assert "Acoustic Singer-Songwriter + Aspen Vibes" not in prompt
+
+    before = schedule.resolve_schedule_context(state, timestamp - 60, {})
+    assert before.official_titles == {}
+    assert before.next_official_titles == context.official_titles
+
+    state["presentation"]["plan_hash"] = "outdated"
+    assert schedule.resolve_schedule_context(state, timestamp, {}).official_titles == {}
+    state["presentation"]["plan_hash"] = "current"
+    state["presentation"]["blocks"][0]["playlist_ids"] = ["20", "99"]
+    assert schedule.resolve_schedule_context(state, timestamp, {}).official_titles == {}

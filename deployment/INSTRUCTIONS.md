@@ -74,7 +74,7 @@ Remove any equivalent personal-crontab entries before installing these files so
 the same cycle cannot run twice. Both definitions use Europe/Zurich time. The
 production cadence is:
 
-- NeuralCast normal host cycle every 30 minutes;
+- NeuralCast normal host cycle every two minutes (temporary NeuralForge cadence);
 - NeuralCast scheduled-block-intro check every minute;
 - NeuralForge host cycle every two minutes;
 - French NeuralForge host cycle on odd-numbered minutes;
@@ -167,3 +167,20 @@ Cron output lands in:
 ```text
 /root/projects/NeuralCast/runtime/logs/admin_api_bridge_repair.log
 ```
+
+### Temporary NeuralCast cadence (2026-09-12)
+
+NeuralCast Spanish temporarily uses `cadence_profile: "neuralforge"` in
+`host_channels.json`: 2–5 songs, a 45-minute speaking deadline, and a 1.0
+archetype cooldown multiplier. Its normal host cron runs every two minutes.
+To restore the previous behavior, remove that channel override and change its
+normal cron entry back to `*/30`, then install the cron file as above and restart
+`neuralcast-admin-api`. The preserved NeuralCast defaults are 7–12 songs,
+a 120-minute speaking deadline, and a 2.0 cooldown multiplier. The separate
+every-minute scheduled-block-intro check remains in place.
+
+All NeuralCast archetypes are also temporarily enabled. To restore the previous
+selection, set `enabled` back to `false` for `deep_dive`, `era_snapshot`,
+`concert_check`, and `album_spotlight` in the `neuralcast.archetype_overrides`
+profile in `src/neuralcast/assets/stories/archetype_profiles.json`, then restart
+`neuralcast-admin-api`. The explicit entries remain in place for easy reversal.

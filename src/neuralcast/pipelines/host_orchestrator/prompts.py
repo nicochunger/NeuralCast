@@ -44,8 +44,16 @@ def _spoken_section_label(
     if schedule_context.mode == "open":
         return str(locale.schedule.get("open_label") or "open rotation")
 
-    section = schedule_context.section_label.strip()
+    section = (
+        _localized_block_title(schedule_context.official_titles, locale)
+        or schedule_context.section_label.strip()
+    )
     return section or str(locale.schedule.get("open_label") or "this block")
+
+
+def _localized_block_title(titles: dict[str, str], locale: HostLocale) -> str:
+    language = locale.tag.split("-", 1)[0]
+    return titles.get(language) or titles.get("en") or titles.get("es") or ""
 
 
 def format_shared_input(
@@ -197,7 +205,7 @@ def format_shared_input(
         next_section_line = (
             "  - Proxima seccion: oculta para mencion de mitad de bloque (evitar encuadre de cierre)."
             if schedule_context.mention_intent == "mid"
-            else f"  - Proxima seccion: {schedule_context.next_section_label or 'n/d'}"
+            else f"  - Proxima seccion: {_localized_block_title(schedule_context.next_official_titles, locale) or schedule_context.next_section_label or 'n/d'}"
         )
         lines.extend(
             [
@@ -216,19 +224,23 @@ def format_shared_input(
             lines.append(
                 "  - Si mencionas este bloque open, sumar una clausula corta aclarando que puede sonar cualquier genero o cruce del catalogo."
             )
-        elif schedule_context.playlist_name:
-            lines.append(f"  - Modo del bloque: playlist fija ({schedule_context.playlist_name}).")
+        else:
+            lines.extend([
+                f"  - Nombre oficial al aire: {spoken_section_label}",
+                f"  - Playlists (solo contexto interno): {', '.join(schedule_context.playlist_names) or schedule_context.playlist_name or 'n/d'}",
+                "  - Usar el nombre oficial al mencionar el bloque. No enumerar ni recitar los nombres de las playlists, ni usarlos como nombre del bloque. Usar playlists y generos solo para describir naturalmente su sonido, ambiente o energia; no convertir las etiquetas en una lista al aire.",
+            ])
 
         if schedule_context.mention_intent == "start":
             lines.append(
-                "- Guia de mencion de grilla: este guion sale en el limite de inicio del bloque; presentar la seccion como arrancando ahora (justo antes de su primer tema) y mencionar 1-2 etiquetas de genero que definan el bloque."
+                "- Guia de mencion de grilla: este guion sale en el limite de inicio del bloque; presentar la seccion como arrancando ahora (justo antes de su primer tema) y describir brevemente el sonido del bloque sin enumerar etiquetas."
             )
             lines.append(
                 "- Variacion de redaccion de grilla: al nombrar el bloque, variar el sustantivo de forma natural (por ejemplo: bloque, segmento, seccion, tramo, parte) en vez de repetir siempre la misma palabra."
             )
         elif schedule_context.mention_intent == "mid":
             lines.append(
-                "- Guia de mencion de grilla: incluir una clausula corta y natural diciendo que estamos en esta seccion/bloque ahora mismo, y mencionar la linea de generos que representa (1-2 etiquetas)."
+                "- Guia de mencion de grilla: incluir una clausula corta y natural diciendo que estamos en esta seccion/bloque ahora mismo, y evocar naturalmente su sonido sin enumerar etiquetas."
             )
             lines.append(
                 "- Variacion de redaccion de grilla: al referirte al bloque en curso, podes alternar palabras como bloque, segmento, seccion, tramo o parte para que no suene repetitivo."
@@ -729,14 +741,15 @@ def _format_shared_input_fr(
         lines.append("- Textes récents générés pour l'animateur : aucun")
 
     if schedule_context is not None:
-        spoken_section_label = _french_schedule_term(
-            _spoken_section_label(schedule_context, locale)
+        spoken_section_label = (
+            _localized_block_title(schedule_context.official_titles, locale)
+            or _french_schedule_term(_spoken_section_label(schedule_context, locale))
         )
         next_section_line = (
             "  - Prochaine section : masquée pour une mention en milieu de séquence, afin d'éviter une impression de clôture."
             if schedule_context.mention_intent == "mid"
             else "  - Prochaine section : "
-            + _french_schedule_term(schedule_context.next_section_label or "n/d")
+            + (_localized_block_title(schedule_context.next_official_titles, locale) or _french_schedule_term(schedule_context.next_section_label or "n/d"))
         )
         lines.extend(
             [
@@ -759,22 +772,24 @@ def _format_shared_input_fr(
                     "  - Si tu mentionnes cette rotation libre, ajoute une courte proposition indiquant que tous les genres ou croisements du catalogue peuvent passer.",
                 ]
             )
-        elif schedule_context.playlist_name:
-            lines.append(
-                f"  - Mode de la séquence : playlist fixe ({schedule_context.playlist_name})."
-            )
+        else:
+            lines.extend([
+                f"  - Nom officiel à l'antenne : {spoken_section_label}",
+                f"  - Playlists (contexte interne uniquement) : {', '.join(schedule_context.playlist_names) or schedule_context.playlist_name or 'n/d'}",
+                "  - Employer le nom officiel pour nommer la séquence. Ne pas énumérer ni réciter les noms des playlists, ni les utiliser comme nom de séquence. Utiliser les playlists et genres uniquement pour décrire naturellement le son, l'ambiance ou l'énergie, sans lire une liste d'étiquettes à l'antenne.",
+            ])
 
         if schedule_context.mention_intent == "start":
             lines.extend(
                 [
-                    "- Guide de mention de la grille : ce texte passe à la limite de début de la séquence ; présenter la section comme commençant maintenant, juste avant son premier morceau, et citer 1 à 2 genres qui la définissent.",
+                    "- Guide de mention de la grille : ce texte passe à la limite de début de la séquence ; présenter la section comme commençant maintenant, juste avant son premier morceau, et évoquer son ambiance musicale sans énumérer les genres.",
                     "- Variation de formulation : varier naturellement le nom employé, par exemple séquence, segment, section, partie ou tranche, au lieu de toujours répéter le même.",
                 ]
             )
         elif schedule_context.mention_intent == "mid":
             lines.extend(
                 [
-                    "- Guide de mention de la grille : inclure une courte proposition naturelle disant que nous sommes dans cette section maintenant, avec 1 à 2 genres qui la représentent.",
+                    "- Guide de mention de la grille : inclure une courte proposition naturelle disant que nous sommes dans cette section maintenant, en évoquant naturellement son ambiance musicale sans énumération.",
                     "- Variation de formulation : alterner naturellement séquence, segment, section, partie ou tranche pour éviter les répétitions.",
                     "- Style : intégrer la mention dans le flux de l'archétype choisi, pas comme annonce séparée ; ces rappels sont occasionnels, environ toutes les 2 à 3 interventions, il faut donc l'inclure cette fois.",
                     "- Règle obligatoire de milieu de séquence : traiter la séquence comme ACTUELLEMENT EN COURS ; ne pas dire ni suggérer qu'elle se ferme, se termine ou va changer.",
