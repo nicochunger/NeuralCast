@@ -125,7 +125,7 @@ def test_force_bypasses_recap_eligibility_gate():
 
 @pytest.mark.parametrize("locale", ["es-AR", "en", "fr-CH"])
 @pytest.mark.parametrize("count", [1, 2, 3, 4])
-def test_prompt_only_receives_last_three_verified_songs(locale, count):
+def test_prompt_receives_last_three_verified_songs_and_next_track(locale, count):
     tracks = extract_recent_music(history(), 150)[-count:]
     prompt = build_prompt(
         Archetype.RECENTLY_PLAYED,
@@ -145,7 +145,7 @@ def test_prompt_only_receives_last_three_verified_songs(locale, count):
         recent_tracks=tracks,
     )
     assert "Artist 2" not in prompt
-    assert "Future artist" not in prompt
+    assert "Future artist — Future title" in prompt
     assert all(track.artist in prompt for track in tracks[-3:])
     assert get_channel_registry().locales[locale].script_guidance in prompt
 

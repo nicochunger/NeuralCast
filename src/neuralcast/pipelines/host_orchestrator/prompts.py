@@ -971,6 +971,8 @@ def build_prompt(
             + "Mention up to three supplied songs; if only one is available, recap only that song.\n"
             + "Verified recently played songs (oldest to newest; final song ends before this segment):\n"
             + "\n".join(f"- {track.artist} — {track.title}" for track in recent_tracks[-3:])
+            + "\nConfirmed next song (announce this exact artist and title at the end):\n"
+            + f"- {next_track.artist} — {next_track.title}"
         )
     else:
         shared_input = format_shared_input(
