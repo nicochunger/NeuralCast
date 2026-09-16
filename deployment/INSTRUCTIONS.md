@@ -146,6 +146,21 @@ from overlapping. A failed NeuralForge New Releases refresh skips its sync so an
 incomplete playlist is not downloaded; the independent NeuralCast sync still runs.
 Output is appended to `runtime/logs/catalog_maintenance.log`.
 
+After all pipelines succeed, the same locked maintenance run commits changed
+playlist CSVs from both stations and their `ArtistIDs.json`,
+`New Releases.metadata.json`, and `New Releases.exclusions.json` files, then
+pushes `main` to `origin`. New CSVs and deleted CSVs are included. Unrelated
+staged code, media, logs, and host/schedule runtime state are excluded from the
+commit. No empty commit is created when the catalog is unchanged.
+
+Automatic publication requires the checkout to be on `main`, a configured Git
+author, and working noninteractive credentials for `origin`. A pipeline failure
+skips commit/push. A Git failure marks maintenance as failed and leaves local
+changes/commits intact; the next successful run retries the push even if there
+are no new catalog changes. Remote divergence is reported without force-pushing
+or automatically merging. Like any branch push, this also publishes any other
+commits already waiting on local `main`.
+
 Install runtime log rotation with:
 
 ```bash

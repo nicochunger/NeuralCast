@@ -26,6 +26,49 @@ run_pipeline() {
     fi
 }
 
+publish_catalog_changes() {
+    local branch
+    branch=$(git symbolic-ref --quiet --short HEAD) || return 1
+    if [[ "${branch}" != "main" ]]; then
+        log "Refusing automatic catalog publication from branch ${branch}; expected main"
+        return 1
+    fi
+
+    # Enumerate only catalog sources, including deletions and new CSVs. Never
+    # sweep up media, runtime state, logs, or unrelated staged development work.
+    local -a paths=()
+    local inventory
+    inventory=$(mktemp) || return 1
+    if ! git ls-files -z --cached --others --exclude-standard -- \
+        ':(glob)NeuralCast/playlists/*.csv' \
+        ':(glob)NeuralForge/playlists/*.csv' \
+        'NeuralCast/metadata/ArtistIDs.json' \
+        'NeuralCast/metadata/New Releases.metadata.json' \
+        'NeuralCast/metadata/New Releases.exclusions.json' \
+        'NeuralForge/metadata/ArtistIDs.json' \
+        'NeuralForge/metadata/New Releases.metadata.json' \
+        'NeuralForge/metadata/New Releases.exclusions.json' > "${inventory}"; then
+        rm -f "${inventory}"
+        return 1
+    fi
+    mapfile -d '' -t paths < "${inventory}"
+    rm -f "${inventory}"
+    if (( ${#paths[@]} )); then
+        git add -A -- "${paths[@]}" || return 1
+        if git diff --cached --quiet -- "${paths[@]}"; then
+            log "No catalog changes to commit"
+        else
+            git commit --only -m "Update station catalogs after scheduled maintenance" \
+                -- "${paths[@]}" || return 1
+        fi
+    fi
+
+    # Always retry a previous unpushed commit, even on an otherwise unchanged
+    # run. Never force-push, auto-merge, or discard work after a remote rejection.
+    GIT_TERMINAL_PROMPT=0 git push origin main || return 1
+    log "Catalog changes published to origin/main"
+}
+
 if [[ "${mode}" != "daily" && "${mode}" != "saturday" ]]; then
     echo "Usage: $0 {daily|saturday}" >&2
     exit 2
@@ -68,6 +111,15 @@ fi
 run_pipeline \
     "NeuralCast playlist sync" \
     -m neuralcast.cli.sync_playlists -s neuralcast || status=1
+
+if (( status == 0 )); then
+    if ! publish_catalog_changes; then
+        log "FAILED catalog commit/push; changes retained locally for the next successful run"
+        status=1
+    fi
+else
+    log "Skipping catalog commit/push because a pipeline failed"
+fi
 
 log "Catalog maintenance finished with status ${status}"
 exit "${status}"
