@@ -13,15 +13,8 @@ from neuralcast.pipelines.host_orchestrator.archetype_policies import (
 from neuralcast.pipelines.host_orchestrator.models import Archetype
 
 
-def test_profile_inheritance_preserves_station_archetype_disables(tmp_path) -> None:
-    payload = json.loads(ARCHETYPE_POLICY_CONFIG_PATH.read_text(encoding="utf-8"))
-    payload["profiles"]["neuralcast"]["archetype_overrides"] = {
-        "deep_dive": {"enabled": False},
-        "concert_check": {"enabled": False},
-    }
-    path = tmp_path / "archetype_profiles.json"
-    path.write_text(json.dumps(payload), encoding="utf-8")
-    registry = load_archetype_policy_registry(path)
+def test_profile_inheritance_preserves_station_archetype_disables() -> None:
+    registry = load_archetype_policy_registry()
     neuralcast = registry.profiles["neuralcast"]
 
     assert Archetype.DEEP_DIVE in neuralcast.disabled_archetypes

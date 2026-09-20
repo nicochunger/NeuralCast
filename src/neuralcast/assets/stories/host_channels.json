@@ -167,7 +167,6 @@
   "channels": {
     "neuralcast-es": {
       "azuracast_station": "neuralcast",
-      "cadence_profile": "neuralforge",
       "brand": "neuralcast",
       "locale": "es-AR",
       "media_owner_station": "neuralcast",
