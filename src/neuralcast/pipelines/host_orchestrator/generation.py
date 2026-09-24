@@ -42,12 +42,7 @@ from .prompts import (
     resolve_station_personality,
     station_name_for_generation,
 )
-from .script_processing import (
-    _postprocess_schedule_script,
-    cleanup_generated_script,
-    ensure_mid_block_reference,
-    ensure_schedule_genre_reference,
-)
+from .script_processing import cleanup_generated_script
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
 from .utils import run_with_retries
@@ -168,13 +163,7 @@ def build_local_ultra_minimal_script(
         if options
         else str(locale.presentation.get("fallback_music") or "Music continues.")
     )
-    return _postprocess_schedule_script(
-        script_text=fallback_script,
-        archetype=Archetype.ULTRA_MINIMAL,
-        schedule_context=schedule_context,
-        rng=rng,
-        locale=locale,
-    )
+    return cleanup_generated_script(fallback_script)
 
 
 def fallback_to_ultra_minimal(
@@ -339,8 +328,6 @@ def _generate_standard_archetype_script(
     archetype: Archetype,
     prompt_kwargs: Mapping[str, Any],
     angle: Optional[str],
-    schedule_context: Optional[ScheduleContext],
-    rng: random.Random,
     allow_ultra_minimal_fallback: bool,
     generate_with_retries,
     fallback,
@@ -363,13 +350,7 @@ def _generate_standard_archetype_script(
             return terminal_ultra_minimal_fallback()
         return fallback()
 
-    cleaned = _postprocess_schedule_script(
-        script_text=generated,
-        archetype=archetype,
-        schedule_context=schedule_context,
-        rng=rng,
-        locale=prompt_kwargs.get("locale"),
-    )
+    cleaned = cleanup_generated_script(generated)
     if not cleaned.strip() or cleaned.strip() == "NO_SCRIPT":
         LOGGER.info(
             "[%s] Empty/invalid script after cleanup; falling back to ultra_minimal.",
@@ -504,8 +485,6 @@ def generate_archetype_script(
             archetype=archetype,
             prompt_kwargs=prompt_kwargs,
             angle=angle,
-            schedule_context=schedule_context,
-            rng=rng,
             allow_ultra_minimal_fallback=allow_ultra_minimal_fallback,
             generate_with_retries=generate_with_retries,
             fallback=fallback,
@@ -518,7 +497,6 @@ def generate_archetype_script(
             personality=personality,
             current_track=current_track,
             next_track=next_track,
-            schedule_context=schedule_context,
             prompt_kwargs=prompt_kwargs,
             temperature=temperature,
             top_p=top_p,
@@ -530,7 +508,6 @@ def generate_archetype_script(
     return _generate_news_script(
         station_name=station_name,
         personality=personality,
-        schedule_context=schedule_context,
         state=state,
         prompt_kwargs=prompt_kwargs,
         temperature=temperature,
@@ -549,8 +526,6 @@ __all__ = [
     "build_system_prompt",
     "build_tts_instructions",
     "cleanup_generated_script",
-    "ensure_mid_block_reference",
-    "ensure_schedule_genre_reference",
     "fallback_to_ultra_minimal",
     "format_shared_input",
     "gemini_generate_text",

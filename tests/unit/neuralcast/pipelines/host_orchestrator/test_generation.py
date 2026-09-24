@@ -22,7 +22,6 @@ from neuralcast.pipelines.host_orchestrator.generation import (  # noqa: E402
     build_prompt,
     build_system_prompt,
     build_tts_instructions,
-    ensure_schedule_genre_reference,
     generate_archetype_script,
     normalize_concert_country,
     parse_news_output,
@@ -1253,51 +1252,6 @@ META (JSON):
             rng=__import__("random").Random(3),
         )
         self.assertTrue(state.schedule_block_mentions[context.block_key]["start"])
-
-    def test_ensure_schedule_genre_reference_injects_for_block_intro(self) -> None:
-        context = ScheduleContext(
-            block_key="2026-02-16|0|06:00|09:00|playlist|10",
-            section_label="Power y sinfonico",
-            genre_labels=["power metal", "metal sinfonico"],
-            mode="playlist",
-            playlist_name="Power Metal",
-            progress_ratio=0.02,
-            phase="start",
-            mention_intent="start",
-            next_section_label="Cruce folk",
-            start_local_iso="2026-02-16T06:00:00+01:00",
-            end_local_iso="2026-02-16T09:00:00+01:00",
-        )
-        rng = __import__("random").Random(11)
-        script = "Arranca Power y sinfonico en NeuralForge, bien arriba para esta hora."
-
-        out = ensure_schedule_genre_reference(script, Archetype.BLOCK_INTRO, context, rng)
-
-        self.assertIn("Power y sinfonico", out)
-        self.assertTrue(
-            ("power metal" in out.lower()) or ("metal sinfonico" in out.lower())
-        )
-
-    def test_ensure_schedule_genre_reference_noops_when_genre_already_present(self) -> None:
-        context = ScheduleContext(
-            block_key="2026-02-16|1|12:00|15:00|playlist|11",
-            section_label="Progresivo e instrumental",
-            genre_labels=["metal progresivo", "prog instrumental"],
-            mode="playlist",
-            playlist_name="Prog Metal",
-            progress_ratio=0.50,
-            phase="mid",
-            mention_intent="mid",
-            next_section_label="n/a",
-            start_local_iso="2026-02-16T12:00:00+01:00",
-            end_local_iso="2026-02-16T15:00:00+01:00",
-        )
-        rng = __import__("random").Random(12)
-        script = "Seguimos en Progresivo e instrumental, con ese clima de metal progresivo."
-
-        out = ensure_schedule_genre_reference(script, Archetype.BACK_SELL, context, rng)
-
-        self.assertEqual(out, script)
 
     def test_station_name_spelling_for_generation(self) -> None:
         self.assertEqual(

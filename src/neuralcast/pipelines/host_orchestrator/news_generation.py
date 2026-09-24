@@ -22,11 +22,10 @@ from .models import (
     NewsSegment,
     NewsStoryMeta,
     OrchestratorState,
-    ScheduleContext,
     StationPersonality,
 )
 from .prompts import build_prompt, build_system_prompt
-from .script_processing import _postprocess_schedule_script
+from .script_processing import cleanup_generated_script
 from .state import build_news_dedup_key, prune_news_history
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
@@ -183,7 +182,6 @@ def _generate_news_script(
     *,
     station_name: str,
     personality: StationPersonality,
-    schedule_context: Optional[ScheduleContext],
     state: OrchestratorState,
     prompt_kwargs: Mapping[str, Any],
     temperature: float,
@@ -317,13 +315,7 @@ def _generate_news_script(
                 segment.story_count,
             )
             return (
-                _postprocess_schedule_script(
-                    script_text=segment.script,
-                    archetype=Archetype.NEWS,
-                    schedule_context=schedule_context,
-                    rng=rng,
-                    locale=locale,
-                ),
+                cleanup_generated_script(segment.script),
                 GeneratedSegmentMetadata(news_segment=segment),
                 Archetype.NEWS,
             )

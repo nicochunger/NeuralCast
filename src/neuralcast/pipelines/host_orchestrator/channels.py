@@ -46,19 +46,7 @@ REQUIRED_PRESENTATION_KEYS = frozenset(
 )
 REQUIRED_SCHEDULE_KEYS = frozenset(
     {
-        "block_terms",
-        "current_markers",
-        "open_markers",
         "open_label",
-        "mid_open_short",
-        "mid_open_long",
-        "start_open_short",
-        "start_open_long",
-        "mid_section_short",
-        "mid_section_long",
-        "start_section_short",
-        "start_section_long",
-        "genre_default",
     }
 )
 

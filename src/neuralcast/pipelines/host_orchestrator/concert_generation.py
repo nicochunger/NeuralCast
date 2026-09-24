@@ -26,11 +26,10 @@ from .models import (
     ConcertSegment,
     GeneratedSegmentMetadata,
     QueueTrack,
-    ScheduleContext,
     StationPersonality,
 )
 from .prompts import build_prompt, build_system_prompt
-from .script_processing import _postprocess_schedule_script
+from .script_processing import cleanup_generated_script
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
 from .utils import run_with_retries
@@ -234,7 +233,6 @@ def _generate_concert_check_script(
     personality: StationPersonality,
     current_track: QueueTrack,
     next_track: QueueTrack,
-    schedule_context: Optional[ScheduleContext],
     prompt_kwargs: Mapping[str, Any],
     temperature: float,
     top_p: float,
@@ -308,13 +306,7 @@ def _generate_concert_check_script(
         )
         if ok:
             return (
-                _postprocess_schedule_script(
-                    script_text=segment.script,
-                    archetype=Archetype.CONCERT_CHECK,
-                    schedule_context=schedule_context,
-                    rng=rng,
-                    locale=locale,
-                ),
+                cleanup_generated_script(segment.script),
                 GeneratedSegmentMetadata(concert_segment=segment),
                 Archetype.CONCERT_CHECK,
             )

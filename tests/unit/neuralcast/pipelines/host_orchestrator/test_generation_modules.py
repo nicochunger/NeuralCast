@@ -53,10 +53,7 @@ def _state(*, recent_news_dedup: list[dict] | None = None) -> OrchestratorState:
 def test_generation_facade_reexports_owned_functions() -> None:
     assert generation.build_prompt is prompts.build_prompt
     assert generation.gemini_generate_text is text_generation.gemini_generate_text
-    assert (
-        generation.ensure_schedule_genre_reference
-        is script_processing.ensure_schedule_genre_reference
-    )
+    assert generation.cleanup_generated_script is script_processing.cleanup_generated_script
     assert generation.parse_news_output is news_generation.parse_news_output
     assert generation.parse_concert_output is concert_generation.parse_concert_output
     assert (

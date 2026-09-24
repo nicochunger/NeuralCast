@@ -51,19 +51,7 @@
         "fallback_music": "Seguimos con musica."
       },
       "schedule": {
-        "block_terms": ["bloque", "seccion"],
-        "current_markers": ["estamos en", "seguimos en", "aca en"],
-        "open_markers": ["bloque libre", "sin tematica", "mezcla libre", "cualquier genero", "catalogo", "generos cruzados"],
-        "open_label": "bloque libre",
-        "mid_open_short": ["seguimos en bloque libre, sin tematica", "aca en bloque libre, mezcla libre"],
-        "mid_open_long": ["seguimos en bloque libre, sin tematica, con mezcla de todo el catalogo", "aca en bloque libre: pueden caer generos cruzados de todo el catalogo"],
-        "start_open_short": ["arranca bloque libre, sin tematica", "arranca mezcla libre, sin tematica"],
-        "start_open_long": ["arranca bloque libre, sin tematica: puede sonar cualquier genero del catalogo", "arranca mezcla libre, con catalogo barajado y cruce de generos"],
-        "mid_section_short": ["seguimos en {section}", "aca en {section}", "en {section}"],
-        "mid_section_long": ["seguimos en {section}, con ese clima de {genres}", "aca en {section}, bien en esa linea de {genres}"],
-        "start_section_short": ["arranca {section}, con {genres}", "arrancamos {section}, con {genres}"],
-        "start_section_long": ["arranca {section}, con ese eje de {genres}", "abre {section}, con ese color de {genres}"],
-        "genre_default": ["en esa linea de {genres}"]
+        "open_label": "bloque libre"
       }
     },
     "en": {
@@ -99,19 +87,7 @@
         "fallback_music": "Let’s get back to the music."
       },
       "schedule": {
-        "block_terms": ["block", "section", "set"],
-        "current_markers": ["we're in", "we are in", "staying with", "continuing in"],
-        "open_markers": ["open rotation", "open block", "free-form", "mixed genres", "whole catalog", "full catalog"],
-        "open_label": "open rotation",
-        "mid_open_short": ["we're staying in open rotation", "still in the free-form mix"],
-        "mid_open_long": ["we're staying in open rotation, with the whole catalog in play", "we're still in the free-form mix, crossing genres from the full catalog"],
-        "start_open_short": ["open rotation starts here", "the free-form mix starts here"],
-        "start_open_long": ["open rotation starts here, with the whole catalog in play", "the free-form mix starts here, crossing genres across the catalog"],
-        "mid_section_short": ["we're staying with {section}", "still in {section}", "continuing in {section}"],
-        "mid_section_long": ["we're staying with {section}, in that {genres} lane", "still in {section}, with the sound of {genres}"],
-        "start_section_short": ["{section} starts here, with {genres}", "we're opening {section} with {genres}"],
-        "start_section_long": ["{section} starts here, built around {genres}", "we're opening {section} in a {genres} direction"],
-        "genre_default": ["in that {genres} direction"]
+        "open_label": "open rotation"
       }
     },
     "fr-CH": {
@@ -148,19 +124,7 @@
         "fallback_music": "On continue avec la musique."
       },
       "schedule": {
-        "block_terms": ["séquence", "section", "segment"],
-        "current_markers": ["on est dans", "on reste dans", "ici dans", "on continue dans"],
-        "open_markers": ["rotation libre", "sans thème", "mélange libre", "tous les genres", "tout le catalogue", "genres croisés"],
-        "open_label": "rotation libre",
-        "mid_open_short": ["on reste en rotation libre, sans thème", "ici en rotation libre, avec un mélange ouvert"],
-        "mid_open_long": ["on reste en rotation libre, sans thème, avec tout le catalogue en jeu", "ici en rotation libre : tous les genres du catalogue peuvent se croiser"],
-        "start_open_short": ["la rotation libre commence ici, sans thème", "le mélange libre commence ici, sans thème"],
-        "start_open_long": ["la rotation libre commence ici : tous les genres du catalogue peuvent passer", "le mélange libre commence ici, avec tout le catalogue et des genres qui se croisent"],
-        "mid_section_short": ["on reste dans {section}", "ici dans {section}", "on continue dans {section}"],
-        "mid_section_long": ["on reste dans {section}, dans cette veine {genres}", "ici dans {section}, avec cette couleur {genres}"],
-        "start_section_short": ["{section} commence ici, avec {genres}", "on ouvre {section} avec {genres}"],
-        "start_section_long": ["{section} commence ici, autour de {genres}", "on ouvre {section} dans une direction {genres}"],
-        "genre_default": ["dans cette direction {genres}"]
+        "open_label": "rotation libre"
       }
     }
   },
