@@ -217,10 +217,10 @@
     "neuralcast": {
       "extends": "base",
       "archetype_overrides": {
-        "deep_dive": {"enabled": false},
-        "era_snapshot": {"enabled": false},
-        "concert_check": {"enabled": false},
-        "album_spotlight": {"enabled": false}
+        "deep_dive": {"enabled": true},
+        "era_snapshot": {"enabled": true},
+        "concert_check": {"enabled": true},
+        "album_spotlight": {"enabled": true}
       }
     }
   }

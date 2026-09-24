@@ -74,8 +74,8 @@ Remove any equivalent personal-crontab entries before installing these files so
 the same cycle cannot run twice. Both definitions use Europe/Zurich time. The
 production cadence is:
 
-- NeuralCast normal host cycle every two minutes (temporary NeuralForge cadence);
-- scheduled-block-intro check every minute on all three host channels;
+- NeuralCast normal host cycle every minute, including its block-intro checks;
+- scheduled-block-intro check every minute on both NeuralForge channels;
 - NeuralForge host cycle every two minutes;
 - French NeuralForge host cycle on odd-numbered minutes;
 - NeuralForge weekly schedule generation Monday at `00:05`;
@@ -208,3 +208,13 @@ Cron output lands in:
 ```text
 /root/projects/NeuralCast/runtime/logs/admin_api_bridge_repair.log
 ```
+
+### Temporary NeuralCast cadence
+
+NeuralCast Spanish temporarily uses `cadence_profile: "neuralforge"` in
+`host_channels.json`: 2–5 songs, a 45-minute speaking deadline, and a 1.0
+archetype cooldown multiplier. Its normal host cron runs every minute, and
+all NeuralCast archetypes are enabled. To restore the slower configuration,
+remove that channel override, change its cron entry back to `*/30`, and set
+`deep_dive`, `era_snapshot`, `concert_check`, and `album_spotlight` back to
+`enabled: false` in the NeuralCast archetype profile.

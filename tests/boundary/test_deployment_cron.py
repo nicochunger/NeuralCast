@@ -52,37 +52,28 @@ def test_all_repository_cron_definitions_use_zurich_time() -> None:
 def test_host_orchestrator_cron_preserves_production_configuration() -> None:
     entries = _cron_entries("neuralcast-host-orchestrator")
 
-    assert len(entries) == 6
+    assert len(entries) == 5
     _assert_entry(
         entries[0],
-        schedule=("*/2", "*", "*", "*", "*"),
+        schedule=("*", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator -s neuralcast",
         log_path="runtime/logs/host_orchestrator/neuralcast/cron.log",
     )
     _assert_entry(
         entries[1],
-        schedule=("*", "*", "*", "*", "*"),
-        invocation=(
-            "-m neuralcast.cli.host_orchestrator -s neuralcast "
-            "--scheduled-block-intros-only"
-        ),
-        log_path="runtime/logs/host_orchestrator/neuralcast/cron.log",
-    )
-    _assert_entry(
-        entries[2],
         schedule=("*/2", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator -s neuralforge",
         log_path="runtime/logs/host_orchestrator/neuralforge/cron.log",
     )
     _assert_entry(
-        entries[3],
+        entries[2],
         schedule=("1-59/2", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator --channel neuralforge-fr",
         log_path="runtime/logs/host_orchestrator/neuralforge-fr/cron.log",
     )
     for entry, channel, selector in [
-        (entries[4], "neuralforge", "-s neuralforge"),
-        (entries[5], "neuralforge-fr", "--channel neuralforge-fr"),
+        (entries[3], "neuralforge", "-s neuralforge"),
+        (entries[4], "neuralforge-fr", "--channel neuralforge-fr"),
     ]:
         _assert_entry(
             entry,
