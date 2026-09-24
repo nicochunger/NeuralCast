@@ -10,6 +10,7 @@ from neuralcast.pipelines.host_orchestrator.models import (
     NewsSegment,
     NewsStoryMeta,
     QueueTrack,
+    ScheduleContext,
     TrackFocus,
     TrackMetadata,
 )
@@ -151,3 +152,64 @@ def test_english_titles_are_localized_without_changing_track_metadata() -> None:
     )
 
     assert title == "Track story: Coming up - Opeth - Harvest"
+
+
+def test_block_intro_title_uses_on_air_name_for_each_locale() -> None:
+    context = ScheduleContext(
+        block_key="acoustic",
+        section_label="Acoustic Singer-Songwriter + Aspen Vibes",
+        genre_labels=["Acoustic Singer-Songwriter", "Aspen Vibes"],
+        mode="playlist",
+        playlist_name="Acoustic Singer-Songwriter",
+        progress_ratio=0.0,
+        phase="start",
+        mention_intent="start",
+        next_section_label=None,
+        start_local_iso="",
+        end_local_iso="",
+        official_titles={"es": "Acústico y Relax", "en": "Acoustic and Easy"},
+    )
+    channels = get_channel_registry().channels
+    for channel_key in ("neuralcast-es", "neuralforge-es"):
+        title = build_segment_title(
+            archetype=Archetype.BLOCK_INTRO,
+            current_track=_track("Crazy P", "Like a Fool"),
+            next_track=_track("John Waite", "Missing You"),
+            schedule_context=context,
+            locale=channels[channel_key].locale,
+        )
+        assert title == "Inicio de bloque: Acústico y Relax"
+
+    english_title = build_segment_title(
+        archetype=Archetype.BLOCK_INTRO,
+        current_track=_track("Crazy P", "Like a Fool"),
+        next_track=_track("John Waite", "Missing You"),
+        schedule_context=context,
+        locale=channels["neuralcast-en"].locale,
+    )
+    assert english_title == "Block introduction: Acoustic and Easy"
+
+
+def test_block_intro_title_falls_back_when_no_on_air_name_exists() -> None:
+    context = ScheduleContext(
+        block_key="acoustic",
+        section_label="Acoustic Singer-Songwriter + Aspen Vibes",
+        genre_labels=["Acoustic Singer-Songwriter", "Aspen Vibes"],
+        mode="playlist",
+        playlist_name="Acoustic Singer-Songwriter",
+        progress_ratio=0.0,
+        phase="start",
+        mention_intent="start",
+        next_section_label=None,
+        start_local_iso="",
+        end_local_iso="",
+    )
+
+    title = build_segment_title(
+        archetype=Archetype.BLOCK_INTRO,
+        current_track=_track("Crazy P", "Like a Fool"),
+        next_track=_track("John Waite", "Missing You"),
+        schedule_context=context,
+    )
+
+    assert title == "Inicio de bloque: Acoustic Singer-Songwriter + Aspen Vibes"

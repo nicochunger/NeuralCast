@@ -24,6 +24,12 @@ def _clean(value: object) -> str:
     return " ".join(str(value or "").split()).strip()
 
 
+def _localized_block_title(schedule_context: ScheduleContext, locale: HostLocale) -> str:
+    titles = schedule_context.official_titles
+    language = locale.tag.split("-", 1)[0]
+    return _clean(titles.get(language) or titles.get("en") or titles.get("es"))
+
+
 def _truncate(value: str, limit: int = MAX_SEGMENT_TITLE_LENGTH) -> str:
     text = _clean(value)
     if len(text) <= limit:
@@ -201,7 +207,11 @@ def build_segment_title(
             subject = f"{subject} - {city}"
         title = f"{label}: {subject}"
     elif archetype == Archetype.BLOCK_INTRO:
-        subject = _clean(schedule_context.section_label) if schedule_context else ""
+        subject = ""
+        if schedule_context:
+            subject = _localized_block_title(schedule_context, locale) or _clean(
+                schedule_context.section_label
+            )
         if not subject and schedule_context:
             subject = _join_names(schedule_context.genre_labels[:2], conjunction)
         title = f"{label}: {subject or presentation['new_section']}"
