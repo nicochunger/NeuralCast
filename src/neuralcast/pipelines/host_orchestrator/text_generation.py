@@ -30,9 +30,14 @@ def gemini_generate_text(
 
     config_kwargs: Dict[str, Any] = {
         "system_instruction": system_prompt,
-        "temperature": temperature,
-        "top_p": top_p,
+        # Google Search is server-side grounding, not a Python callable tool.
+        "automatic_function_calling": types.AutomaticFunctionCallingConfig(
+            disable=True
+        ),
     }
+    if not model.removeprefix("models/").startswith("gemini-3.8-"):
+        config_kwargs["temperature"] = temperature
+        config_kwargs["top_p"] = top_p
     if with_search:
         # Explicit Google Search grounding for research-backed generations.
         grounding_tool = types.Tool(google_search=types.GoogleSearch())

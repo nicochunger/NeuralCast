@@ -8,7 +8,7 @@ import json
 import pathlib
 import re
 import subprocess
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Sequence
 
 from mutagen.id3 import ID3, ID3NoHeaderError, TIT2, TLAN, TPE1
 
@@ -20,6 +20,7 @@ from .config import (
 )
 from .models import Archetype, QueueTrack, StoryAssets, TrackMetadata
 from .schedule import resolve_station_metadata_file
+from .speech import validate_speech_transcript
 from .transport import AzuraCastClient
 from .utils import normalize_component, track_key
 from neuralcast.audio.album_art import embed_local_cover_art
@@ -31,7 +32,9 @@ from neuralcast.services.ai_client import (
 
 try:
     from neuralcast.playlists.library import sanitize_filename_component
-except Exception:  # pragma: no cover - lightweight fallback for environments without pandas
+except (
+    Exception
+):  # pragma: no cover - lightweight fallback for environments without pandas
 
     def sanitize_filename_component(value: str) -> str:
         text = str(value or "").strip()
@@ -170,6 +173,7 @@ def ensure_story_assets(
     remote_prefix: str = "AI Stories",
     tts_voice: str = "Enceladus",
     language: str | None = None,
+    protected_texts: Sequence[str | None] = (),
 ) -> StoryAssets:
     safe_artist = sanitize_filename_component(current_track.artist).replace("'", "")
     safe_title = sanitize_filename_component(current_track.title).replace("'", "")
@@ -184,10 +188,14 @@ def ensure_story_assets(
     text_path = target_dir / f"{base_name}.txt"
     audio_path = target_dir / f"{base_name}.mp3"
 
-    text_path.write_text(script_text.strip() + "\n", encoding="utf-8")
+    speech = validate_speech_transcript(
+        script_text,
+        protected_texts=(current_track.artist, current_track.title, *protected_texts),
+    )
+    text_path.write_text(speech.plain_text + "\n", encoding="utf-8")
 
     synthesize_speech(
-        text=script_text,
+        text=speech.tts_text,
         outfile=str(audio_path),
         instructions=tts_instructions,
         gemini_model=DEFAULT_GEMINI_TTS_MODEL,
@@ -206,10 +214,8 @@ def ensure_story_assets(
     return StoryAssets(
         text_path=text_path,
         audio_path=audio_path,
-        story_text=script_text,
-        remote_path="/".join(
-            [remote_prefix.strip("/"), date_str, f"{base_name}.mp3"]
-        ),
+        story_text=speech.plain_text,
+        remote_path="/".join([remote_prefix.strip("/"), date_str, f"{base_name}.mp3"]),
     )
 
 
@@ -235,11 +241,7 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
             file_path.unlink(missing_ok=True)
 
     # Prune empty dated folders left behind after file cleanup.
-    subdirs = [
-        path
-        for path in base_dir.rglob("*")
-        if path.is_dir()
-    ]
+    subdirs = [path for path in base_dir.rglob("*") if path.is_dir()]
     for dir_path in sorted(subdirs, key=lambda path: len(path.parts), reverse=True):
         try:
             dir_path.rmdir()

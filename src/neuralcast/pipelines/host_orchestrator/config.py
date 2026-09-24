@@ -447,6 +447,7 @@ CONCERT_OUTPUT_RE = STRUCTURED_OUTPUT_RE
 PROMPT_TEMPLATE_FILES: Dict[str, str] = {
     "host_constitution": "host_constitution.md",
     "script_style_baseline": "script_style_baseline.md",
+    "speech_script_guidance": "speech_script_guidance.md",
     "wrapper_back_sell": "wrapper_back_sell.md",
     "wrapper_recently_played": "wrapper_recently_played.md",
     "wrapper_up_next_tease": "wrapper_up_next_tease.md",
@@ -560,11 +561,7 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
             "Sonar como conversacion real, con criterio musical y elegancia relajada."
         ),
         tts_profile=(
-            "NeuralCast TTS profile: "
-            "acento rioplatense natural, calido y sereno. "
-            "Energia contenida, madura y confiable; sin euforia, sin apuro y sin sobreactuar. "
-            "Ritmo pausado pero vivo, con respiracion clara, voz abierta y presencia levemente nostalgica. "
-            "Debe sonar como locutor real compartiendo una cancion con calma, criterio y cercania, nunca como voz corporativa."
+            "warm, mature, lightly nostalgic radio delivery; restrained energy"
         ),
     ),
     "neuralforge": StationPersonality(
@@ -583,13 +580,7 @@ STATION_PERSONALITIES: Dict[str, StationPersonality] = {
             "Conservar transiciones humanas y claras hacia el siguiente tema, sin sonar teatral ni a flyer de festival."
         ),
         tts_profile=(
-            "NeuralForge TTS profile: "
-            "acento rioplatense natural, cercano y seguro. "
-            "Energia alta pero controlada; arriba, con actitud, sin gritar ni sobreactuar. "
-            "La energia debe sentirse despierta y presente, con ataque claro en las palabras, sin sonar gritado ni teatral. "
-            "Marcar pausas cortas y respiracion real para que cada idea salga clara, abierta y decible. "
-            "Si una linea se siente demasiado prolija o escrita, bajarle rigidez y volverla mas conversada. "
-            "Debe sonar como host real de radio de metal hablando al aire, no como locutor corporativo ni personaje caricaturesco."
+            "direct, energetic metal-radio delivery; confident and controlled, never shouted"
         ),
     ),
 }

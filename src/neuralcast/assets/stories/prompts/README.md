@@ -10,7 +10,8 @@ Esta carpeta contiene plantillas de prompts usadas por:
 - `host_constitution.md`: constitucion base del sistema (con `{station_name}`).
 - `personality.md`: carta de personalidad del host.
 - `script_style_baseline.md`: linea base global de escritura para guion hablado.
-- `tts_instructions.md`: instrucciones compartidas para entrega TTS.
+- `tts_instructions.md`: estilo breve por turno para Gemini 3.8 TTS.
+- `speech_script_guidance.md`: contrato de transcripcion literal, puntuacion y etiquetas vocales inline para quien escribe el guion.
 - `wrapper_back_sell.md`: wrapper para `back_sell`.
 - `wrapper_up_next_tease.md`: wrapper para `up_next_tease`.
 - `wrapper_deep_dive.md`: wrapper para `deep_dive`.
@@ -33,17 +34,41 @@ Esta carpeta contiene plantillas de prompts usadas por:
    - `script_style_baseline.md`
    - ajuste inline de personalidad de estacion (`personality.script_profile`)
 
-2. `build_tts_instructions(...)` compone instrucciones de TTS con:
+2. `build_tts_instructions(...)` compone un estilo breve de TTS con:
    - `tts_instructions.md`
    - ajuste inline opcional de personalidad (`personality.tts_profile`)
-   - si el canal configura `tts_instructions_override`, usa ese archivo como prompt
-     completo y no agrega el ajuste de personalidad compartido
+   - si el canal configura `tts_instructions_override`, usa ese estilo breve
+     sin agregar el ajuste de personalidad compartido
 
 3. `build_prompt(...)` compone `contents` (prompt de usuario) con:
    - un wrapper `wrapper_*.md`
    - el bloque de contexto `format_shared_input(...)`
 
 4. Para `news` y `concert_check`, se renderizan placeholders de wrapper antes de concatenar.
+
+5. `speech_script_guidance.md` se incluye en `system_instruction`. El modelo
+   devuelve una transcripcion literal; puede usar etiquetas vocales Gemini en
+   ingles dentro de `<>`, nunca instrucciones o acotaciones. La validacion
+   rechaza etiquetas desconocidas antes de sintetizar.
+
+## Voces Gemini 3.8
+
+Las voces diseñadas son recursos persistentes del proyecto Gemini, no se crean
+durante el ciclo del host. Para crear, escuchar y registrar una voz una sola
+vez, usar el mismo proyecto asociado a `GEMINI_API_KEY`:
+
+```bash
+python -m neuralcast.cli.tts_voices create \
+  --display-name "NeuralForge Argentina" \
+  --language-code es-AR \
+  --prompt "Adult Argentine music-radio host with a natural Rioplatense accent, a clear warm medium-low register, and direct conversational delivery." \
+  --preview /tmp/neuralforge-es-preview.wav
+```
+
+El comando devuelve un `voice_...`; reemplazar el valor `tts_voice` del locale
+o el `tts_voice_override` de un canal con ese ID. No recrear automaticamente una voz
+vencida: audicionar el reemplazo y actualizar la configuracion de forma
+explicita. `inspect` y `list` permiten consultar el recurso y su expiracion.
 
 5. `gemini_generate_text(...)` envia:
    - `system_instruction = build_system_prompt(...)`

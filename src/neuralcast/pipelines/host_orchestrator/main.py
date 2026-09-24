@@ -42,6 +42,7 @@ from .assets import (
 )
 from .config import (
     BLOCK_INTRO_INSERT_LEAD_SECONDS,
+    GENERATION_RETRIES,
     LEAD_TIME_SECONDS,
     LOGGER,
     cadence_settings_for_station,
@@ -75,6 +76,7 @@ from .schedule import (
     seconds_until_schedule_block_change,
     should_force_block_intro,
 )
+from .speech import validate_speech_transcript
 from .state import (
     StationLock,
     apply_success_state_update,
@@ -115,6 +117,30 @@ from .utils import (
 
 class ArgumentValidationError(ValueError):
     """Raised when a host-orchestrator CLI argument combination is invalid."""
+
+
+def _generate_validated_script(
+    generate: Callable[[], tuple[str, Any, Archetype]],
+    *,
+    protected_texts: Sequence[str | None],
+) -> tuple[str, Any, Archetype]:
+    """Regenerate a script when its transcript is unsuitable for verbatim TTS."""
+    for attempt in range(GENERATION_RETRIES + 1):
+        result = generate()
+        try:
+            validate_speech_transcript(result[0], protected_texts=protected_texts)
+        except ValueError as exc:
+            if attempt == GENERATION_RETRIES:
+                raise
+            LOGGER.warning(
+                "[script] Invalid TTS transcript (%s/%s): %s. Regenerating.",
+                attempt + 1,
+                GENERATION_RETRIES + 1,
+                exc,
+            )
+        else:
+            return result
+    raise AssertionError("Script generation retry loop exhausted unexpectedly.")
 
 
 @dataclass(frozen=True)
@@ -1213,26 +1239,43 @@ class HostOrchestratorRuntime:
                 rng=rng,
             )
 
-            script_text, segment_metadata_raw, archetype_used = deps.generate_script(
-                archetype=generation_context.selected_archetype,
-                recent_tracks=playback.recent_tracks,
-                station_name=runtime.generation_station_name,
-                personality=runtime.station_personality,
-                current_track=playback.current_track,
-                next_track=queue_context.next_track,
-                upcoming_tracks=queue_context.upcoming_tracks,
-                current_meta=generation_context.current_meta,
-                next_meta=generation_context.next_meta,
-                angle=generation_context.angle,
-                hook=generation_context.hook,
-                banned_list=generation_context.banned_list,
-                schedule_context=queue_context.schedule_context,
-                state=state,
-                rng=rng,
-                forced_mode=generation_context.forced_news_mode,
-                forced_track_focus=forced_track_focus,
-                locale=channel.locale,
-                archetype_policy=channel.archetype_policy,
+            protected_texts = tuple(
+                value
+                for track in (
+                    playback.current_track,
+                    queue_context.next_track,
+                    *queue_context.upcoming_tracks,
+                )
+                for value in (track.artist, track.title)
+            ) + (
+                generation_context.current_meta.album,
+                generation_context.next_meta.album,
+            )
+            script_text, segment_metadata_raw, archetype_used = (
+                _generate_validated_script(
+                    lambda: deps.generate_script(
+                        archetype=generation_context.selected_archetype,
+                        recent_tracks=playback.recent_tracks,
+                        station_name=runtime.generation_station_name,
+                        personality=runtime.station_personality,
+                        current_track=playback.current_track,
+                        next_track=queue_context.next_track,
+                        upcoming_tracks=queue_context.upcoming_tracks,
+                        current_meta=generation_context.current_meta,
+                        next_meta=generation_context.next_meta,
+                        angle=generation_context.angle,
+                        hook=generation_context.hook,
+                        banned_list=generation_context.banned_list,
+                        schedule_context=queue_context.schedule_context,
+                        state=state,
+                        rng=rng,
+                        forced_mode=generation_context.forced_news_mode,
+                        forced_track_focus=forced_track_focus,
+                        locale=channel.locale,
+                        archetype_policy=channel.archetype_policy,
+                    ),
+                    protected_texts=protected_texts,
+                )
             )
 
             if isinstance(segment_metadata_raw, GeneratedSegmentMetadata):
@@ -1267,6 +1310,7 @@ class HostOrchestratorRuntime:
                 runtime.station_personality,
                 locale=channel.locale,
                 override_path=channel.tts_instructions_override_path,
+                archetype=archetype_used,
             )
             assets = run_with_retries(
                 "TTS synthesis",
@@ -1280,8 +1324,9 @@ class HostOrchestratorRuntime:
                     channel_key=channel.key,
                     cover_station=channel.brand.cover_station,
                     remote_prefix=channel.remote_prefix,
-                    tts_voice=channel.locale.tts_voice,
+                    tts_voice=channel.tts_voice,
                     language=channel.locale.tag,
+                    protected_texts=protected_texts,
                 ),
             )
             LOGGER.info("[assets] Script saved: %s", assets.text_path)
@@ -1343,7 +1388,7 @@ class HostOrchestratorRuntime:
                 archetype_used=archetype_used,
                 segment_title=segment_title,
                 news_segment=news_segment,
-                script_text=script_text,
+                script_text=assets.story_text,
                 assets=assets,
                 state=state,
                 rng=rng,

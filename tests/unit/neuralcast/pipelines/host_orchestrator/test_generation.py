@@ -510,7 +510,15 @@ META (JSON):
         tts_instructions = build_tts_instructions(personality)
         self.assertIn("Perfil de personalidad de la estacion", system_prompt)
         self.assertIn("metal", system_prompt.lower())
-        self.assertIn("La voz suena natural", tts_instructions)
+        self.assertIn("Natural, cercano y conversacional", tts_instructions)
+        self.assertIn("direct, energetic metal-radio", tts_instructions)
+
+    def test_tts_style_adds_a_short_archetype_adjustment(self) -> None:
+        style = build_tts_instructions(
+            resolve_station_personality("neuralcast"), archetype=Archetype.NEWS
+        )
+
+        self.assertTrue(style.endswith("clear, measured delivery"))
 
     def test_english_locale_controls_system_prompt_and_tts(self) -> None:
         locale = get_channel_registry().locales["en"]
@@ -522,7 +530,7 @@ META (JSON):
         tts_instructions = build_tts_instructions(personality, locale=locale)
 
         self.assertIn("exclusively in natural conversational English", system_prompt)
-        self.assertIn("neutral international accent", tts_instructions)
+        self.assertIn("Warm, relaxed, conversational", tts_instructions)
 
     def test_channel_tts_override_is_complete_and_skips_personality_append(self) -> None:
         channel = get_channel_registry().channels["neuralforge-es"]
@@ -534,7 +542,7 @@ META (JSON):
             override_path=channel.tts_instructions_override_path,
         )
 
-        self.assertIn("misma altura tonal", tts_instructions)
+        self.assertIn("Directo, cálido y conversacional", tts_instructions)
         self.assertNotIn("Station personality adjustment", tts_instructions)
         self.assertNotIn("Energia alta pero controlada", tts_instructions)
 
@@ -576,8 +584,7 @@ META (JSON):
         self.assertIn("Connexion", prompt)
         self.assertNotIn("Idea de gancho", prompt)
         self.assertNotIn("Bueno gente", prompt)
-        self.assertIn("accent naturel et modéré de Suisse romande", tts_instructions)
-        self.assertIn("Ne pas glisser progressivement", tts_instructions)
+        self.assertIn("Direct, chaleureux et conversationnel", tts_instructions)
 
     def test_should_enable_search_for_new_archetypes(self) -> None:
         self.assertTrue(should_enable_search(Archetype.ALBUM_SPOTLIGHT, None))

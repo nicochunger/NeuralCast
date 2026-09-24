@@ -18,7 +18,7 @@ dependencies = [
     "tqdm",
     "requests",
     "openai",
-    "google-genai",
+    "google-genai>=2.25,<3",
     "pydantic",
     "pillow",
     "fastapi",

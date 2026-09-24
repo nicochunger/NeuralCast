@@ -1029,6 +1029,9 @@ def build_system_prompt(
     script_style_baseline = get_prompt_template_from(
         locale.prompt_directory, "script_style_baseline"
     )
+    speech_script_guidance = get_prompt_template_from(
+        locale.prompt_directory, "speech_script_guidance"
+    )
     personality_heading = (
         "Profil de personnalité de la station :"
         if locale.tag == "fr-CH"
@@ -1043,6 +1046,7 @@ def build_system_prompt(
         f"{host_constitution.format(station_name=station_name).strip()}\n\n"
         f"{personality_guide}\n\n"
         f"{script_style_baseline.strip()}\n\n"
+        f"{speech_script_guidance.strip()}\n\n"
         f"{personality_heading}\n"
         f"- {personality.script_profile}\n\n"
         f"{language_heading}\n"
@@ -1054,16 +1058,32 @@ def build_tts_instructions(
     personality: StationPersonality,
     locale: Optional[HostLocale] = None,
     override_path: Optional[pathlib.Path] = None,
+    archetype: Optional[Archetype] = None,
 ) -> str:
     locale = _resolved_locale(locale)
+    # Gemini 3.8 reads text verbatim.  This field must therefore be a compact
+    # turn-level delivery style, never the old multi-paragraph prompt.
     base = (override_path or locale.tts_instructions_path).read_text(
         encoding="utf-8"
     ).strip()
-    if override_path is not None:
-        return base
-    if not personality.tts_profile.strip():
-        return base
-    return f"{base}\n\nStation personality adjustment:\n{personality.tts_profile}\n"
+    values = [base]
+    if override_path is None and personality.tts_profile.strip():
+        values.append(personality.tts_profile)
+    archetype_style = {
+        Archetype.NEWS: "clear, measured delivery",
+        Archetype.CONCERT_CHECK: "informative, lively delivery",
+        Archetype.DEEP_DIVE: "reflective, unhurried delivery",
+        Archetype.ERA_SNAPSHOT: "reflective, unhurried delivery",
+        Archetype.SHORT_STORY: "engaged, storytelling delivery",
+        Archetype.BLOCK_INTRO: "welcoming, confident delivery",
+    }.get(archetype)
+    if archetype_style:
+        values.append(archetype_style)
+    return "; ".join(
+        value.rstrip(".; ")
+        for value in values
+        if value.strip()
+    )
 
 
 __all__ = [

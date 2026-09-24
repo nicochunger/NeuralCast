@@ -1,6 +1,8 @@
 """Utilities for interacting with OpenAI APIs and Gemini TTS."""
+
 from __future__ import annotations
 
+import base64
 import os
 import pathlib
 import subprocess
@@ -16,8 +18,10 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
 try:
     from dotenv import load_dotenv
 except ModuleNotFoundError:  # pragma: no cover - dependency guard
+
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         return False
+
 
 from neuralcast.config import ASSETS_ROOT
 
@@ -29,13 +33,11 @@ _GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 _GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
 _DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
-DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3.7-flash")
+DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3.8-flash")
 # Keep the private name for callers that imported it before the public constant
 # was introduced.
 _DEFAULT_GEMINI_TEXT_MODEL = DEFAULT_GEMINI_TEXT_MODEL
-DEFAULT_GEMINI_TTS_MODEL = os.getenv(
-    "GEMINI_TTS_MODEL", "gemini-3.1-flash-tts-preview"
-)
+DEFAULT_GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
 
 
 def get_openai_client() -> openai.OpenAI:
@@ -118,19 +120,6 @@ def openai_speech(
         response.stream_to_file(outfile)
 
 
-def _build_tts_prompt(text: str, instructions: Optional[str]) -> str:
-    cleaned_text = text.strip()
-    if not instructions:
-        return cleaned_text
-    cleaned_instructions = instructions.strip()
-    return (
-        "INSTRUCCIONES (NO LEER EN VOZ ALTA):\n"
-        f"{cleaned_instructions}\n\n"
-        "TEXTO A LEER EN VOZ ALTA:\n"
-        f"{cleaned_text}"
-    )
-
-
 def _write_pcm_wave(
     outfile: pathlib.Path,
     pcm: bytes,
@@ -177,7 +166,9 @@ def _write_pcm_audio_file(
     target = pathlib.Path(outfile)
     suffix = target.suffix.lower()
     if suffix == ".wav":
-        _write_pcm_wave(target, pcm, channels=channels, rate=rate, sample_width=sample_width)
+        _write_pcm_wave(
+            target, pcm, channels=channels, rate=rate, sample_width=sample_width
+        )
         return
     if suffix == ".mp3":
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
@@ -197,7 +188,42 @@ def _write_pcm_audio_file(
             except FileNotFoundError:
                 pass
         return
-    _write_pcm_wave(target, pcm, channels=channels, rate=rate, sample_width=sample_width)
+    _write_pcm_wave(
+        target, pcm, channels=channels, rate=rate, sample_width=sample_width
+    )
+
+
+def _write_wav_audio_file(outfile: str, wav: bytes) -> None:
+    """Persist a complete Gemini WAV response, converting only when needed."""
+    if not wav.startswith(b"RIFF"):
+        raise RuntimeError("Gemini 3.8 TTS did not return a RIFF WAV response.")
+    target = pathlib.Path(outfile)
+    if target.suffix.lower() == ".wav":
+        target.write_bytes(wav)
+        return
+    if target.suffix.lower() == ".mp3":
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+            temp_path = pathlib.Path(handle.name)
+        try:
+            temp_path.write_bytes(wav)
+            _convert_wav_to_mp3(temp_path, target)
+        finally:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+        return
+    target.write_bytes(wav)
+
+
+def _interaction_audio_bytes(interaction: Any) -> bytes:
+    output_audio = getattr(interaction, "output_audio", None)
+    data = getattr(output_audio, "data", None)
+    if isinstance(data, bytes):
+        return data
+    if isinstance(data, str):
+        return base64.b64decode(data)
+    raise RuntimeError("Gemini 3.8 TTS response did not contain audio data.")
 
 
 def gemini_speech(
@@ -208,28 +234,25 @@ def gemini_speech(
     instructions: Optional[str] = None,
 ):
     client = get_gemini_client()
-    try:
-        from google.genai import types
-    except ImportError as exc:
-        raise RuntimeError(
-            "Gemini client is not installed. Install with: pip install google-genai"
-        ) from exc
-
-    prompt = _build_tts_prompt(text, instructions)
-    response = client.models.generate_content(
+    transcript = text.strip()
+    if not transcript:
+        raise ValueError("TTS text must not be empty.")
+    content: dict[str, Any] = {"type": "text", "text": transcript}
+    style = (instructions or "").strip()
+    if style:
+        content["annotations"] = [{"type": "speech_metadata", "style": style}]
+    interaction = client.interactions.create(
         model=model,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_modalities=["AUDIO"],
-            speech_config=types.SpeechConfig(
-                voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
-                )
-            ),
-        ),
+        input=[{"type": "user_input", "content": [content]}],
+        response_format={
+            "type": "audio",
+            "mime_type": "audio/wav",
+            "sample_rate": 24000,
+        },
+        generation_config={"speech_config": [{"voice": voice}]},
+        store=False,
     )
-    data = response.candidates[0].content.parts[0].inline_data.data
-    _write_pcm_audio_file(outfile, data)
+    _write_wav_audio_file(outfile, _interaction_audio_bytes(interaction))
 
 
 def gemini_text_completion(prompt: str, model: Optional[str] = None) -> str:
@@ -242,7 +265,10 @@ def gemini_text_completion(prompt: str, model: Optional[str] = None) -> str:
         ) from exc
 
     grounding_tool = types.Tool(google_search=types.GoogleSearch())
-    config = types.GenerateContentConfig(tools=[grounding_tool])
+    config = types.GenerateContentConfig(
+        tools=[grounding_tool],
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+    )
     response = client.models.generate_content(
         model=(model or _DEFAULT_GEMINI_TEXT_MODEL),
         contents=prompt,

@@ -15,7 +15,6 @@ from .archetype_policies import (
     get_archetype_policy_registry,
 )
 
-
 CHANNEL_CONFIG_PATH = ASSETS_ROOT / "stories" / "host_channels.json"
 REQUIRED_PRESENTATION_KEYS = frozenset(
     {
@@ -102,6 +101,7 @@ class HostChannel:
     archetype_policy: ResolvedArchetypeProfile
     script_style_override: str | None = None
     tts_instructions_override_path: pathlib.Path | None = None
+    tts_voice_override: str | None = None
     legacy_station: str | None = None
 
     @property
@@ -111,6 +111,11 @@ class HostChannel:
     @property
     def content_station_dir(self) -> pathlib.Path:
         return station_dir_from_slug(self.content_station)
+
+    @property
+    def tts_voice(self) -> str:
+        """A channel can replace its locale's prebuilt/default voice."""
+        return self.tts_voice_override or self.locale.tts_voice
 
 
 @dataclass(frozen=True)
@@ -160,9 +165,7 @@ def _mapping(payload: Mapping[str, Any], key: str, context: str) -> Mapping[str,
     return value
 
 
-def _require_keys(
-    value: Mapping[str, Any], keys: frozenset[str], context: str
-) -> None:
+def _require_keys(value: Mapping[str, Any], keys: frozenset[str], context: str) -> None:
     missing = sorted(key for key in keys if key not in value)
     if missing:
         raise ValueError(f"{context} is missing required keys: {', '.join(missing)}.")
@@ -174,9 +177,7 @@ def load_channel_registry(
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise FileNotFoundError(
-            f"Missing host-channel configuration: {path}"
-        ) from None
+        raise FileNotFoundError(f"Missing host-channel configuration: {path}") from None
     if not isinstance(payload, Mapping):
         raise ValueError("Host-channel configuration root must be an object.")
 
@@ -214,9 +215,7 @@ def load_channel_registry(
         if not isinstance(raw, Mapping):
             raise ValueError(f"Locale '{key}' must be an object.")
         locale_key = str(key).strip()
-        instructions_rel = _required_string(
-            raw, "tts_instructions", f"locale '{key}'"
-        )
+        instructions_rel = _required_string(raw, "tts_instructions", f"locale '{key}'")
         instructions_path = ASSETS_ROOT / "stories" / instructions_rel
         if not instructions_path.is_file():
             raise FileNotFoundError(
@@ -236,12 +235,8 @@ def load_channel_registry(
         _require_keys(schedule, REQUIRED_SCHEDULE_KEYS, f"locale '{key}' schedule")
         locales[locale_key] = HostLocale(
             tag=locale_key,
-            output_language=_required_string(
-                raw, "output_language", f"locale '{key}'"
-            ),
-            script_guidance=_required_string(
-                raw, "script_guidance", f"locale '{key}'"
-            ),
+            output_language=_required_string(raw, "output_language", f"locale '{key}'"),
+            script_guidance=_required_string(raw, "script_guidance", f"locale '{key}'"),
             prompt_directory=prompt_directory,
             tts_instructions_path=instructions_path,
             tts_voice=str(raw.get("tts_voice") or "Enceladus").strip(),
@@ -265,13 +260,12 @@ def load_channel_registry(
             raise ValueError(
                 f"Channel '{key}' references unknown locale '{locale_key}'."
             )
-        media_owner = _required_string(
-            raw, "media_owner_station", f"channel '{key}'"
-        )
+        media_owner = _required_string(raw, "media_owner_station", f"channel '{key}'")
         remote_prefix = _required_string(raw, "remote_prefix", f"channel '{key}'")
-        if remote_prefix.startswith("/") or ".." in pathlib.PurePosixPath(
-            remote_prefix
-        ).parts:
+        if (
+            remote_prefix.startswith("/")
+            or ".." in pathlib.PurePosixPath(remote_prefix).parts
+        ):
             raise ValueError(f"Channel '{key}' has unsafe remote_prefix.")
         remote_scope = (media_owner, remote_prefix.rstrip("/"))
         if remote_scope in remote_scopes:
@@ -314,6 +308,7 @@ def load_channel_registry(
                     f"Channel '{key}' TTS instructions override not found: "
                     f"{tts_instructions_override_path}"
                 )
+        tts_voice_override = str(raw.get("tts_voice_override") or "").strip() or None
         channels[channel_key] = HostChannel(
             key=channel_key,
             azuracast_station=_required_string(
@@ -332,6 +327,7 @@ def load_channel_registry(
                 str(raw.get("script_style_override") or "").strip() or None
             ),
             tts_instructions_override_path=tts_instructions_override_path,
+            tts_voice_override=tts_voice_override,
             legacy_station=(str(raw.get("legacy_station") or "").strip() or None),
         )
 

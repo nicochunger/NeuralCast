@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import random
+from dataclasses import replace
+
+import pytest
 
 from neuralcast.pipelines.host_orchestrator import main as host_main
 from neuralcast.services.azuracast_config import AzuraCastSettings
@@ -81,12 +84,16 @@ class FakeHostAzuraCastClient:
         self.uploads.append((_args, _kwargs))
         raise AssertionError("dry-run uploaded media")
 
-    def send_telnet_command(self, *_args, **_kwargs):  # pragma: no cover - dry-run guard
+    def send_telnet_command(
+        self, *_args, **_kwargs
+    ):  # pragma: no cover - dry-run guard
         self.telnet_commands.append(str(_args))
         raise AssertionError("dry-run queued media")
 
 
-def test_host_orchestrator_runtime_dry_run_generates_assets_without_publish(tmp_path) -> None:
+def test_host_orchestrator_runtime_dry_run_generates_assets_without_publish(
+    tmp_path,
+) -> None:
     station_dir = tmp_path / "Station"
     metadata_dir = station_dir / "metadata"
     metadata_dir.mkdir(parents=True)
@@ -156,6 +163,64 @@ def test_host_orchestrator_runtime_dry_run_generates_assets_without_publish(tmp_
     assert fake_client.uploads == []
     assert fake_client.telnet_commands == []
     assert saved_states
+
+    published: list[dict[str, object]] = []
+    live_deps = replace(
+        deps,
+        generate_script=lambda **_kwargs: (
+            "Hello <sigh> world",
+            None,
+            Archetype.BACK_SELL,
+        ),
+        create_story_assets=lambda **_kwargs: StoryAssets(
+            text_path=tmp_path / "script.txt",
+            audio_path=tmp_path / "script.mp3",
+            story_text="Hello world",
+            remote_path="AI Stories/script.mp3",
+        ),
+        publish_segment=lambda **kwargs: (
+            published.append(kwargs)
+            or host_main.PublishResult(None, "2026-09-24T12:00:00Z")
+        ),
+    )
+    live_result = host_main.HostOrchestratorRuntime(live_deps).run_cycle(
+        host_main.HostCycleRequest(
+            station="neuralforge",
+            base_url="https://azuracast.local",
+            force_archetype=Archetype.BACK_SELL,
+        )
+    )
+    assert live_result.status == "published"
+    assert published[0]["script_text"] == "Hello world"
+
+
+def test_invalid_transcript_regenerates_before_tts() -> None:
+    scripts = iter(("Hello <unsupported> world", "Hello <sigh> world"))
+    attempts = 0
+
+    def generate() -> tuple[str, None, Archetype]:
+        nonlocal attempts
+        attempts += 1
+        return next(scripts), None, Archetype.BACK_SELL
+
+    script, _, _ = host_main._generate_validated_script(generate, protected_texts=())
+
+    assert script == "Hello <sigh> world"
+    assert attempts == 2
+
+
+def test_invalid_transcript_stops_after_new_generations() -> None:
+    attempts = 0
+
+    def generate() -> tuple[str, None, Archetype]:
+        nonlocal attempts
+        attempts += 1
+        return "Hello <unsupported> world", None, Archetype.BACK_SELL
+
+    with pytest.raises(ValueError, match="Unsupported Gemini TTS"):
+        host_main._generate_validated_script(generate, protected_texts=())
+
+    assert attempts == host_main.GENERATION_RETRIES + 1
 
 
 def test_host_orchestrator_run_preserves_argument_validation() -> None:

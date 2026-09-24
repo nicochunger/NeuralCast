@@ -15,6 +15,10 @@ from neuralcast.pipelines.host_orchestrator.main import (
     _args_from_cycle_request,
 )
 from neuralcast.pipelines.host_orchestrator.models import Archetype
+from neuralcast.pipelines.host_orchestrator.prompts import (
+    build_tts_instructions,
+    resolve_station_personality,
+)
 from neuralcast.pipelines.host_orchestrator.utils import station_state_paths
 
 
@@ -95,6 +99,39 @@ def test_neuralforge_spanish_has_channel_specific_tts_instructions() -> None:
         "neuralforge_tts_instructions.md"
     )
     assert neuralcast.tts_instructions_override_path is None
+
+
+def test_channel_tts_voice_override_supersedes_locale_voice(tmp_path) -> None:
+    import json
+
+    from neuralcast.pipelines.host_orchestrator import channels
+
+    payload = json.loads(channels.CHANNEL_CONFIG_PATH.read_text(encoding="utf-8"))
+    payload["channels"]["neuralforge-es"]["tts_voice_override"] = "voice_test"
+    path = tmp_path / "host_channels.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    registry = channels.load_channel_registry(path)
+    assert registry.channels["neuralforge-es"].tts_voice == "voice_test"
+
+
+def test_spanish_channels_share_voice_but_keep_distinct_delivery_styles() -> None:
+    registry = get_channel_registry()
+    neuralcast = registry.channels["neuralcast-es"]
+    neuralforge = registry.channels["neuralforge-es"]
+
+    assert neuralcast.tts_voice == neuralforge.tts_voice == "voice_tnl42ahs81fi"
+    assert neuralcast.tts_instructions_override_path is None
+    assert neuralforge.tts_instructions_override_path is not None
+    neuralcast_style = build_tts_instructions(
+        resolve_station_personality("neuralcast"),
+        locale=neuralcast.locale,
+    )
+    neuralforge_style = build_tts_instructions(
+        resolve_station_personality("neuralforge"),
+        locale=neuralforge.locale,
+        override_path=neuralforge.tts_instructions_override_path,
+    )
+    assert neuralcast_style != neuralforge_style
 
 
 def test_channel_request_overrides_legacy_station_default() -> None:

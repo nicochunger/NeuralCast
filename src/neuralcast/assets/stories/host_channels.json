@@ -170,6 +170,7 @@
       "cadence_profile": "neuralforge",
       "brand": "neuralcast",
       "locale": "es-AR",
+      "tts_voice_override": "voice_tnl42ahs81fi",
       "media_owner_station": "neuralcast",
       "remote_prefix": "AI Stories/neuralcast/es-AR",
       "legacy_station": "neuralcast"
@@ -179,6 +180,7 @@
       "azuracast_station_id": 3,
       "brand": "neuralcast",
       "locale": "en",
+      "tts_voice_override": "voice_rpgjmozflgsg",
       "cadence_profile": "neuralforge",
       "archetype_profile": "neuralforge",
       "media_owner_station": "neuralcast",
@@ -188,6 +190,7 @@
       "azuracast_station": "neuralforge",
       "brand": "neuralforge",
       "locale": "es-AR",
+      "tts_voice_override": "voice_tnl42ahs81fi",
       "tts_instructions_override": "prompts/locales/es-AR/neuralforge_tts_instructions.md",
       "media_owner_station": "neuralforge",
       "remote_prefix": "AI Stories/neuralforge/es-AR",
@@ -198,6 +201,7 @@
       "azuracast_station_id": 4,
       "brand": "neuralforge",
       "locale": "fr-CH",
+      "tts_voice_override": "voice_iemlidj5c0t9",
       "archetype_profile": "neuralforge",
       "archetype_overrides": {
         "news": {

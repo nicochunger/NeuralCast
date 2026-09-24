@@ -26,10 +26,10 @@ from neuralcast.services.ai_client import (  # noqa: E402
 
 class AIClientDefaultsTest(unittest.TestCase):
     def test_default_gemini_text_model_matches_expected_model_id(self) -> None:
-        self.assertEqual(DEFAULT_GEMINI_TEXT_MODEL, "gemini-3.7-flash")
+        self.assertEqual(DEFAULT_GEMINI_TEXT_MODEL, "gemini-3.8-flash")
 
     def test_default_gemini_tts_model_matches_expected_model_id(self) -> None:
-        self.assertEqual(DEFAULT_GEMINI_TTS_MODEL, "gemini-3.1-flash-tts-preview")
+        self.assertEqual(DEFAULT_GEMINI_TTS_MODEL, "gemini-3.8-flash-tts")
 
     def test_ensure_story_assets_uses_default_gemini_tts_model(self) -> None:
         track = QueueTrack(
@@ -84,12 +84,54 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_build_tts_prompt_wraps_instructions_without_reading_them() -> None:
-    prompt = ai_client._build_tts_prompt(" Hola ", " Natural ")
+def test_gemini_speech_uses_interactions_and_writes_complete_wav(tmp_path, monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
 
-    assert "INSTRUCCIONES (NO LEER EN VOZ ALTA):" in prompt
-    assert "Natural" in prompt
-    assert prompt.endswith("Hola")
+    class FakeInteractions:
+        def create(self, **kwargs: object):
+            calls.append(kwargs)
+            return type(
+                "Interaction",
+                (), {"output_audio": type("Audio", (), {"data": b"RIFFfake"})()},
+            )()
+
+    monkeypatch.setattr(
+        ai_client,
+        "get_gemini_client",
+        lambda: type("Client", (), {"interactions": FakeInteractions()})(),
+    )
+    target = tmp_path / "speech.wav"
+    ai_client.gemini_speech(
+        "Hola <short pause> mundo", str(target), voice="voice_test", instructions="warm"
+    )
+
+    assert target.read_bytes() == b"RIFFfake"
+    assert calls == [
+        {
+            "model": DEFAULT_GEMINI_TTS_MODEL,
+            "input": [
+                {
+                    "type": "user_input",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Hola <short pause> mundo",
+                            "annotations": [
+                                {"type": "speech_metadata", "style": "warm"}
+                            ],
+                        }
+                    ],
+                }
+            ],
+            "response_format": {
+                "type": "audio",
+                "mime_type": "audio/wav",
+                "sample_rate": 24000,
+            },
+            "generation_config": {"speech_config": [{"voice": "voice_test"}]},
+            "store": False,
+        }
+    ]
 
 
 def test_get_openai_client_requires_package_and_key(monkeypatch) -> None:
@@ -174,3 +216,23 @@ def test_gemini_text_completion_rejects_empty_response(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="did not return any text"):
         ai_client.gemini_text_completion("prompt")
+
+
+def test_gemini_text_completion_disables_unneeded_afc_but_keeps_search(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            calls.append(kwargs)
+            return type("Response", (), {"text": "Grounded text"})()
+
+    monkeypatch.setattr(
+        ai_client,
+        "get_gemini_client",
+        lambda: type("Client", (), {"models": FakeModels()})(),
+    )
+
+    assert ai_client.gemini_text_completion("prompt") == "Grounded text"
+    config = calls[0]["config"]
+    assert config.tools[0].google_search is not None
+    assert config.automatic_function_calling.disable is True

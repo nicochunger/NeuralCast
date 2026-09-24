@@ -210,6 +210,10 @@ def test_gemini_text_generation_handles_text_empty_and_grounded_no_script(monkey
     monkeypatch.setattr(text_generation, "get_gemini_client", lambda: Client())
     assert text_generation.gemini_generate_text("prompt", "system", 0.3, 0.8, False) == "Generated script"
     assert calls[0]["contents"] == "prompt"
+    config = calls[0]["config"]
+    assert config.automatic_function_calling.disable is True
+    assert config.temperature is None
+    assert config.top_p is None
 
     class EmptyClient:
         models = SimpleNamespace(
@@ -232,3 +236,36 @@ def test_gemini_text_generation_handles_text_empty_and_grounded_no_script(monkey
         lambda: SimpleNamespace(models=SimpleNamespace(generate_content=lambda **_kwargs: grounded)),
     )
     assert text_generation.gemini_generate_text("prompt", "system", 0.3, 0.8, True) == "NO_SCRIPT"
+
+
+def test_gemini_text_generation_keeps_search_and_legacy_sampling(monkeypatch) -> None:
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        text_generation,
+        "get_gemini_client",
+        lambda: SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=lambda **kwargs: calls.append(kwargs)
+                or SimpleNamespace(text="Grounded script")
+            )
+        ),
+    )
+
+    assert (
+        text_generation.gemini_generate_text(
+            "prompt", "system", 0.3, 0.8, True, model="gemini-3.8-flash"
+        )
+        == "Grounded script"
+    )
+    config = calls[0]["config"]
+    assert config.tools[0].google_search is not None
+    assert config.automatic_function_calling.disable is True
+    assert config.temperature is None
+    assert config.top_p is None
+
+    text_generation.gemini_generate_text(
+        "prompt", "system", 0.3, 0.8, False, model="gemini-2.5-flash"
+    )
+    legacy_config = calls[1]["config"]
+    assert legacy_config.temperature == 0.3
+    assert legacy_config.top_p == 0.8
