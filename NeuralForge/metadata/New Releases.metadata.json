@@ -30,7 +30,7 @@
       "Rank": 341011,
       "ReleaseDate": "2026-09-15T00:00:00+00:00",
       "TrackID": "4230756912",
-      "Validated": false
+      "Validated": true
     },
     "airbourne|alive after death (last plane out)|airbourne|2026": {
       "AlbumType": "album",
@@ -95,6 +95,30 @@
       "ReleaseDate": "2026-09-18T00:00:00+00:00",
       "TrackID": "3919914771",
       "Validated": true
+    },
+    "anthrax|the long goodbye|cursum perficio|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 619374,
+      "ReleaseDate": "2026-09-18T00:00:00+00:00",
+      "TrackID": "3919914761",
+      "Validated": false
+    },
+    "apocalyptica|upperhand (from control resonant)|upperhand (from control resonant)|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 660436,
+      "ReleaseDate": "2026-09-24T00:00:00+00:00",
+      "TrackID": "4261100981",
+      "Validated": false
+    },
+    "asia|arcadia|arcadia|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-24T00:00:00+00:00",
+      "TrackID": "4124399231",
+      "Validated": false
     },
     "asia|echo of you|echo of you|2026": {
       "AlbumType": "single",
@@ -176,6 +200,14 @@
       "TrackID": "4145491412",
       "Validated": true
     },
+    "cloven hoof|terror from the skies|never a prophet in your own land|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-25T00:00:00+00:00",
+      "TrackID": "4201425342",
+      "Validated": false
+    },
     "darkest era|roads|roads|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -246,6 +278,14 @@
       "Rank": 629710,
       "ReleaseDate": "2026-09-15T00:00:00+00:00",
       "TrackID": "4280495192",
+      "Validated": true
+    },
+    "dragonforce|hunger of the beast|hunger of the beast|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-24T00:00:00+00:00",
+      "TrackID": "4285495582",
       "Validated": false
     },
     "dragonland|survival of mankind|survival of mankind|2026": {
@@ -416,6 +456,14 @@
       "TrackID": "4005845831",
       "Validated": true
     },
+    "fir bolg|drunemeton|drunemeton|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-25T00:00:00+00:00",
+      "TrackID": "4256750441",
+      "Validated": false
+    },
     "firewind|the legend of achilles|gods, myths and titans|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -488,13 +536,13 @@
       "TrackID": "4099431811",
       "Validated": true
     },
-    "gloryhammer|warriors of auchtermuchty|warriors of auchtermuchty|2026": {
+    "gloryhammer|warriors of auchtermuchty|space 1993: wrath of kor-virliath|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 554583,
       "ReleaseDate": "2026-09-09T00:00:00+00:00",
       "TrackID": "4129161631",
-      "Validated": false
+      "Validated": true
     },
     "haken|bleeding sky|bleeding sky|2026": {
       "AlbumType": "single",
@@ -582,7 +630,7 @@
       "Rank": 598554,
       "ReleaseDate": "2026-09-09T00:00:00+00:00",
       "TrackID": "4237444502",
-      "Validated": false
+      "Validated": true
     },
     "insomnium|gleam in the black|gleam in the black|2026": {
       "AlbumType": "single",
@@ -608,6 +656,14 @@
       "TrackID": "4199070402",
       "Validated": true
     },
+    "iron savior|light in the dark|light in the dark|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-23T00:00:00+00:00",
+      "TrackID": "4199066252",
+      "Validated": false
+    },
     "iron savior|the creature's tale|deathbringer|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -616,13 +672,13 @@
       "TrackID": "4199066012",
       "Validated": true
     },
-    "jaguar|cutter|cutter|2026": {
+    "jaguar|cutter|cutter - single|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
       "ReleaseDate": "2026-07-24T00:00:00+00:00",
       "TrackID": "4166516642",
-      "Validated": false
+      "Validated": true
     },
     "jefferson starship|jetpack|jetpack - single|2026": {
       "AlbumType": "single",
@@ -631,6 +687,14 @@
       "ReleaseDate": "2026-08-21T00:00:00+00:00",
       "TrackID": "4229936322",
       "Validated": true
+    },
+    "jo blankenburg|citadel|vector zero|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 123146,
+      "ReleaseDate": "2026-08-28T00:00:00+00:00",
+      "TrackID": "4159635562",
+      "Validated": false
     },
     "jo blankenburg|power play|vector zero|2026": {
       "AlbumType": "album",
@@ -672,13 +736,13 @@
       "TrackID": "4093808501",
       "Validated": true
     },
-    "lars eric mattsson|genie in a bottle|genie in a bottle|2026": {
+    "lars eric mattsson|if i could change|if i could change|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Rank": 23490,
-      "ReleaseDate": "2026-05-28T00:00:00+00:00",
-      "TrackID": "3979404281",
-      "Validated": true
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-24T00:00:00+00:00",
+      "TrackID": "4274232212",
+      "Validated": false
     },
     "marilyn manson|all the vilest things|one assassination under god - chapter 2|2026": {
       "AlbumType": "album",
@@ -710,7 +774,7 @@
       "Rank": 148343,
       "ReleaseDate": "2026-06-26T00:00:00+00:00",
       "TrackID": "3829307791",
-      "Validated": false
+      "Validated": true
     },
     "masterplan|pain of yesterday|metalmorphosis|2026": {
       "AlbumType": "album",
@@ -719,6 +783,14 @@
       "ReleaseDate": "2026-06-26T00:00:00+00:00",
       "TrackID": "3829307801",
       "Validated": true
+    },
+    "masterplan|the call|metalmorphosis|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 168990,
+      "ReleaseDate": "2026-06-26T00:00:00+00:00",
+      "TrackID": "3829307841",
+      "Validated": false
     },
     "mastodon|in the ruins|in the ruins|2026": {
       "AlbumType": "single",
@@ -830,7 +902,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-18T00:00:00+00:00",
       "TrackID": "4265469182",
-      "Validated": false
+      "Validated": true
     },
     "polyphia|can you feel it|can you feel it|2026": {
       "AlbumType": "single",
@@ -847,6 +919,14 @@
       "ReleaseDate": "2026-08-26T00:00:00+00:00",
       "TrackID": "4242009492",
       "Validated": true
+    },
+    "polyphia|with eyes to see|be not afraid|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 100000,
+      "ReleaseDate": "2026-10-23T00:00:00+00:00",
+      "TrackID": "4296195952",
+      "Validated": false
     },
     "russian circles|eluvial|eluvial|2026": {
       "AlbumType": "single",
@@ -879,6 +959,14 @@
       "ReleaseDate": "2026-07-09T00:00:00+00:00",
       "TrackID": "4116795921",
       "Validated": true
+    },
+    "saltatio mortis|staub & schatten|staub & schatten|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-25T00:00:00+00:00",
+      "TrackID": "4247426211",
+      "Validated": false
     },
     "saor|carved in stone mmxxvi|carved in stone mmxxvi|2026": {
       "AlbumType": "single",
@@ -998,7 +1086,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-16T00:00:00+00:00",
       "TrackID": "4293397572",
-      "Validated": false
+      "Validated": true
     },
     "the great kat|swallowtail jig|swallowtail jig|2026": {
       "AlbumType": "single",
@@ -1006,7 +1094,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-16T00:00:00+00:00",
       "TrackID": "4293946032",
-      "Validated": false
+      "Validated": true
     },
     "the hu|horsemen|hun|2026": {
       "AlbumType": "album",
@@ -1040,29 +1128,13 @@
       "TrackID": "4153139622",
       "Validated": true
     },
-    "the ocean|light pollution|light pollution|2026": {
+    "the ocean|milk of my dreams|milk of my dreams|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Rank": 336908,
-      "ReleaseDate": "2026-05-28T00:00:00+00:00",
-      "TrackID": "3996216901",
-      "Validated": true
-    },
-    "the real mckenzies|shackleton|paul mckenzie sings on yer bike|2026": {
-      "AlbumType": "album",
-      "IsSingle": false,
-      "Rank": 150956,
-      "ReleaseDate": "2026-05-29T00:00:00+00:00",
-      "TrackID": "3867618491",
-      "Validated": true
-    },
-    "the real mckenzies|the mad trapper of rat river|paul mckenzie sings on yer bike|2026": {
-      "AlbumType": "album",
-      "IsSingle": false,
-      "Rank": 122622,
-      "ReleaseDate": "2026-05-29T00:00:00+00:00",
-      "TrackID": "3867618511",
-      "Validated": true
+      "Rank": 585033,
+      "ReleaseDate": "2026-09-17T00:00:00+00:00",
+      "TrackID": "4174446772",
+      "Validated": false
     },
     "their dogs were astronauts|the painter|the painter|2026": {
       "AlbumType": "single",
@@ -1088,29 +1160,29 @@
       "TrackID": "4136567021",
       "Validated": true
     },
-    "tokyo blade|screaming evil|screaming evil|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 47665,
-      "ReleaseDate": "2026-05-29T00:00:00+00:00",
-      "TrackID": "4023863391",
-      "Validated": true
+    "tokyo blade|screaming evil|hoist the colours high|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 185858,
+      "ReleaseDate": "2026-08-21T00:00:00+00:00",
+      "TrackID": "4165173072",
+      "Validated": false
     },
-    "tom petty and the heartbreakers|parade of loons|parade of loons|2026": {
+    "tom petty and the heartbreakers|parade of loons|origins 1971-1978|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 569927,
       "ReleaseDate": "2026-09-16T00:00:00+00:00",
       "TrackID": "4275737352",
-      "Validated": false
+      "Validated": true
     },
-    "triddana|the parting glass|the parting glass|2026": {
+    "trollfest|claiming the walk of fame|claiming the walk of fame|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
-      "ReleaseDate": "2026-05-23T00:00:00+00:00",
-      "TrackID": "4021294441",
-      "Validated": true
+      "ReleaseDate": "2026-09-25T00:00:00+00:00",
+      "TrackID": "4208267862",
+      "Validated": false
     },
     "trollfest|day drinking|trollywood|2026": {
       "AlbumType": "album",
