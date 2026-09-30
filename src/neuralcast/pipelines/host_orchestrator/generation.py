@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from .archetype_policies import ResolvedArchetypeProfile
 from .channels import HostLocale, get_channel_registry
 from .config import LOGGER
+from .memory import callback_prompt, select_callback
 from .concert_generation import (
     _generate_concert_check_script,
     artist_matches_targets,
@@ -45,7 +46,7 @@ from .prompts import (
 from .script_processing import cleanup_generated_script
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
-from .utils import run_with_retries
+from .utils import now_ts, run_with_retries
 
 
 @dataclass(frozen=True)
@@ -332,8 +333,16 @@ def _generate_standard_archetype_script(
     generate_with_retries,
     fallback,
     terminal_ultra_minimal_fallback,
+    callback_memory: Optional[Mapping[str, Any]] = None,
+    callback_now: float = 0,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     prompt = build_prompt(archetype=archetype, **prompt_kwargs)
+    if callback_memory is not None:
+        prompt += callback_prompt(
+            callback_memory,
+            callback_now,
+            _resolved_locale(prompt_kwargs.get("locale")).tag,
+        )
     generated = generate_with_retries(
         prompt=prompt,
         label=f"Gemini generation ({archetype.value})",
@@ -360,7 +369,10 @@ def _generate_standard_archetype_script(
             return terminal_ultra_minimal_fallback()
         return fallback()
 
-    return cleaned, _segment_metadata_for_archetype(archetype, prompt_kwargs), archetype
+    metadata = _segment_metadata_for_archetype(archetype, prompt_kwargs)
+    if callback_memory is not None:
+        metadata = replace(metadata, callback_source_id=callback_memory["id"])
+    return cleaned, metadata, archetype
 
 
 def generate_archetype_script(
@@ -481,6 +493,44 @@ def generate_archetype_script(
         )
 
     if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
+        callback_now = now_ts()
+        focus = _segment_metadata_for_archetype(archetype, prompt_kwargs).track_focus
+        subject_track = (
+            next_track
+            if focus == TrackFocus.NEXT or archetype == Archetype.UP_NEXT_TEASE
+            else current_track
+        )
+        context = {
+            "station": station_name,
+            "locale": locale.tag,
+            "archetype": archetype.value,
+            "angle": angle,
+            "focus": focus.value if focus else None,
+            "subject": (
+                [
+                    {"artist": track.artist, "title": track.title}
+                    for track in recent_tracks
+                ]
+                if archetype == Archetype.RECENTLY_PLAYED
+                else {"artist": subject_track.artist, "title": subject_track.title}
+            ),
+            "editorial_variants": asdict(variants),
+            "current_track": {
+                "artist": current_track.artist,
+                "title": current_track.title,
+            },
+            "next_track": {"artist": next_track.artist, "title": next_track.title},
+            "current_metadata": asdict(current_meta),
+            "next_metadata": asdict(next_meta),
+            "recent_tracks": [
+                {"artist": track.artist, "title": track.title}
+                for track in recent_tracks
+            ],
+            "schedule": asdict(schedule_context) if schedule_context else None,
+        }
+        callback_memory = select_callback(
+            state, context, now=callback_now, archetype=archetype
+        )
         return _generate_standard_archetype_script(
             archetype=archetype,
             prompt_kwargs=prompt_kwargs,
@@ -489,6 +539,8 @@ def generate_archetype_script(
             generate_with_retries=generate_with_retries,
             fallback=fallback,
             terminal_ultra_minimal_fallback=terminal_ultra_minimal_fallback,
+            callback_memory=callback_memory,
+            callback_now=callback_now,
         )
 
     if archetype == Archetype.CONCERT_CHECK:

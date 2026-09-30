@@ -682,6 +682,8 @@ def _publish_segment(
         rng=rng,
         cadence_settings=cadence_settings_for_station(runtime.channel.cadence_profile),
         archetype_policy=runtime.channel.archetype_policy,
+        memory_media_id=str(media_id),
+        callback_source_id=getattr(assets, "callback_source_id", None),
     )
 
     expected_play_at_utc = iso_utc(success_ts + max(0, playback.current_remaining))
@@ -1330,6 +1332,7 @@ class HostOrchestratorRuntime:
                 ),
             )
             LOGGER.info("[assets] Script saved: %s", assets.text_path)
+            assets.callback_source_id = segment_metadata.callback_source_id
             LOGGER.info("[assets] Audio saved: %s", assets.audio_path)
 
             if intro_plan is not None and not args.dry_run:

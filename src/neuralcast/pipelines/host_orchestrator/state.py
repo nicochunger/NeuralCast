@@ -44,6 +44,7 @@ from .models import (
 )
 from .archetype_policies import ResolvedArchetypeProfile
 from .schedule import prune_schedule_block_mentions
+from .memory import normalize_journal, record_queued_segment
 from .utils import iso_utc
 
 
@@ -331,6 +332,7 @@ def migrate_state(
         state.recent_news_dedup = normalized_entries[-NEWS_DEDUP_MAX_ENTRIES:]
 
     recent_scripts = raw.get("recent_scripts")
+    state.broadcast_memory = normalize_journal(raw.get("broadcast_memory"), ts)
     if isinstance(recent_scripts, list):
         normalized_scripts: List[str] = []
         for item in recent_scripts:
@@ -688,6 +690,8 @@ def apply_success_state_update(
     rng: random.Random,
     cadence_settings: Optional[StationCadenceSettings] = None,
     archetype_policy: Optional[ResolvedArchetypeProfile] = None,
+    memory_media_id: Optional[str] = None,
+    callback_source_id: Optional[str] = None,
 ) -> None:
     settings = _coerce_cadence_settings(cadence_settings)
     previous_songs_since = state.songs_since_last_spoken
@@ -731,6 +735,15 @@ def apply_success_state_update(
 
     normalized_script = " ".join(script_text.split()).strip()
     if normalized_script:
+        record_queued_segment(
+            state,
+            now=ts,
+            expected_play_at=state.last_spoken_expected_end_ts,
+            script=normalized_script,
+            archetype=archetype_used,
+            media_id=memory_media_id,
+            callback_source_id=callback_source_id,
+        )
         state.recent_scripts = [normalized_script, *state.recent_scripts][
             :RECENT_SCRIPT_MEMORY_SIZE
         ]

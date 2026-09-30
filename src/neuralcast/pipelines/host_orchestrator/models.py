@@ -55,6 +55,7 @@ class StoryAssets:
     audio_path: pathlib.Path
     story_text: str
     remote_path: str
+    callback_source_id: Optional[str] = None
 
 
 @dataclass
@@ -131,6 +132,7 @@ class GeneratedSegmentMetadata:
     news_segment: Optional[NewsSegment] = None
     concert_segment: Optional[ConcertSegment] = None
     track_focus: Optional[TrackFocus] = None
+    callback_source_id: Optional[str] = None
 
 
 @dataclass
@@ -153,6 +155,7 @@ class OrchestratorState:
     schedule_block_mentions: Dict[str, Dict[str, Any]]
 
     pending_block_intro: Optional[Dict[str, Any]] = None
+    broadcast_memory: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -173,4 +176,5 @@ class OrchestratorState:
             "recent_scripts": self.recent_scripts,
             "schedule_block_mentions": self.schedule_block_mentions,
             "pending_block_intro": self.pending_block_intro,
+            "broadcast_memory": self.broadcast_memory,
         }

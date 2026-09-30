@@ -30,7 +30,13 @@ AZURACAST_API_KEY=your_azuracast_key
 AZURACAST_BASE_URL=https://your-radio-url.com
 AZURACAST_STATION=neuralforge
 GEMINI_API_KEY=your_gemini_key
+# Optional host memory callback selection:
+TYPESAFE_API_KEY=your_typesafe_key
 ```
+
+See [Host broadcast memory](../docs/host_memory.md) for Jev selection,
+per-channel history, and failure behavior. Without a TypeSafe key, the host
+still records successfully queued snippets but generates without callbacks.
 
 ## Manual Runtime Checks
 
