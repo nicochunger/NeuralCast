@@ -192,7 +192,8 @@ def ensure_story_assets(
         script_text,
         protected_texts=(current_track.artist, current_track.title, *protected_texts),
     )
-    text_path.write_text(speech.plain_text + "\n", encoding="utf-8")
+    # Keep the exact TTS transcript, including inline expression tags, for review.
+    text_path.write_text(speech.tts_text + "\n", encoding="utf-8")
 
     synthesize_speech(
         text=speech.tts_text,

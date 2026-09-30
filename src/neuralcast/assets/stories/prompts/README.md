@@ -49,7 +49,9 @@ Esta carpeta contiene plantillas de prompts usadas por:
 5. `speech_script_guidance.md` se incluye en `system_instruction`. El modelo
    devuelve una transcripcion literal; puede usar etiquetas vocales Gemini en
    ingles dentro de `<>`, nunca instrucciones o acotaciones. La validacion
-   rechaza etiquetas desconocidas antes de sintetizar.
+   rechaza etiquetas desconocidas antes de sintetizar. El archivo `.txt`
+   conserva el texto exacto enviado a TTS, incluidas las etiquetas; el texto
+   usado para historial y estado sigue sin etiquetas.
 
 ## Voces Gemini 3.8
 

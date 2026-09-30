@@ -74,6 +74,40 @@ class StoryAssetTest(unittest.TestCase):
             duration=240,
         )
 
+    def test_saved_script_preserves_inline_tags_sent_to_tts(self) -> None:
+        script = "Qué buena canción... <chuckle> ahora sigue John Waite."
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "snippets"
+
+            def _fake_speech(**kwargs: object) -> None:
+                Path(str(kwargs["outfile"])).write_bytes(b"fake mp3")
+
+            with (
+                patch.object(story_assets, "STORY_OUTPUT_DIR", output_dir),
+                patch.object(
+                    story_assets, "synthesize_speech", side_effect=_fake_speech
+                ) as synthesize,
+                patch.object(story_assets, "apply_replaygain"),
+                patch.object(story_assets, "embed_local_cover_art", return_value=True),
+            ):
+                result = story_assets.ensure_story_assets(
+                    "neuralcast",
+                    self._queue_track(),
+                    Archetype.SHORT_STORY,
+                    script,
+                    "Conversational delivery",
+                    "Historia del tema",
+                )
+
+            self.assertEqual(
+                result.text_path.read_text(encoding="utf-8"), script + "\n"
+            )
+            self.assertEqual(synthesize.call_args.kwargs["text"], script)
+            self.assertEqual(
+                result.story_text,
+                "Qué buena canción... ahora sigue John Waite.",
+            )
+
     def test_story_audio_tags_preserve_embedded_cover_art(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = Path(tmpdir) / "story.mp3"
