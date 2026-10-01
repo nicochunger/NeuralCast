@@ -20,38 +20,12 @@ from neuralcast.pipelines.host_orchestrator.state import default_state
 NOW = 1_800_000_000.0
 
 
-@pytest.mark.parametrize(
-    "response, expected_callback",
-    [("A natural continuation.", True), ("NO_SCRIPT", False)],
-)
-def test_callback_uses_resolved_subject_and_does_not_survive_fallback(
-    monkeypatch, response, expected_callback
-):
-    state = default_state(NOW, random.Random(1))
-    state.broadcast_memory = [
-        {
-            "id": "earlier",
-            "script": "We discussed this album.",
-            "expected_play_at": NOW - 600,
-        }
-    ]
-    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
-    provider = Mock(
-        return_value={
-            "answers": {
-                "callback_0": {
-                    "type": "choice",
-                    "choice": "yes",
-                    "probabilities": {"yes": 0.9, "no": 0.1},
-                }
-            }
-        }
-    )
-    monkeypatch.setattr(memory.typesafe, "evaluate_questions", provider)
-    monkeypatch.setattr(generation, "now_ts", lambda: NOW)
-    writer = Mock(side_effect=[response, "A simple transition."])
-    monkeypatch.setattr(generation, "gemini_generate_text", writer)
-    _, metadata, archetype = generation.generate_archetype_script(
+DRAFT = "The producer stripped away the guitar. That exposed the vulnerability in his voice."
+CALLBACK = " Like the bare recording we heard earlier, the silence reveals something."
+
+
+def generate(state):
+    return generation.generate_archetype_script(
         archetype=Archetype.ALBUM_SPOTLIGHT,
         station_name="NeuralForge",
         personality=generation.resolve_station_personality("neuralforge"),
@@ -70,17 +44,126 @@ def test_callback_uses_resolved_subject_and_does_not_survive_fallback(
         forced_track_focus=TrackFocus.NEXT,
         locale=get_channel_registry().locales["en"],
     )
-    context = provider.call_args.args[0]["upcoming"]
-    assert context["subject"] == {"artist": "Artist B", "title": "Song B"}
-    assert context["focus"] == "next"
-    assert "We discussed this album." in writer.call_args_list[0].kwargs["prompt"]
-    assert metadata.callback_source_id == ("earlier" if expected_callback else None)
-    assert archetype == (
-        Archetype.ALBUM_SPOTLIGHT if expected_callback else Archetype.ULTRA_MINIMAL
+
+
+@pytest.fixture
+def callback_pipeline(monkeypatch):
+    state = default_state(NOW, random.Random(1))
+    state.broadcast_memory = [
+        {
+            "id": "earlier",
+            "script": "We heard a bare recording.",
+            "expected_play_at": NOW - 600,
+        }
+    ]
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    provider = Mock(
+        return_value={
+            "answers": {
+                "callback_0": {
+                    "type": "choice",
+                    "choice": "yes",
+                    "probabilities": {"yes": 0.9, "no": 0.1},
+                }
+            }
+        }
     )
-    if not expected_callback:
-        assert "BROADCAST MEMORY" not in writer.call_args_list[1].kwargs["prompt"]
+    monkeypatch.setattr(memory.typesafe, "evaluate_questions", provider)
+    monkeypatch.setattr(generation, "now_ts", lambda: NOW)
+    writer = Mock(side_effect=[DRAFT, DRAFT + CALLBACK])
+    monkeypatch.setattr(generation, "gemini_generate_text", writer)
+    return state, provider, writer
+
+
+def test_researched_draft_precedes_decision_and_optional_unresearched_edit(
+    callback_pipeline,
+):
+    state, provider, writer = callback_pipeline
+    events = []
+    writer.side_effect = lambda **kw: events.append(
+        "edit" if len(events) else "draft"
+    ) or (DRAFT if len(events) == 1 else DRAFT + CALLBACK)
+    response = provider.return_value
+    provider.side_effect = lambda *args: events.append("decision") or response
+    script, metadata, archetype = generate(state)
+    assert events == ["draft", "decision", "edit"]
+    context = provider.call_args.args[0]["upcoming"]
+    assert context["draft"] == DRAFT
+    assert context["archetype"] == "album_spotlight"
+    assert "BROADCAST MEMORY" not in writer.call_args_list[0].kwargs["prompt"]
+    assert writer.call_args_list[0].kwargs["with_search"] is True
+    assert writer.call_args_list[1].kwargs["with_search"] is False
+    assert DRAFT in writer.call_args_list[1].kwargs["prompt"]
+    assert script == DRAFT + CALLBACK
+    assert metadata.callback_source_id == "earlier"
+    assert archetype == Archetype.ALBUM_SPOTLIGHT
     assert len(state.broadcast_memory) == 1
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        "NO_CALLBACK",
+        DRAFT,
+        "A rewritten draft.",
+        DRAFT + " <unsupported>Earlier.</unsupported>",
+        DRAFT + " " + "word " * 40,
+        RuntimeError("writer unavailable"),
+    ],
+)
+def test_failed_or_declined_edit_keeps_draft_and_does_not_consume_source(
+    callback_pipeline, edit
+):
+    state, provider, writer = callback_pipeline
+    writer.side_effect = [DRAFT, edit]
+    script, metadata, archetype = generate(state)
+    assert script == DRAFT
+    assert metadata.callback_source_id is None
+    assert archetype == Archetype.ALBUM_SPOTLIGHT
+    assert writer.call_count == 2
+    assert len(state.broadcast_memory) == 1
+
+
+def test_all_no_does_not_add_editing_call(callback_pipeline):
+    state, provider, writer = callback_pipeline
+    provider.return_value["answers"]["callback_0"].update(
+        choice="no", probabilities={"yes": 0.1, "no": 0.9}
+    )
+    script, metadata, _ = generate(state)
+    assert script == DRAFT
+    assert metadata.callback_source_id is None
+    writer.assert_called_once()
+
+
+def test_generation_fallback_does_not_select_callback(callback_pipeline):
+    state, provider, writer = callback_pipeline
+    writer.side_effect = ["NO_SCRIPT", "A simple transition."]
+    script, metadata, archetype = generate(state)
+    assert script == "A simple transition."
+    assert archetype == Archetype.ULTRA_MINIMAL
+    assert metadata.callback_source_id is None
+    provider.assert_not_called()
+
+
+def test_invalid_draft_is_rejected_before_decision(callback_pipeline):
+    state, provider, writer = callback_pipeline
+    writer.side_effect = ["<unknown>Invalid transcript."]
+    script, metadata, _ = generate(state)
+    assert script == "<unknown>Invalid transcript."
+    assert metadata.callback_source_id is None
+    provider.assert_not_called()
+
+
+def test_invalid_draft_retains_callers_regeneration_path(callback_pipeline):
+    state, provider, writer = callback_pipeline
+    writer.side_effect = ["<unknown>Invalid transcript.", DRAFT, DRAFT + CALLBACK]
+    script, metadata, _ = main._generate_validated_script(
+        lambda: generate(state), protected_texts=()
+    )
+    assert script == DRAFT + CALLBACK
+    assert metadata.callback_source_id == "earlier"
+    provider.assert_called_once()
+    assert writer.call_count == 3
 
 
 @pytest.mark.parametrize("failure", [None, "upload", "queue"])

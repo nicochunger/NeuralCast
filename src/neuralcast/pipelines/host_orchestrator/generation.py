@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import random
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from .archetype_policies import ResolvedArchetypeProfile
 from .channels import HostLocale, get_channel_registry
 from .config import LOGGER
-from .memory import callback_prompt, select_callback
+from .memory import apply_callback_edit, callback_prompt, select_callback
 from .concert_generation import (
     _generate_concert_check_script,
     artist_matches_targets,
@@ -44,6 +44,7 @@ from .prompts import (
     station_name_for_generation,
 )
 from .script_processing import cleanup_generated_script
+from .speech import validate_speech_transcript
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
 from .utils import now_ts, run_with_retries
@@ -183,9 +184,7 @@ def fallback_to_ultra_minimal(
     archetype_policy: Optional[ResolvedArchetypeProfile] = None,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     locale = _resolved_locale(locale)
-    fallback_hook = choose_hook(
-        Archetype.ULTRA_MINIMAL, state, rng, archetype_policy
-    )
+    fallback_hook = choose_hook(Archetype.ULTRA_MINIMAL, state, rng, archetype_policy)
     fallback_script, _, fallback_arch = generate_archetype_script(
         archetype=Archetype.ULTRA_MINIMAL,
         station_name=station_name,
@@ -333,16 +332,8 @@ def _generate_standard_archetype_script(
     generate_with_retries,
     fallback,
     terminal_ultra_minimal_fallback,
-    callback_memory: Optional[Mapping[str, Any]] = None,
-    callback_now: float = 0,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     prompt = build_prompt(archetype=archetype, **prompt_kwargs)
-    if callback_memory is not None:
-        prompt += callback_prompt(
-            callback_memory,
-            callback_now,
-            _resolved_locale(prompt_kwargs.get("locale")).tag,
-        )
     generated = generate_with_retries(
         prompt=prompt,
         label=f"Gemini generation ({archetype.value})",
@@ -369,10 +360,7 @@ def _generate_standard_archetype_script(
             return terminal_ultra_minimal_fallback()
         return fallback()
 
-    metadata = _segment_metadata_for_archetype(archetype, prompt_kwargs)
-    if callback_memory is not None:
-        metadata = replace(metadata, callback_source_id=callback_memory["id"])
-    return cleaned, metadata, archetype
+    return cleaned, _segment_metadata_for_archetype(archetype, prompt_kwargs), archetype
 
 
 def generate_archetype_script(
@@ -406,9 +394,7 @@ def generate_archetype_script(
     """
 
     locale = _resolved_locale(locale)
-    temperature, top_p = sample_generation_settings(
-        archetype, rng, archetype_policy
-    )
+    temperature, top_p = sample_generation_settings(archetype, rng, archetype_policy)
     system_prompt = build_system_prompt(station_name, personality, locale=locale)
     variants = _resolve_prompt_variants(
         archetype=archetype,
@@ -476,7 +462,9 @@ def generate_archetype_script(
             archetype_policy=archetype_policy,
         )
 
-    def terminal_ultra_minimal_fallback() -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
+    def terminal_ultra_minimal_fallback() -> (
+        Tuple[str, GeneratedSegmentMetadata, Archetype]
+    ):
         LOGGER.warning(
             "[ultra_minimal] Gemini did not produce a usable script; using deterministic local fallback."
         )
@@ -493,45 +481,7 @@ def generate_archetype_script(
         )
 
     if archetype not in {Archetype.NEWS, Archetype.CONCERT_CHECK}:
-        callback_now = now_ts()
-        focus = _segment_metadata_for_archetype(archetype, prompt_kwargs).track_focus
-        subject_track = (
-            next_track
-            if focus == TrackFocus.NEXT or archetype == Archetype.UP_NEXT_TEASE
-            else current_track
-        )
-        context = {
-            "station": station_name,
-            "locale": locale.tag,
-            "archetype": archetype.value,
-            "angle": angle,
-            "focus": focus.value if focus else None,
-            "subject": (
-                [
-                    {"artist": track.artist, "title": track.title}
-                    for track in recent_tracks
-                ]
-                if archetype == Archetype.RECENTLY_PLAYED
-                else {"artist": subject_track.artist, "title": subject_track.title}
-            ),
-            "editorial_variants": asdict(variants),
-            "current_track": {
-                "artist": current_track.artist,
-                "title": current_track.title,
-            },
-            "next_track": {"artist": next_track.artist, "title": next_track.title},
-            "current_metadata": asdict(current_meta),
-            "next_metadata": asdict(next_meta),
-            "recent_tracks": [
-                {"artist": track.artist, "title": track.title}
-                for track in recent_tracks
-            ],
-            "schedule": asdict(schedule_context) if schedule_context else None,
-        }
-        callback_memory = select_callback(
-            state, context, now=callback_now, archetype=archetype
-        )
-        return _generate_standard_archetype_script(
+        draft, metadata, used_archetype = _generate_standard_archetype_script(
             archetype=archetype,
             prompt_kwargs=prompt_kwargs,
             angle=angle,
@@ -539,8 +489,59 @@ def generate_archetype_script(
             generate_with_retries=generate_with_retries,
             fallback=fallback,
             terminal_ultra_minimal_fallback=terminal_ultra_minimal_fallback,
-            callback_memory=callback_memory,
-            callback_now=callback_now,
+        )
+
+        protected_texts = tuple(
+            value
+            for track in (current_track, next_track, *upcoming_tracks)
+            for value in (track.artist, track.title)
+        ) + (current_meta.album, next_meta.album)
+        # Invalid drafts still follow the existing caller's regeneration path.
+        # Do not spend a decision/edit call on a transcript that cannot reach TTS.
+        try:
+            validate_speech_transcript(draft, protected_texts=protected_texts)
+        except ValueError:
+            return draft, metadata, used_archetype
+        callback_now = now_ts()
+        callback_memory = select_callback(
+            state,
+            {"draft": draft, "locale": locale.tag, "archetype": used_archetype.value},
+            now=callback_now,
+            archetype=used_archetype,
+        )
+        if callback_memory is None:
+            return draft, metadata, used_archetype
+        try:
+            # One optional editing call, without new research or retries. Failure
+            # keeps the already researched draft, rather than regenerating it.
+            edited = gemini_generate_text(
+                prompt=callback_prompt(
+                    callback_memory, callback_now, locale.tag, draft
+                ),
+                system_prompt=system_prompt,
+                temperature=min(temperature, 0.65),
+                top_p=top_p,
+                with_search=False,
+            )
+            result = apply_callback_edit(draft, edited, protected_texts=protected_texts)
+        except Exception as exc:  # Optional editing must not lose a usable draft.
+            LOGGER.warning(
+                "[memory] Callback edit failed (%s); keeping original draft",
+                type(exc).__name__,
+            )
+            return draft, metadata, used_archetype
+        if result is None:
+            LOGGER.info("[memory] Callback omitted; keeping original draft")
+            return draft, metadata, used_archetype
+        LOGGER.info(
+            "[memory] Callback inserted source=%s; added_words=%s",
+            callback_memory["id"],
+            len(result.split()) - len(draft.split()),
+        )
+        return (
+            result,
+            replace(metadata, callback_source_id=callback_memory["id"]),
+            used_archetype,
         )
 
     if archetype == Archetype.CONCERT_CHECK:

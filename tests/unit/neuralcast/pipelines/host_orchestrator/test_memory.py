@@ -62,7 +62,10 @@ def test_filters_old_future_and_used_memories_and_batches(configured):
         }
     }
     selected = memory.select_callback(
-        state, {"subject": "album"}, now=NOW, archetype=Archetype.SHORT_STORY
+        state,
+        {"draft": "An intimate recording."},
+        now=NOW,
+        archetype=Archetype.SHORT_STORY,
     )
     assert selected["id"] == "a"
     configured.assert_called_once()
@@ -202,7 +205,57 @@ def test_queued_segment_round_trips_existing_atomic_state(tmp_path):
     [("en", "new listener"), ("fr-CH", "vient d'arriver"), ("es-AR", "recién llegue")],
 )
 def test_callback_prompt_preserves_language_and_age(locale, phrase):
-    prompt = memory.callback_prompt(entry(age=600), NOW, locale)
+    prompt = memory.callback_prompt(entry(age=600), NOW, locale, "A researched draft.")
     assert phrase in prompt
     assert '"minutes_ago": 10' in prompt
     assert "Earlier observation a" in prompt
+
+
+@pytest.mark.parametrize(
+    "edited",
+    [
+        "As we heard earlier, the room matters. First sentence. Second sentence.",
+        "First sentence. As we heard earlier, the room matters. Second sentence.",
+        "First sentence. Second sentence. As we heard earlier, the room matters.",
+    ],
+)
+def test_callback_accepts_one_short_insertion(edited):
+    assert (
+        memory.apply_callback_edit("First sentence. Second sentence.", edited) == edited
+    )
+
+
+@pytest.mark.parametrize(
+    "edited",
+    [
+        "Changed sentence. Second sentence. Earlier, the room mattered.",
+        "First Earlier sentence. Second sentence.",
+        "Earlier. First sentence. More. Second sentence.",
+        "First sentence. Second sentence. " + "word " * 40,
+        "First sentence. Second sentence. <unknown>Earlier.</unknown>",
+        "First sentence. Second sentence. https://example.com",
+        "First sentence. Second sentence. [laughs] Earlier.",
+    ],
+)
+def test_callback_rejects_rewrites_multiple_insertions_and_invalid_speech(edited):
+    with pytest.raises(ValueError):
+        memory.apply_callback_edit("First sentence. Second sentence.", edited)
+
+
+@pytest.mark.parametrize("edited", ["NO_CALLBACK", "NO_SCRIPT", "First sentence."])
+def test_callback_can_be_omitted(edited):
+    assert memory.apply_callback_edit("First sentence.", edited) is None
+
+
+def test_callback_preserves_vocal_tags_and_protected_titles():
+    draft = "<chuckle> That was [Song]. Here comes the next track."
+    edited = draft + " Like earlier, its restraint speaks volumes."
+    assert (
+        memory.apply_callback_edit(draft, edited, protected_texts=("[Song]",)) == edited
+    )
+
+
+def test_callback_budget_scales_with_draft_and_is_capped():
+    assert memory.callback_word_budget("Brief draft.") == 12
+    assert memory.callback_word_budget("word " * 100) == 15
+    assert memory.callback_word_budget("word " * 400) == 35
