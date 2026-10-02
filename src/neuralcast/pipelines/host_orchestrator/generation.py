@@ -45,6 +45,7 @@ from .prompts import (
 )
 from .script_processing import cleanup_generated_script
 from .speech import validate_speech_transcript
+from .spontaneity import prepare_conversational_guidance, recent_scripts_for_prompt
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
 from .utils import now_ts, run_with_retries
@@ -422,6 +423,11 @@ def generate_archetype_script(
     )
 
     prompt_kwargs["recent_tracks"] = recent_tracks
+    recent_scripts = recent_scripts_for_prompt(state, now_ts())
+    prompt_kwargs["recent_scripts"] = recent_scripts
+    prompt_kwargs["spontaneity_guidance"] = prepare_conversational_guidance(
+        archetype, rng, recent_scripts
+    )
 
     def generate_with_retries(
         prompt: str,

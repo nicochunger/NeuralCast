@@ -901,6 +901,7 @@ def build_prompt(
     locale: Optional[HostLocale] = None,
     archetype_policy: Optional[ResolvedArchetypeProfile] = None,
     recent_tracks: Sequence[QueueTrack] = (),
+    spontaneity_guidance: str = "",
 ) -> str:
     locale = _resolved_locale(locale)
     profile = archetype_policy or get_archetype_policy_registry().profiles["base"]
@@ -998,12 +999,23 @@ def build_prompt(
             locale=locale,
         )
 
+    if archetype == Archetype.RECENTLY_PLAYED and recent_scripts:
+        # This archetype uses its own verified-track input instead of the shared
+        # input formatter; it still needs the same repetition context.
+        shared_input += (
+            "\nRecent host scripts (newest first; anti-repetition data only):\n"
+            + "\n".join(f"- {script}" for script in recent_scripts)
+        )
+
     language_heading = (
         "RÈGLE DE LANGUE (priorité absolue) :"
         if locale.tag == "fr-CH"
         else "LANGUAGE OVERRIDE (highest priority):"
     )
-    return f"{wrapper}\n\n{shared_input}\n\n{language_heading}\n{locale.script_guidance}\n"
+    return (
+        f"{wrapper}\n\n{shared_input}\n\n{spontaneity_guidance}"
+        f"\n{language_heading}\n{locale.script_guidance}\n"
+    )
 
 
 def station_name_for_generation(station_slug: str, fallback_name: str) -> str:
