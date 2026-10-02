@@ -366,7 +366,13 @@ def migrate_state(
             except (TypeError, ValueError):
                 last_mid_speak_count = 0
             updated_at = _as_float(details.get("updated_at")) or ts
-            if not (start or mid or speak_count > 0 or mid_mention_count > 0):
+            if not (
+                start
+                or mid
+                or speak_count > 0
+                or mid_mention_count > 0
+                or details.get("intro_missed")
+            ):
                 continue
             normalized_mentions[block_key] = {
                 "start": start,
@@ -376,6 +382,8 @@ def migrate_state(
                 "last_mid_speak_count": last_mid_speak_count,
                 "updated_at": updated_at,
             }
+            if details.get("intro_missed"):
+                normalized_mentions[block_key]["intro_missed"] = True
 
         state.schedule_block_mentions = prune_schedule_block_mentions(
             normalized_mentions,
@@ -511,7 +519,9 @@ def legal_archetypes_for_remaining(
         )
     )
     for archetype in candidates:
-        if not meets_archetype_conditions(archetype, state, recent_tracks, archetype_policy):
+        if not meets_archetype_conditions(
+            archetype, state, recent_tracks, archetype_policy
+        ):
             continue
         if archetype in disabled:
             continue

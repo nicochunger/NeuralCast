@@ -33,7 +33,11 @@ from neuralcast.services.azuracast_config import (
 )
 
 from .channels import HostChannel, host_channel_keys, resolve_host_channel
-from .block_intros import PreparedBlockIntro, plan_block_intro
+from .block_intros import (
+    BLOCK_INTRO_EARLY_DRIFT_SECONDS,
+    PreparedBlockIntro,
+    plan_block_intro,
+)
 from .assets import (
     cleanup_local_stories,
     cleanup_remote_stories,
@@ -105,6 +109,7 @@ from .transport import (
     extract_upload_song_id,
     extract_upload_storage_path,
     parse_queue_tracks,
+    tracks_match,
 )
 from .utils import (
     iso_utc,
@@ -774,11 +779,15 @@ def _publish_prepared_intro(
             playback.current_remaining,
             queue.upcoming_tracks,
             state.schedule_block_mentions,
+            prepared=prepared,
         )
         if plan is None or plan.target_index != 0 or not prepared.matches(plan):
             return None
         start_ts = dt.datetime.fromisoformat(plan.context.start_local_iso).timestamp()
-        if deps.now() + playback.current_remaining < start_ts:
+        earliest_boundary = start_ts
+        if plan.expected_play_at < start_ts:
+            earliest_boundary -= BLOCK_INTRO_EARLY_DRIFT_SECONDS
+        if deps.now() + playback.current_remaining < earliest_boundary:
             return None
         return playback, replace(queue, schedule_context=plan.context)
 
@@ -1075,6 +1084,7 @@ class HostOrchestratorRuntime:
 
             intro_plan = None
             if not args.force_archetype:
+                prepared = PreparedBlockIntro.from_dict(state.pending_block_intro)
                 intro_plan = plan_block_intro(
                     runtime.schedule_state,
                     deps.now(),
@@ -1082,8 +1092,21 @@ class HostOrchestratorRuntime:
                     playback.current_remaining,
                     queue_context.upcoming_tracks,
                     state.schedule_block_mentions,
+                    prepared=prepared,
                 )
-                prepared = PreparedBlockIntro.from_dict(state.pending_block_intro)
+                if (
+                    prepared is not None
+                    and tracks_match(playback.current_track, prepared.target)
+                    and not args.dry_run
+                ):
+                    mention = state.schedule_block_mentions.setdefault(
+                        prepared.context.block_key, {}
+                    )
+                    mention["intro_missed"] = True
+                    mention["updated_at"] = deps.now()
+                    LOGGER.info(
+                        "[schedule] Prepared intro target already playing; skipping this block's intro."
+                    )
                 if (
                     prepared is not None
                     and intro_plan is None

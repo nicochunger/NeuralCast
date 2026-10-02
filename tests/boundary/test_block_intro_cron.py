@@ -293,3 +293,48 @@ def test_queue_estimate_cannot_cause_insertion_before_block_start(scenario):
     cycle()
     assert not client.commands
     assert client.uploads == 0
+
+
+def test_prepared_target_crossing_clock_start_keeps_intro_before_first_song(scenario):
+    client, calls, cycle, state, _, _ = scenario
+    cycle()
+    # The original estimate was after the block start. Crossfades move it eight
+    # seconds before the start, as happened with Costumbres Argentinas.
+    client.now = START - 180
+    client.current = row("two", START - 240)
+    client.remaining = 172
+    client.queue = [row("three", START - 8), row("four", START + 172)]
+    result = cycle()
+    assert result.status == "published"
+    assert len(calls) == 1
+    assert calls[0]["next_track"].title == "three"
+    assert len(client.commands) == 1
+    assert state().pending_block_intro is None
+    assert state().schedule_block_mentions["2026-09-12|evening"]["start"] is True
+
+
+def test_prepared_first_song_already_started_early_does_not_introduce_second(scenario):
+    client, calls, cycle, state, _, _ = scenario
+    cycle()
+    client.now = START + 10
+    client.current = row("three", START - 8)
+    client.remaining = 162
+    client.queue = [row("four", START + 172)]
+    cycle()
+    assert len(calls) == 1
+    assert state().pending_block_intro is None
+    assert state().schedule_block_mentions["2026-09-12|evening"]["intro_missed"] is True
+    assert not state().schedule_block_mentions["2026-09-12|evening"]["start"]
+    cycle()
+    assert len(calls) == 1
+    assert not client.commands
+
+
+def test_small_queue_drift_during_upload_keeps_original_boundary(scenario):
+    client, calls, cycle, state, ready, _ = scenario
+    cycle()
+    ready()
+    client.after_upload = lambda: client.queue[0].update(played_at=START - 8)
+    assert cycle().status == "published"
+    assert len(calls) == 1
+    assert len(client.commands) == 1

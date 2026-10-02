@@ -184,7 +184,13 @@ def prune_schedule_block_mentions(
             last_mid_speak_count = max(0, int(details.get("last_mid_speak_count", 0)))
         except (TypeError, ValueError):
             last_mid_speak_count = 0
-        if not (start or mid or speak_count > 0 or mid_mention_count > 0):
+        if not (
+            start
+            or mid
+            or speak_count > 0
+            or mid_mention_count > 0
+            or details.get("intro_missed")
+        ):
             continue
 
         updated_raw = details.get("updated_at")
@@ -209,6 +215,8 @@ def prune_schedule_block_mentions(
             "last_mid_speak_count": last_mid_speak_count,
             "updated_at": updated_at,
         }
+        if details.get("intro_missed"):
+            normalized[block_key]["intro_missed"] = True
 
     if len(normalized) <= SCHEDULE_MENTION_MAX_ENTRIES:
         return normalized

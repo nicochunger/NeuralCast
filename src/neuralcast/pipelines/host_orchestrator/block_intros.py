@@ -17,6 +17,10 @@ from .schedule import (
 )
 from .transport import tracks_match
 
+# AutoDJ queue estimates can move across the clock boundary as tracks crossfade.
+# Only an already prepared song may retain its slot slightly before that time.
+BLOCK_INTRO_EARLY_DRIFT_SECONDS = 60
+
 
 @dataclass(frozen=True)
 class BlockIntroPlan:
@@ -50,6 +54,8 @@ def plan_block_intro(
     remaining: int,
     queue: Sequence[QueueTrack],
     mentions: Mapping[str, Mapping[str, Any]],
+    *,
+    prepared: PreparedBlockIntro | None = None,
 ) -> BlockIntroPlan | None:
     """Choose the first predicted song boundary at/after a scheduled start.
 
@@ -71,7 +77,20 @@ def plan_block_intro(
             or start_ts > now + SCHEDULE_BLOCK_INTRO_LOOKAHEAD_MINUTES * 60
         ):
             continue
-        if mentions.get(key, {}).get("start") or end.timestamp() <= now:
+        mention = mentions.get(key, {})
+        if (
+            mention.get("start")
+            or mention.get("intro_missed")
+            or end.timestamp() <= now
+        ):
+            continue
+        if (
+            prepared is not None
+            and prepared.context.block_key == key
+            and tracks_match(current, prepared.target)
+        ):
+            # The prepared first song has already started, even if it began a
+            # little before the scheduled clock time. Do not introduce song two.
             continue
         previous_time = now
         for index, track in enumerate(queue):
@@ -79,7 +98,15 @@ def plan_block_intro(
             if played_at is None or played_at <= previous_time:
                 return None
             previous_time = played_at
-            if played_at < start_ts:
+            predecessor = current if index == 0 else queue[index - 1]
+            retained_boundary = (
+                prepared is not None
+                and prepared.context.block_key == key
+                and played_at >= start_ts - BLOCK_INTRO_EARLY_DRIFT_SECONDS
+                and tracks_match(track, prepared.target)
+                and tracks_match(predecessor, prepared.predecessor)
+            )
+            if played_at < start_ts and not retained_boundary:
                 continue
             if played_at >= end.timestamp():
                 break
@@ -89,7 +116,7 @@ def plan_block_intro(
             return BlockIntroPlan(
                 context=replace(context, mention_intent="start"),
                 target=track,
-                predecessor=current if index == 0 else queue[index - 1],
+                predecessor=predecessor,
                 upcoming_tracks=queue[index:],
                 target_index=index,
                 expected_play_at=played_at,
@@ -121,6 +148,7 @@ class PreparedBlockIntro:
         started_at = _current_start(current, now, remaining)
         return (
             now < end
+            and not tracks_match(current, self.target)
             and (started_at is None or started_at < start)
             and resolve_schedule_context(schedule_state, start, mentions)
             == self.context
