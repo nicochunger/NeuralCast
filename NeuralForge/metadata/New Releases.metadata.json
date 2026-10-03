@@ -8,13 +8,13 @@
       "TrackID": "4062125581",
       "Validated": true
     },
-    "accept|fast as a shark (feat. phil anselmo, kirk hammett, billy sheehan, mikkey dee, harmoniemusik hindelang)|save us (feat. tobias forge, frank bello, ray luzier)|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 444746,
-      "ReleaseDate": "2026-06-02T00:00:00+00:00",
-      "TrackID": "3994550761",
-      "Validated": true
+    "accept|losers and winners (feat. hansi k\u00fcrsch, paul gilbert, chuck garric, tommy aldridge)|teutonic titans 1976-2026|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 448902,
+      "ReleaseDate": "2026-09-04T00:00:00+00:00",
+      "TrackID": "3994552831",
+      "Validated": false
     },
     "accept|save us (feat. tobias forge, frank bello, ray luzier)|save us (feat. tobias forge, frank bello, ray luzier)|2026": {
       "AlbumType": "single",
@@ -102,7 +102,7 @@
       "Rank": 619374,
       "ReleaseDate": "2026-09-18T00:00:00+00:00",
       "TrackID": "3919914761",
-      "Validated": false
+      "Validated": true
     },
     "apocalyptica|upperhand (from control resonant)|upperhand (from control resonant)|2026": {
       "AlbumType": "single",
@@ -110,15 +110,15 @@
       "Rank": 660436,
       "ReleaseDate": "2026-09-24T00:00:00+00:00",
       "TrackID": "4261100981",
-      "Validated": false
+      "Validated": true
     },
-    "asia|arcadia|arcadia|2026": {
+    "asia|arcadia|indigo|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
       "ReleaseDate": "2026-09-24T00:00:00+00:00",
       "TrackID": "4124399231",
-      "Validated": false
+      "Validated": true
     },
     "asia|echo of you|echo of you|2026": {
       "AlbumType": "single",
@@ -159,6 +159,14 @@
       "ReleaseDate": "2026-09-10T00:00:00+00:00",
       "TrackID": "4237596212",
       "Validated": true
+    },
+    "brymir|how much is the fish|how much is the fish|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-29T00:00:00+00:00",
+      "TrackID": "4060453901",
+      "Validated": false
     },
     "brymir|tempestbound|tempestbound|2026": {
       "AlbumType": "single",
@@ -206,22 +214,6 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-25T00:00:00+00:00",
       "TrackID": "4201425342",
-      "Validated": false
-    },
-    "darkest era|roads|roads|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 13546,
-      "ReleaseDate": "2026-06-05T00:00:00+00:00",
-      "TrackID": "4045818581",
-      "Validated": true
-    },
-    "darkest era|running with the wolves|running with the wolves|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 41591,
-      "ReleaseDate": "2026-06-05T00:00:00+00:00",
-      "TrackID": "4045818541",
       "Validated": true
     },
     "dartagnan|helden x hymnen|helden x hymnen|2026": {
@@ -286,7 +278,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-24T00:00:00+00:00",
       "TrackID": "4285495582",
-      "Validated": false
+      "Validated": true
     },
     "dragonland|survival of mankind|survival of mankind|2026": {
       "AlbumType": "single",
@@ -384,6 +376,14 @@
       "TrackID": "3977714161",
       "Validated": true
     },
+    "europe|come this madness|come this madness|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 659767,
+      "ReleaseDate": "2026-09-25T00:00:00+00:00",
+      "TrackID": "3965658581",
+      "Validated": false
+    },
     "europe|one on one|come this madness|2026": {
       "AlbumType": "album",
       "IsSingle": false,
@@ -400,37 +400,13 @@
       "TrackID": "4221543652",
       "Validated": true
     },
-    "europe|the cult of ignorance|come this madness|2026": {
+    "feuerschwanz|carpe noctem|carpe noctem|2026": {
       "AlbumType": "single",
       "IsSingle": true,
-      "Rank": 381573,
-      "ReleaseDate": "2026-06-03T00:00:00+00:00",
-      "TrackID": "4029384631",
-      "Validated": true
-    },
-    "evergrey|a burning flame (feat. mikael stanne)|a burning flame|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 150968,
-      "ReleaseDate": "2026-06-04T00:00:00+00:00",
-      "TrackID": "3883875671",
-      "Validated": true
-    },
-    "evergrey|longing|architects of a new weave|2026": {
-      "AlbumType": "album",
-      "IsSingle": false,
-      "Rank": 221308,
-      "ReleaseDate": "2026-06-05T00:00:00+00:00",
-      "TrackID": "3849850491",
-      "Validated": true
-    },
-    "evergrey|the shadow self|architects of a new weave|2026": {
-      "AlbumType": "album",
-      "IsSingle": false,
-      "Rank": 248672,
-      "ReleaseDate": "2026-06-05T00:00:00+00:00",
-      "TrackID": "3849850431",
-      "Validated": true
+      "Rank": 100000,
+      "ReleaseDate": "2026-10-02T00:00:00+00:00",
+      "TrackID": "4290298162",
+      "Validated": false
     },
     "finsterforst|herbstwanderung|still|2026": {
       "AlbumType": "album",
@@ -456,13 +432,13 @@
       "TrackID": "4005845831",
       "Validated": true
     },
-    "fir bolg|drunemeton|drunemeton|2026": {
+    "fir bolg|drunemeton|drunemeton - single|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
       "ReleaseDate": "2026-09-25T00:00:00+00:00",
       "TrackID": "4256750441",
-      "Validated": false
+      "Validated": true
     },
     "firewind|the legend of achilles|gods, myths and titans|2026": {
       "AlbumType": "single",
@@ -656,13 +632,13 @@
       "TrackID": "4199070402",
       "Validated": true
     },
-    "iron savior|light in the dark|light in the dark|2026": {
+    "iron savior|light in the dark|deathbringer|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
       "ReleaseDate": "2026-09-23T00:00:00+00:00",
       "TrackID": "4199066252",
-      "Validated": false
+      "Validated": true
     },
     "iron savior|the creature's tale|deathbringer|2026": {
       "AlbumType": "single",
@@ -694,7 +670,7 @@
       "Rank": 123146,
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
       "TrackID": "4159635562",
-      "Validated": false
+      "Validated": true
     },
     "jo blankenburg|power play|vector zero|2026": {
       "AlbumType": "album",
@@ -711,6 +687,14 @@
       "ReleaseDate": "2026-08-28T00:00:00+00:00",
       "TrackID": "4159635532",
       "Validated": true
+    },
+    "judas priest|prelude (original 1976 masters)|sad wings of destiny (original 1976 masters)|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 100000,
+      "ReleaseDate": "2026-10-02T00:00:00+00:00",
+      "TrackID": "4205524902",
+      "Validated": false
     },
     "kamelot|ashen world (feat. ignacia fern\u00e1ndez)|godlike alchemy|2026": {
       "AlbumType": "single",
@@ -742,7 +726,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-24T00:00:00+00:00",
       "TrackID": "4274232212",
-      "Validated": false
+      "Validated": true
     },
     "marilyn manson|all the vilest things|one assassination under god - chapter 2|2026": {
       "AlbumType": "album",
@@ -790,6 +774,14 @@
       "Rank": 168990,
       "ReleaseDate": "2026-06-26T00:00:00+00:00",
       "TrackID": "3829307841",
+      "Validated": true
+    },
+    "mastodon|barbarians blood|marrow deep|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 591150,
+      "ReleaseDate": "2026-08-28T00:00:00+00:00",
+      "TrackID": "4236617692",
       "Validated": false
     },
     "mastodon|in the ruins|in the ruins|2026": {
@@ -806,14 +798,6 @@
       "Rank": 541599,
       "ReleaseDate": "2026-07-13T00:00:00+00:00",
       "TrackID": "4134857131",
-      "Validated": true
-    },
-    "mastodon|your ghost again|your ghost again|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 454526,
-      "ReleaseDate": "2026-06-02T00:00:00+00:00",
-      "TrackID": "4044665071",
       "Validated": true
     },
     "night ranger|don't tell me you love me (2026)|best of|2026": {
@@ -888,6 +872,14 @@
       "TrackID": "4152497142",
       "Validated": true
     },
+    "opus tenebrae|the siren of s\u00e1lvora (the horse's island)|ocean \u0301s rage|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 30359,
+      "ReleaseDate": "2026-07-24T00:00:00+00:00",
+      "TrackID": "4152497132",
+      "Validated": false
+    },
     "orbit culture|nuclear god|nuclear god|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -926,7 +918,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-10-23T00:00:00+00:00",
       "TrackID": "4296195952",
-      "Validated": false
+      "Validated": true
     },
     "russian circles|eluvial|eluvial|2026": {
       "AlbumType": "single",
@@ -966,7 +958,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-09-25T00:00:00+00:00",
       "TrackID": "4247426211",
-      "Validated": false
+      "Validated": true
     },
     "saor|carved in stone mmxxvi|carved in stone mmxxvi|2026": {
       "AlbumType": "single",
@@ -1015,6 +1007,14 @@
       "ReleaseDate": "2026-07-06T00:00:00+00:00",
       "TrackID": "4136549671",
       "Validated": true
+    },
+    "seven kingdoms|sono sola|sono sola|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-10-01T00:00:00+00:00",
+      "TrackID": "4278859492",
+      "Validated": false
     },
     "signum regis|back to zero|back to zero|2026": {
       "AlbumType": "album",
@@ -1088,6 +1088,14 @@
       "TrackID": "4293397572",
       "Validated": true
     },
+    "the great kat|greek kalanta of the new year|greek kalanta of the new year|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-27T00:00:00+00:00",
+      "TrackID": "4313316782",
+      "Validated": false
+    },
     "the great kat|swallowtail jig|swallowtail jig|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -1134,7 +1142,7 @@
       "Rank": 585033,
       "ReleaseDate": "2026-09-17T00:00:00+00:00",
       "TrackID": "4174446772",
-      "Validated": false
+      "Validated": true
     },
     "their dogs were astronauts|the painter|the painter|2026": {
       "AlbumType": "single",
@@ -1166,6 +1174,14 @@
       "Rank": 185858,
       "ReleaseDate": "2026-08-21T00:00:00+00:00",
       "TrackID": "4165173072",
+      "Validated": true
+    },
+    "tokyo blade|she was a soldier|hoist the colours high|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 146786,
+      "ReleaseDate": "2026-08-21T00:00:00+00:00",
+      "TrackID": "4165173222",
       "Validated": false
     },
     "tom petty and the heartbreakers|parade of loons|origins 1971-1978|2026": {
@@ -1176,13 +1192,13 @@
       "TrackID": "4275737352",
       "Validated": true
     },
-    "trollfest|claiming the walk of fame|claiming the walk of fame|2026": {
+    "trollfest|claiming the walk of fame|trollywood|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 100000,
       "ReleaseDate": "2026-09-25T00:00:00+00:00",
       "TrackID": "4208267862",
-      "Validated": false
+      "Validated": true
     },
     "trollfest|day drinking|trollywood|2026": {
       "AlbumType": "album",
@@ -1232,6 +1248,14 @@
       "TrackID": "3892654091",
       "Validated": true
     },
+    "vanden plas|the ghost experiment|accult ii|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 185906,
+      "ReleaseDate": "2026-06-12T00:00:00+00:00",
+      "TrackID": "3892654051",
+      "Validated": false
+    },
     "venom|kicked outta hell|into oblivion|2026": {
       "AlbumType": "album",
       "IsSingle": false,
@@ -1239,6 +1263,14 @@
       "ReleaseDate": "2026-05-01T00:00:00+00:00",
       "TrackID": "3843368401",
       "Validated": true
+    },
+    "waylander|hy brasil (isle of mists)|hy brasil (isle of mists)|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-09-30T00:00:00+00:00",
+      "TrackID": "4200721822",
+      "Validated": false
     },
     "waylander|macha|reawakening pride once lost|2026": {
       "AlbumType": "single",
@@ -1272,14 +1304,6 @@
       "TrackID": "4046690031",
       "Validated": true
     },
-    "xandria|colours|colours|2026": {
-      "AlbumType": "single",
-      "IsSingle": true,
-      "Rank": 343199,
-      "ReleaseDate": "2026-06-02T00:00:00+00:00",
-      "TrackID": "4033783241",
-      "Validated": true
-    },
     "xandria|eclipse|eclipse|2026": {
       "AlbumType": "album",
       "IsSingle": false,
@@ -1295,6 +1319,14 @@
       "ReleaseDate": "2026-07-08T00:00:00+00:00",
       "TrackID": "4033784141",
       "Validated": true
+    },
+    "yngwie malmsteen|beyond zeta reticuli|beyond zeta reticuli|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-10-01T00:00:00+00:00",
+      "TrackID": "4112838831",
+      "Validated": false
     },
     "yngwie malmsteen|now or never|now or never|2026": {
       "AlbumType": "single",
