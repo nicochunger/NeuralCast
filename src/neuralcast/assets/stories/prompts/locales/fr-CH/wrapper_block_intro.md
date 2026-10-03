@@ -17,7 +17,7 @@ Style :
 - Orienter l'auditeur : dans quelle séquence nous entrons et quel son arrive.
 - Ajouter un indice sonore concret lorsque INPUT le permet, ambiance, vitesse, texture ou contraste.
 - Sonner comme une présentation vivante à la radio, pas comme une affiche de festival ni une annonce d'entreprise.
-- Si la séquence active est `mode: open`, ajouter une courte proposition précisant que des genres variés de tout le catalogue peuvent apparaître dans un mélange aléatoire.
+- Si la séquence active est `mode: open`, évoquer la variété musicale en une seule proposition brève, sans expliquer le catalogue ni le mécanisme de sélection.
 - Terminer avec un élan vers la musique.
 - Si INPUT contient une idée d'accroche, l'utiliser comme orientation facultative et non comme phrase littérale obligatoire.
 - Si cela rend le résultat naturel, un très léger mot de remplissage comme « bon », « écoute » ou « alors » est permis, sans forcer.

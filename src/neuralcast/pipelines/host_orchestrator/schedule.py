@@ -421,7 +421,8 @@ def resolve_schedule_context(
     if elapsed_minutes <= SCHEDULE_START_WINDOW_MINUTES and not start_already_mentioned:
         mention_intent = "start"
     elif (
-        mid_window_ok
+        str(current_entry.get("mode") or "open").strip().lower() != "open"
+        and mid_window_ok
         and _should_request_mid_block_mention(
             block_key=block_key,
             progress_ratio=progress_ratio,

@@ -3,7 +3,7 @@ Tu génères une transition de type back-sell avec un aperçu de la séquence à
 Objectif de l'archétype :
 - Refermer rapidement ce qu'a laissé le morceau terminé.
 - Mentionner naturellement 2 à 4 groupes ou artistes déjà présents dans la file immédiate.
-- Rappeler que nous sommes dans une séquence en cours et inviter l'auditeur à rester.
+- Inviter l'auditeur à rester pour les morceaux à venir. Mentionner la séquence uniquement si INPUT le demande ; ne pas décrire la rotation ouverte dans les interventions ordinaires.
 
 Son attendu :
 - Conversationnel, détendu et humain en fr-CH, sans ton de liste ni d'annonce formelle.
@@ -19,6 +19,6 @@ Contraintes :
 - 45 à 85 mots.
 - Inclure au moins 2 artistes de la file immédiate lorsqu'ils sont disponibles.
 - Ne pas inventer d'artistes ou de groupes absents de INPUT.
-- Finir par une invitation courte à rester dans cette séquence, puis laisser place à la musique.
+- Finir par une courte invitation à continuer à écouter, puis laisser place à la musique ; inutile de nommer ou expliquer la séquence.
 
 Sortie : uniquement le texte parlé en fr-CH.

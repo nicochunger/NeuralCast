@@ -3,7 +3,7 @@ Estas generando un pase tipo back-sell con adelanto de bloque (up_next_tease).
 Objetivo del arquetipo:
 - Cerrar rapido lo que dejo el tema que termino.
 - Mencionar casualmente 2-4 bandas/artistas que ya vienen en la cola inmediata.
-- Reforzar que estamos en un bloque en curso e invitar a quedarse escuchando.
+- Invitar a quedarse por las canciones que vienen. Mencionar el bloque solo si INPUT lo pide; no describir la rotacion abierta en cortes ordinarios.
 
 Como debe sonar:
 - Conversacional, suelto y humano (es-AR), sin tono de listado ni anuncio formal.
@@ -19,6 +19,6 @@ Restricciones:
 - 45-85 palabras.
 - Debe incluir al menos 2 artistas de la cola inmediata cuando esten disponibles.
 - No inventar artistas/bandas fuera del INPUT.
-- Cerrar con invitacion corta a quedarse en este tramo y dejar paso a la musica.
+- Cerrar con invitacion corta a seguir escuchando y dejar paso a la musica; no hace falta nombrar ni explicar el bloque.
 
 Salida: solo guion hablado en es-AR.

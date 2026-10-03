@@ -219,11 +219,16 @@ def format_shared_input(
         )
         if schedule_context.mode == "open":
             lines.append(
-                "  - Modo del bloque: bloque libre / sin tematica (AzuraCast baraja canciones del catalogo completo segun pesos)."
+                "  - Modo del bloque (solo contexto interno): rotacion abierta, sin una tematica fija."
             )
-            lines.append(
-                "  - Si mencionas este bloque open, sumar una clausula corta aclarando que puede sonar cualquier genero o cruce del catalogo."
-            )
+            if schedule_context.mention_intent == "start":
+                lines.append(
+                    "  - Solo en esta apertura: orientar brevemente al oyente con una sola clausula sobre la variedad musical; no explicar la mecanica de seleccion ni prometer sorpresas."
+                )
+            else:
+                lines.append(
+                    "  - No mencionar ni describir el bloque libre en este corte. No explicar que se mezcla el catalogo, que puede sonar cualquier genero ni que no hay libreto o tematica. Centrarse en las canciones, la historia o las noticias. Se puede identificar la emisora sin describir su formato."
+                )
         else:
             lines.extend([
                 f"  - Nombre oficial al aire: {spoken_section_label}",
@@ -238,7 +243,9 @@ def format_shared_input(
             lines.append(
                 "- Variacion de redaccion de grilla: al nombrar el bloque, variar el sustantivo de forma natural (por ejemplo: bloque, segmento, seccion, tramo, parte) en vez de repetir siempre la misma palabra."
             )
-        elif schedule_context.mention_intent == "mid":
+        elif (
+            schedule_context.mention_intent == "mid" and schedule_context.mode != "open"
+        ):
             lines.append(
                 "- Guia de mencion de grilla: incluir una clausula corta y natural diciendo que estamos en esta seccion/bloque ahora mismo, y evocar naturalmente su sonido sin enumerar etiquetas."
             )
@@ -254,7 +261,7 @@ def format_shared_input(
             lines.append(
                 "- Preferencia de redaccion para mitad de bloque: usar presente continuo/orientacion de continuidad (por ejemplo: 'seguimos en...', 'estamos en...', 'aca en...')."
             )
-        else:
+        elif schedule_context.mode != "open":
             lines.append(
                 "- Guia de mencion de grilla: opcional; evitar repetir menciones de seccion."
             )
@@ -766,12 +773,17 @@ def _format_shared_input_fr(
             ]
         )
         if schedule_context.mode == "open":
-            lines.extend(
-                [
-                    "  - Mode de la séquence : rotation libre, sans thème ; AzuraCast mélange des morceaux de tout le catalogue selon leurs poids.",
-                    "  - Si tu mentionnes cette rotation libre, ajoute une courte proposition indiquant que tous les genres ou croisements du catalogue peuvent passer.",
-                ]
+            lines.append(
+                "  - Mode (contexte interne uniquement) : rotation ouverte, sans thème fixe."
             )
+            if schedule_context.mention_intent == "start":
+                lines.append(
+                    "  - À cette ouverture uniquement : orienter brièvement l'auditeur avec une seule proposition sur la variété musicale, sans expliquer la sélection ni promettre des surprises."
+                )
+            else:
+                lines.append(
+                    "  - Ne pas mentionner ni décrire la rotation libre dans cette intervention. Ne pas expliquer que le catalogue est mélangé, que tous les genres peuvent passer ou qu'il n'y a ni scénario ni thème. Se concentrer sur les morceaux, le récit ou les nouvelles. On peut identifier la station sans décrire son format."
+                )
         else:
             lines.extend([
                 f"  - Nom officiel à l'antenne : {spoken_section_label}",
@@ -786,7 +798,9 @@ def _format_shared_input_fr(
                     "- Variation de formulation : varier naturellement le nom employé, par exemple séquence, segment, section, partie ou tranche, au lieu de toujours répéter le même.",
                 ]
             )
-        elif schedule_context.mention_intent == "mid":
+        elif (
+            schedule_context.mention_intent == "mid" and schedule_context.mode != "open"
+        ):
             lines.extend(
                 [
                     "- Guide de mention de la grille : inclure une courte proposition naturelle disant que nous sommes dans cette section maintenant, en évoquant naturellement son ambiance musicale sans énumération.",
@@ -796,7 +810,7 @@ def _format_shared_input_fr(
                     "- Formulation préférée : employer le présent et une orientation de continuité, par exemple « on reste dans... », « nous sommes dans... », « ici, dans... ».",
                 ]
             )
-        else:
+        elif schedule_context.mode != "open":
             lines.append(
                 "- Guide de mention de la grille : facultatif ; éviter de répéter les mentions de section."
             )

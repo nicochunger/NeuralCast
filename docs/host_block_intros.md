@@ -28,3 +28,12 @@ Regression tests:
 ```bash
 .venv/bin/python -m pytest tests/unit/neuralcast/pipelines/host_orchestrator/test_block_intros.py tests/boundary/test_block_intro_cron.py
 ```
+
+## Open rotation mentions
+
+Open rotation keeps a brief orientation in its opening intro. Ordinary host
+segments omit descriptions of the open format, catalog mixing, or absence of a
+fixed theme. Identifying the station and talking about the songs remain allowed.
+The schedule resolver does not request mid-block reminders for open rotation;
+themed blocks retain their existing reminder cadence. Prompt guidance applies
+even if a caller supplies an older open context with `mention_intent=mid`.
