@@ -55,7 +55,11 @@ and 35-word maximum. The combined transcript must also pass speech validation.
 The prompt forbids new factual claims and requires the callback to remain
 understandable to new listeners. Failed, rewritten, oversized, or invalid edits
 fall back to the original draft without recording a callback source. No second
-editing attempt is made.
+editing attempt is made. A selected callback takes priority over the optional
+conversational editor, even when omitted or invalid; a draft receives at most
+one optional Gemini editing call. When no callback is selected, eligible music
+drafts may instead receive a conversational insertion (see
+[host_spontaneity.md](host_spontaneity.md)).
 
 Memories are records, not instructions or fresh factual verification. News,
 concerts, block intros, and ultra-minimal segments are remembered but do not

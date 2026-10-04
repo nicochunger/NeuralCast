@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from .archetype_policies import ResolvedArchetypeProfile
 from .channels import HostLocale, get_channel_registry
 from .config import LOGGER
+from .editor import EDITOR_ARCHETYPES, edit_conversational_draft
 from .memory import apply_callback_edit, callback_prompt, select_callback
 from .concert_generation import (
     _generate_concert_check_script,
@@ -45,7 +46,11 @@ from .prompts import (
 )
 from .script_processing import cleanup_generated_script
 from .speech import validate_speech_transcript
-from .spontaneity import prepare_conversational_guidance, recent_scripts_for_prompt
+from .spontaneity import (
+    ConversationalAllowance,
+    prepare_conversational_allowance,
+    recent_scripts_for_prompt,
+)
 from .structured_output import parse_structured_script_and_meta, parse_timestamp
 from .text_generation import gemini_generate_text
 from .utils import now_ts, run_with_retries
@@ -425,8 +430,13 @@ def generate_archetype_script(
     prompt_kwargs["recent_tracks"] = recent_tracks
     recent_scripts = recent_scripts_for_prompt(state, now_ts())
     prompt_kwargs["recent_scripts"] = recent_scripts
-    prompt_kwargs["spontaneity_guidance"] = prepare_conversational_guidance(
-        archetype, rng, recent_scripts
+    allowance = prepare_conversational_allowance(archetype, rng, recent_scripts)
+    # Music drafts reserve the aside for the focused editor, avoiding two
+    # independent additions. Structured news/concert writing keeps its guidance.
+    prompt_kwargs["spontaneity_guidance"] = (
+        ConversationalAllowance("direct", 0).prompt()
+        if archetype in EDITOR_ARCHETYPES
+        else allowance.prompt()
     )
 
     def generate_with_retries(
@@ -516,7 +526,20 @@ def generate_archetype_script(
             archetype=used_archetype,
         )
         if callback_memory is None:
-            return draft, metadata, used_archetype
+            return (
+                edit_conversational_draft(
+                    draft,
+                    archetype=used_archetype,
+                    allowance=allowance,
+                    locale=locale,
+                    personality=personality,
+                    recent_scripts=recent_scripts,
+                    protected_texts=protected_texts,
+                    generate_text=gemini_generate_text,
+                ),
+                metadata,
+                used_archetype,
+            )
         try:
             # One optional editing call, without new research or retries. Failure
             # keeps the already researched draft, rather than regenerating it.

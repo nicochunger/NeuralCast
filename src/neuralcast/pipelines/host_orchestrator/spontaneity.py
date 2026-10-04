@@ -108,9 +108,9 @@ def recent_scripts_for_prompt(state: OrchestratorState, now: float) -> list[str]
     return result
 
 
-def prepare_conversational_guidance(
+def prepare_conversational_allowance(
     archetype: Archetype, rng: random.Random, recent_scripts: list[str]
-) -> str:
+) -> ConversationalAllowance:
     allowance = sample_allowance(archetype, rng)
     LOGGER.info(
         "[spontaneity] archetype=%s allowance=%s max_aside_words=%s recent_scripts=%s",
@@ -119,4 +119,4 @@ def prepare_conversational_guidance(
         allowance.max_aside_words,
         len(recent_scripts),
     )
-    return allowance.prompt()
+    return allowance

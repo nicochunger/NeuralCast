@@ -43,8 +43,10 @@ Esta carpeta contiene plantillas de prompts usadas por:
 3. `build_prompt(...)` compone `contents` (prompt de usuario) con:
    - un wrapper `wrapper_*.md`
    - el bloque de contexto `format_shared_input(...)`
-   - permiso variable para observaciones espontaneas, sin frases prefabricadas,
-     con historial reciente para evitar repetir expresiones y habitos conversacionales
+   - historial reciente para evitar repetir expresiones y habitos conversacionales;
+     los guiones musicales reservan las observaciones opcionales para un pase
+     editorial posterior, sin busqueda y solo por insercion. Un callback seleccionado
+     tiene prioridad. Noticias, conciertos e intros conservan el permiso inicial
      (ver [host_spontaneity.md](../../../../../docs/host_spontaneity.md))
 
 4. Para `news` y `concert_check`, se renderizan placeholders de wrapper antes de concatenar.
