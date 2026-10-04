@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CRON_DIR = PROJECT_ROOT / "deployment" / "cron"
 
@@ -52,7 +51,7 @@ def test_all_repository_cron_definitions_use_zurich_time() -> None:
 def test_host_orchestrator_cron_preserves_production_configuration() -> None:
     entries = _cron_entries("neuralcast-host-orchestrator")
 
-    assert len(entries) == 5
+    assert len(entries) == 3
     _assert_entry(
         entries[0],
         schedule=("*", "*", "*", "*", "*"),
@@ -61,26 +60,16 @@ def test_host_orchestrator_cron_preserves_production_configuration() -> None:
     )
     _assert_entry(
         entries[1],
-        schedule=("*/2", "*", "*", "*", "*"),
+        schedule=("*", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator -s neuralforge",
         log_path="runtime/logs/host_orchestrator/neuralforge/cron.log",
     )
     _assert_entry(
         entries[2],
-        schedule=("1-59/2", "*", "*", "*", "*"),
+        schedule=("*", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator --channel neuralforge-fr",
         log_path="runtime/logs/host_orchestrator/neuralforge-fr/cron.log",
     )
-    for entry, channel, selector in [
-        (entries[3], "neuralforge", "-s neuralforge"),
-        (entries[4], "neuralforge-fr", "--channel neuralforge-fr"),
-    ]:
-        _assert_entry(
-            entry,
-            schedule=("*", "*", "*", "*", "*"),
-            invocation=f"-m neuralcast.cli.host_orchestrator {selector} --scheduled-block-intros-only",
-            log_path=f"runtime/logs/host_orchestrator/{channel}/cron.log",
-        )
 
 
 def test_schedule_generator_cron_preserves_production_configuration() -> None:
@@ -91,15 +80,11 @@ def test_schedule_generator_cron_preserves_production_configuration() -> None:
         entries[0],
         schedule=("5", "0", "*", "*", "1"),
         invocation="-m neuralcast.cli.schedule_generator -s neuralforge",
-        log_path=(
-            "runtime/logs/schedule_generator/neuralforge/schedule_generator.log"
-        ),
+        log_path=("runtime/logs/schedule_generator/neuralforge/schedule_generator.log"),
     )
     _assert_entry(
         entries[1],
         schedule=("15", "0", "*", "*", "1"),
         invocation="-m neuralcast.cli.schedule_generator -s neuralcast",
-        log_path=(
-            "runtime/logs/schedule_generator/neuralcast/schedule_generator.log"
-        ),
+        log_path=("runtime/logs/schedule_generator/neuralcast/schedule_generator.log"),
     )

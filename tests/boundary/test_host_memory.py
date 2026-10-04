@@ -180,7 +180,9 @@ def test_only_successful_queue_insertion_commits_memory(monkeypatch, tmp_path, f
         key="test-channel",
         liquidsoap_media_root="/media",
         cadence_profile="neuralforge",
-        archetype_policy=None,
+        archetype_policy=main.resolve_host_channel(
+            channel_key="neuralforge-es"
+        ).archetype_policy,
         remote_prefix="stories",
     )
     runtime = SimpleNamespace(client=client, channel=channel, station_id=1)

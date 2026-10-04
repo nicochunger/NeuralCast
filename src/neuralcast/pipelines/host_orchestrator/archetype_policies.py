@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 import re
 import unicodedata
@@ -15,10 +16,7 @@ from neuralcast.config import ASSETS_ROOT
 
 from .models import Archetype
 
-
-ARCHETYPE_POLICY_CONFIG_PATH = (
-    ASSETS_ROOT / "stories" / "archetype_profiles.json"
-)
+ARCHETYPE_POLICY_CONFIG_PATH = ASSETS_ROOT / "stories" / "archetype_profiles.json"
 
 
 @dataclass(frozen=True)
@@ -80,11 +78,19 @@ class ArchetypePolicy:
 
 
 @dataclass(frozen=True)
+class HostCadence:
+    wait_range_songs: tuple[int, int]
+    speak_deadline_minutes: int
+    cooldown_multiplier: float = 1.0
+
+
+@dataclass(frozen=True)
 class ResolvedArchetypeProfile:
     name: str
     archetypes: Mapping[Archetype, ArchetypePolicy]
     news_topics: Mapping[str, NewsTopicDefinition]
     concert_countries: Mapping[str, ConcertCountryDefinition]
+    cadence: HostCadence
 
     def for_archetype(self, archetype: Archetype) -> ArchetypePolicy:
         return self.archetypes[archetype]
@@ -146,6 +152,7 @@ class ArchetypePolicyRegistry:
             archetypes=MappingProxyType(archetypes),
             news_topics=self.news_topics,
             concert_countries=self.concert_countries,
+            cadence=profile.cadence,
         )
 
 
@@ -165,7 +172,7 @@ def _require_number(value: Any, context: str, *, minimum: float = 0.0) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{context} must be a number.")
     parsed = float(value)
-    if parsed < minimum:
+    if not math.isfinite(parsed) or parsed < minimum:
         raise ValueError(f"{context} must be at least {minimum}.")
     return parsed
 
@@ -177,8 +184,45 @@ def _require_int(value: Any, context: str, *, minimum: int = 0) -> int:
     return int(parsed)
 
 
+def _parse_cadence(raw: Any, parent: HostCadence | None, context: str) -> HostCadence:
+    values = dict(_require_mapping(raw, context))
+    allowed = {"wait_range_songs", "speak_deadline_minutes", "cooldown_multiplier"}
+    unknown = set(values) - allowed
+    if unknown:
+        raise ValueError(f"{context} has unknown fields: {', '.join(sorted(unknown))}.")
+    if parent is not None:
+        values = {
+            "wait_range_songs": parent.wait_range_songs,
+            "speak_deadline_minutes": parent.speak_deadline_minutes,
+            "cooldown_multiplier": parent.cooldown_multiplier,
+            **values,
+        }
+    if set(values) != allowed:
+        raise ValueError(f"{context} must define {', '.join(sorted(allowed))}.")
+    bounds = values["wait_range_songs"]
+    _require_range(bounds, f"{context}.wait_range_songs")
+    wait = tuple(
+        _require_int(v, f"{context}.wait_range_songs", minimum=1) for v in bounds
+    )
+    return HostCadence(
+        wait_range_songs=wait,
+        speak_deadline_minutes=_require_int(
+            values["speak_deadline_minutes"],
+            f"{context}.speak_deadline_minutes",
+            minimum=1,
+        ),
+        cooldown_multiplier=_require_number(
+            values["cooldown_multiplier"], f"{context}.cooldown_multiplier"
+        ),
+    )
+
+
 def _require_range(value: Any, context: str) -> tuple[float, float]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)) or len(value) != 2:
+    if (
+        not isinstance(value, Sequence)
+        or isinstance(value, (str, bytes))
+        or len(value) != 2
+    ):
         raise ValueError(f"{context} must contain exactly two numbers.")
     lower = _require_number(value[0], f"{context}[0]")
     upper = _require_number(value[1], f"{context}[1]")
@@ -229,7 +273,9 @@ def _parse_news_topics(value: Any) -> Mapping[str, NewsTopicDefinition]:
         payload = _require_mapping(payload_raw, f"news topic '{topic_id}'")
         topics[topic_id] = NewsTopicDefinition(
             topic_id=topic_id,
-            labels=_parse_labels(payload.get("labels"), f"news topic '{topic_id}' labels"),
+            labels=_parse_labels(
+                payload.get("labels"), f"news topic '{topic_id}' labels"
+            ),
         )
     if not topics:
         raise ValueError("At least one news topic must be configured.")
@@ -285,8 +331,12 @@ def _parse_news_policy(
     topic_ids = _require_string_list(raw.get("topic_ids"), f"{context}.topic_ids")
     unknown = sorted(set(topic_ids) - set(topics))
     if unknown:
-        raise ValueError(f"{context} references unknown news topics: {', '.join(unknown)}.")
-    max_age = _require_int(raw.get("max_age_hours"), f"{context}.max_age_hours", minimum=1)
+        raise ValueError(
+            f"{context} references unknown news topics: {', '.join(unknown)}."
+        )
+    max_age = _require_int(
+        raw.get("max_age_hours"), f"{context}.max_age_hours", minimum=1
+    )
     preferred = _require_int(
         raw.get("preferred_max_age_hours"),
         f"{context}.preferred_max_age_hours",
@@ -294,7 +344,9 @@ def _parse_news_policy(
     )
     if preferred > max_age:
         raise ValueError(f"{context} preferred freshness cannot exceed max freshness.")
-    return NewsPolicy(topic_ids=topic_ids, max_age_hours=max_age, preferred_max_age_hours=preferred)
+    return NewsPolicy(
+        topic_ids=topic_ids, max_age_hours=max_age, preferred_max_age_hours=preferred
+    )
 
 
 def _parse_concert_policy(
@@ -389,7 +441,7 @@ def _parse_archetype_policy(
         ),
         allow_after_up_next_tease=_require_bool(
             raw.get("allow_after_up_next_tease", True),
-            f"{context}.allow_after_up_next_tease"
+            f"{context}.allow_after_up_next_tease",
         ),
         min_songs_since_host=_require_int(
             raw.get("min_songs_since_host", 0), f"{context}.min_songs_since_host"
@@ -471,9 +523,7 @@ def _apply_single_archetype_override(
     if "enabled" in raw:
         updates["enabled"] = _require_bool(raw["enabled"], f"{context}.enabled")
     if "automatic" in raw:
-        updates["automatic"] = _require_bool(
-            raw["automatic"], f"{context}.automatic"
-        )
+        updates["automatic"] = _require_bool(raw["automatic"], f"{context}.automatic")
     if "allow_after_up_next_tease" in raw:
         updates["allow_after_up_next_tease"] = _require_bool(
             raw["allow_after_up_next_tease"], f"{context}.allow_after_up_next_tease"
@@ -564,9 +614,7 @@ def _apply_single_archetype_override(
             raise ValueError(
                 f"{context}.concert_check is only valid for concert_check."
             )
-        concert_raw = _require_mapping(
-            raw["concert_check"], f"{context}.concert_check"
-        )
+        concert_raw = _require_mapping(raw["concert_check"], f"{context}.concert_check")
         unknown_concert = sorted(set(concert_raw) - {"countries"})
         if unknown_concert:
             raise ValueError(
@@ -606,7 +654,9 @@ def _apply_archetype_overrides(
                 f"{context} references unknown archetype '{archetype_raw}'."
             ) from exc
         if archetype not in result:
-            raise ValueError(f"{context} cannot override undefined archetype '{archetype.value}'.")
+            raise ValueError(
+                f"{context} cannot override undefined archetype '{archetype.value}'."
+            )
         result[archetype] = _apply_single_archetype_override(
             archetype,
             result[archetype],
@@ -620,11 +670,15 @@ def _apply_archetype_overrides(
 
 def load_archetype_policy_registry(
     path: pathlib.Path = ARCHETYPE_POLICY_CONFIG_PATH,
+    *,
+    contents: bytes | None = None,
 ) -> ArchetypePolicyRegistry:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(contents if contents is not None else path.read_bytes())
     except FileNotFoundError:
-        raise FileNotFoundError(f"Missing archetype policy configuration: {path}") from None
+        raise FileNotFoundError(
+            f"Missing archetype policy configuration: {path}"
+        ) from None
     root = _require_mapping(payload, "archetype policy configuration")
     if root.get("version") != 1:
         raise ValueError("Archetype policy configuration version must be 1.")
@@ -644,7 +698,7 @@ def load_archetype_policy_registry(
         except KeyError as exc:
             raise ValueError(f"Unknown parent archetype profile '{name}'.") from exc
         unknown_profile_keys = sorted(
-            set(raw) - {"extends", "archetypes", "archetype_overrides"}
+            set(raw) - {"extends", "archetypes", "archetype_overrides", "cadence"}
         )
         if unknown_profile_keys:
             raise ValueError(
@@ -655,7 +709,11 @@ def load_archetype_policy_registry(
         if parent_name:
             parent = resolve_profile(parent_name)
             archetypes = dict(parent.archetypes)
+            cadence = parent.cadence
         else:
+            cadence = _parse_cadence(
+                raw.get("cadence"), None, f"profile '{name}'.cadence"
+            )
             archetypes_raw = _require_mapping(
                 raw.get("archetypes"), f"profile '{name}'.archetypes"
             )
@@ -687,6 +745,10 @@ def load_archetype_policy_registry(
             raise ValueError(
                 f"profile '{name}' must use archetype_overrides when it extends another profile."
             )
+        if parent_name and "cadence" in raw:
+            cadence = _parse_cadence(
+                raw["cadence"], cadence, f"profile '{name}'.cadence"
+            )
         if "archetype_overrides" in raw:
             archetypes = _apply_archetype_overrides(
                 archetypes,
@@ -695,7 +757,9 @@ def load_archetype_policy_registry(
                 countries,
                 context=f"profile '{name}'.archetype_overrides",
             )
-        if not any(policy.enabled and policy.automatic for policy in archetypes.values()):
+        if not any(
+            policy.enabled and policy.automatic for policy in archetypes.values()
+        ):
             raise ValueError(f"profile '{name}' has no enabled automatic archetypes.")
         resolving.remove(name)
         profile = ResolvedArchetypeProfile(
@@ -703,6 +767,7 @@ def load_archetype_policy_registry(
             archetypes=MappingProxyType(archetypes),
             news_topics=topics,
             concert_countries=countries,
+            cadence=cadence,
         )
         resolved[name] = profile
         return profile
@@ -717,9 +782,13 @@ def load_archetype_policy_registry(
     )
 
 
-@lru_cache(maxsize=1)
 def get_archetype_policy_registry() -> ArchetypePolicyRegistry:
-    return load_archetype_policy_registry()
+    return _cached_registry(ARCHETYPE_POLICY_CONFIG_PATH.read_bytes())
+
+
+@lru_cache(maxsize=1)
+def _cached_registry(contents: bytes) -> ArchetypePolicyRegistry:
+    return load_archetype_policy_registry(contents=contents)
 
 
 __all__ = [

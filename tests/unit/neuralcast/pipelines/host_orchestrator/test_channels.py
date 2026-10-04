@@ -29,23 +29,21 @@ def test_english_channel_reuses_neuralcast_content_and_media_root() -> None:
     assert channel.azuracast_station_id == 3
     assert channel.content_station == "neuralcast"
     assert channel.locale.tag == "en"
-    assert channel.liquidsoap_media_root == (
-        "/var/azuracast/stations/neuralcast/media"
-    )
+    assert channel.liquidsoap_media_root == ("/var/azuracast/stations/neuralcast/media")
     assert channel.remote_prefix == "AI Stories/neuralcast/en"
-    assert channel.cadence_profile == "neuralforge"
-    assert channel.archetype_profile == "neuralforge"
+    assert channel.host_profile == "frequent"
 
 
 def test_english_channel_uses_neuralforge_runtime_policies() -> None:
     channel = resolve_host_channel(channel_key="neuralcast-en")
 
     assert cadence_settings_for_station(
-        channel.cadence_profile
+        channel.host_profile
     ) == cadence_settings_for_station("neuralforge")
-    assert archetype_settings_for_station(
-        channel.archetype_profile
-    ) == archetype_settings_for_station("neuralforge")
+    assert (
+        channel.archetype_policy.archetypes
+        == archetype_settings_for_station("neuralforge").archetypes
+    )
 
 
 def test_french_channel_reuses_neuralforge_content_and_media_root() -> None:
@@ -146,8 +144,7 @@ def test_channel_request_overrides_legacy_station_default() -> None:
     assert args.channel == "neuralcast-en"
     assert args.station == "neuralcast_shared_media_test"
     assert args.content_station == "neuralcast"
-    assert args.cadence_profile == "neuralforge"
-    assert args.archetype_profile == "neuralforge"
+    assert args.host_profile == "frequent"
 
 
 def test_variant_channel_has_isolated_state_paths() -> None:

@@ -3,7 +3,6 @@
     "neuralcast": {
       "content_station": "neuralcast",
       "personality_station": "neuralcast",
-      "cadence_station": "neuralcast",
       "cover_station": "neuralcast",
       "script_style": "NeuralCast is calm, natural, mature, warm, lightly nostalgic, and musically informed. It sounds like a real host speaking live in a studio: relaxed but attentive, never theatrical, corporate, robotic, or over-polished. Transitions should acknowledge the listening moment naturally and hand off to the next track with quiet confidence.",
       "tts_style": "Use restrained, mature energy, an unhurried but living pace, clear breathing, warmth, and a lightly nostalgic presence. Sound like a real radio host sharing music with taste and closeness, never a corporate announcer."
@@ -11,7 +10,6 @@
     "neuralforge": {
       "content_station": "neuralforge",
       "personality_station": "neuralforge",
-      "cadence_station": "neuralforge",
       "cover_station": "neuralforge",
       "script_style": "NeuralForge is direct, warm, conversational, musically precise, and firmly energetic without shouting or becoming theatrical. Use compact, speakable lines and concrete observations rather than reviews or lectures. Avoid tired metal clichés unless a specific track fact genuinely supports them.",
       "tts_style": "Use high but controlled energy, confident presence, crisp attacks, short natural pauses, and real breathing. Sound like a live metal-radio host, never a corporate voice or a caricature."
@@ -131,7 +129,7 @@
   "channels": {
     "neuralcast-es": {
       "azuracast_station": "neuralcast",
-      "cadence_profile": "neuralforge",
+      "host_profile": "relaxed",
       "brand": "neuralcast",
       "locale": "es-AR",
       "tts_voice_override": "voice_tnl42ahs81fi",
@@ -145,13 +143,13 @@
       "brand": "neuralcast",
       "locale": "en",
       "tts_voice_override": "voice_rpgjmozflgsg",
-      "cadence_profile": "neuralforge",
-      "archetype_profile": "neuralforge",
+      "host_profile": "frequent",
       "media_owner_station": "neuralcast",
       "remote_prefix": "AI Stories/neuralcast/en"
     },
     "neuralforge-es": {
       "azuracast_station": "neuralforge",
+      "host_profile": "frequent",
       "brand": "neuralforge",
       "locale": "es-AR",
       "tts_voice_override": "voice_tnl42ahs81fi",
@@ -166,7 +164,7 @@
       "brand": "neuralforge",
       "locale": "fr-CH",
       "tts_voice_override": "voice_iemlidj5c0t9",
-      "archetype_profile": "neuralforge",
+      "host_profile": "frequent",
       "archetype_overrides": {
         "news": {
           "news": {

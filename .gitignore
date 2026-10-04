@@ -24,7 +24,9 @@ logs/*.log
 */metadata/ai_host_orchestrator_state.json
 */metadata/ai_host_orchestrator_state.corrupt.*.json
 */metadata/ai_host_orchestrator.lock
+*/metadata/ai_host_orchestrator.lock.guard
 */metadata/host_channels/*/ai_host_orchestrator_state.json
 */metadata/host_channels/*/ai_host_orchestrator_state.corrupt.*.json
 */metadata/host_channels/*/ai_host_orchestrator.lock
+*/metadata/host_channels/*/ai_host_orchestrator.lock.guard
 */metadata/ai_schedule_state.json

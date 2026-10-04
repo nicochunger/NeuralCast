@@ -64,6 +64,11 @@
   },
   "profiles": {
     "base": {
+      "cadence": {
+        "wait_range_songs": [2, 5],
+        "speak_deadline_minutes": 45,
+        "cooldown_multiplier": 1.0
+      },
       "archetypes": {
         "recently_played": {
           "enabled": true,
@@ -211,17 +216,28 @@
         }
       }
     },
-    "neuralforge": {
+    "frequent": {
       "extends": "base"
     },
-    "neuralcast": {
+    "relaxed": {
       "extends": "base",
+      "cadence": {
+        "wait_range_songs": [7, 12],
+        "speak_deadline_minutes": 120,
+        "cooldown_multiplier": 2.0
+      },
       "archetype_overrides": {
-        "deep_dive": {"enabled": true},
-        "era_snapshot": {"enabled": true},
-        "concert_check": {"enabled": true},
-        "album_spotlight": {"enabled": true}
+        "deep_dive": {"enabled": false},
+        "era_snapshot": {"enabled": false},
+        "concert_check": {"enabled": false},
+        "album_spotlight": {"enabled": false}
       }
+    },
+    "neuralforge": {
+      "extends": "frequent"
+    },
+    "neuralcast": {
+      "extends": "relaxed"
     }
   }
 }

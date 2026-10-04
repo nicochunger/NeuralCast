@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 import pathlib
 import re
-from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from neuralcast.config import ASSETS_ROOT, DEFAULT_TIMEZONE_NAME, LOGS_ROOT
 from .archetype_policies import (
+    HostCadence,
     ResolvedArchetypeProfile,
     get_archetype_policy_registry,
 )
@@ -50,11 +50,8 @@ ARCHETYPE_LEAD_TIME_SECONDS: Dict[Archetype, int] = {
     for archetype, policy in _BASE_ARCHETYPE_POLICY.archetypes.items()
     if policy.lead_time_seconds != LEAD_TIME_SECONDS
 }
-SPEAK_DEADLINE_MINUTES = 45
-WAIT_RANGE_SONGS = (2, 5)
-NEURALCAST_WAIT_RANGE_SONGS = (7, 12)
-NEURALCAST_SPEAK_DEADLINE_MINUTES = 120
-NEURALCAST_COOLDOWN_MULTIPLIER = 2.0
+SPEAK_DEADLINE_MINUTES = _BASE_ARCHETYPE_POLICY.cadence.speak_deadline_minutes
+WAIT_RANGE_SONGS = _BASE_ARCHETYPE_POLICY.cadence.wait_range_songs
 _BASE_NEWS_POLICY = _BASE_ARCHETYPE_POLICY.for_archetype(Archetype.NEWS).news
 assert _BASE_NEWS_POLICY is not None
 NEWS_MAX_AGE_HOURS = _BASE_NEWS_POLICY.max_age_hours
@@ -78,40 +75,19 @@ SEGMENT_EVENTS_LOGGER = logging.getLogger("host_orchestrator.segments")
 HOST_ARTIST_NAME = "NueralHost"
 
 
-@dataclass(frozen=True)
-class StationCadenceSettings:
-    wait_range_songs: Tuple[int, int]
-    speak_deadline_minutes: int
-    cooldown_multiplier: float = 1.0
+StationCadenceSettings = HostCadence
 
 
-DEFAULT_CADENCE_SETTINGS = StationCadenceSettings(
-    wait_range_songs=WAIT_RANGE_SONGS,
-    speak_deadline_minutes=SPEAK_DEADLINE_MINUTES,
-)
+DEFAULT_CADENCE_SETTINGS = _BASE_ARCHETYPE_POLICY.cadence
 DEFAULT_ARCHETYPE_SETTINGS = _BASE_ARCHETYPE_POLICY
-STATION_CADENCE_SETTINGS: Dict[str, StationCadenceSettings] = {
-    "neuralcast": StationCadenceSettings(
-        wait_range_songs=NEURALCAST_WAIT_RANGE_SONGS,
-        speak_deadline_minutes=NEURALCAST_SPEAK_DEADLINE_MINUTES,
-        cooldown_multiplier=NEURALCAST_COOLDOWN_MULTIPLIER,
-    ),
-}
-STATION_ARCHETYPE_SETTINGS: Dict[str, ResolvedArchetypeProfile] = {
-    "neuralcast": _ARCHETYPE_POLICY_REGISTRY.profiles["neuralcast"],
-    "neuralforge": _ARCHETYPE_POLICY_REGISTRY.profiles["neuralforge"],
-}
 
 
 def cadence_settings_for_station(station_slug: str) -> StationCadenceSettings:
-    return STATION_CADENCE_SETTINGS.get(
-        str(station_slug or "").strip().lower(),
-        DEFAULT_CADENCE_SETTINGS,
-    )
+    return archetype_settings_for_station(station_slug).cadence
 
 
 def archetype_settings_for_station(station_slug: str) -> ResolvedArchetypeProfile:
-    return STATION_ARCHETYPE_SETTINGS.get(
+    return get_archetype_policy_registry().profiles.get(
         str(station_slug or "").strip().lower(),
         DEFAULT_ARCHETYPE_SETTINGS,
     )
@@ -236,6 +212,7 @@ def log_segment_event(
     if news_topics:
         parts.append(f"news_topics={news_topics}")
     SEGMENT_EVENTS_LOGGER.info(" | ".join(parts))
+
 
 ANGLE_OPTIONS: Dict[Archetype, Tuple[str, ...]] = {
     Archetype.BACK_SELL: (
@@ -483,9 +460,7 @@ def load_prompt_templates() -> Dict[str, str]:
 def load_personality_guide_from(prompt_directory: pathlib.Path) -> str:
     personality_path = prompt_directory / "personality.md"
     if not personality_path.is_file():
-        raise FileNotFoundError(
-            f"Missing personality guide file: {personality_path}"
-        )
+        raise FileNotFoundError(f"Missing personality guide file: {personality_path}")
     return personality_path.read_text(encoding="utf-8").strip()
 
 

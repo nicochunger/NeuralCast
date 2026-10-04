@@ -49,7 +49,6 @@ from .config import (
     GENERATION_RETRIES,
     LEAD_TIME_SECONDS,
     LOGGER,
-    cadence_settings_for_station,
     configure_station_file_logging,
     configure_logging,
     lead_time_seconds_for_archetype,
@@ -90,6 +89,7 @@ from .state import (
     choose_weighted_archetype,
     legal_archetypes_for_remaining,
     load_state,
+    reconcile_host_profile,
     save_state_atomic,
     should_speak_now,
     update_track_seen_state,
@@ -685,7 +685,7 @@ def _publish_segment(
         script_text=script_text,
         schedule_context=queue_context.schedule_context,
         rng=rng,
-        cadence_settings=cadence_settings_for_station(runtime.channel.cadence_profile),
+        cadence_settings=runtime.channel.archetype_policy.cadence,
         archetype_policy=runtime.channel.archetype_policy,
         memory_media_id=str(media_id),
         callback_source_id=getattr(assets, "callback_source_id", None),
@@ -910,8 +910,7 @@ def _args_from_cycle_request(request: HostCycleRequest) -> argparse.Namespace:
         channel=channel.key,
         station=channel.azuracast_station,
         content_station=channel.content_station,
-        cadence_profile=channel.cadence_profile,
-        archetype_profile=channel.archetype_profile,
+        host_profile=channel.host_profile,
         base_url=request.base_url,
         dry_run=request.dry_run,
         min_listeners=request.min_listeners,
@@ -1003,8 +1002,8 @@ class HostOrchestratorRuntime:
                 args.dry_run,
             )
             LOGGER.info(
-                "[policy] Archetype profile=%s | effective_policy=%s | news_topics=%s | concert_countries=%s",
-                channel.archetype_profile,
+                "[policy] Host profile=%s | effective_policy=%s | news_topics=%s | concert_countries=%s",
+                channel.host_profile,
                 channel.archetype_policy.name,
                 list(
                     channel.archetype_policy.for_archetype(
@@ -1023,8 +1022,11 @@ class HostOrchestratorRuntime:
                 segment_log_path,
             )
 
-            cadence_settings = cadence_settings_for_station(channel.cadence_profile)
+            cadence_settings = channel.archetype_policy.cadence
             state = deps.load_state(state_path, cycle_ts, rng, cadence_settings)
+            reconcile_host_profile(
+                state, channel.host_profile, channel.archetype_policy, cycle_ts
+            )
             LOGGER.info("[state] Loaded orchestrator state: %s", state_path)
             LOGGER.info(
                 "[cadence] State snapshot | songs_since_last_spoken=%s | songs_until_next_speak=%s | next_deadline=%s | wait_range=%s-%s | deadline_minutes=%s | cooldown_multiplier=%.2f",

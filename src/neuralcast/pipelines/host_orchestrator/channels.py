@@ -12,6 +12,9 @@ from neuralcast.config import ASSETS_ROOT, station_dir_from_slug
 
 from .archetype_policies import (
     ResolvedArchetypeProfile,
+    ARCHETYPE_POLICY_CONFIG_PATH,
+    ArchetypePolicyRegistry,
+    load_archetype_policy_registry,
     get_archetype_policy_registry,
 )
 
@@ -56,7 +59,6 @@ class HostBrand:
     key: str
     content_station: str
     personality_station: str
-    cadence_station: str
     cover_station: str
     script_style: str
     tts_style: str
@@ -84,8 +86,7 @@ class HostChannel:
     media_owner_station: str
     liquidsoap_media_root: str
     remote_prefix: str
-    cadence_profile: str
-    archetype_profile: str
+    host_profile: str
     archetype_policy: ResolvedArchetypeProfile
     script_style_override: str | None = None
     tts_instructions_override_path: pathlib.Path | None = None
@@ -161,9 +162,12 @@ def _require_keys(value: Mapping[str, Any], keys: frozenset[str], context: str) 
 
 def load_channel_registry(
     path: pathlib.Path = CHANNEL_CONFIG_PATH,
+    *,
+    contents: bytes | None = None,
+    policy_registry: ArchetypePolicyRegistry | None = None,
 ) -> HostChannelRegistry:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(contents if contents is not None else path.read_bytes())
     except FileNotFoundError:
         raise FileNotFoundError(f"Missing host-channel configuration: {path}") from None
     if not isinstance(payload, Mapping):
@@ -179,11 +183,9 @@ def load_channel_registry(
         # Validate repository-backed content stations immediately.
         station_dir_from_slug(content_station)
         personality_station = str(raw.get("personality_station") or content_station)
-        cadence_station = str(raw.get("cadence_station") or content_station)
         cover_station = str(raw.get("cover_station") or content_station)
         for station_value in (
             personality_station,
-            cadence_station,
             cover_station,
         ):
             station_dir_from_slug(station_value)
@@ -191,7 +193,6 @@ def load_channel_registry(
             key=brand_key,
             content_station=content_station,
             personality_station=personality_station,
-            cadence_station=cadence_station,
             cover_station=cover_station,
             script_style=_required_string(raw, "script_style", f"brand '{key}'"),
             tts_style=_required_string(raw, "tts_style", f"brand '{key}'"),
@@ -233,7 +234,7 @@ def load_channel_registry(
         )
 
     raw_channels = _mapping(payload, "channels", "host-channel configuration")
-    policy_registry = get_archetype_policy_registry()
+    policy_registry = policy_registry or get_archetype_policy_registry()
     channels: dict[str, HostChannel] = {}
     remote_scopes: set[tuple[str, str]] = set()
     for key, raw in raw_channels.items():
@@ -271,15 +272,13 @@ def load_channel_registry(
         station_id = int(station_id_raw) if station_id_raw is not None else None
         if station_id is not None and station_id <= 0:
             raise ValueError(f"Channel '{key}' has invalid azuracast_station_id.")
-        cadence_profile = str(
-            raw.get("cadence_profile") or brands[brand_key].cadence_station
-        )
-        archetype_profile = str(
-            raw.get("archetype_profile") or brands[brand_key].content_station
-        )
-        station_dir_from_slug(cadence_profile)
+        if "cadence_profile" in raw or "archetype_profile" in raw:
+            raise ValueError(
+                f"Channel '{key}' must use a single host_profile selector."
+            )
+        host_profile = _required_string(raw, "host_profile", f"channel '{key}'")
         archetype_policy = policy_registry.resolve(
-            archetype_profile,
+            host_profile,
             raw.get("archetype_overrides"),
             resolved_name=channel_key,
         )
@@ -308,8 +307,7 @@ def load_channel_registry(
             media_owner_station=media_owner,
             liquidsoap_media_root=media_root,
             remote_prefix=remote_prefix.rstrip("/"),
-            cadence_profile=cadence_profile,
-            archetype_profile=archetype_profile,
+            host_profile=host_profile,
             archetype_policy=archetype_policy,
             script_style_override=(
                 str(raw.get("script_style_override") or "").strip() or None
@@ -338,9 +336,20 @@ def load_channel_registry(
     )
 
 
-@lru_cache(maxsize=1)
 def get_channel_registry() -> HostChannelRegistry:
-    return load_channel_registry()
+    return _cached_channel_registry(
+        CHANNEL_CONFIG_PATH.read_bytes(), ARCHETYPE_POLICY_CONFIG_PATH.read_bytes()
+    )
+
+
+@lru_cache(maxsize=1)
+def _cached_channel_registry(
+    channel_contents: bytes, policy_contents: bytes
+) -> HostChannelRegistry:
+    return load_channel_registry(
+        contents=channel_contents,
+        policy_registry=load_archetype_policy_registry(contents=policy_contents),
+    )
 
 
 def resolve_host_channel(

@@ -156,6 +156,8 @@ class OrchestratorState:
 
     pending_block_intro: Optional[Dict[str, Any]] = None
     broadcast_memory: List[Dict[str, Any]] = field(default_factory=list)
+    host_profile_state: Dict[str, Any] = field(default_factory=dict)
+    last_archetype_ts: Dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -177,4 +179,6 @@ class OrchestratorState:
             "schedule_block_mentions": self.schedule_block_mentions,
             "pending_block_intro": self.pending_block_intro,
             "broadcast_memory": self.broadcast_memory,
+            "host_profile_state": self.host_profile_state,
+            "last_archetype_ts": self.last_archetype_ts,
         }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import fcntl
 import json
 import os
 import pathlib
@@ -12,6 +13,8 @@ import shutil
 import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
+
+from .archetype_policies import ResolvedArchetypeProfile
 
 from .config import (
     ANGLE_OPTIONS,
@@ -96,6 +99,7 @@ class StationLock:
         self.path = path
         self.stale_seconds = stale_seconds
         self.acquired = False
+        self._guard_fd: int | None = None
 
     def _read_lock_timestamp(self) -> Optional[float]:
         if not self.path.exists():
@@ -113,6 +117,34 @@ class StationLock:
             return None
 
     def acquire(self) -> bool:
+        if self.acquired:
+            return False
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        # Keep this inode stable: unlinking a flock file lets another process
+        # lock a different inode while the current holder is still running.
+        fd = os.open(str(self.path) + ".guard", os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            LOGGER.info("[lock] Cycle still running at %s; skipping.", self.path)
+            return False
+        except BaseException:
+            os.close(fd)
+            raise
+        self._guard_fd = fd
+        try:
+            return self._acquire_file()
+        finally:
+            if not self.acquired:
+                self._release_guard()
+
+    def _release_guard(self) -> None:
+        if self._guard_fd is not None:
+            os.close(self._guard_fd)
+            self._guard_fd = None
+
+    def _acquire_file(self) -> bool:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         now_ts = time.time()
         if self.path.exists():
@@ -162,6 +194,7 @@ class StationLock:
         except OSError:
             LOGGER.warning("[lock] Failed to remove lockfile: %s", self.path)
         self.acquired = False
+        self._release_guard()
 
 
 def _coerce_cadence_settings(
@@ -224,6 +257,14 @@ def migrate_state(
     if not isinstance(raw, Mapping):
         return state
 
+    if isinstance(raw.get("host_profile_state"), Mapping):
+        state.host_profile_state = dict(raw["host_profile_state"])
+    if isinstance(raw.get("last_archetype_ts"), Mapping):
+        for key, value in raw["last_archetype_ts"].items():
+            parsed = _as_float(value)
+            if parsed is not None:
+                state.last_archetype_ts[str(key)] = parsed
+
     state.last_seen_track_key = raw.get("last_seen_track_key") or None
     state.last_seen_ts = _as_float(raw.get("last_seen_ts"))
     state.songs_since_last_spoken = max(
@@ -264,7 +305,7 @@ def migrate_state(
             parsed = _as_float(value)
             if normalized_arch is not None and parsed is not None:
                 normalized_cooldowns[normalized_arch] = parsed
-        for arch in COOLDOWN_SECONDS:
+        for arch in Archetype:
             parsed = normalized_cooldowns.get(arch.value)
             if parsed is not None:
                 state.cooldown_until[arch.value] = parsed
@@ -439,6 +480,55 @@ def save_state_atomic(state_path: pathlib.Path, state: OrchestratorState) -> Non
         encoding="utf-8",
     )
     tmp_path.replace(state_path)
+
+
+def reconcile_host_profile(
+    state: OrchestratorState,
+    profile_name: str,
+    policy: ResolvedArchetypeProfile,
+    ts: float,
+) -> None:
+    """Apply a policy change once, preserving playback progress and host memory."""
+    settings = policy.cadence
+    snapshot = {
+        "name": profile_name,
+        "wait_range_songs": list(settings.wait_range_songs),
+        "speak_deadline_minutes": settings.speak_deadline_minutes,
+        "cooldown_seconds": {
+            archetype.value: cooldown_seconds_for_archetype(archetype, settings, policy)
+            for archetype in policy.archetypes
+        },
+    }
+    previous = state.host_profile_state
+    if previous == snapshot:
+        return
+    state.songs_until_next_speak = min(
+        settings.wait_range_songs[1],
+        max(settings.wait_range_songs[0], state.songs_until_next_speak),
+    )
+    if previous.get("speak_deadline_minutes") != settings.speak_deadline_minutes:
+        anchor = state.last_spoken_ts if state.last_spoken_ts is not None else ts
+        state.next_speak_deadline_ts = anchor + settings.speak_deadline_minutes * 60
+    old_cooldowns = previous.get("cooldown_seconds", {})
+    for archetype, duration in snapshot["cooldown_seconds"].items():
+        last_used = state.last_archetype_ts.get(archetype)
+        if last_used is None and old_cooldowns.get(archetype, 0) > 0:
+            until = state.cooldown_until.get(archetype, 0)
+            if until > 0:
+                last_used = until - old_cooldowns[archetype]
+                state.last_archetype_ts[archetype] = last_used
+        if last_used is not None:
+            state.cooldown_until[archetype] = last_used + duration
+        elif duration == 0:
+            state.cooldown_until[archetype] = 0
+    state.host_profile_state = snapshot
+    LOGGER.info(
+        "[profile] Applied host profile %s | songs=%s | deadline=%sm | cooldown_multiplier=%.2f",
+        profile_name,
+        settings.wait_range_songs,
+        settings.speak_deadline_minutes,
+        settings.cooldown_multiplier,
+    )
 
 
 def should_speak_now(
@@ -708,6 +798,7 @@ def apply_success_state_update(
     previous_songs_until = state.songs_until_next_speak
     state.last_spoken_track_key = current_track_key
     state.last_spoken_ts = ts
+    state.last_archetype_ts[archetype_used.value] = ts
     state.last_spoken_expected_end_ts = ts + max(0, current_remaining or 0)
 
     state.songs_since_last_spoken = 0

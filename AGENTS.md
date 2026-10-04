@@ -201,17 +201,48 @@ Treat `archetype_profiles.json` as the source of truth for configurable host-arc
 - canonical news-topic IDs and their localized display labels;
 - canonical concert-country codes, localized labels, and accepted aliases;
 - reusable profiles and inheritance;
+- song-spacing range, speaking deadline, and cooldown multiplier;
 - enabled/automatic state, selection weight, cooldown, lead time, generation ranges, hook-free probability, and search behavior;
 - news topic scope and freshness windows;
 - concert country scope.
 
-Channels select a reusable policy with `archetype_profile` in `host_channels.json`. Use `archetype_overrides` for channel-specific differences. List-valued settings use explicit `add`, `remove`, or `replace` operations; do not copy an entire inherited list merely to remove one item. Resolution order is root profile, inherited profile overrides, then channel overrides.
+Channels select a combined cadence/archetype policy with `host_profile` in `host_channels.json`. Cadence (`wait_range_songs`, `speak_deadline_minutes`, `cooldown_multiplier`) inherits alongside archetype settings in `archetype_profiles.json`. Use `archetype_overrides` for channel-specific differences. List-valued settings use explicit `add`, `remove`, or `replace` operations; do not copy an entire inherited list merely to remove one item. Resolution order is root profile, inherited profile overrides, then channel overrides. Run one normal cron cycle per active channel every minute; the policy gates speaking. Profile edits reload between cycles and reconcile persisted timing automatically. Do not reintroduce separate cadence/archetype selectors or station-specific cadence constants in Python.
 
 Use stable IDs in configuration and structured model metadata, not translated labels. News uses IDs such as `switzerland_general`; concerts use uppercase country codes such as `CH`. Localized labels belong in the catalogs in `archetype_profiles.json`. When adding a topic or country, add every required locale label and, for countries, unambiguous normalized aliases.
 
 Do not reintroduce station- or language-specific topic/country constants in Python or hardcode geographic scope in prompt templates. Effective policy must flow through archetype selection, prompt construction, repair prompts, validation, state updates, and logging. Prompt instructions are not sufficient enforcement: generated news and concert metadata must be checked against the resolved channel policy.
 
 Configuration loading is intentionally fail-fast. Preserve validation for unknown fields/IDs, inheritance cycles, invalid ranges, duplicate aliases, and empty effective topic/country lists. Add focused tests for profile inheritance, channel resolution, localized prompt rendering, and rejection of out-of-scope generated facts whenever this format changes. See `docs/host_channels.md` for examples.
+
+### Host Profile System and Profile Changes
+
+`host_channels.json` defines each channel's station, brand, locale, voice, and
+selected `host_profile`. `archetype_profiles.json` defines reusable, inheritable
+profiles that combine speaking cadence, enabled archetypes, cooldowns, and
+content policy. Channel-specific `archetype_overrides` apply after inheritance.
+Read the current definitions rather than assuming fixed values for a profile.
+See `docs/host_channels.md` for the format and examples.
+
+When the user asks to change a host profile:
+
+1. Identify the target channel and requested profile. Resolve legacy station
+   names through `legacy_station_channels`; do not change other language
+   channels unless they are included in the request.
+2. Set that channel's `host_profile` to the existing profile that matches the
+   request. Preserve its other settings and channel overrides. For a new
+   behavior, derive a reusable profile rather than modifying one shared by
+   unrelated channels.
+3. Validate the effective configuration offline using `get_channel_registry()`
+   from `neuralcast.pipelines.host_orchestrator.channels`, and inspect the target
+   channel's resolved cadence and archetype policy.
+4. Report the selected profile and effective behavior. Valid configuration
+   changes reload next cycle in cron and the admin API, without a restart.
+
+Cron stays at one normal check per minute per active channel; the selected
+profile controls speaking frequency. Profile changes automatically reconcile
+saved timing while preserving history. Do not edit cron, add duplicate jobs,
+or manually reset runtime state for a profile switch. Write complete JSON edits
+atomically; invalid configuration fails fast.
 
 The admin API requires `NEURALCAST_ADMIN_HTTP_TOKEN`; live station views also require `AZURACAST_BASE_URL` and `AZURACAST_API_KEY`. Its persistent jobs/logs live under `runtime/admin_http/`. The canonical service unit is `deployment/systemd/neuralcast-admin-api.service`.
 

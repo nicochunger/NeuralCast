@@ -3,16 +3,17 @@
 The host orchestrator separates four reusable configuration layers. Three live
 in `src/neuralcast/assets/stories/host_channels.json`:
 
-- a **brand** selects the shared catalog/metadata directory, cadence, cover art,
+- a **brand** selects the shared catalog/metadata directory, cover art,
   and language-neutral personality;
 - a **locale** selects output language, TTS guidance/voice, presentation labels,
   schedule phrases, and deterministic fallback copy;
 - a **channel** selects the AzuraCast target station and combines one brand with
   one locale.
 
-Archetype behavior lives separately in
+Combined host behavior lives separately in
 `src/neuralcast/assets/stories/archetype_profiles.json`. It defines reusable,
-inheritable profiles for weights, cooldowns, lead times, generation settings,
+inheritable profiles for song spacing, speaking deadlines, cooldown multipliers,
+enabled archetypes, weights, cooldowns, lead times, generation settings,
 search, news topics/freshness, and concert countries. News topics use stable
 IDs and concert countries use ISO-style codes; their spoken labels are localized
 in the same file.
@@ -44,11 +45,71 @@ media prefixes. A channel using shared storage must set
 `media_owner_station` (or an explicit `liquidsoap_media_root`) to the station
 whose physical media directory Liquidsoap can read.
 
-Channels may independently select `cadence_profile` and `archetype_profile`.
-The archetype name references a profile in `archetype_profiles.json` without
-changing the channel's brand, catalog, language, or target stream. For example,
-`neuralcast-en` keeps the NeuralCast identity and English locale while using
-NeuralForge's speaking cadence, cooldowns, and enabled-archetype policy.
+Channels select one `host_profile` from `archetype_profiles.json`. This combines
+cadence and archetype policy without changing the brand, catalog, language,
+voice, or target stream. The former separate `cadence_profile` and
+`archetype_profile` configuration fields are rejected to prevent conflicting
+selections.
+
+## Switching host profiles
+
+For `neuralcast-es` in `host_channels.json`, change only:
+
+```json
+"host_profile": "relaxed"
+```
+
+Use `"frequent"` to switch to the more active host. Both profiles are reusable
+across channels:
+
+| Profile | Song target | Speaking deadline | Cooldown multiplier | Archetypes |
+| --- | --- | --- | --- | --- |
+| `relaxed` | 7–12 | 120 minutes | 2.0 | Disables deep dive, era snapshot, concert check, album spotlight |
+| `frequent` | 2–5 | 45 minutes | 1.0 | All enabled |
+
+One normal cron check runs every minute per active channel, in either mode.
+It also handles scheduled block intros; no extra intro-only job is needed.
+Song target OR speaking deadline opens the ordinary cadence gate. Deadlines
+are eligibility thresholds, not guaranteed airtimes: listeners, lead time,
+cooldowns, and queue conditions can still prevent generation. Block intros
+are an explicit exception to ordinary cadence.
+
+Configuration is reloaded between cycles, including in the long-running admin
+API. No cron edit or service restart is needed for a valid profile switch.
+Invalid edits fail fast; write complete JSON files atomically. A running cycle
+finishes using its already-resolved profile.
+
+On a timing change, the saved song target is clamped into the new range and
+the deadline is recomputed from the last successful insertion. Cooldowns are
+recomputed from recorded per-archetype insertion times. Playback progress,
+host memory, news deduplication, and prepared intros remain intact. Old state
+without per-archetype timestamps retains its existing cooldown expirations
+on first adoption because their original durations cannot be inferred safely.
+Subsequent switches reconcile automatically, and the effective timing snapshot
+is stored with channel state so repeated checks do not reset the wait.
+
+Song counting currently observes changes in the playing artist/title; polling
+every minute improves accuracy but can miss songs during downtime or count
+consecutive identical recordings as one. Playback-history reconciliation is
+not part of profile selection.
+
+Create another station's behavior by deriving a profile, for example:
+
+```json
+"my_station": {
+  "extends": "relaxed",
+  "cadence": {"wait_range_songs": [4, 8]},
+  "archetype_overrides": {"news": {"cooldown_seconds": 5400}}
+}
+```
+
+Cadence fields inherit individually. A root profile must define all three:
+`wait_range_songs`, `speak_deadline_minutes`, `cooldown_multiplier`. Bounds and
+deadline must be positive integers; multiplier must be finite and nonnegative.
+Unknown fields, unknown profiles, and inheritance cycles are rejected.
+The legacy `neuralcast` and `neuralforge` profile names remain inherited aliases.
+Channel topic/country overrides still apply after the selected profile, so a
+frequency switch preserves explicit channel geographic restrictions.
 
 ## Policy format and precedence
 
@@ -109,7 +170,7 @@ profile. List-valued settings support `add`, `remove`, or `replace`. For example
 
 ```json
 {
-  "archetype_profile": "neuralforge",
+  "host_profile": "frequent",
   "archetype_overrides": {
     "news": {
       "news": {
