@@ -69,6 +69,10 @@ but it still performs live provider lookups. Mock those boundaries in tests.
 
 ## Playlist CSV Contract
 
+Before selecting songs or editing playlists, read the station's editorial definitions:
+[NeuralCast](NeuralCast/playlist_descriptions.md) or
+[NeuralForge](NeuralForge/playlist_descriptions.md).
+
 Normal playlist rows use these logical fields:
 
 ```text

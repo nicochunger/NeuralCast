@@ -18,6 +18,9 @@ Default station for CLI workflows is `neuralforge` unless overridden.
 - Docs: `docs/`
 
 For contribution and operational rules, see [AGENTS.md](AGENTS.md).
+For song selection and placement, see the playlist definitions for
+[NeuralCast](NeuralCast/playlist_descriptions.md) and
+[NeuralForge](NeuralForge/playlist_descriptions.md).
 
 ## Install
 

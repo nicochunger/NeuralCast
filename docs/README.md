@@ -3,6 +3,9 @@
 `docs/` contains active project documentation that is useful for current workflows.
 
 - `docs/repo_cleanup_inventory.md`: cleanup classification and artifact policy notes.
+- [NeuralCast playlist definitions](../NeuralCast/playlist_descriptions.md) and
+  [NeuralForge playlist definitions](../NeuralForge/playlist_descriptions.md):
+  current playlist intent, placement boundaries, and intentional overlap policy.
 - `docs/host_channels.md`: multilingual host channels, inheritable archetype
   policies, per-channel topic/country overrides, and test workflow.
 - `docs/tts_model_experiment_2026-08-29.md`: TTS provider comparison, Argentine-accent results, costs, and decision record.
