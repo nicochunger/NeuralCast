@@ -21,6 +21,7 @@ from .policy import (
     SUPPORTED_SCHEDULE_SEED_MODES,
     _name_key,
     resolve_schedule_seed,
+    themed_playlists,
 )
 
 from .scaffold import _build_randomized_scaffold, _build_station_scaffold
@@ -31,6 +32,7 @@ from .assignment import (
     _neuralforge_combo_presets,
     _solo_candidate,
     _station_label_map,
+    _playlist_daily_repeat_limit,
 )
 
 
@@ -53,10 +55,15 @@ def build_weekly_plan_with_code(
 ) -> WeeklySchedulePlan:
     _ = model
 
-    enabled_playlists = [playlist for playlist in playlists if playlist.is_enabled]
+    enabled_playlists = themed_playlists(station_slug, playlists)
     playlist_by_id = {playlist.id: playlist for playlist in enabled_playlists}
     if not playlist_by_id:
-        raise RuntimeError("No enabled playlists available for schedule generation.")
+        raise RuntimeError("No enabled playlists eligible for themed schedule blocks.")
+
+    playlist_capacity = sum(
+        _playlist_daily_repeat_limit(playlist, station_slug)
+        for playlist in enabled_playlists
+    )
 
     seed, normalized_seed_mode, resolved_seed_salt = resolve_schedule_seed(
         station_slug=station_slug,
@@ -86,7 +93,7 @@ def build_weekly_plan_with_code(
                 max_open_slots=max_open_slots,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
-                playlist_capacity=len(enabled_playlists),
+                playlist_capacity=playlist_capacity,
                 rng=rng,
             )
             _assign_playlists_to_scaffold(
@@ -121,7 +128,9 @@ def build_weekly_plan_with_code(
             if normalized_seed_mode == SCHEDULE_SEED_MODE_STABLE_WEEK:
                 seed_note = "estable por semana"
             elif normalized_seed_mode == SCHEDULE_SEED_MODE_CUSTOM:
-                seed_note = f"reproducible con semilla personalizada '{resolved_seed_salt}'"
+                seed_note = (
+                    f"reproducible con semilla personalizada '{resolved_seed_salt}'"
+                )
             else:
                 seed_note = f"rerolleada con clave '{resolved_seed_salt}'"
             rationale = (
@@ -172,7 +181,7 @@ def build_weekly_plan_with_code(
                 max_open_slots=max_open_slots,
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
-                playlist_capacity=len(enabled_playlists),
+                playlist_capacity=playlist_capacity,
                 rng=rng,
             )
             _assign_playlists_to_scaffold(
@@ -236,8 +245,6 @@ def build_weekly_plan_with_code(
         "Unable to generate weekly schedule with current constraints "
         f"(repeat limits, open slot bounds, duration bounds): {fallback_error}"
     )
-
-
 
 
 __all__ = [

@@ -8,10 +8,13 @@ import random
 import secrets
 from typing import List, Optional, Sequence, Tuple
 
-from .config import DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES, SCHEDULE_TIME_GRID_MINUTES
+from .config import (
+    DEFAULT_TEMPLATE_TARGET_BLOCK_MINUTES,
+    OPEN_ROTATION_ONLY_PLAYLISTS,
+    SCHEDULE_TIME_GRID_MINUTES,
+)
 from .models import ScheduleValidationError, StationPlaylist
 from .template import build_duration_partition
-
 
 SCHEDULE_SEED_MODE_STABLE_WEEK = "stable_week"
 SCHEDULE_SEED_MODE_FRESH = "fresh"
@@ -26,6 +29,21 @@ DEFAULT_SCHEDULE_SEED_MODE = SCHEDULE_SEED_MODE_STABLE_WEEK
 
 def _name_key(value: str) -> str:
     return " ".join(str(value or "").strip().lower().split())
+
+
+def themed_playlists(
+    station_slug: str, playlists: Sequence[StationPlaylist]
+) -> List[StationPlaylist]:
+    """Keep enabled playlists eligible for solo, combo, and reserved blocks."""
+    excluded_names = {
+        _name_key(name)
+        for name in OPEN_ROTATION_ONLY_PLAYLISTS.get(station_slug.strip().lower(), ())
+    }
+    return [
+        playlist
+        for playlist in playlists
+        if playlist.is_enabled and _name_key(playlist.name) not in excluded_names
+    ]
 
 
 NEURALFORGE_MELODIC_DEATH_KEY = _name_key("Melodic Death Metal")
@@ -276,7 +294,9 @@ def _build_partition_with_specs(
     if not specs:
         if total_minutes == 0:
             return []
-        raise ScheduleValidationError("Partition specs are required for non-zero totals.")
+        raise ScheduleValidationError(
+            "Partition specs are required for non-zero totals."
+        )
 
     raw_minima = [minimum for minimum, _maximum, _preferred, _jitter in specs]
     raw_maxima = [maximum for _minimum, maximum, _preferred, _jitter in specs]

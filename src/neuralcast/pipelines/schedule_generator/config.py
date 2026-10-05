@@ -19,6 +19,7 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         return False
 
+
 if requests is not None:
     from requests import Response
 
@@ -29,12 +30,14 @@ else:  # pragma: no cover - dependency guard
     class RequestsHTTPError(Exception):
         pass
 
+
 try:
     from urllib3.exceptions import InsecureRequestWarning
 except ModuleNotFoundError:  # pragma: no cover - dependency guard
 
     class InsecureRequestWarning(Warning):
         pass
+
 
 LOGGER = logging.getLogger("schedule_generator")
 
@@ -56,10 +59,26 @@ SCHEDULE_TIME_GRID_MINUTES = 15
 UNSCHEDULED_WINDOW_START_MINUTE = 22 * 60
 UNSCHEDULED_WINDOW_END_MINUTE = 6 * 60
 UNSCHEDULED_WINDOW_TOTAL_MINUTES = (
-    (24 * 60 - UNSCHEDULED_WINDOW_START_MINUTE) + UNSCHEDULED_WINDOW_END_MINUTE
-)
+    24 * 60 - UNSCHEDULED_WINDOW_START_MINUTE
+) + UNSCHEDULED_WINDOW_END_MINUTE
 
 FALLBACK_TIMEZONE = DEFAULT_TIMEZONE_NAME
+
+OPEN_ROTATION_ONLY_PLAYLISTS = {
+    "neuralcast": (
+        "Bossa Nova",
+        "Cuarteto",
+        "Cumbia Villera",
+        "Evening Jazz",
+        "Mid-Century Popular Foundations",
+        "Romanticismo Argentino",
+    ),
+    "neuralforge": (
+        "NWOBHM",
+        "Neo Classical Metal",
+        "Celtic Metal",
+    ),
+}
 
 NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS = {
     "folklore argentino and chamame": 0.35,

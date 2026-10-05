@@ -115,6 +115,14 @@ Applying a generated `neuralforge` schedule updates both the Spanish
 `neuralforge` station and the French `neuralforge_fr` station. Playlist IDs are
 matched by name so both streams follow the same weekly plan.
 
+`OPEN_ROTATION_ONLY_PLAYLISTS` in
+`src/neuralcast/pipelines/schedule_generator/config.py` lists playlists that can
+play only during open rotation. These stay enabled in AzuraCast, but are excluded
+from standalone, combination, and reserved themed blocks. The planner uses only
+eligible playlists and their daily repeat limits to size themed blocks; open
+blocks continue to include every enabled playlist. Changes take effect when a
+schedule is next generated and applied.
+
 Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.
