@@ -70,6 +70,7 @@ OPEN_ROTATION_ONLY_PLAYLISTS = {
         "Cuarteto",
         "Cumbia Villera",
         "Evening Jazz",
+        "Funk & Soul",
         "Mid-Century Popular Foundations",
         "Romanticismo Argentino",
     ),

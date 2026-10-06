@@ -34,6 +34,7 @@ from neuralcast.pipelines.schedule_generator.models import StationPlaylist
                 "Cuarteto",
                 "Cumbia Villera",
                 "Evening Jazz",
+                "Funk & Soul",
                 "Mid-Century Popular Foundations",
                 "Romanticismo Argentino",
             ],
