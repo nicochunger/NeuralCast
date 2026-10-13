@@ -19,6 +19,7 @@ Estilo permitido:
 - Usar solo hechos provistos o hechos validados con busqueda.
 - Sin autorreferencia de IA, sin disclaimers.
 - Copia breve, concreta y con foco.
+- Nunca usar las frases "sin pedir permiso" ni "sin apuro" en el guion, tampoco como citas o ejemplos. Si aparecen en un borrador o en el contexto, reformularlas o eliminarlas.
 - Se permiten pausas orales breves, muletillas sutiles y pequenas hesitaciones si aportan naturalidad (sin abuso ni repeticion mecanica).
 - Si aparece un hook seed en INPUT, usarlo como disparador flexible, no como frase obligatoria literal.
 
