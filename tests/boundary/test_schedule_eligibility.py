@@ -97,6 +97,14 @@ def test_open_only_playlists_never_receive_themed_schedule_items(
         name for block in plan.daily_template for name in block.playlist_names
     )
     assert not set(open_only_names).intersection(scheduled_names)
+    if station == "neuralcast":
+        for name in ("Aspen Vibes", "Acoustic Singer-Songwriter"):
+            appearances = [
+                block for block in plan.daily_template if name in block.playlist_names
+            ]
+            assert len(appearances) == 1
+            assert appearances[0].start_time_local == "19:30"
+            assert appearances[0].end_time_local == "22:00"
     if station == "neuralforge":
         for name, count in scheduled_names.items():
             assert count <= (2 if name == "Melodic Death Metal" else 1)

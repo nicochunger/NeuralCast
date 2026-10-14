@@ -123,6 +123,10 @@ eligible playlists and their daily repeat limits to size themed blocks; open
 blocks continue to include every enabled playlist. Changes take effect when a
 schedule is next generated and applied.
 
+`RESERVED_WINDOW_ONLY_PLAYLISTS` excludes Aspen Vibes and Acoustic
+Singer-Songwriter from random themed selection while keeping their fixed
+NeuralCast evening window (19:30–22:00) and participation in open rotation.
+
 Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.

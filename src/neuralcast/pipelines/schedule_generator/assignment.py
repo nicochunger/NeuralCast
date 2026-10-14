@@ -7,7 +7,10 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Sequence, Tuple
 
-from .config import NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS
+from .config import (
+    NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS,
+    RESERVED_WINDOW_ONLY_PLAYLISTS,
+)
 from .models import ScheduleValidationError, StationPlaylist
 from .policy import (
     NEURALFORGE_MELODIC_DEATH_KEY,
@@ -123,7 +126,8 @@ def _neuralforge_combo_presets(
             continue
 
         base_weight = max(
-            0.1, (sum(max(0.1, item.weight) for item in resolved) / len(resolved)) * bonus
+            0.1,
+            (sum(max(0.1, item.weight) for item in resolved) / len(resolved)) * bonus,
         )
         candidates.append(
             AssignmentCandidate(
@@ -302,9 +306,33 @@ def _assign_playlists_to_scaffold(
     rng: random.Random,
     allow_combo_presets: bool = True,
 ) -> None:
-    enabled_playlists = [playlist for playlist in playlists if playlist.is_enabled]
+    reserved_only_names = {
+        _name_key(name)
+        for name in RESERVED_WINDOW_ONLY_PLAYLISTS.get(station_slug.strip().lower(), ())
+    }
+    reserved_only_ids = {
+        playlist.id
+        for playlist in playlists
+        if _name_key(playlist.name) in reserved_only_names
+    }
+    reserved_only_block_indices = {
+        index
+        for index, block in enumerate(raw_blocks)
+        if block.get("playlist_id")
+        and block.get("playlist_name")
+        and set(block.get("playlist_ids") or [block["playlist_id"]]).issubset(
+            reserved_only_ids
+        )
+    }
+    enabled_playlists = [
+        playlist
+        for playlist in playlists
+        if playlist.is_enabled and playlist.id not in reserved_only_ids
+    ]
     if not enabled_playlists:
-        raise ScheduleValidationError("No enabled playlists available for schedule generation.")
+        raise ScheduleValidationError(
+            "No enabled playlists available for schedule generation."
+        )
 
     label_map = _station_label_map(station_slug)
     playlist_by_name_key = {_name_key(item.name): item for item in enabled_playlists}
@@ -312,7 +340,10 @@ def _assign_playlists_to_scaffold(
         playlist.id: _playlist_daily_repeat_limit(playlist, station_slug)
         for playlist in enabled_playlists
     }
-    total_assignment_capacity = sum(repeat_limits.values())
+    # Fixed windows are already filled and do not spend random assignment capacity.
+    total_assignment_capacity = sum(repeat_limits.values()) + len(
+        reserved_only_block_indices
+    )
     solo_candidates = [
         _solo_candidate(item, station_slug, label_map) for item in enabled_playlists
     ]
@@ -376,20 +407,34 @@ def _assign_playlists_to_scaffold(
                 usage_minutes[playlist_id] += duration_minutes
             continue
 
-        remaining_blocks_including_current = playlist_block_count - assigned_playlist_blocks
+        remaining_blocks_including_current = (
+            playlist_block_count - assigned_playlist_blocks
+        )
         remaining_assignment_capacity = sum(
             max(0, repeat_limits[playlist.id] - usage_counts[playlist.id])
             for playlist in enabled_playlists
+        )
+        remaining_assignment_capacity += sum(
+            index >= block_index for index in reserved_only_block_indices
         )
         if remaining_blocks_including_current > remaining_assignment_capacity:
             raise ScheduleValidationError(
                 "Insufficient playlist assignment capacity remaining for playlist blocks."
             )
 
-        extra_playlist_budget = remaining_assignment_capacity - remaining_blocks_including_current
-        force_combo = block_index in forced_combo_block_indices and extra_playlist_budget > 0
-        allow_combos = bool(combo_candidates) and extra_playlist_budget > 0 and (
-            force_combo or (rng.random() < _combo_probability_for_duration(duration_minutes))
+        extra_playlist_budget = (
+            remaining_assignment_capacity - remaining_blocks_including_current
+        )
+        force_combo = (
+            block_index in forced_combo_block_indices and extra_playlist_budget > 0
+        )
+        allow_combos = (
+            bool(combo_candidates)
+            and extra_playlist_budget > 0
+            and (
+                force_combo
+                or (rng.random() < _combo_probability_for_duration(duration_minutes))
+            )
         )
         candidate_pool = list(solo_candidates)
         if allow_combos and combo_candidates:
@@ -399,7 +444,9 @@ def _assign_playlists_to_scaffold(
                 candidate_pool.extend(combo_candidates)
 
         if not candidate_pool:
-            raise ScheduleValidationError("No playlist assignment candidates available.")
+            raise ScheduleValidationError(
+                "No playlist assignment candidates available."
+            )
 
         candidate_pool = [
             candidate

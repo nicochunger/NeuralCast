@@ -87,6 +87,10 @@ OPEN_ROTATION_ONLY_PLAYLISTS = {
     ),
 }
 
+RESERVED_WINDOW_ONLY_PLAYLISTS = {
+    "neuralcast": ("Aspen Vibes", "Acoustic Singer-Songwriter"),
+}
+
 NEURALCAST_PLAYLIST_WEIGHT_MULTIPLIERS = {
     "folklore argentino and chamame": 0.35,
     "irish folk": 0.35,
