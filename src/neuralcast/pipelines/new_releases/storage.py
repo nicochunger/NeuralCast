@@ -23,6 +23,7 @@ from neuralcast.playlists.catalog import CatalogTrack, StationPlaylistCatalog
 from .models import ArtistIDCache, ArtistRelease
 from .logging import log_debug, log_error, log_info, log_success, log_warning
 from .matching import _normalize_audio_label
+from .editorial import discarded_identities
 
 _EXCLUDED_PLAYLIST_FILENAMES = {NEW_RELEASES_PLAYLIST_FILENAME.casefold()}
 
@@ -60,17 +61,21 @@ def save_artist_id_cache(
 
 
 def load_release_exclusions(playlists_dir: Path) -> set[str]:
+    editorial = {
+        _normalize_audio_label(*json.loads(key))
+        for key in discarded_identities(playlists_dir)
+    }
     path = playlists_dir.parent / "metadata" / NEW_RELEASES_EXCLUSIONS_FILENAME
     if not path.exists():
-        return set()
+        return editorial
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         log_warning(f"Could not read release exclusions from {path}: {exc}")
-        return set()
+        return editorial
 
     entries = payload.get("entries", []) if isinstance(payload, dict) else []
-    exclusions: set[str] = set()
+    exclusions: set[str] = editorial
     for entry in entries:
         if not isinstance(entry, dict):
             continue
@@ -108,9 +113,9 @@ def load_station_artists(
             if not artist_name:
                 continue
             artists.add(artist_name)
-            playlist_tracks = artist_playlist_map.setdefault(artist_name, {}).setdefault(
-                csv_path, set()
-            )
+            playlist_tracks = artist_playlist_map.setdefault(
+                artist_name, {}
+            ).setdefault(csv_path, set())
             if not titles_col:
                 artist_tracks.setdefault(artist_name, set())
                 continue
@@ -214,13 +219,10 @@ def partition_releases_by_cutoff(
     return valid, expired
 
 
-def save_new_releases(playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool) -> None:
+def save_new_releases(
+    playlists_dir: Path, releases: list[ArtistRelease], dry_run: bool
+) -> None:
     output_path = playlists_dir / NEW_RELEASES_PLAYLIST_FILENAME
-    if not releases:
-        log_info("No new releases to write.")
-        print("No new releases to write.", file=sys.stderr)
-        return
-
     sorted_releases = sorted(
         releases, key=lambda item: (item.release_date, item.rank or 0), reverse=True
     )

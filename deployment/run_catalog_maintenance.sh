@@ -45,9 +45,11 @@ publish_catalog_changes() {
         'NeuralCast/metadata/ArtistIDs.json' \
         'NeuralCast/metadata/New Releases.metadata.json' \
         'NeuralCast/metadata/New Releases.exclusions.json' \
+        'NeuralCast/metadata/New Releases.editorial.json' \
         'NeuralForge/metadata/ArtistIDs.json' \
         'NeuralForge/metadata/New Releases.metadata.json' \
-        'NeuralForge/metadata/New Releases.exclusions.json' > "${inventory}"; then
+        'NeuralForge/metadata/New Releases.exclusions.json' \
+        'NeuralForge/metadata/New Releases.editorial.json' > "${inventory}"; then
         rm -f "${inventory}"
         return 1
     fi

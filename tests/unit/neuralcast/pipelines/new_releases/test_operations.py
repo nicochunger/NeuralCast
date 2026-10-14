@@ -1143,7 +1143,7 @@ class NewReleasesTest(unittest.TestCase):
                 ),
                 patch.object(new_releases_runtime, "build_new_releases", return_value=[]),
                 patch.object(new_releases_runtime, "save_artist_id_cache"),
-                patch.object(new_releases_runtime, "move_outdated_releases") as move_outdated,
+                patch.object(new_releases_runtime, "process_outdated_releases", return_value=[]) as move_outdated,
                 patch.object(new_releases_runtime, "save_new_releases"),
             ):
                 new_releases_runtime.NewReleasesRuntime().run(
@@ -1158,6 +1158,7 @@ class NewReleasesTest(unittest.TestCase):
                 artist_playlist_map,
                 songs_dir,
                 "New Releases",
+                playlists_dir=playlists_dir,
                 dry_run=True,
             )
 

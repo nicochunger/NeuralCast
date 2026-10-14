@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import fcntl
+import hashlib
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import partial
@@ -13,7 +18,7 @@ from neuralcast.config import station_dir_from_slug
 from .models import ArtistIDCache, ArtistRelease
 from .logging import log_debug, log_info, set_debug_mode
 from .matching import _normalize_audio_label, _normalize_text
-from .migration import move_outdated_releases
+from .retention import process_outdated_releases
 from .selection import build_new_releases
 from .storage import (
     load_artist_id_cache,
@@ -69,9 +74,7 @@ class NewReleasesRuntimeDependencies:
     set_debug_mode: Callable[[bool], None]
     log_debug: Callable[[str], None]
     log_info: Callable[[str], None]
-    load_release_exclusions: Callable[
-        [Path], set[str]
-    ] = load_release_exclusions
+    load_release_exclusions: Callable[[Path], set[str]] = load_release_exclusions
 
 
 def default_station_paths(station: str) -> tuple[Path, Path]:
@@ -91,7 +94,8 @@ def default_dependencies(request: NewReleasesRequest) -> NewReleasesRuntimeDepen
             dry_run=request.dry_run,
         ),
         move_outdated_releases=partial(
-            move_outdated_releases,
+            process_outdated_releases,
+            playlists_dir=default_station_paths(request.station)[1],
             dry_run=request.dry_run,
         ),
         save_new_releases=partial(
@@ -116,6 +120,13 @@ class NewReleasesRuntime:
 
     def run(self, request: NewReleasesRequest) -> NewReleasesResult:
         deps = self._dependencies_factory(request)
+        station_dir, _ = deps.station_paths(request.station)
+        with release_update_lock(station_dir):
+            return self._run(request, deps)
+
+    def _run(
+        self, request: NewReleasesRequest, deps: NewReleasesRuntimeDependencies
+    ) -> NewReleasesResult:
         deps.set_debug_mode(request.verbose)
         station_dir, playlists_dir = deps.station_paths(request.station)
         if not playlists_dir.exists():
@@ -136,10 +147,12 @@ class NewReleasesRuntime:
         valid_existing, outdated_existing = partition_releases_by_cutoff(
             existing_releases, cutoff
         )
-        existing_ids = {release.track_id for release in valid_existing if release.track_id}
+        existing_ids = {
+            release.track_id for release in valid_existing if release.track_id
+        }
         existing_keys = {
             _normalize_audio_label(release.artist, release.title)
-            for release in valid_existing
+            for release in existing_releases
         }
         existing_artist_counts: dict[str, int] = {}
         for release in valid_existing:
@@ -166,12 +179,15 @@ class NewReleasesRuntime:
 
         blocked_releases: list[ArtistRelease] = []
         if outdated_existing:
-            blocked_releases = deps.move_outdated_releases(
-                outdated_existing,
-                artist_playlist_map,
-                audio_root,
-                "New Releases",
-            ) or []
+            blocked_releases = (
+                deps.move_outdated_releases(
+                    outdated_existing,
+                    artist_playlist_map,
+                    audio_root,
+                    "New Releases",
+                )
+                or []
+            )
 
         final_releases = _dedupe_releases(
             valid_existing + new_releases + blocked_releases
@@ -197,6 +213,24 @@ class NewReleasesRuntime:
         )
 
 
+@contextmanager
+def release_update_lock(station_dir: Path) -> Iterator[None]:
+    """Serialize direct and scheduled updater runs without station dry-run writes."""
+    key = hashlib.sha256(str(station_dir.resolve()).encode()).hexdigest()
+    path = Path(tempfile.gettempdir()) / f"neuralcast-new-releases-{key}.lock"
+    with path.open("a") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError(
+                "Another New Releases update is already running"
+            ) from None
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def _dedupe_releases(
     releases: list[ArtistRelease],
 ) -> list[ArtistRelease]:
@@ -210,7 +244,9 @@ def _dedupe_releases(
     seen_keys: set[str] = set()
     for release in combined:
         title_key = _normalize_audio_label(release.artist, release.title)
-        if (release.track_id and release.track_id in seen_ids) or title_key in seen_keys:
+        if (
+            release.track_id and release.track_id in seen_ids
+        ) or title_key in seen_keys:
             continue
         final_releases.append(release)
         seen_keys.add(title_key)

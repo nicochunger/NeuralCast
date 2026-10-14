@@ -135,6 +135,7 @@ def test_commits_catalog_and_metadata_without_unrelated_staged_work(tmp_path: Pa
         "NeuralForge/playlists/Prog Metal.csv",
         "NeuralForge/metadata/ArtistIDs.json",
         "NeuralForge/metadata/New Releases.metadata.json",
+        "NeuralForge/metadata/New Releases.editorial.json",
         "NeuralCast/playlists/New Playlist.csv",
     ]
     for name in changed:

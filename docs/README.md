@@ -8,6 +8,10 @@
   current playlist intent, placement boundaries, and intentional overlap policy.
 - `docs/host_channels.md`: multilingual host channels, inheritable archetype
   policies, per-channel topic/country overrides, and test workflow.
+- [Editorial feature ideas](editorial_feature_ideas.md): proposed release-retention
+  checks, a host companion, and the longer-term authored radio episode concept.
+- [Release editorial retention](release_editorial.md): automatic Codex review of
+  aging releases, the discard budget, runtime requirements, and retry behavior.
 - `docs/tts_model_experiment_2026-08-29.md`: TTS provider comparison, Argentine-accent results, costs, and decision record.
 - `docs/archive/`: historical design notes, prompt archives, and superseded docs retained for reference.
 

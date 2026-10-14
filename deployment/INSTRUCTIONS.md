@@ -152,6 +152,12 @@ The schedule uses Europe/Zurich time:
 - Saturday at `03:15`: refresh NeuralForge New Releases, sync NeuralForge only
   after a successful refresh, then sync NeuralCast.
 
+The release refresh now runs a headless Codex editorial review before promoting
+aging tracks, using `gpt-6.1-sol` at high effort and a maximum 20% discard budget.
+The maintenance user needs Codex CLI authentication and model access. Review
+[release editorial requirements](../docs/release_editorial.md) before the next
+weekly run. Failed research defers aging tracks while saving fresh discoveries.
+
 `deployment/run_catalog_maintenance.sh` holds
 `runtime/catalog-maintenance.lock` for the full run, preventing scheduled modes
 from overlapping. A failed NeuralForge New Releases refresh skips its sync so an
@@ -160,7 +166,8 @@ Output is appended to `runtime/logs/catalog_maintenance.log`.
 
 After all pipelines succeed, the same locked maintenance run commits changed
 playlist CSVs from both stations and their `ArtistIDs.json`,
-`New Releases.metadata.json`, and `New Releases.exclusions.json` files, then
+`New Releases.metadata.json`, `New Releases.exclusions.json`, and
+`New Releases.editorial.json` files, then
 pushes `main` to `origin`. New CSVs and deleted CSVs are included. Unrelated
 staged code, media, logs, and host/schedule runtime state are excluded from the
 commit. No empty commit is created when the catalog is unchanged.

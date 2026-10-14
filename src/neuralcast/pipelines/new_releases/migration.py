@@ -41,7 +41,7 @@ def _resolve_destination_playlist(
 
 def _append_release_to_playlist(
     csv_path: Path, release: ArtistRelease, dry_run: bool
-) -> None:
+) -> bool:
     action = (
         f"Dry run: would append '{release.artist} - {release.title}' to {csv_path.name}"
         if dry_run
@@ -62,14 +62,12 @@ def _append_release_to_playlist(
                 validated=False,
             ),
             policy=(
-                CatalogWritePolicy.PREVIEW
-                if dry_run
-                else CatalogWritePolicy.PERSIST
+                CatalogWritePolicy.PREVIEW if dry_run else CatalogWritePolicy.PERSIST
             ),
         )
     except Exception as exc:  # noqa: BLE001
         log_error(f"Failed reading {csv_path}: {exc}")
-        return
+        return False
     if not appended:
         log_debug(
             f"Track already present in {csv_path.name}: "
@@ -77,6 +75,7 @@ def _append_release_to_playlist(
         )
     elif not dry_run:
         log_debug(f"Appended '{release.title}' to {csv_path.name}")
+    return True
 
 
 def _promote_release_album(release: ArtistRelease) -> bool:
@@ -192,14 +191,19 @@ def _move_track_audio(
                 f"{sanitize_filename_component(release.artist)} - "
                 f"{sanitize_filename_component(release.title)}{candidate.suffix.lower()}"
             )
-            collision = next(
-                (
-                    path
-                    for path in dest_dir.iterdir()
-                    if path.is_file() and path.name.casefold() == canonical_name.casefold()
-                ),
-                None,
-            ) if dest_dir.exists() else None
+            collision = (
+                next(
+                    (
+                        path
+                        for path in dest_dir.iterdir()
+                        if path.is_file()
+                        and path.name.casefold() == canonical_name.casefold()
+                    ),
+                    None,
+                )
+                if dest_dir.exists()
+                else None
+            )
             if collision is not None:
                 log_warning(
                     "Audio move blocked because the permanent playlist already has "
@@ -265,7 +269,9 @@ def move_outdated_releases(
     for release in releases:
         destination = _resolve_destination_playlist(release, artist_playlist_map)
         if not destination:
-            log_warning(f"No destination playlist for {release.artist} - {release.title}")
+            log_warning(
+                f"No destination playlist for {release.artist} - {release.title}"
+            )
             blocked_releases.append(release)
             continue
         album_promoted = _promote_release_album(release)
@@ -280,8 +286,10 @@ def move_outdated_releases(
         if not moved:
             blocked_releases.append(release)
             continue
+        if not _append_release_to_playlist(destination, release, dry_run=dry_run):
+            blocked_releases.append(release)
+            continue
         migrations.append((release, destination))
-        _append_release_to_playlist(destination, release, dry_run=dry_run)
     if not migrations:
         return blocked_releases
     action_phrase = (
