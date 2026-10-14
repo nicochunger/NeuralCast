@@ -72,6 +72,7 @@ OPEN_ROTATION_ONLY_PLAYLISTS = {
         "Evening Jazz",
         "Funk & Soul",
         "Mid-Century Popular Foundations",
+        "Punk Rock",
         "Romanticismo Argentino",
     ),
     "neuralforge": (

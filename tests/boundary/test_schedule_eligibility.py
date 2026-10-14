@@ -36,6 +36,7 @@ from neuralcast.pipelines.schedule_generator.models import StationPlaylist
                 "Evening Jazz",
                 "Funk & Soul",
                 "Mid-Century Popular Foundations",
+                "Punk Rock",
                 "Romanticismo Argentino",
             ],
             (0.30, 0.45),
