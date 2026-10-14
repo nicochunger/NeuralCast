@@ -40,6 +40,10 @@ Metal with recognizable folk melodies, traditional instruments, and regional son
 
 An energetic, communal mix of pub singalongs, Celtic punk, shanties, and medieval festival music, with Dropkick Murphys, Flogging Molly, the Pogues, and the Real McKenzies alongside Santiano, dArtagnan, and Versengold. Traditional singalong roots, pirate songs, humor, and reflective folk songs belong when they serve this listening character; this is not a general singer-songwriter folk-rock collection. Folk melodies and the communal or festival role guide selection, while recordings whose main appeal is their metal weight fit Folk Metal more strongly.
 
+### Gothic Metal
+
+Metal centered on dark atmosphere, emotional weight, memorable melodies, and expressive vocals, with Paradise Lost, Draconian, Moonspell, Type O Negative, and Sentenced as reference points. Gothic drama, mournful heaviness, and intimate passages belong alongside stronger riffs; clean singing and growls are both welcome. Include gothic doom when melody and engaging songwriting carry the listening experience. Prefer Symphonic Metal when orchestral arrangements define the recording, and Melodic Death Metal when melodic-death riffs and expansive arrangements are the stronger identity. Judge individual songs rather than assigning a band's entire catalog here, and retain overlap only where both listening concepts are fundamental.
+
 ### Hard Rock
 
 Familiar, melodic guitar rock spanning hard rock, arena rock, and selected softer classics, with strong hooks and memorable songwriting as the connecting thread. AC/DC, Thin Lizzy, Scorpions, and Ghost share space with Boston, Journey, Foreigner, ballads, and selected alternative-rock songs; forceful riffs are one part of the range rather than a requirement for every recording. Prefer Classic Metal for traditional heavy metal and thrash, and do not broaden this definition to justify isolated extreme-metal placements.
