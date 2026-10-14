@@ -127,6 +127,13 @@ schedule is next generated and applied.
 Singer-Songwriter from random themed selection while keeping their fixed
 NeuralCast evening window (19:30–22:00) and participation in open rotation.
 
+NeuralCast defaults to 40–50% open rotation per day, split into 6–8 separate
+windows of 75–120 minutes. Themed blocks remain 30–75 minutes, except the fixed
+07:00–09:00 reggae and 19:30–22:00 evening shows. Open windows are separated by
+themed programming, including across midnight. Override their count with
+`--min-open-slots` and `--max-open-slots`; their duration bounds are configured
+separately in the scheduler's `config.py`. NeuralForge retains its existing rules.
+
 Notes:
 
 - `host_orchestrator --dry-run` still performs AzuraCast reads and requires API credentials.

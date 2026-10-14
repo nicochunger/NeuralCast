@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import math
 import random
+from itertools import product
 from typing import Dict, List, Sequence, Tuple
 
-from .config import SCHEDULE_TIME_GRID_MINUTES
+from .config import (
+    SCHEDULE_TIME_GRID_MINUTES,
+    NEURALCAST_MIN_OPEN_BLOCK_MINUTES,
+    NEURALCAST_MAX_OPEN_BLOCK_MINUTES,
+)
 from .models import ScheduleValidationError, StationPlaylist
 from .policy import (
     _build_partition_with_specs,
@@ -17,7 +22,7 @@ from .policy import (
     _is_neuralcast,
     _name_key,
 )
-from .template import choose_open_block_indices, format_hhmm
+from .template import format_hhmm
 
 
 def _choose_open_layout(
@@ -108,10 +113,12 @@ def _choose_open_layout(
             "longer on average than playlist blocks."
         )
 
-    layout_candidates.sort(key=lambda item: (item[0], item[1], -item[2], -item[3], item[4]))
+    layout_candidates.sort(
+        key=lambda item: (item[0], item[1], -item[2], -item[3], item[4])
+    )
     shortlist = layout_candidates[: min(4, len(layout_candidates))]
-    _advantage_score, _ratio_score, open_count, open_total, playlist_block_count = rng.choice(
-        shortlist
+    _advantage_score, _ratio_score, open_count, open_total, playlist_block_count = (
+        rng.choice(shortlist)
     )
     return open_count, open_total, playlist_block_count
 
@@ -188,7 +195,9 @@ def _build_gap_playlist_partitions(
     if block_count <= 0:
         if gap_minutes == 0:
             return []
-        raise ScheduleValidationError("Gap playlist partition requires block_count > 0.")
+        raise ScheduleValidationError(
+            "Gap playlist partition requires block_count > 0."
+        )
 
     duration_step = _duration_step(
         [gap_minutes, min_block_minutes, max_block_minutes, int(open_average_minutes)]
@@ -198,7 +207,9 @@ def _build_gap_playlist_partitions(
         preferred_playlist,
         max(min_block_minutes, int(open_average_minutes) - duration_step),
     )
-    preferred_playlist = max(min_block_minutes, min(max_block_minutes, preferred_playlist))
+    preferred_playlist = max(
+        min_block_minutes, min(max_block_minutes, preferred_playlist)
+    )
     jitter = min(30, max(0, preferred_playlist // 6))
     specs = [
         (min_block_minutes, max_block_minutes, preferred_playlist, jitter)
@@ -326,7 +337,9 @@ def _find_neuralcast_reserved_playlists(
     description: str,
 ) -> List[StationPlaylist]:
     matches = [
-        playlist for playlist in playlists if playlist.is_enabled and predicate(playlist)
+        playlist
+        for playlist in playlists
+        if playlist.is_enabled and predicate(playlist)
     ]
     if not matches:
         raise ScheduleValidationError(
@@ -392,6 +405,8 @@ def _build_neuralcast_reserved_scaffold(
     playlists: Sequence[StationPlaylist],
     open_ratio_min: float,
     open_ratio_max: float,
+    min_open_slots: int,
+    max_open_slots: int,
     min_block_minutes: int,
     max_block_minutes: int,
     rng: random.Random,
@@ -400,96 +415,114 @@ def _build_neuralcast_reserved_scaffold(
         (7 * 60, 9 * 60, _neuralcast_reggae_playlists(playlists)),
         ((19 * 60) + 30, 22 * 60, _neuralcast_evening_playlists(playlists)),
     ]
+    # Each free segment alternates open windows and themed gaps, ending themed.
+    # This also prevents the last/first open windows merging across midnight.
+    segments = [(0, 7 * 60), (9 * 60, (19 * 60) + 30), (22 * 60, 24 * 60)]
+    open_min = NEURALCAST_MIN_OPEN_BLOCK_MINUTES
+    open_max = NEURALCAST_MAX_OPEN_BLOCK_MINUTES
+    theme_min = _ceil_to_grid(min_block_minutes)
+    min_total = _ceil_to_grid(math.ceil(open_ratio_min * 1440))
+    max_total = _floor_to_grid(math.floor(open_ratio_max * 1440))
+    target_total = (min_total + max_total) / 2
+    lengths = [end - start for start, end in segments]
+    segment_options = []
+    for length in lengths:
+        options = []
+        for count in range(
+            1, min(max_open_slots, length // (open_min + theme_min)) + 1
+        ):
+            upper = min(count * open_max, length - count * theme_min)
+            for total in range(count * open_min, upper + 1, SCHEDULE_TIME_GRID_MINUTES):
+                options.append((count, total))
+        segment_options.append(options)
 
+    layouts = []
+    for layout in product(*segment_options):
+        count = sum(item[0] for item in layout)
+        total = sum(item[1] for item in layout)
+        if not (
+            min_open_slots <= count <= max_open_slots
+            and min_total <= total <= max_total
+        ):
+            continue
+        # Keep the total close to the requested midpoint and distribute it
+        # proportionally across the time available outside reserved shows.
+        spread = sum(
+            abs(minutes - total * length / sum(lengths))
+            for (_, minutes), length in zip(layout, lengths)
+        )
+        layouts.append((abs(total - target_total), spread, layout))
+    if not layouts:
+        raise ScheduleValidationError(
+            "No feasible NeuralCast open-window layout within the requested "
+            "count, ratio, duration, and reserved-show constraints."
+        )
+    layouts.sort(key=lambda item: (item[0], item[1]))
+    layout = rng.choice(layouts[: min(12, len(layouts))])[2]
     raw_blocks: List[Dict[str, object]] = []
-    cursor = 0
-    for start_minute, end_minute, reserved_playlists in reserved_windows:
-        if cursor < start_minute:
+    for segment_index, ((start, end), (count, open_total)) in enumerate(
+        zip(segments, layout)
+    ):
+        open_durations = _build_partition_with_specs(
+            total_minutes=open_total,
+            specs=[(open_min, open_max, open_total // count, 15)] * count,
+            rng=rng,
+        )
+        theme_total = end - start - open_total
+        theme_gaps = _build_partition_with_specs(
+            total_minutes=theme_total,
+            specs=[
+                (
+                    theme_min,
+                    theme_total - (count - 1) * theme_min,
+                    theme_total // count,
+                    15,
+                )
+            ]
+            * count,
+            rng=rng,
+        )
+        cursor = start
+        for open_duration, theme_gap in zip(open_durations, theme_gaps):
+            raw_blocks.append(
+                {
+                    "start_time_local": format_hhmm(cursor),
+                    "end_time_local": format_hhmm(cursor + open_duration),
+                    "mode": "open",
+                    "section_label": "Mezcla libre",
+                    "genre_labels": ["catalogo completo"],
+                    "_duration_minutes": open_duration,
+                }
+            )
+            cursor += open_duration
             for duration in _build_random_duration_partition(
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
-                total_minutes=start_minute - cursor,
+                total_minutes=theme_gap,
                 rng=rng,
             ):
-                block_end = cursor + duration
                 raw_blocks.append(
                     {
                         "start_time_local": format_hhmm(cursor),
-                        "end_time_local": format_hhmm(block_end),
+                        "end_time_local": format_hhmm(cursor + duration),
                         "mode": "playlist",
                         "section_label": "",
                         "genre_labels": [],
                         "_duration_minutes": duration,
                     }
                 )
-                cursor = block_end
-
-        raw_blocks.extend(
-            _reserved_playlist_blocks(
-                start_minute=start_minute,
-                end_minute=end_minute,
-                playlists=reserved_playlists,
+                cursor += duration
+        if segment_index < len(reserved_windows):
+            reserved_start, reserved_end, reserved_playlists = reserved_windows[
+                segment_index
+            ]
+            raw_blocks.extend(
+                _reserved_playlist_blocks(
+                    start_minute=reserved_start,
+                    end_minute=reserved_end,
+                    playlists=reserved_playlists,
+                )
             )
-        )
-        cursor = end_minute
-
-    if cursor < 24 * 60:
-        for duration in _build_random_duration_partition(
-            min_block_minutes=min_block_minutes,
-            max_block_minutes=max_block_minutes,
-            total_minutes=(24 * 60) - cursor,
-            rng=rng,
-        ):
-            block_end = cursor + duration
-            raw_blocks.append(
-                {
-                    "start_time_local": format_hhmm(cursor),
-                    "end_time_local": format_hhmm(block_end),
-                    "mode": "playlist",
-                    "section_label": "",
-                    "genre_labels": [],
-                    "_duration_minutes": duration,
-                }
-            )
-            cursor = block_end
-
-    open_labels = [
-        ("Bloque libre", ["sin tematica"]),
-        ("Sin tematica", ["mix variado"]),
-        ("Cruce libre", ["sin tematica"]),
-        ("Mezcla libre", ["catalogo completo"]),
-    ]
-    open_candidate_indices = [
-        index
-        for index, block in enumerate(raw_blocks)
-        if not bool(block.get("_reserved_playlist"))
-    ]
-    outside_minutes = sum(
-        int(raw_blocks[index]["_duration_minutes"]) for index in open_candidate_indices
-    )
-    min_open_minutes = math.ceil(open_ratio_min * (24 * 60))
-    max_open_minutes = math.floor(open_ratio_max * (24 * 60))
-    if outside_minutes <= 0 or min_open_minutes > outside_minutes:
-        raise ScheduleValidationError(
-            "NeuralCast reserved windows leave insufficient time for open rotation."
-        )
-
-    open_indices = choose_open_block_indices(
-        block_minutes=[
-            int(raw_blocks[index]["_duration_minutes"]) for index in open_candidate_indices
-        ],
-        open_ratio_min=min_open_minutes / outside_minutes,
-        open_ratio_max=min(1.0, max_open_minutes / outside_minutes),
-    )
-    for relative_index in open_indices:
-        block = raw_blocks[open_candidate_indices[relative_index]]
-        section_label, genre_labels = rng.choice(open_labels)
-        block["mode"] = "open"
-        block["section_label"] = section_label
-        block["genre_labels"] = list(genre_labels)
-        block.pop("playlist_id", None)
-        block.pop("playlist_name", None)
-
     return raw_blocks
 
 
@@ -511,6 +544,8 @@ def _build_station_scaffold(
             playlists=playlists,
             open_ratio_min=open_ratio_min,
             open_ratio_max=open_ratio_max,
+            min_open_slots=min_open_slots,
+            max_open_slots=max_open_slots,
             min_block_minutes=min_block_minutes,
             max_block_minutes=max_block_minutes,
             rng=rng,

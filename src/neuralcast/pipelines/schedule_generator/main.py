@@ -72,14 +72,16 @@ def run(args: argparse.Namespace) -> None:
         force_apply=args.force_apply,
         verify_tls=args.verify_tls,
         week_start_date=(
-            dt.date.fromisoformat(args.week_start_date) if args.week_start_date else None
+            dt.date.fromisoformat(args.week_start_date)
+            if args.week_start_date
+            else None
         ),
         seed_mode=args.seed_mode,
         seed_salt=args.seed_salt,
         open_ratio_min=float(args.open_ratio_min),
         open_ratio_max=float(args.open_ratio_max),
-        min_open_slots=int(args.min_open_slots),
-        max_open_slots=int(args.max_open_slots),
+        min_open_slots=args.min_open_slots,
+        max_open_slots=args.max_open_slots,
         min_block_minutes=args.min_block_minutes,
         max_block_minutes=args.max_block_minutes,
         project_root=PROJECT_ROOT,
@@ -188,25 +190,31 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--open-ratio-min",
         type=float,
         default=DEFAULT_OPEN_RATIO_MIN,
-        help="Minimum open-slot ratio per day (0-1) (default: %(default)s).",
+        help=(
+            "Minimum open-slot ratio per day (0-1) (default: %(default)s; "
+            f"NeuralCast: {NEURALCAST_DEFAULT_OPEN_RATIO_MIN})."
+        ),
     )
     parser.add_argument(
         "--open-ratio-max",
         type=float,
         default=DEFAULT_OPEN_RATIO_MAX,
-        help="Maximum open-slot ratio per day (0-1) (default: %(default)s).",
+        help=(
+            "Maximum open-slot ratio per day (0-1) (default: %(default)s; "
+            f"NeuralCast: {NEURALCAST_DEFAULT_OPEN_RATIO_MAX})."
+        ),
     )
     parser.add_argument(
         "--min-open-slots",
         type=int,
-        default=DEFAULT_MIN_OPEN_SLOTS,
-        help="Minimum number of open blocks per day (default: %(default)s).",
+        default=None,
+        help="Minimum open windows per day (default: 3; NeuralCast: 6).",
     )
     parser.add_argument(
         "--max-open-slots",
         type=int,
-        default=DEFAULT_MAX_OPEN_SLOTS,
-        help="Maximum number of open blocks per day (default: %(default)s).",
+        default=None,
+        help="Maximum open windows per day (default: 6; NeuralCast: 8).",
     )
     parser.add_argument(
         "--min-block-minutes",

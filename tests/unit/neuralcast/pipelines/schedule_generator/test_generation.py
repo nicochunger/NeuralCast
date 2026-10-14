@@ -84,6 +84,10 @@ class ScheduleGeneratorHelpersTest(unittest.TestCase):
             "The Modern Frontier",
             "Mid-Century Popular Foundations",
             "Romanticismo Argentino",
+            "Classic Pop",
+            "Contemporary Pop",
+            "Synthwave",
+            "Tropical House",
         ]
         return [
             StationPlaylist(

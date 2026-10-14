@@ -26,6 +26,7 @@ from .models import (
     WeeklySchedulePlan,
 )
 
+
 def parse_hhmm(value: str, *, allow_24: bool = False) -> int:
     text = (value or "").strip()
     match = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", text)
@@ -95,6 +96,11 @@ def validate_daily_template(
     max_block_minutes: int,
     required_time_ranges: Optional[Sequence[Tuple[int, int]]] = None,
     enforce_unscheduled_window: bool = True,
+    min_open_block_minutes: Optional[int] = None,
+    max_open_block_minutes: Optional[int] = None,
+    min_open_slots: Optional[int] = None,
+    max_open_slots: Optional[int] = None,
+    require_separate_open_blocks: bool = False,
 ) -> List[DailyTemplateBlock]:
     if not isinstance(raw_blocks, Sequence) or not raw_blocks:
         raise ScheduleValidationError("daily_template must be a non-empty array.")
@@ -121,15 +127,28 @@ def validate_daily_template(
 
         duration_minutes = end_minute - start_minute
         is_reserved_playlist = bool(entry.get("_reserved_playlist"))
-        if duration_minutes < min_block_minutes or (
-            duration_minutes > max_block_minutes and not is_reserved_playlist
+        mode = normalize_mode(entry.get("mode"))
+        duration_min = min_block_minutes
+        duration_max = max_block_minutes
+        if mode == "open":
+            duration_min = (
+                min_open_block_minutes
+                if min_open_block_minutes is not None
+                else duration_min
+            )
+            duration_max = (
+                max_open_block_minutes
+                if max_open_block_minutes is not None
+                else duration_max
+            )
+        if duration_minutes < duration_min or (
+            duration_minutes > duration_max and not is_reserved_playlist
         ):
             raise ScheduleValidationError(
                 f"Block duration {duration_minutes} is outside allowed range "
-                f"[{min_block_minutes}, {max_block_minutes}] for {start_time}-{end_time}."
+                f"[{duration_min}, {duration_max}] for {start_time}-{end_time}."
             )
 
-        mode = normalize_mode(entry.get("mode"))
         section_label = str(entry.get("section_label") or "").strip()
         genres = normalize_genre_labels(entry.get("genre_labels"))
         overlaps_quiet_hours = (
@@ -157,8 +176,10 @@ def validate_daily_template(
             if not raw_playlist_names and legacy_playlist_name:
                 raw_playlist_names = [legacy_playlist_name]
 
-            if raw_playlist_ids and raw_playlist_names and (
-                len(raw_playlist_ids) != len(raw_playlist_names)
+            if (
+                raw_playlist_ids
+                and raw_playlist_names
+                and (len(raw_playlist_ids) != len(raw_playlist_names))
             ):
                 raise ScheduleValidationError(
                     "playlist_ids and playlist_names must have the same length when both are provided."
@@ -283,6 +304,20 @@ def validate_daily_template(
             "Template cannot be fully open; at least one playlist block is required."
         )
 
+    open_count = sum(block.mode == "open" for block in parsed_blocks)
+    if (min_open_slots is not None and open_count < min_open_slots) or (
+        max_open_slots is not None and open_count > max_open_slots
+    ):
+        raise ScheduleValidationError(
+            "Open-window count is outside the requested bounds."
+        )
+    if require_separate_open_blocks and any(
+        first.mode == second.mode == "open"
+        for first, second in zip(parsed_blocks, parsed_blocks[1:] + parsed_blocks[:1])
+    ):
+        raise ScheduleValidationError(
+            "Open windows must be separated by themed blocks."
+        )
     return parsed_blocks
 
 
@@ -343,7 +378,6 @@ def expand_daily_template_to_week(
     return expanded
 
 
-
 def build_duration_partition(
     min_block_minutes: int,
     max_block_minutes: int,
@@ -372,7 +406,11 @@ def build_duration_partition(
         range(first_candidate, last_candidate + 1, SCHEDULE_TIME_GRID_MINUTES)
     )
     candidates = sorted(
-        [value for value in candidate_set if min_block_minutes <= value <= max_block_minutes],
+        [
+            value
+            for value in candidate_set
+            if min_block_minutes <= value <= max_block_minutes
+        ],
         key=lambda value: (abs(value - preferred), -value),
     )
     if not candidates:
@@ -519,7 +557,9 @@ def choose_open_block_indices(
 def build_weighted_playlist_cycle(
     playlists: Sequence[StationPlaylist],
 ) -> List[StationPlaylist]:
-    ordered = sorted(playlists, key=lambda item: (-item.weight, item.name.lower(), item.id))
+    ordered = sorted(
+        playlists, key=lambda item: (-item.weight, item.name.lower(), item.id)
+    )
     if not ordered:
         return []
 
@@ -567,7 +607,9 @@ def build_deterministic_daily_template(
 ) -> List[DailyTemplateBlock]:
     enabled_playlists = [item for item in playlist_by_id.values() if item.is_enabled]
     if not enabled_playlists:
-        raise ScheduleValidationError("No enabled playlists available for deterministic template.")
+        raise ScheduleValidationError(
+            "No enabled playlists available for deterministic template."
+        )
 
     day_total_minutes = 24 * 60
     min_open_minutes = math.ceil(open_ratio_min * day_total_minutes)
@@ -713,7 +755,6 @@ def build_deterministic_daily_template(
         min_block_minutes=min_block_minutes,
         max_block_minutes=max_block_minutes,
     )
-
 
 
 def summarize_plan(plan: WeeklySchedulePlan) -> None:

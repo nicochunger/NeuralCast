@@ -318,8 +318,10 @@ def test_runtime_resolves_week_and_station_defaults_for_planner(tmp_path) -> Non
     )
 
     assert seen["week_start"] == dt.date(2026, 6, 15)
-    assert seen["open_ratio_min"] == pytest.approx(0.30)
-    assert seen["open_ratio_max"] == pytest.approx(0.45)
+    assert seen["open_ratio_min"] == pytest.approx(0.40)
+    assert seen["open_ratio_max"] == pytest.approx(0.50)
+    assert seen["min_open_slots"] == 6
+    assert seen["max_open_slots"] == 8
     assert seen["min_block_minutes"] == 30
     assert seen["max_block_minutes"] == 75
     assert result.plan.week_start_local_date == "2026-06-15"

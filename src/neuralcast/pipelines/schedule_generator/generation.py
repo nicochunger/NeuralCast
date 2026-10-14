@@ -6,7 +6,11 @@ import datetime as dt
 import random
 from typing import Optional, Sequence
 
-from .config import LOGGER
+from .config import (
+    LOGGER,
+    NEURALCAST_MIN_OPEN_BLOCK_MINUTES,
+    NEURALCAST_MAX_OPEN_BLOCK_MINUTES,
+)
 from .models import StationPlaylist, WeeklySchedulePlan
 from .template import (
     build_plan_hash,
@@ -64,6 +68,15 @@ def build_weekly_plan_with_code(
         _playlist_daily_repeat_limit(playlist, station_slug)
         for playlist in enabled_playlists
     )
+    open_validation = {}
+    if station_slug.strip().lower() == "neuralcast":
+        open_validation = {
+            "min_open_block_minutes": NEURALCAST_MIN_OPEN_BLOCK_MINUTES,
+            "max_open_block_minutes": NEURALCAST_MAX_OPEN_BLOCK_MINUTES,
+            "min_open_slots": min_open_slots,
+            "max_open_slots": max_open_slots,
+            "require_separate_open_blocks": True,
+        }
 
     seed, normalized_seed_mode, resolved_seed_salt = resolve_schedule_seed(
         station_slug=station_slug,
@@ -110,6 +123,7 @@ def build_weekly_plan_with_code(
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
                 enforce_unscheduled_window=False,
+                **open_validation,
             )
             expanded = expand_daily_template_to_week(daily_template, week_start)
             plan_hash = build_plan_hash(
@@ -199,6 +213,7 @@ def build_weekly_plan_with_code(
                 min_block_minutes=min_block_minutes,
                 max_block_minutes=max_block_minutes,
                 enforce_unscheduled_window=False,
+                **open_validation,
             )
             expanded = expand_daily_template_to_week(daily_template, week_start)
             plan_hash = build_plan_hash(

@@ -29,6 +29,8 @@ from .config import (
     NEURALCAST_DEFAULT_MIN_BLOCK_MINUTES,
     NEURALCAST_DEFAULT_OPEN_RATIO_MAX,
     NEURALCAST_DEFAULT_OPEN_RATIO_MIN,
+    NEURALCAST_DEFAULT_MIN_OPEN_SLOTS,
+    NEURALCAST_DEFAULT_MAX_OPEN_SLOTS,
 )
 from .generation import DEFAULT_SCHEDULE_SEED_MODE, build_weekly_plan_with_code
 from .models import DailyTemplateBlock, StationPlaylist, WeeklySchedulePlan
@@ -62,8 +64,8 @@ class ScheduleRunRequest:
     seed_salt: str | None = None
     open_ratio_min: float = DEFAULT_OPEN_RATIO_MIN
     open_ratio_max: float = DEFAULT_OPEN_RATIO_MAX
-    min_open_slots: int = DEFAULT_MIN_OPEN_SLOTS
-    max_open_slots: int = DEFAULT_MAX_OPEN_SLOTS
+    min_open_slots: int | None = None
+    max_open_slots: int | None = None
     min_block_minutes: int | None = None
     max_block_minutes: int | None = None
     project_root: pathlib.Path = PROJECT_ROOT
@@ -89,8 +91,7 @@ class StationScheduleContext:
 
 
 class ScheduleRemote(Protocol):
-    def load_station_context(self, station_slug: str) -> StationScheduleContext:
-        ...
+    def load_station_context(self, station_slug: str) -> StationScheduleContext: ...
 
     def apply_weekly_schedule(
         self,
@@ -98,19 +99,15 @@ class ScheduleRemote(Protocol):
         station_slug: str,
         playlists: Sequence[StationPlaylist],
         daily_template: Sequence[DailyTemplateBlock],
-    ) -> tuple[int, int]:
-        ...
+    ) -> tuple[int, int]: ...
 
 
 class ScheduleStateStore(Protocol):
-    def path_for(self, station_slug: str) -> pathlib.Path:
-        ...
+    def path_for(self, station_slug: str) -> pathlib.Path: ...
 
-    def load(self, station_slug: str) -> Mapping[str, Any] | None:
-        ...
+    def load(self, station_slug: str) -> Mapping[str, Any] | None: ...
 
-    def save(self, station_slug: str, plan: WeeklySchedulePlan) -> None:
-        ...
+    def save(self, station_slug: str, plan: WeeklySchedulePlan) -> None: ...
 
 
 class AzuraCastScheduleRemote:
@@ -204,6 +201,30 @@ def resolve_open_ratio_bounds(request: ScheduleRunRequest) -> tuple[float, float
     return open_ratio_min, open_ratio_max
 
 
+def resolve_open_slot_bounds(request: ScheduleRunRequest) -> tuple[int, int]:
+    neuralcast = request.station.strip().lower() == "neuralcast"
+    return (
+        (
+            int(request.min_open_slots)
+            if request.min_open_slots is not None
+            else (
+                NEURALCAST_DEFAULT_MIN_OPEN_SLOTS
+                if neuralcast
+                else DEFAULT_MIN_OPEN_SLOTS
+            )
+        ),
+        (
+            int(request.max_open_slots)
+            if request.max_open_slots is not None
+            else (
+                NEURALCAST_DEFAULT_MAX_OPEN_SLOTS
+                if neuralcast
+                else DEFAULT_MAX_OPEN_SLOTS
+            )
+        ),
+    )
+
+
 class ScheduleGeneratorRuntime:
     def __init__(
         self,
@@ -238,6 +259,7 @@ class ScheduleGeneratorRuntime:
         week_end = week_start + dt.timedelta(days=6)
 
         open_ratio_min, open_ratio_max = resolve_open_ratio_bounds(request)
+        min_open_slots, max_open_slots = resolve_open_slot_bounds(request)
         min_block_minutes, max_block_minutes = resolve_block_duration_bounds(request)
         plan = self._planner(
             station_slug=request.station,
@@ -248,8 +270,8 @@ class ScheduleGeneratorRuntime:
             playlists=context.playlists,
             open_ratio_min=open_ratio_min,
             open_ratio_max=open_ratio_max,
-            min_open_slots=int(request.min_open_slots),
-            max_open_slots=int(request.max_open_slots),
+            min_open_slots=min_open_slots,
+            max_open_slots=max_open_slots,
             min_block_minutes=min_block_minutes,
             max_block_minutes=max_block_minutes,
             seed_mode=request.seed_mode,
@@ -282,10 +304,9 @@ class ScheduleGeneratorRuntime:
             if isinstance(existing_state, Mapping)
             else []
         )
-        all_stations_already_applied = (
-            isinstance(previously_applied_slugs, list)
-            and set(apply_station_slugs).issubset(previously_applied_slugs)
-        )
+        all_stations_already_applied = isinstance(
+            previously_applied_slugs, list
+        ) and set(apply_station_slugs).issubset(previously_applied_slugs)
 
         if (
             previous_hash
@@ -354,10 +375,11 @@ class ScheduleGeneratorRuntime:
     def _validate_request(request: ScheduleRunRequest) -> None:
         open_ratio_min, open_ratio_max = resolve_open_ratio_bounds(request)
         if not (0.0 <= open_ratio_min <= open_ratio_max <= 1.0):
-            raise ValueError("Open-slot ratio bounds must satisfy 0 <= min <= max <= 1.")
+            raise ValueError(
+                "Open-slot ratio bounds must satisfy 0 <= min <= max <= 1."
+            )
 
-        min_open_slots = int(request.min_open_slots)
-        max_open_slots = int(request.max_open_slots)
+        min_open_slots, max_open_slots = resolve_open_slot_bounds(request)
         if min_open_slots < 0 or max_open_slots < 0:
             raise ValueError("Open-slot count bounds must be non-negative.")
         if min_open_slots > max_open_slots:

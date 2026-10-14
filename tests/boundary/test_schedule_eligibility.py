@@ -47,7 +47,7 @@ from neuralcast.pipelines.schedule_generator.models import StationPlaylist
                 "Symphonic Classic",
                 "Tango",
             ],
-            (0.30, 0.45),
+            (0.40, 0.50),
             75,
         ),
         (
@@ -88,8 +88,8 @@ def test_open_only_playlists_never_receive_themed_schedule_items(
         week_start + dt.timedelta(days=6),
         playlists,
         *open_bounds,
-        3,
-        6,
+        6 if station == "neuralcast" else 3,
+        8 if station == "neuralcast" else 6,
         30,
         max_minutes,
     )
@@ -114,6 +114,29 @@ def test_open_only_playlists_never_receive_themed_schedule_items(
     )
     open_blocks = [block for block in plan.daily_template if block.mode == "open"]
     assert open_blocks
+    if station == "neuralcast":
+        assert 6 <= len(open_blocks) <= 8
+        assert all(
+            75 <= block.end_minute - block.start_minute <= 120 for block in open_blocks
+        )
+        assert (
+            0.40
+            <= sum(block.end_minute - block.start_minute for block in open_blocks)
+            / 1440
+            <= 0.50
+        )
+        assert all(
+            not (first.mode == second.mode == "open")
+            for first, second in zip(
+                plan.daily_template, plan.daily_template[1:] + plan.daily_template[:1]
+            )
+        )
+        assert any(
+            block.start_time_local == "07:00"
+            and block.end_time_local == "09:00"
+            and block.mode == "playlist"
+            for block in plan.daily_template
+        )
     open_items = items[playlists[len(eligible_names)].id]
     assert len(open_items) == len(open_blocks)
     for playlist in playlists[len(eligible_names) : -1]:
