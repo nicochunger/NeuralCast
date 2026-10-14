@@ -30,3 +30,6 @@ logs/*.log
 */metadata/host_channels/*/ai_host_orchestrator.lock
 */metadata/host_channels/*/ai_host_orchestrator.lock.guard
 */metadata/ai_schedule_state.json
+
+*/metadata/host_companion.json
+*/metadata/host_channels/*/host_companion.json

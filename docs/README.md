@@ -10,6 +10,8 @@
   policies, per-channel topic/country overrides, and test workflow.
 - [Editorial feature ideas](editorial_feature_ideas.md): proposed release-retention
   checks, a host companion, and the longer-term authored radio episode concept.
+- [Listener host companion](host_companion.md): summary cards, generation,
+  publication timing, and web integration.
 - [Release editorial retention](release_editorial.md): automatic Codex review of
   aging releases, the discard budget, runtime requirements, and retry behavior.
 - `docs/tts_model_experiment_2026-08-29.md`: TTS provider comparison, Argentine-accent results, costs, and decision record.

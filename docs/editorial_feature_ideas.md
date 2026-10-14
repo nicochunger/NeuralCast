@@ -1,6 +1,6 @@
 # Editorial feature ideas
 
-Status: episode and companion proposals; release retention is now implemented.
+Status: release retention and host companion are implemented; episodes remain a proposal.
 Captured from the product discussion on 2026-10-14. See
 [release_editorial.md](release_editorial.md) for the retention implementation.
 
@@ -144,11 +144,8 @@ companion metadata, and its exact local media copy together to prevent sync
 backfill. Preserve copies already present in permanent playlists. Do not use the
 station-global `[DEL]` marker for this playlist-local operation.
 
-## Host companion: revisit after retention work
+## Host companion
 
-Expose recent host transcripts with associated songs and structured news/concert
-source links. Start with one channel and concert details. Existing generation
-models already carry event dates and source URLs, and memory holds scripts.
-The missing work includes durable presentation records, a listener-facing read
-boundary, player integration, and playback confirmation before calling an item
-"just aired." Player code was not located in this repository during investigation.
+Implemented in both NeuralCast and the sister `neuralcast-web` project. See
+[host_companion.md](host_companion.md) for the summary-first UI, selected archetypes,
+queue-success publication, 20-minute visibility window, and deployment notes.

@@ -6,12 +6,28 @@ import datetime as dt
 import hmac
 import json
 import os
+import time
+from collections.abc import Callable
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from neuralcast.pipelines.host_orchestrator.models import Archetype, supports_track_focus
+from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
+from neuralcast.pipelines.host_orchestrator.companion import current_companion
+from neuralcast.pipelines.host_orchestrator.models import (
+    Archetype,
+    supports_track_focus,
+)
 from neuralcast.pipelines.schedule_generator.state import load_schedule_presentation
 
 from .jobs import (
@@ -373,6 +389,7 @@ def create_app(
     station_service: AdminStationService | None = None,
     schedule_presentation_loader=load_schedule_presentation,
     favorite_store: FavoriteStore | None = None,
+    companion_loader: Callable[[str, float], dict[str, Any] | None] = current_companion,
 ) -> FastAPI:
     """Create the FastAPI application for the admin HTTP service."""
 
@@ -381,6 +398,18 @@ def create_app(
     app.state.station_service = station_service or AdminStationService()
     app.state.schedule_presentation_loader = schedule_presentation_loader
     app.state.favorite_store = favorite_store or FavoriteStore()
+
+    app.state.companion_loader = companion_loader
+
+    @app.get(
+        "/admin/host-channels/{channel}/companion",
+        dependencies=[Depends(require_admin_token)],
+    )
+    def host_companion(channel: str, response: Response) -> dict[str, Any]:
+        if channel not in get_channel_registry().channels:
+            raise HTTPException(status_code=404, detail="Unknown host channel.")
+        response.headers["Cache-Control"] = "no-store"
+        return {"card": app.state.companion_loader(channel, time.time())}
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

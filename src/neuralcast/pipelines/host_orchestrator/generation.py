@@ -6,6 +6,7 @@ import random
 from dataclasses import dataclass, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from .companion import MUSIC_ARCHETYPES, companion_prompt, split_companion_output
 from .archetype_policies import ResolvedArchetypeProfile
 from .channels import HostLocale, get_channel_registry
 from .config import LOGGER
@@ -340,6 +341,8 @@ def _generate_standard_archetype_script(
     terminal_ultra_minimal_fallback,
 ) -> Tuple[str, GeneratedSegmentMetadata, Archetype]:
     prompt = build_prompt(archetype=archetype, **prompt_kwargs)
+    if archetype in MUSIC_ARCHETYPES:
+        prompt += companion_prompt()
     generated = generate_with_retries(
         prompt=prompt,
         label=f"Gemini generation ({archetype.value})",
@@ -347,6 +350,9 @@ def _generate_standard_archetype_script(
             archetype, angle, prompt_kwargs.get("archetype_policy")
         ),
     )
+    companion = None
+    if archetype in MUSIC_ARCHETYPES:
+        generated, companion = split_companion_output(generated)
     if generated.strip() == "NO_SCRIPT":
         LOGGER.info(
             "[%s] Gemini returned NO_SCRIPT; falling back to ultra_minimal.",
@@ -366,7 +372,8 @@ def _generate_standard_archetype_script(
             return terminal_ultra_minimal_fallback()
         return fallback()
 
-    return cleaned, _segment_metadata_for_archetype(archetype, prompt_kwargs), archetype
+    metadata = _segment_metadata_for_archetype(archetype, prompt_kwargs)
+    return cleaned, replace(metadata, companion=companion), archetype
 
 
 def generate_archetype_script(
@@ -402,6 +409,8 @@ def generate_archetype_script(
     locale = _resolved_locale(locale)
     temperature, top_p = sample_generation_settings(archetype, rng, archetype_policy)
     system_prompt = build_system_prompt(station_name, personality, locale=locale)
+    if archetype in MUSIC_ARCHETYPES:
+        system_prompt += companion_prompt()
     variants = _resolve_prompt_variants(
         archetype=archetype,
         forced_track_focus=forced_track_focus,

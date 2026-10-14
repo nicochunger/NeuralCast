@@ -56,6 +56,7 @@ class StoryAssets:
     story_text: str
     remote_path: str
     callback_source_id: Optional[str] = None
+    companion: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -133,6 +134,7 @@ class GeneratedSegmentMetadata:
     concert_segment: Optional[ConcertSegment] = None
     track_focus: Optional[TrackFocus] = None
     callback_source_id: Optional[str] = None
+    companion: Optional[Dict[str, Any]] = None
 
 
 @dataclass

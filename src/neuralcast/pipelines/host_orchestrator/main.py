@@ -59,6 +59,7 @@ from .generation import (
     generate_archetype_script,
     station_name_for_generation,
 )
+from .companion import build_companion, publish_companion
 from .models import (
     Archetype,
     GeneratedSegmentMetadata,
@@ -691,7 +692,22 @@ def _publish_segment(
         callback_source_id=getattr(assets, "callback_source_id", None),
     )
 
-    expected_play_at_utc = iso_utc(success_ts + max(0, playback.current_remaining))
+    expected_start = success_ts + max(0, playback.current_remaining)
+    expected_play_at_utc = iso_utc(expected_start)
+    # Companion publication is optional and must never fail an accepted request.
+    try:
+        publish_companion(
+            runtime.channel.key,
+            archetype=archetype_used,
+            content=getattr(assets, "companion", None),
+            transcript=script_text,
+            media_id=str(media_id),
+            expected_start=expected_start,
+            duration=story_duration or 0,
+            now=success_ts,
+        )
+    except Exception:  # noqa: BLE001
+        LOGGER.warning("[companion] Could not persist listener card", exc_info=True)
     news_topics_text = None
     if news_segment is not None:
         topic_list = [story.topic for story in news_segment.stories if story.topic]
@@ -1358,6 +1374,20 @@ class HostOrchestratorRuntime:
             )
             LOGGER.info("[assets] Script saved: %s", assets.text_path)
             assets.callback_source_id = segment_metadata.callback_source_id
+            try:
+                assets.companion = build_companion(
+                    archetype_used,
+                    segment_metadata,
+                    segment_title,
+                    playback.current_track,
+                    queue_context.next_track,
+                    generation_context.current_meta,
+                    generation_context.next_meta,
+                )
+            except Exception:  # noqa: BLE001
+                LOGGER.warning(
+                    "[companion] Could not prepare listener card", exc_info=True
+                )
             LOGGER.info("[assets] Audio saved: %s", assets.audio_path)
 
             if intro_plan is not None and not args.dry_run:
