@@ -18,6 +18,9 @@ build/
 src/neuralcast/assets/stories/snippets/
 deployment/deploy_host_orchestrator.zip
 runtime/
+# Station-specific episode proposals and plans are operational editorial data.
+NeuralCast/metadata/episodes/
+NeuralForge/metadata/episodes/
 logs/*.log
 */duplicate_analysis.log
 */albums_not_validated.csv

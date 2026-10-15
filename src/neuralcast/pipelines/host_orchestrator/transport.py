@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import base64
 import pathlib
+import math
+import uuid
 import warnings
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -18,6 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
 
 if requests is not None:
     from requests import Response
+
     RequestsHTTPError = requests.HTTPError
 else:  # pragma: no cover - dependency guard
     Response = Any  # type: ignore[misc,assignment]
@@ -25,9 +28,11 @@ else:  # pragma: no cover - dependency guard
     class RequestsHTTPError(Exception):
         pass
 
+
 try:
     from urllib3.exceptions import InsecureRequestWarning
 except ModuleNotFoundError:  # pragma: no cover - dependency guard
+
     class InsecureRequestWarning(Warning):
         pass
 
@@ -84,15 +89,89 @@ class AzuraCastClient:
         return []
 
     def upload_media(
-        self, station: str, file_path: pathlib.Path, remote_path: Optional[str] = None
+        self,
+        station: str,
+        file_path: pathlib.Path,
+        remote_path: Optional[str] = None,
+        *,
+        timeout: int | None = None,
     ) -> Dict[str, Any]:
         destination = remote_path or file_path.name
         payload = {
             "path": destination,
             "file": base64.b64encode(file_path.read_bytes()).decode("ascii"),
         }
-        response = self._request("POST", f"/api/station/{station}/files", json=payload)
+        response = self._request(
+            "POST",
+            f"/api/station/{station}/files",
+            json=payload,
+            **({"timeout": timeout} if timeout else {}),
+        )
         return response.json()
+
+    def upload_media_chunked(
+        self,
+        station: str,
+        file_path: pathlib.Path,
+        remote_path: str,
+        *,
+        timeout: int = 300,
+        chunk_bytes: int = 512 * 1024,
+    ) -> Dict[str, Any]:
+        """Use the same Flow multipart protocol as AzuraCast's Media Manager.
+
+        Keep currentDirectory and searchPhrase unset so folder/playlist browsing
+        does not implicitly assign a preview to a rotation playlist.
+        """
+        path = pathlib.PurePosixPath(remote_path)
+        if (
+            path.is_absolute()
+            or ".." in path.parts
+            or "\\" in remote_path
+            or str(path) != remote_path
+        ):
+            raise ValueError("Upload destination must be a canonical relative path")
+        total_size = file_path.stat().st_size
+        if total_size <= 0 or chunk_bytes <= 0:
+            raise ValueError("Upload requires nonempty audio and a positive chunk size")
+        count = math.ceil(total_size / chunk_bytes)
+        identity = uuid.uuid4().hex
+        final = None
+        with file_path.open("rb") as handle:
+            for number in range(1, count + 1):
+                expected = min(chunk_bytes, total_size - (number - 1) * chunk_bytes)
+                chunk = handle.read(expected)
+                if len(chunk) != expected:
+                    raise ValueError("Audio changed during chunked upload")
+                response = self._request(
+                    "POST",
+                    f"/api/station/{station}/files/upload",
+                    data={
+                        "flowIdentifier": identity,
+                        "flowChunkNumber": number,
+                        "flowChunkSize": chunk_bytes,
+                        "flowCurrentChunkSize": len(chunk),
+                        "flowTotalSize": total_size,
+                        "flowTotalChunks": count,
+                        "flowFilename": path.name,
+                        "flowRelativePath": remote_path,
+                    },
+                    files={"file_data": (path.name, chunk, "audio/mpeg")},
+                    timeout=timeout,
+                )
+                if number == count:
+                    if response.status_code == 204:
+                        raise RuntimeError(
+                            "AzuraCast did not confirm assembly of every upload chunk"
+                        )
+                    final = response.json()
+        if (
+            not isinstance(final, dict)
+            or final.get("success") is False
+            or int(final.get("code", 0)) >= 400
+        ):
+            raise RuntimeError("AzuraCast did not confirm the completed media upload")
+        return final
 
     def send_telnet_command(self, station_id: int, command: str) -> Dict[str, Any]:
         payload = {"command": command}
@@ -189,8 +268,10 @@ def extract_current_track(
 
 
 def extract_recent_music(
-    payload: Mapping[str, Any], after_ts: Optional[float],
-    *, ignore_host_boundary: bool = False,
+    payload: Mapping[str, Any],
+    after_ts: Optional[float],
+    *,
+    ignore_host_boundary: bool = False,
 ) -> List[QueueTrack]:
     """Return a verified uninterrupted run, oldest first, including current music.
 
@@ -227,10 +308,7 @@ def extract_recent_music(
         identity = f"{artist} {title}".casefold()
         if not artist or not title:
             break
-        if (
-            artist.casefold() == HOST_ARTIST_NAME.casefold()
-            or "ai host" in identity
-        ):
+        if artist.casefold() == HOST_ARTIST_NAME.casefold() or "ai host" in identity:
             if ignore_host_boundary:
                 continue
             break

@@ -184,6 +184,24 @@ Keep these station metadata files synchronized and committed when release data c
 
 The storage helpers may read legacy locations but canonical writes belong under `metadata/`. Do not delete that directory.
 
+## Manual Radio Episodes
+
+For episode requests, read [docs/episode_producer.md](docs/episode_producer.md).
+Package-specific instructions are in
+[episode_producer/AGENTS.md](src/neuralcast/pipelines/episode_producer/AGENTS.md).
+Use `python -m neuralcast.cli.episode_producer`; domain code lives in
+`pipelines/episode_producer/`. First discuss and approve the editorial proposal,
+then select existing recordings and prepare the finished episode. `prepare`
+renders and automatically uploads an unassigned file to AzuraCast for preview;
+it never queues audio. Queue only after the owner explicitly approves the final
+render for airing, using `approve-and-queue --hash <reviewed-render-hash>`.
+Do not infer either approval from a document's existence. Respect approvals
+already explicitly given in the session. Preserve upload/queue receipts under
+`runtime/episodes/`; uncertain submissions must not be blindly repeated.
+The episode guide belongs in the existing Host recap popup in `neuralcast-web`.
+Do not add a review page, scheduled production, or live-host cadence changes for
+this manual workflow.
+
 ## Host Orchestrator, Scheduler, and Admin API
 
 Prefer module entrypoints for cron and other operational work in this VPS-resident checkout:

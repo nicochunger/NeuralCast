@@ -10,6 +10,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from fastapi.responses import FileResponse
+
 from fastapi import (
     Depends,
     FastAPI,
@@ -22,6 +24,11 @@ from fastapi import (
 )
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from neuralcast.pipelines.episode_producer.presentation import (
+    find_episode_companion,
+    choose_companion,
+    episode_artwork,
+)
 from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
 from neuralcast.pipelines.host_orchestrator.companion import current_companion
 from neuralcast.pipelines.host_orchestrator.models import (
@@ -405,11 +412,53 @@ def create_app(
         "/admin/host-channels/{channel}/companion",
         dependencies=[Depends(require_admin_token)],
     )
-    def host_companion(channel: str, response: Response) -> dict[str, Any]:
+    def host_companion(
+        channel: str,
+        response: Response,
+        playback: str | None = Query(default=None, max_length=8192),
+    ) -> dict[str, Any]:
         if channel not in get_channel_registry().channels:
             raise HTTPException(status_code=404, detail="Unknown host channel.")
         response.headers["Cache-Control"] = "no-store"
-        return {"card": app.state.companion_loader(channel, time.time())}
+        now = time.time()
+        ordinary = app.state.companion_loader(channel, now)
+        observations = []
+        if playback:
+            try:
+                observations = json.loads(playback)
+                if (
+                    not isinstance(observations, list)
+                    or len(observations) > 9
+                    or any(not isinstance(item, dict) for item in observations)
+                ):
+                    raise ValueError("Invalid playback observations")
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=422, detail="Invalid playback observations"
+                ) from exc
+        episode = find_episode_companion(channel, observations, now)
+        return {"card": choose_companion(ordinary, episode)}
+
+    @app.get(
+        "/admin/host-channels/{channel}/episodes/{media_id}/art/{chapter_id}",
+        dependencies=[Depends(require_admin_token)],
+    )
+    def episode_chapter_art(
+        channel: str, media_id: str, chapter_id: str
+    ) -> FileResponse:
+        if channel not in get_channel_registry().channels:
+            raise HTTPException(status_code=404, detail="Unknown host channel.")
+        try:
+            artwork = episode_artwork(channel, media_id, chapter_id)
+        except ValueError:
+            artwork = None
+        if artwork is None:
+            raise HTTPException(status_code=404, detail="No episode chapter artwork.")
+        return FileResponse(
+            artwork,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

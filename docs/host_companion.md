@@ -2,7 +2,9 @@
 
 The radio player in the sister `neuralcast-web` project shows a reading card for
 `news`, `concert_check`, `short_story`, `album_spotlight`, `era_snapshot`, and
-`deep_dive`. Other archetypes do not publish cards or replace the current card.
+`deep_dive`. Other ordinary archetypes do not publish cards or replace the current
+card. Approved authored episodes add a chapter guide through the same popup; see
+[episode_producer.md](episode_producer.md).
 
 News cards reuse validated headlines and source links. Concert cards reuse
 validated artists, dates, venues, cities, countries, and event links. The four
@@ -31,7 +33,7 @@ end, or is replaced by a newer eligible segment whose estimated start has arrive
 Future queued cards leave the currently visible card in place. Ordinary segments
 have no effect. Timing is an estimate; unusual queue delays can shift actual speech.
 
-The player polls every 15 seconds and locally checks expiry. Opening the transcript
+The player polls every 15 seconds and locally checks expiry. Opening the recap popup
 pins that card until it is closed, even if it expires or another card arrives.
 Changing station or host language resets the card and transcript. UI labels follow
 the app language; editorial content follows the selected host channel language.

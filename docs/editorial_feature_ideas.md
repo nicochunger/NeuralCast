@@ -1,6 +1,6 @@
 # Editorial feature ideas
 
-Status: release retention and host companion are implemented; episodes remain a proposal.
+Status: release retention, host companion, and the manual episode pilot are implemented.
 Captured from the product discussion on 2026-10-14. See
 [release_editorial.md](release_editorial.md) for the retention implementation.
 
@@ -21,6 +21,12 @@ Captured from the product discussion on 2026-10-14. See
   the owner's existing workflow make this a low priority.
 
 ## Authored radio episodes
+
+The manual pilot is implemented: see [episode_producer.md](episode_producer.md).
+It uses proposal and final-airing approvals, automatically uploads rendered audio
+for AzuraCast preview, and presents chapters through Host recap. Scheduling and
+automatic recurring production remain future work. The broader design below
+records that longer-term ambition.
 
 ### Intended experience
 
