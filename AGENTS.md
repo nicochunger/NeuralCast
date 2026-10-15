@@ -199,6 +199,11 @@ Do not infer either approval from a document's existence. Respect approvals
 already explicitly given in the session. Preserve upload/queue receipts under
 `runtime/episodes/`; uncertain submissions must not be blindly repeated.
 The episode guide belongs in the existing Host recap popup in `neuralcast-web`.
+Permanent website episodes are published separately with `episode_producer
+publish --hash <reviewed-render-hash>` after explicit public-release approval.
+Their catalogue and copied guide artwork live under `runtime/episodes/catalogue/`;
+preserve and back up those records and the referenced AzuraCast episode MP3s.
+The web app uses permanent Episode guide pages; RSS is outside the first version.
 Do not add a review page, scheduled production, or live-host cadence changes for
 this manual workflow.
 

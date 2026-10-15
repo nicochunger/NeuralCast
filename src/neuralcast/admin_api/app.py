@@ -29,6 +29,13 @@ from neuralcast.pipelines.episode_producer.presentation import (
     choose_companion,
     episode_artwork,
 )
+from neuralcast.pipelines.episode_producer.publication import (
+    list_episodes,
+    load_publication,
+    public_episode,
+    published_audio,
+    published_artwork,
+)
 from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
 from neuralcast.pipelines.host_orchestrator.companion import current_companion
 from neuralcast.pipelines.host_orchestrator.models import (
@@ -215,9 +222,7 @@ class ScheduleGeneratorRequest(BaseModel):
         if self.min_open_slots is not None or self.max_open_slots is not None:
             min_slots = self.min_open_slots if self.min_open_slots is not None else 0
             max_slots = (
-                self.max_open_slots
-                if self.max_open_slots is not None
-                else min_slots
+                self.max_open_slots if self.max_open_slots is not None else min_slots
             )
             if min_slots < 0 or max_slots < 0:
                 raise ValueError("Open-slot count bounds must be non-negative.")
@@ -408,6 +413,62 @@ def create_app(
 
     app.state.companion_loader = companion_loader
 
+    # Intentionally public, read-only routes. The explicit publication catalogue
+    # is the allowlist; previews and administrative data are never exposed.
+    @app.get("/public/episodes")
+    def episodes(response: Response, station: str | None = None) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "public, max-age=60"
+        try:
+            return {"episodes": list_episodes(station)}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Unknown station") from exc
+
+    @app.get("/public/episodes/{station}/{episode_id}")
+    def episode_detail(
+        station: str, episode_id: str, response: Response
+    ) -> dict[str, Any]:
+        try:
+            result = public_episode(load_publication(station, episode_id))
+        except (OSError, ValueError, KeyError) as exc:
+            raise HTTPException(status_code=404, detail="Unknown episode") from exc
+        response.headers["Cache-Control"] = "public, max-age=60"
+        return result
+
+    @app.api_route(
+        "/public/episodes/{station}/{episode_id}/audio", methods=["GET", "HEAD"]
+    )
+    def episode_audio(station: str, episode_id: str) -> FileResponse:
+        try:
+            path = published_audio(station, episode_id)
+        except (OSError, ValueError, KeyError) as exc:
+            raise HTTPException(status_code=404, detail="No published audio") from exc
+        return FileResponse(
+            path,
+            media_type="audio/mpeg",
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "Content-Disposition": "inline",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.get("/public/episodes/{station}/{episode_id}/art/{chapter_id}")
+    def public_chapter_art(
+        station: str, episode_id: str, chapter_id: str
+    ) -> FileResponse:
+        try:
+            path = published_artwork(station, episode_id, chapter_id)
+        except (OSError, ValueError, KeyError) as exc:
+            raise HTTPException(status_code=404, detail="No published artwork") from exc
+        return FileResponse(
+            path,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
     @app.get(
         "/admin/host-channels/{channel}/companion",
         dependencies=[Depends(require_admin_token)],
@@ -492,10 +553,12 @@ def create_app(
         payload: FavoritesRequest,
         store: FavoriteStore = Depends(get_favorite_store),
     ) -> FavoritesResponse:
-        normalized_favorites = _normalize_favorites([
-            favorite.model_dump(by_alias=True, exclude_none=True)
-            for favorite in payload.favorites
-        ])
+        normalized_favorites = _normalize_favorites(
+            [
+                favorite.model_dump(by_alias=True, exclude_none=True)
+                for favorite in payload.favorites
+            ]
+        )
         favorites = [
             favorite.model_dump(by_alias=True, exclude_none=True)
             for favorite in normalized_favorites
@@ -700,7 +763,9 @@ def create_app(
     return app
 
 
-def _normalize_favorites(raw_favorites: list[dict[str, Any]]) -> list[FavoriteTrackPayload]:
+def _normalize_favorites(
+    raw_favorites: list[dict[str, Any]],
+) -> list[FavoriteTrackPayload]:
     by_id: dict[str, FavoriteTrackPayload] = {}
 
     for raw_favorite in raw_favorites:

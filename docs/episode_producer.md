@@ -198,6 +198,64 @@ what a listener hears. This guide does not change live audio ownership or playba
 
 ## Checks and deployment
 
+### Permanent website episodes (no RSS)
+
+Website publication is separate from preview upload and radio queueing. After
+explicit approval to make a finished recording publicly available on demand:
+
+```bash
+python -m neuralcast.cli.episode_producer publish -s neuralforge --episode EPISODE_ID --hash REVIEWED_RENDER_SHA256 --description 'Listener-facing episode description'
+```
+
+This operation does not regenerate audio, upload, queue, or assign playlists. It
+checks the reviewed local render and the existing AzuraCast recording against the
+approved hash. It atomically publishes a snapshot under
+`runtime/episodes/catalogue/<station>/<episode-id>/manifest.json`, and copies the
+small chapter artwork thumbnails into that directory. Episode summaries,
+transcripts, sources, and chapter timings remain available independently of
+production caches and the temporary live recap window. Publication does not
+require the episode to have aired. Repeating the command for the same revision
+returns its existing publication; a different revision cannot overwrite that URL.
+
+Keep the published AzuraCast `episodes/<episode-id>/<revision>/episode.mp3`
+recording permanently. The catalogue references that authoritative file, rather
+than creating a second media mirror. Back up the catalogue directory and those
+AzuraCast audio files together; neither is backed up by Git. Do not delete
+published recordings during preview or production-cache cleanup.
+
+The existing API service exposes anonymous, read-only routes:
+
+- `GET /public/episodes`, optionally filtered with `?station=neuralforge`;
+- `GET /public/episodes/<station>/<episode-id>`;
+- `GET` / `HEAD /public/episodes/<station>/<episode-id>/audio`;
+- `GET /public/episodes/<station>/<episode-id>/art/<chapter-id>`.
+
+Only the explicit catalogue allows access. Preview media, source recordings,
+filesystem paths, credentials, and administrative operations stay private. Audio
+supports byte ranges for browser seeking, including 206 and 416 responses.
+Missing or size-changed recordings fail closed. The existing VPS `/admin-http/`
+HTTPS proxy forwards these routes; no AzuraCast configuration change is needed.
+
+The Next.js web server reads metadata using its existing `HOST_ADMIN_BASE_URL`.
+Published media URLs are derived from that server-side setting; the browser reads
+audio and artwork directly from the VPS, without a Vercel audio proxy or token.
+The base must be a browser-reachable HTTPS URL in production, such as the existing
+`https://neuralcast.duckdns.org/admin-http` configuration.
+
+The website has `/episodes` with station filters and permanent
+`/episodes/<station>/<episode-id>` pages. Desktop shows an inline **Episode guide**;
+mobile opens it in a native modal dialog. Chapter highlighting follows actual
+playback position and chapter timestamps seek through the recording. The
+episode player lives at the root layout alongside the unchanged live-radio
+element. Navigation preserves playback, and explicitly starting live radio or
+an episode pauses the other. Resume position is stored locally per published
+revision; no account is required. RSS is intentionally outside this version.
+
+Run `npm run check:episode-playback` in `neuralcast-web` after building. This
+optional browser check requires Playwright (or `EPISODE_PLAYWRIGHT_MODULE` pointing
+to an installed Playwright module) and its Chromium browser. It uses generated
+tones and a local fixture only, without publishing real recordings.
+
 ```bash
 python -m pytest
 python -m pytest -m integration tests/integration/test_episode_render.py

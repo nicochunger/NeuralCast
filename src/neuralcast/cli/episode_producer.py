@@ -24,6 +24,7 @@ from neuralcast.pipelines.episode_producer.service import (
 )
 from neuralcast.pipelines.host_orchestrator.transport import AzuraCastClient
 from neuralcast.services.azuracast_config import load_azuracast_settings
+from neuralcast.pipelines.episode_producer.publication import publish
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -37,6 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "validate",
             "prepare",
             "approve-and-queue",
+            "publish",
         ],
     )
     parser.add_argument(
@@ -48,6 +50,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--hash", help="Exact proposal hash or rendered-audio hash being approved"
+    )
+    parser.add_argument(
+        "--description", help="Listener-facing episode description; publish only"
     )
     args = parser.parse_args(argv)
     project = Project(args.station, args.episode)
@@ -101,6 +106,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             elif args.action == "validate":
                 _, _, _, _, revision = validated_inputs(project)
                 result = {"valid": True, "revision": revision}
+            elif args.action == "publish":
+                if not args.hash:
+                    raise ValueError(
+                        "Publication requires --hash of the reviewed render"
+                    )
+                result = publish(project, args.hash, args.description)
             else:
                 if args.action == "approve-and-queue" and not args.hash:
                     raise ValueError(

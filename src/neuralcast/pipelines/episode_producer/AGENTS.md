@@ -20,6 +20,12 @@ Repository-wide instructions still apply. Run commands from the repository root.
    and edition so they can listen in AzuraCast. Revise and prepare again if asked.
 5. Only after the owner explicitly approves the finished recording for airing,
    run `approve-and-queue --hash RENDER_SHA256` for that reviewed render.
+6. Website publication is a separate, explicit approval. Use `publish --hash
+   RENDER_SHA256 --description 'Listener-facing description'` to publish a
+   permanent on-demand episode and its guide. Do not infer public publication
+   approval from a preview upload or a radio queue approval. This never queues
+   audio. Preserve `runtime/episodes/catalogue/` and the referenced AzuraCast
+   episode recordings permanently and back them up together. No RSS is generated.
 
 Use the package entrypoint, with explicit station and episode identifiers:
 
@@ -45,6 +51,7 @@ needs renewed airing approval.
 - `rendering.py`: audio assembly, loudness handling, and measured chapter timings.
 - `service.py`: production, preview upload, and explicit queue submission.
 - `presentation.py`: approved listener guides and chapter artwork.
+- `publication.py`: permanent website catalogue, approved audio, and guide assets.
 
 Reuse the existing host/provider tooling. Episode writing guidance lives at
 `src/neuralcast/assets/stories/prompts/episode_commentary.md`. The listener guide
