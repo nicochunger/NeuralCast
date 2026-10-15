@@ -9,9 +9,9 @@
 - `docs/host_channels.md`: multilingual host channels, inheritable archetype
   policies, per-channel topic/country overrides, and test workflow.
 - [Editorial feature ideas](editorial_feature_ideas.md): proposed release-retention
-  checks, a host companion, and the longer-term authored radio episode concept.
-- [Manual radio episodes](episode_producer.md): proposal approvals, production,
-  automatic preview uploads, explicit queueing, and chapter guides.
+  checks, a host companion, and the historical radio episode concept.
+- [Manual podcast episodes](episode_producer.md): podcast introductions, proposal
+  approvals, production, preview uploads, website publication, and Episode guides.
 - [Listener host companion](host_companion.md): summary cards, generation,
   publication timing, and web integration.
 - [Release editorial retention](release_editorial.md): automatic Codex review of

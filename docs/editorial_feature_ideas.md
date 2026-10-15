@@ -13,20 +13,23 @@ Captured from the product discussion on 2026-10-14. See
   decisions with a maximum 20% discard budget.
 - Revisit a listener companion for host transcripts, source links, and concert
   details afterward.
-- Preserve authored radio episodes as the longer-term ambition below. This is an
-  idea the owner has wanted to implement for several months.
+- Authored episodes now target independent on-demand podcasts for each station.
+  The radio pilot below is historical; queueing episodes to radio has been removed.
 - Leave out a recording-repair inbox: the existing agent-assisted replacement
   workflow already serves the owner well.
 - Leave out favorites-based listening appointments: current audience size and
   the owner's existing workflow make this a low priority.
 
-## Authored radio episodes
+## Authored episodes: current podcast direction
 
-The manual pilot is implemented: see [episode_producer.md](episode_producer.md).
-It uses proposal and final-airing approvals, automatically uploads rendered audio
-for AzuraCast preview, and presents chapters through Host recap. Scheduling and
-automatic recurring production remain future work. The broader design below
-records that longer-term ambition.
+See [episode_producer.md](episode_producer.md) for the active podcast-only
+workflow: proposal approval, an introductory podcast welcome, existing recordings,
+researched commentary, automatic AzuraCast review upload, and explicit website
+publication with a permanent Episode guide. Radio queueing has been removed.
+RSS is deferred. The following radio design is retained only as historical
+context, not implementation instructions or a plan to add radio scheduling.
+
+### Historical radio proposal (superseded)
 
 ### Intended experience
 

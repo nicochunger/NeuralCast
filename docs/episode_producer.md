@@ -1,10 +1,12 @@
-# Manual radio episode production
+# Manual podcast episode production
 
 This is an agent-operated workshop, not a scheduled producer. Discuss a premise
 with the agent, approve its proposal, let it select existing recordings and write
 commentary, then review the finished audio in AzuraCast. Rendering automatically
-uploads for preview. Only a second, explicit approval queues that exact render.
-There is no episode-review web page and no scheduler, cron, or host-cadence change.
+uploads for preview. After review, explicit approval publishes that exact render
+as a standalone podcast on the website. Episode production is podcast-only: it
+does not queue recordings to live radio. There is no episode-review web page,
+scheduler, cron, or host-cadence change. RSS remains deferred.
 
 ## Documents and workflow
 
@@ -13,7 +15,8 @@ Projects live in `<station>/metadata/episodes/<episode-id>/`. `proposal.json` an
 rest of each station's episode project directory.
 Approvals, locks, cached narration, render receipts, and audio live under
 Git-ignored `runtime/episodes/<station>/<episode-id>/`. Keep that runtime directory
-on this VPS: it contains upload and queue receipts and must survive restarts.
+on this VPS: it contains upload and production receipts and must survive restarts.
+Preserve any historical queue receipts for audit; they are not replay instructions.
 
 1. The agent researches the proposed topic and writes a proposal like this:
 
@@ -46,7 +49,7 @@ python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --epis
 This command records an approval already given by the owner; an agent must not
 infer approval from the fact that a proposal exists. Editing the proposal
 invalidates its approval. The initial feature implementation does not authorize
-any particular episode or live airing.
+any particular episode or public podcast release.
 
 3. The agent reads the station playlist definitions and catalog, researches
 supporting facts, and writes `plan.json` in the project directory. It contains
@@ -70,7 +73,7 @@ shapes, not approved song selections:
   "id": "opening",
   "role": "opening",
   "archetype": "short_story",
-  "brief": "Introduce the approved premise and orient the listener.",
+  "brief": "Welcome listeners to a new episode of the station podcast, introduce the theme, and preview the musical journey before the first song.",
   "max_words": 90,
   "sources": [
     {"url": "https://example.com/interview", "claim": "The specific supported fact to use."}
@@ -79,6 +82,18 @@ shapes, not approved song selections:
 ```
 
 Begin with an `opening` commentary, end with a `closing`, and include music.
+The opening must sound like the start of a podcast, rather than a radio break:
+welcome listeners to a new episode, name the configured station's podcast,
+introduce the theme and its appeal, and briefly preview the journey before the
+first song. Write it for a newcomer who may never have heard the live station.
+For example, in Spanish: “Bienvenidos a un nuevo episodio del podcast de
+NeuralForge. Hoy vamos a recorrer…” Adapt the wording naturally to the episode,
+brand, and configured host language; this is not a mandatory catchphrase. Do not
+invent an episode number or publication schedule, or assume a previous broadcast.
+Bridges develop the story without restarting the welcome; the closing resolves
+the theme and thanks the listener. Apply the same guidance to manually supplied
+scripts. The generator receives it through `episode_commentary.md`.
+
 Other narration uses `role: bridge`. Allowed writing archetypes are `short_story`,
 `album_spotlight`, `era_snapshot`, `deep_dive`, and `block_intro`. Choose these for
 their delivery guidance, not live-host selection weights. Segment IDs must be
@@ -137,17 +152,17 @@ Changing inputs creates a new revision and preserves earlier previews. If a
 finished local render is altered or missing, preparation stops rather than
 rebuilding it and resetting its upload/queue receipts.
 
-5. After the owner listens and approves the final recording for broadcast:
+5. After the owner listens and approves the finished recording for public
+on-demand release, publish the reviewed render:
 
 ```bash
-python -m neuralcast.cli.episode_producer approve-and-queue -s neuralforge --episode folk-to-fantasy --hash RENDER_SHA256
+python -m neuralcast.cli.episode_producer publish -s neuralforge --episode folk-to-fantasy --hash RENDER_SHA256 --description 'Listener-facing episode description'
 ```
 
-This checks the approved proposal, current plan/input revision, and exact finished
-file hash. It reuses the uploaded file and submits one `requests.push` command,
-using existing host transport helpers. It does not skip the current track, adjust
-schedules, consume host cadence, or add the recording to a rotation playlist.
-Repeated approval of an already-queued revision returns its receipt.
+Publication makes the recording and its permanent Episode guide available on the
+website. It never submits an AzuraCast playback request or assigns a rotation
+playlist. The former `approve-and-queue` command has been removed; radio airing
+is not part of this workflow. See the publication/storage details below.
 
 ## Failure and recovery
 
@@ -165,42 +180,26 @@ recording the evidence. A retry archives that attempt in `upload_history`. Never
 mark an uncertain attempt rejected while its original process or server-side
 processing might still be running. Unknown outcomes continue to require inspection.
 
-Queue intent is also written before submission. A timeout, missing request ID, or
-failed receipt write leaves an uncertain state. Do not repeat the submission or
-clear its receipt without inspecting AzuraCast. A replay is an explicit future
-feature, not an automatic retry. Preserve receipts across deployments.
+Historical queue receipts from the radio pilot are retained for audit only.
+Do not clear or replay them. Removing the queue feature does not alter existing
+published podcasts, recordings, or already-submitted live station requests.
 
-## Listener guide
+## Episode guide
 
-Only final airing approval publishes the guide registry under
-`runtime/episodes/published/<channel>/<media-id>.json`. Preview uploads do not
-publish listener guides. The player already fetches public now-playing and recent
-history. Its normalized feed now retains song IDs and sends at most nine current/
-recent observations to the existing companion endpoint; no new station polling
-or separate playback-confirmation process is introduced.
+The permanent website publication snapshot contains song cards, copied artwork,
+selection rationales, commentary summaries, sources, full transcripts, and exact
+chapter boundaries. The on-demand player's position drives chapter highlighting
+and chapter timestamps seek through the recording. An episode does not need to
+have aired on radio to publish its guide.
 
-Matching approved episode IDs and start timestamps produce the episode companion.
-It includes the premise, selected recordings, artwork thumbnails from existing
-embedded album art, selection rationales, commentary summaries, source links,
-full narration transcript, and exact chapter boundaries. Missing art falls back
-to the station image. Artwork is served through an authenticated backend endpoint
-and a credential-free public web proxy. Local paths and source hashes are removed
-from listener responses.
+The original radio pilot's guide files under
+`runtime/episodes/published/<channel>/<media-id>.json` remain readable by the live
+Host recap API for compatibility. No new broadcast guides are written by the
+podcast producer. Preview uploads do not publish a guide or expose audio publicly.
 
-The existing Host recap popup displays progress and highlights the current song
-or commentary using the same corrected server clock as normal track progress.
-An active episode takes precedence over ordinary recaps. Recent history retains
-it for 20 minutes after the episode ends unless a newer eligible host recap
-replaces it. The open player also retains the last episode guide if it drops out
-of the limited history feed. An already-open popup remains readable as before.
-Stream buffering can create a small difference between chapter highlighting and
-what a listener hears. This guide does not change live audio ownership or playback.
+## Permanent website episodes (no RSS)
 
-## Checks and deployment
-
-### Permanent website episodes (no RSS)
-
-Website publication is separate from preview upload and radio queueing. After
+Website publication follows preview upload and review. After
 explicit approval to make a finished recording publicly available on demand:
 
 ```bash
@@ -242,7 +241,8 @@ audio and artwork directly from the VPS, without a Vercel audio proxy or token.
 The base must be a browser-reachable HTTPS URL in production, such as the existing
 `https://neuralcast.duckdns.org/admin-http` configuration.
 
-The website has `/episodes` with station filters and permanent
+The website has `/episodes` with a central selector for the independent station
+podcasts, numbered episode rows, and permanent
 `/episodes/<station>/<episode-id>` pages. Desktop shows an inline **Episode guide**;
 mobile opens it in a native modal dialog. Chapter highlighting follows actual
 playback position and chapter timestamps seek through the recording. The
@@ -256,6 +256,8 @@ optional browser check requires Playwright (or `EPISODE_PLAYWRIGHT_MODULE` point
 to an installed Playwright module) and its Chromium browser. It uses generated
 tones and a local fixture only, without publishing real recordings.
 
+## Checks and deployment
+
 ```bash
 python -m pytest
 python -m pytest -m integration tests/integration/test_episode_render.py
@@ -264,7 +266,8 @@ python -m pytest -m integration tests/integration/test_episode_render.py
 The second command is an opt-in, local ffmpeg/ffprobe test using synthetic tones;
 it uses no credentials, providers, station media, or uploads. Default tests mock
 external boundaries and cover approvals, recording validation, narration caching,
-render order/timing, upload recovery, queue uncertainty, and companion selection.
+render order/timing, upload recovery, publication boundaries, rejection of the
+removed queue command, and read-only compatibility with legacy broadcast guides.
 In `neuralcast-web`, run `npm run build` and `npm run check:host-companion`.
 
 No new secrets or cron jobs are required. Existing generation/TTS credentials and

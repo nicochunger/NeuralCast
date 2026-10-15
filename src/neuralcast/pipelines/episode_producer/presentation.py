@@ -1,4 +1,4 @@
-"""Approved episode guides, selected using the player's existing now-playing feed."""
+"""Read legacy broadcast episode guides; new episodes use the podcast catalogue."""
 
 from __future__ import annotations
 
@@ -7,41 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from neuralcast.config import RUNTIME_ROOT
-from .storage import identifier, read_json, write_json
+from .storage import identifier, read_json
 
 
 def published_root() -> Path:
     return RUNTIME_ROOT / "episodes" / "published"
-
-
-def register_approved_guide(receipt: dict[str, Any], directory: Path) -> None:
-    uploaded = receipt["uploaded"]
-    media_id = identifier(str(uploaded["media_id"]))
-    channel = identifier(receipt["channel"])
-    for existing_path in (published_root() / channel).glob("*.json"):
-        existing = read_json(existing_path)
-        if (
-            existing.get("song_id") == uploaded["song_id"]
-            and existing.get("media_id") != media_id
-        ):
-            raise ValueError(
-                "Another approved media file shares this song ID; use a distinct episode title before queueing"
-            )
-    # This registry is never populated by prepare/upload; explicit airing approval owns it.
-    write_json(
-        published_root() / channel / f"{media_id}.json",
-        {
-            "channel": channel,
-            "media_id": media_id,
-            "song_id": uploaded["song_id"],
-            "title": receipt["title"],
-            "summary": receipt["summary"],
-            "duration": receipt["duration"],
-            "revision": receipt["revision"],
-            "directory": str(directory.resolve()),
-            "chapters": receipt["chapters"],
-        },
-    )
 
 
 def load_guide(channel: str, media_id: str) -> dict[str, Any] | None:

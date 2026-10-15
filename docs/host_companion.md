@@ -3,7 +3,9 @@
 The radio player in the sister `neuralcast-web` project shows a reading card for
 `news`, `concert_check`, `short_story`, `album_spotlight`, `era_snapshot`, and
 `deep_dive`. Other ordinary archetypes do not publish cards or replace the current
-card. Approved authored episodes add a chapter guide through the same popup; see
+card. Guides from the original radio episode pilot remain readable through the
+same popup. New authored episodes are standalone podcasts with permanent Episode
+guides on their own pages, rather than radio queue submissions; see
 [episode_producer.md](episode_producer.md).
 
 News cards reuse validated headlines and source links. Concert cards reuse

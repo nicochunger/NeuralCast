@@ -1,4 +1,4 @@
-"""Prepare/upload for review; queue only an explicitly approved rendered revision."""
+"""Prepare and upload standalone podcast episodes for review."""
 
 from __future__ import annotations
 
@@ -12,12 +12,9 @@ from neuralcast.pipelines.host_orchestrator.channels import (
 )
 from neuralcast.pipelines.host_orchestrator.transport import (
     AzuraCastClient,
-    build_request_command,
-    choose_station_payload,
     extract_upload_media_id,
     extract_upload_song_id,
     extract_upload_storage_path,
-    extract_telnet_request_id,
     RequestsHTTPError,
 )
 from neuralcast.services.ai_client import DEFAULT_GEMINI_TEXT_MODEL
@@ -181,7 +178,6 @@ def prepare(project: Project, client: AzuraCastClient) -> dict[str, Any]:
         "duration": duration,
         "chapters": chapters,
         "uploaded": None,
-        "queue": None,
     }
     write_json(receipt_path, receipt)
     return upload_render(project, channel, receipt, directory, client)
@@ -261,7 +257,7 @@ def upload_render(
             raise ValueError(
                 "Upload metadata is not ready or its path differs. Re-run prepare to resolve the recorded path without another upload."
             )
-        # Must remain a private production receipt until final airing approval.
+        # Uploading for review never publishes a podcast or listener guide.
         receipt["uploaded"] = {
             "media_id": str(media_id),
             "song_id": str(song_id),
@@ -272,62 +268,4 @@ def upload_render(
         project.runtime / "latest.json",
         {"revision": receipt["revision"], "render_hash": receipt["render_hash"]},
     )
-    return receipt
-
-
-def approve_and_queue(
-    project: Project, client: AzuraCastClient, expected_hash: str
-) -> dict[str, Any]:
-    _, _, channel, _, revision = validated_inputs(project)
-    directory = project.runtime / revision
-    receipt = read_json(directory / "production.json")
-    if (
-        receipt["revision"] != revision
-        or receipt["render_hash"] != expected_hash
-        or file_hash(directory / "episode.mp3") != expected_hash
-    ):
-        raise ValueError(
-            "Approve the exact current rendered revision; its hash changed"
-        )
-    if not receipt.get("uploaded"):
-        raise ValueError("Episode has not been uploaded for preview")
-    if receipt.get("queue"):
-        if receipt["queue"]["status"] == "queued":
-            return receipt
-        raise RuntimeError(
-            "A queue attempt may already have been accepted. Inspect AzuraCast before resolving; automatic retry is disabled."
-        )
-    station_id = channel.azuracast_station_id
-    if station_id is None:
-        station_id = int(
-            choose_station_payload(client.get_stations(), channel.azuracast_station)[
-                "id"
-            ]
-        )
-    uploaded = receipt["uploaded"]
-    command = build_request_command(
-        f"{channel.liquidsoap_media_root}/{uploaded['path']}",
-        " ".join(receipt["broadcast_title"].split()),
-        round(receipt["duration"]),
-        media_id=uploaded["media_id"],
-        song_id=uploaded["song_id"],
-    )
-    from .presentation import register_approved_guide
-
-    register_approved_guide(receipt, directory)
-    # Persist intent before the non-idempotent call. A timeout is not safe to retry.
-    receipt["queue"] = {
-        "status": "uncertain",
-        "approved_hash": expected_hash,
-        "attempted_at": time.time(),
-    }
-    write_json(directory / "production.json", receipt)
-    response = client.send_telnet_command(station_id, command)
-    request_id = extract_telnet_request_id(response)
-    if not request_id:
-        raise RuntimeError(
-            "Queue response did not confirm a request ID. Treat this attempt as uncertain; do not retry automatically."
-        )
-    receipt["queue"].update(status="queued", request_id=request_id)
-    write_json(directory / "production.json", receipt)
     return receipt

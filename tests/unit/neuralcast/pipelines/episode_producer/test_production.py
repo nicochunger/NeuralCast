@@ -125,6 +125,11 @@ def test_existing_channel_voice_and_same_call_companion_are_reused(
     assert (
         writer.call_args.args[4] is False
     )  # Evidence was researched by the editorial agent.
+    prompt = writer.call_args.args[0]
+    assert "standalone, on-demand podcast episode" in prompt
+    assert "welcoming listeners to a new episode" in prompt
+    assert "newcomer" in prompt
+    assert '"role": "opening"' in prompt
     writer.assert_called_once()
     assert (
         narration.prepare_narration(

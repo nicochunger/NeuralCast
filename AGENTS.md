@@ -184,28 +184,29 @@ Keep these station metadata files synchronized and committed when release data c
 
 The storage helpers may read legacy locations but canonical writes belong under `metadata/`. Do not delete that directory.
 
-## Manual Radio Episodes
+## Manual Podcast Episodes
 
-For episode requests, read [docs/episode_producer.md](docs/episode_producer.md).
-Package-specific instructions are in
+For podcast requests, read [docs/episode_producer.md](docs/episode_producer.md) and
 [episode_producer/AGENTS.md](src/neuralcast/pipelines/episode_producer/AGENTS.md).
 Use `python -m neuralcast.cli.episode_producer`; domain code lives in
-`pipelines/episode_producer/`. First discuss and approve the editorial proposal,
-then select existing recordings and prepare the finished episode. `prepare`
-renders and automatically uploads an unassigned file to AzuraCast for preview;
-it never queues audio. Queue only after the owner explicitly approves the final
-render for airing, using `approve-and-queue --hash <reviewed-render-hash>`.
-Do not infer either approval from a document's existence. Respect approvals
-already explicitly given in the session. Preserve upload/queue receipts under
-`runtime/episodes/`; uncertain submissions must not be blindly repeated.
-The episode guide belongs in the existing Host recap popup in `neuralcast-web`.
-Permanent website episodes are published separately with `episode_producer
-publish --hash <reviewed-render-hash>` after explicit public-release approval.
-Their catalogue and copied guide artwork live under `runtime/episodes/catalogue/`;
-preserve and back up those records and the referenced AzuraCast episode MP3s.
-The web app uses permanent Episode guide pages; RSS is outside the first version.
-Do not add a review page, scheduled production, or live-host cadence changes for
-this manual workflow.
+`pipelines/episode_producer/`. Discuss and approve the proposal, select existing
+recordings, then prepare the episode. Its opening must welcome newcomers to a
+new episode of the configured brand's podcast, introduce the theme, and briefly
+preview the journey in the host language. Follow `episode_commentary.md` for
+writing guidance, including manually supplied scripts.
+
+`prepare` renders and automatically uploads an unassigned AzuraCast file for
+review. `publish --hash <reviewed-render-hash>` publishes the permanent website
+podcast and Episode guide after explicit public-release approval. Respect
+approvals already given in the session. Production is podcast-only: the episode
+radio queue feature has been removed; do not queue or schedule these recordings
+through alternate tools as part of this workflow. Do not change live host cadence.
+
+Preserve runtime receipts, including historical queue records, and resolve
+uncertain uploads before retrying. Preserve and back up the published catalogue
+and guide artwork under `runtime/episodes/catalogue/` with the referenced AzuraCast
+MP3s. Apply new writing guidance to future productions, not existing published
+audio. RSS and a separate review page are outside this version.
 
 ## Host Orchestrator, Scheduler, and Admin API
 

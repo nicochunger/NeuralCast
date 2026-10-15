@@ -1,4 +1,4 @@
-"""Manual episode workflow. Only approve-and-queue submits a live request."""
+"""Manual podcast workflow: approve a proposal, prepare for review, then publish."""
 
 from __future__ import annotations
 
@@ -19,7 +19,6 @@ from neuralcast.pipelines.episode_producer.storage import (
 from neuralcast.pipelines.episode_producer.service import (
     channel_for,
     prepare,
-    approve_and_queue,
     validated_inputs,
 )
 from neuralcast.pipelines.host_orchestrator.transport import AzuraCastClient
@@ -37,7 +36,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             "approve-proposal",
             "validate",
             "prepare",
-            "approve-and-queue",
             "publish",
         ],
     )
@@ -113,24 +111,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                 result = publish(project, args.hash, args.description)
             else:
-                if args.action == "approve-and-queue" and not args.hash:
-                    raise ValueError(
-                        "Final airing approval requires --hash of the previewed render"
-                    )
                 load_dotenv(PROJECT_ROOT / ".env")
                 settings = load_azuracast_settings(station=args.station)
                 client = AzuraCastClient(settings.base_url, settings.api_key)
-                receipt = (
-                    prepare(project, client)
-                    if args.action == "prepare"
-                    else approve_and_queue(project, client, args.hash)
-                )
+                receipt = prepare(project, client)
                 result = {
                     "revision": receipt["revision"],
                     "render_hash": receipt["render_hash"],
                     "duration_seconds": receipt["duration"],
                     "uploaded": receipt["uploaded"],
-                    "queue": receipt["queue"],
                 }
         print(json.dumps(result, ensure_ascii=False, indent=2))
     except (ValueError, OSError, RuntimeError) as exc:

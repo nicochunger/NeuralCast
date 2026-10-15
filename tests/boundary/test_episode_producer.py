@@ -1,4 +1,4 @@
-"""Manual approval, rendering/upload boundaries and exact-once queue intent."""
+"""Podcast preparation, read-only legacy guides, and upload recovery."""
 
 import json
 from pathlib import Path
@@ -107,14 +107,6 @@ def production(tmp_path, monkeypatch):
         "song_id": "song-hash",
         "path": kw["remote_path"],
     }
-    client.get_stations.return_value = [{"shortcode": "neuralforge", "id": 2}]
-    client.send_telnet_command.return_value = {"logs": [{"text": "123"}]}
-    monkeypatch.setattr(
-        service,
-        "extract_telnet_request_id",
-        lambda response: response.get("request_id"),
-    )
-    client.send_telnet_command.return_value = {"request_id": "123"}
     return project, client, proposal_hash
 
 
@@ -126,7 +118,7 @@ def test_prepare_requires_proposal_approval_and_uploads_without_queue(production
     project.approve_proposal(proposal_hash)
     receipt = service.prepare(project, client)
     assert receipt["uploaded"]["media_id"] == "42"
-    assert receipt["queue"] is None
+    assert receipt.get("queue") is None
     client.send_telnet_command.assert_not_called()
     assert not presentation.published_root().exists()
     assert service.prepare(project, client) == receipt
@@ -134,54 +126,33 @@ def test_prepare_requires_proposal_approval_and_uploads_without_queue(production
     assert client.upload_media.call_count == 1
 
 
-def test_exact_render_approval_and_duplicate_queue_prevention(production):
-    project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
-    receipt = service.prepare(project, client)
-    with pytest.raises(ValueError):
-        service.approve_and_queue(project, client, "bad-hash")
-    client.send_telnet_command.assert_not_called()
-    queued = service.approve_and_queue(project, client, receipt["render_hash"])
-    assert queued["queue"]["status"] == "queued"
-    again = service.approve_and_queue(project, client, receipt["render_hash"])
-    assert again == queued
-    assert client.send_telnet_command.call_count == 1
-    command = client.send_telnet_command.call_args.args[1]
-    assert 'song_id="song-hash"' in command
-    assert "requests.push" in command
-    assert client.upload_media.call_count == 1
+def test_removed_queue_command_is_rejected_before_operational_work():
+    from neuralcast.cli.episode_producer import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["approve-and-queue", "--episode", "test-episode"])
+    assert exc.value.code == 2
 
 
-@pytest.mark.parametrize("outcome", [RuntimeError("timeout"), {}])
-def test_uncertain_queue_is_not_retried(production, outcome):
-    project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
-    receipt = service.prepare(project, client)
-    client.send_telnet_command.side_effect = (
-        outcome if isinstance(outcome, Exception) else None
+def legacy_guide(receipt, directory):
+    """Seed the old on-disk format without a production writer or queue action."""
+    uploaded = receipt["uploaded"]
+    write_json(
+        presentation.published_root()
+        / receipt["channel"]
+        / f"{uploaded['media_id']}.json",
+        {
+            "channel": receipt["channel"],
+            "media_id": uploaded["media_id"],
+            "song_id": uploaded["song_id"],
+            "title": receipt["title"],
+            "summary": receipt["summary"],
+            "duration": receipt["duration"],
+            "revision": receipt["revision"],
+            "directory": str(directory.resolve()),
+            "chapters": receipt["chapters"],
+        },
     )
-    client.send_telnet_command.return_value = outcome
-    with pytest.raises(RuntimeError):
-        service.approve_and_queue(project, client, receipt["render_hash"])
-    with pytest.raises(RuntimeError, match="already have been accepted"):
-        service.approve_and_queue(project, client, receipt["render_hash"])
-    assert client.send_telnet_command.call_count == 1
-
-
-def test_changed_plan_or_audio_invalidates_airing_approval(production):
-    project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
-    receipt = service.prepare(project, client)
-    audio = project.runtime / receipt["revision"] / "episode.mp3"
-    audio.write_bytes(b"changed")
-    with pytest.raises(ValueError):
-        service.approve_and_queue(project, client, receipt["render_hash"])
-    client.send_telnet_command.assert_not_called()
-    plan = read_json(project.documents / "plan.json")
-    plan["segments"][1]["rationale"] = "Changed selection intent"
-    write_json(project.documents / "plan.json", plan)
-    with pytest.raises(FileNotFoundError):
-        service.approve_and_queue(project, client, receipt["render_hash"])
 
 
 def test_upload_failure_resolves_existing_path_without_reupload(production):
@@ -213,7 +184,9 @@ def test_missing_unresolved_upload_stops_without_another_upload(production):
     assert client.upload_media.call_count == 1
 
 
-def test_uploaded_draft_is_not_a_listener_guide_and_approved_episode_wins(production):
+def test_uploaded_podcast_is_not_a_live_guide_and_legacy_guides_remain_readable(
+    production,
+):
     project, client, proposal_hash = production
     project.approve_proposal(proposal_hash)
     receipt = service.prepare(project, client)
@@ -222,7 +195,7 @@ def test_uploaded_draft_is_not_a_listener_guide_and_approved_episode_wins(produc
         presentation.find_episode_companion("neuralforge-es", observations, 1100)
         is None
     )
-    service.approve_and_queue(project, client, receipt["render_hash"])
+    legacy_guide(receipt, project.runtime / receipt["revision"])
     episode = presentation.find_episode_companion("neuralforge-es", observations, 1100)
     assert episode["episode"]["chapters"][1]["artist"] == "Artist"
     assert "sha256" not in episode["episode"]["chapters"][1]
@@ -244,7 +217,7 @@ def test_uploaded_draft_is_not_a_listener_guide_and_approved_episode_wins(produc
     }
 
 
-def test_companion_api_matches_episode_using_existing_playback_data(
+def test_companion_api_still_reads_legacy_episode_playback_data(
     production, monkeypatch
 ):
     from fastapi.testclient import TestClient
@@ -253,7 +226,7 @@ def test_companion_api_matches_episode_using_existing_playback_data(
     project, client, proposal_hash = production
     project.approve_proposal(proposal_hash)
     receipt = service.prepare(project, client)
-    service.approve_and_queue(project, client, receipt["render_hash"])
+    legacy_guide(receipt, project.runtime / receipt["revision"])
     monkeypatch.setenv("NEURALCAST_ADMIN_HTTP_TOKEN", "test-token")
     monkeypatch.setattr(api.time, "time", lambda: 1100)
     observations = [{"song_id": "song-hash", "played_at": 1000, "current": True}]
@@ -290,30 +263,32 @@ def test_artwork_lookup_is_approved_channel_scoped_and_bounded(production):
     receipt["chapters"][1]["artwork"] = "song.jpg"
     # Preview uploads do not expose artwork through listener endpoints.
     assert presentation.episode_artwork("neuralforge-es", "42", "song") is None
-    presentation.register_approved_guide(receipt, directory)
+    legacy_guide(receipt, directory)
     assert (
         presentation.episode_artwork("neuralforge-es", "42", "song")
         == directory / "song.jpg"
     )
     assert presentation.episode_artwork("neuralforge-fr", "42", "song") is None
     receipt["chapters"][1]["artwork"] = "../../outside.jpg"
-    presentation.register_approved_guide(receipt, directory)
+    legacy_guide(receipt, directory)
     assert presentation.episode_artwork("neuralforge-es", "42", "song") is None
 
 
-def test_reprepare_cannot_reset_receipts_of_a_changed_finished_render(production):
+def test_reprepare_preserves_historical_receipts_of_a_changed_render(production):
     project, client, proposal_hash = production
     project.approve_proposal(proposal_hash)
     receipt = service.prepare(project, client)
-    service.approve_and_queue(project, client, receipt["render_hash"])
-    path = project.runtime / receipt["revision"] / "episode.mp3"
+    directory = project.runtime / receipt["revision"]
+    receipt["queue"] = {"status": "queued", "request_id": "historical"}
+    write_json(directory / "production.json", receipt)
+    path = directory / "episode.mp3"
     path.write_bytes(b"corrupted")
     with pytest.raises(ValueError, match="must not be reset"):
         service.prepare(project, client)
     stored = read_json(path.with_name("production.json"))
-    assert stored["queue"]["status"] == "queued"
+    assert stored["queue"] == {"status": "queued", "request_id": "historical"}
     assert service.render.call_count == 1
-    assert client.send_telnet_command.call_count == 1
+    client.send_telnet_command.assert_not_called()
 
 
 def test_document_edit_during_render_stops_before_upload(production):
@@ -374,7 +349,7 @@ def test_definitive_upload_rejection_is_recorded_and_retry_archives_it(productio
     path = next(project.runtime.glob("*/production.json"))
     stored = read_json(path)
     assert stored["upload_attempt"]["status"] == "rejected"
-    assert stored["queue"] is None
+    assert stored.get("queue") is None
     client.upload_media.side_effect = lambda station, source, **kwargs: {
         "id": 42,
         "song_id": "song-hash",
