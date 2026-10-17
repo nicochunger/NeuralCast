@@ -44,12 +44,16 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
+    write_text(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+
+
+def write_text(path: Path, value: str) -> None:
+    """Atomically replace a review document or receipt."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(value, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
+            handle.write(value)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(name, path)
@@ -93,11 +97,34 @@ class Project:
 
     def approve_proposal(self, expected_hash: str) -> None:
         actual = digest(self.proposal().model_dump())
-        if actual != expected_hash:
+        concept_hash = self.concept_hash()
+        if concept_hash != expected_hash:
             raise ValueError(
                 "Proposal changed; review the current proposal before approving"
             )
-        write_json(self.runtime / "proposal_approval.json", {"proposal_hash": actual})
+        write_json(
+            self.runtime / "proposal_approval.json",
+            {"proposal_hash": actual, "concept_hash": concept_hash},
+        )
+
+    def editorial_brief(self):
+        from .editorial_models import EditorialBrief
+
+        brief = EditorialBrief.model_validate(read_json(self.documents / "brief.json"))
+        if brief.proposal_hash != digest(self.proposal().model_dump()):
+            raise ValueError("Editorial brief references a different proposal")
+        return brief
+
+    def concept_hash(self) -> str:
+        proposal_hash = digest(self.proposal().model_dump())
+        if not (self.documents / "brief.json").exists():
+            return proposal_hash  # Preserve legacy proposal-only projects.
+        return digest(
+            {
+                "proposal_hash": proposal_hash,
+                "brief": self.editorial_brief().model_dump(),
+            }
+        )
 
     def approved_proposal(self) -> tuple[Proposal, str]:
         proposal = self.proposal()
@@ -105,4 +132,6 @@ class Project:
         approval = read_json(self.runtime / "proposal_approval.json")
         if approval.get("proposal_hash") != actual:
             raise ValueError("Current proposal has not been approved")
+        if approval.get("concept_hash", actual) != self.concept_hash():
+            raise ValueError("Current concept/song brief has not been approved")
         return proposal, actual

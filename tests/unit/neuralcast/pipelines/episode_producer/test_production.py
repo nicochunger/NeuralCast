@@ -1,6 +1,5 @@
 """Episode document constraints, host reuse, and sample-counted rendering."""
 
-import json
 import wave
 from pathlib import Path
 from unittest.mock import Mock
@@ -92,73 +91,64 @@ def test_plan_rejects_duplicate_ids_and_requires_opening_and_closing():
         Source(url="javascript:alert(1)", claim="Fact")
 
 
-def test_existing_channel_voice_and_same_call_companion_are_reused(
+def test_approved_script_channel_voice_and_companion_are_reused(
     tmp_path, monkeypatch, proposal
 ):
     channel = get_channel_registry().channels[proposal.channel]
-    segment = Commentary(
-        kind="commentary", id="intro", role="opening", brief="Open the theme"
-    )
     metadata = {
         "title": "Une histoire",
         "summary": "Une connexion musicale.",
         "key_points": [],
     }
-    writer = Mock(
-        return_value="Une histoire. <COMPANION>" + json.dumps(metadata) + "</COMPANION>"
+    segment = Commentary(
+        kind="commentary",
+        id="intro",
+        role="opening",
+        brief="Open the theme",
+        script="Une histoire.",
+        companion=metadata,
     )
 
     def synthesize(**kwargs):
         Path(kwargs["outfile"]).write_bytes(b"narration")
 
     tts = Mock(side_effect=synthesize)
-    monkeypatch.setattr(narration, "gemini_generate_text", writer)
     monkeypatch.setattr(narration, "synthesize_speech", tts)
     settings = narration.writing_settings(channel)
-    output = narration.prepare_narration(
-        segment, proposal, [], [], channel, settings, tmp_path, ()
-    )
+    output = narration.prepare_narration(segment, channel, settings, tmp_path, ())
     assert output["transcript"] == "Une histoire."
     assert output["companion"] == metadata
     assert tts.call_args.kwargs["gemini_voice"] == channel.tts_voice
     assert "<COMPANION>" not in tts.call_args.kwargs["text"]
+    assert not hasattr(narration, "gemini_generate_text")
     assert (
-        writer.call_args.args[4] is False
-    )  # Evidence was researched by the editorial agent.
-    prompt = writer.call_args.args[0]
-    assert "standalone, on-demand podcast episode" in prompt
-    assert "welcoming listeners to a new episode" in prompt
-    assert "newcomer" in prompt
-    assert '"role": "opening"' in prompt
-    writer.assert_called_once()
-    assert (
-        narration.prepare_narration(
-            segment, proposal, [], [], channel, settings, tmp_path, ()
-        )
-        == output
+        narration.prepare_narration(segment, channel, settings, tmp_path, ()) == output
     )
     assert tts.call_count == 1
-    assert writer.call_count == 1
+    # Metadata changes must not synthesize identical speech again or return old
+    # reading summaries/sources from the cached narration receipt.
+    changed = segment.model_copy(
+        update={
+            "companion": segment.companion.model_copy(
+                update={"summary": "A revised reading summary."}
+            )
+        }
+    )
+    reused = narration.prepare_narration(changed, channel, settings, tmp_path, ())
+    assert reused["companion"]["summary"] == "A revised reading summary."
+    assert tts.call_count == 1
 
 
-def test_invalid_summary_stops_production_before_tts(tmp_path, monkeypatch, proposal):
+def test_missing_script_stops_production_before_tts(tmp_path, monkeypatch, proposal):
     channel = get_channel_registry().channels[proposal.channel]
     segment = Commentary(
         kind="commentary", id="intro", role="opening", brief="Introduce"
     )
-    monkeypatch.setattr(
-        narration,
-        "gemini_generate_text",
-        Mock(return_value="Speech. <COMPANION>{}</COMPANION>"),
-    )
     tts = Mock()
     monkeypatch.setattr(narration, "synthesize_speech", tts)
-    with pytest.raises(ValueError, match="no usable"):
+    with pytest.raises(ValueError, match="complete script"):
         narration.prepare_narration(
             segment,
-            proposal,
-            [],
-            [],
             channel,
             narration.writing_settings(channel),
             tmp_path,

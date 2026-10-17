@@ -189,8 +189,17 @@ The storage helpers may read legacy locations but canonical writes belong under 
 For podcast requests, read [docs/episode_producer.md](docs/episode_producer.md) and
 [episode_producer/AGENTS.md](src/neuralcast/pipelines/episode_producer/AGENTS.md).
 Use `python -m neuralcast.cli.episode_producer`; domain code lives in
-`pipelines/episode_producer/`. Discuss and approve the proposal, select existing
-recordings, then prepare the episode. Its opening must welcome newcomers to a
+`pipelines/episode_producer/`. The main writing path is documented in
+[docs/episode_editorial.md](docs/episode_editorial.md): discuss and approve the
+concept and candidate-song brief, run `editorial` for three headless Codex stages
+(research/write, review, revise), then obtain explicit owner approval of the
+final Markdown manuscript with `approve-manuscript --hash MANUSCRIPT_HASH` before
+`prepare`. Complete existing manual scripts use the same manuscript approval;
+preparation no longer generates missing scripts. Default episode language is
+Argentinian Spanish (`es-AR`) unless explicitly overridden. The owner chooses
+NeuralForge or NeuralCast during concept building; ask if unspecified, resolve
+its current Spanish channel, and pass the station explicitly to commands rather
+than relying on the CLI default or a previous episode. Its opening must welcome newcomers to a
 new episode of the configured brand's podcast, introduce the theme, and briefly
 preview the journey in the host language. Follow `episode_commentary.md` for
 writing guidance, including manually supplied scripts.

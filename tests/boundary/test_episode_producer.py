@@ -7,7 +7,11 @@ from unittest.mock import Mock
 import pytest
 
 from neuralcast.pipelines.episode_producer import service, presentation
-from neuralcast.pipelines.episode_producer.models import Proposal
+from neuralcast.pipelines.episode_producer.models import Plan, Proposal
+from neuralcast.pipelines.episode_producer.manuscript import (
+    approve_manuscript,
+    manuscript_hash,
+)
 from neuralcast.pipelines.episode_producer.storage import (
     Project,
     digest,
@@ -69,6 +73,14 @@ def production(tmp_path, monkeypatch):
             },
         ],
     }
+    for part in plan["segments"]:
+        if part["kind"] == "commentary":
+            part["script"] = "A story."
+            part["companion"] = {
+                "title": "Story",
+                "summary": "A musical connection.",
+                "key_points": [],
+            }
     write_json(project.documents / "plan.json", plan)
     monkeypatch.setattr(service, "extract_artwork", lambda *args: False)
 
@@ -110,12 +122,18 @@ def production(tmp_path, monkeypatch):
     return project, client, proposal_hash
 
 
+def approve(project, proposal_hash):
+    project.approve_proposal(proposal_hash)
+    plan = Plan.model_validate(read_json(project.documents / "plan.json"))
+    approve_manuscript(project, manuscript_hash(project, plan))
+
+
 def test_prepare_requires_proposal_approval_and_uploads_without_queue(production):
     project, client, proposal_hash = production
     with pytest.raises(FileNotFoundError):
         service.prepare(project, client)
     client.upload_media.assert_not_called()
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     receipt = service.prepare(project, client)
     assert receipt["uploaded"]["media_id"] == "42"
     assert receipt.get("queue") is None
@@ -157,7 +175,7 @@ def legacy_guide(receipt, directory):
 
 def test_upload_failure_resolves_existing_path_without_reupload(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     client.upload_media.side_effect = RuntimeError("response lost")
     with pytest.raises(RuntimeError):
         service.prepare(project, client)
@@ -174,7 +192,7 @@ def test_upload_failure_resolves_existing_path_without_reupload(production):
 
 def test_missing_unresolved_upload_stops_without_another_upload(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     client.upload_media.side_effect = RuntimeError("timeout")
     with pytest.raises(RuntimeError):
         service.prepare(project, client)
@@ -188,7 +206,7 @@ def test_uploaded_podcast_is_not_a_live_guide_and_legacy_guides_remain_readable(
     production,
 ):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     receipt = service.prepare(project, client)
     observations = [{"song_id": "song-hash", "played_at": 1000, "current": True}]
     assert (
@@ -224,7 +242,7 @@ def test_companion_api_still_reads_legacy_episode_playback_data(
     from neuralcast.admin_api import app as api
 
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     receipt = service.prepare(project, client)
     legacy_guide(receipt, project.runtime / receipt["revision"])
     monkeypatch.setenv("NEURALCAST_ADMIN_HTTP_TOKEN", "test-token")
@@ -256,7 +274,7 @@ def test_companion_api_still_reads_legacy_episode_playback_data(
 
 def test_artwork_lookup_is_approved_channel_scoped_and_bounded(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     receipt = service.prepare(project, client)
     directory = project.runtime / receipt["revision"]
     (directory / "song.jpg").write_bytes(b"art")
@@ -276,7 +294,7 @@ def test_artwork_lookup_is_approved_channel_scoped_and_bounded(production):
 
 def test_reprepare_preserves_historical_receipts_of_a_changed_render(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     receipt = service.prepare(project, client)
     directory = project.runtime / receipt["revision"]
     receipt["queue"] = {"status": "queued", "request_id": "historical"}
@@ -293,7 +311,7 @@ def test_reprepare_preserves_historical_receipts_of_a_changed_render(production)
 
 def test_document_edit_during_render_stops_before_upload(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     original_render = service.render.side_effect
 
     def changed(*args):
@@ -312,7 +330,7 @@ def test_document_edit_during_render_stops_before_upload(production):
 
 def test_large_finished_render_uses_chunk_upload_without_queue(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     original = service.render.side_effect
 
     def large_render(*args):
@@ -339,7 +357,7 @@ def test_definitive_upload_rejection_is_recorded_and_retry_archives_it(productio
     from types import SimpleNamespace
 
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
     rejected = requests.HTTPError(
         "body too large", response=SimpleNamespace(status_code=413)
     )
@@ -363,7 +381,7 @@ def test_definitive_upload_rejection_is_recorded_and_retry_archives_it(productio
 
 def test_upload_resolves_server_normalized_path_without_resending(production):
     project, client, proposal_hash = production
-    project.approve_proposal(proposal_hash)
+    approve(project, proposal_hash)
 
     def upload(station, source, **kwargs):
         client.list_media_files.return_value = [

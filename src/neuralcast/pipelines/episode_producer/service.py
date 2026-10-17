@@ -17,12 +17,12 @@ from neuralcast.pipelines.host_orchestrator.transport import (
     extract_upload_storage_path,
     RequestsHTTPError,
 )
-from neuralcast.services.ai_client import DEFAULT_GEMINI_TEXT_MODEL
 from .models import Music, Plan, Proposal
 from .storage import Project, digest, file_hash, read_json, write_json
 from .library import resolve_recording, extract_artwork
 from .narration import writing_settings, prepare_narration
 from .rendering import render
+from .manuscript import require_manuscript_approval
 
 
 def channel_for(project: Project, proposal: Proposal) -> HostChannel:
@@ -40,6 +40,8 @@ def validated_inputs(
     plan = Plan.model_validate(read_json(project.documents / "plan.json"))
     if plan.proposal_hash != approved_hash:
         raise ValueError("Plan references a different approved proposal")
+    if (project.documents / "brief.json").exists():
+        project.editorial_brief().validate_selection(plan)
     recordings = {
         part.id: resolve_recording(project.station_root, part)
         for part in plan.segments
@@ -52,7 +54,6 @@ def validated_inputs(
             "plan": plan.model_dump(),
             "recordings": recordings,
             "settings": settings,
-            "text_model": DEFAULT_GEMINI_TEXT_MODEL,
             "render_version": 1,
             "target": {
                 "station": channel.azuracast_station,
@@ -86,16 +87,15 @@ def prepare(project: Project, client: AzuraCastClient) -> dict[str, Any]:
                 "A finished render is missing or changed. Restore it or revise the plan; existing upload/queue receipts must not be reset."
             )
         return upload_render(project, channel, receipt, directory, client)
+    # A previously finished immutable receipt may be inspected/recovered without
+    # retroactive approval. Every new render requires the exact complete script.
+    require_manuscript_approval(project, plan)
     directory.mkdir(parents=True, exist_ok=True)
-    sequence = [
-        part.model_dump(exclude={"script", "companion"}) for part in plan.segments
-    ]
     protected = tuple(
         value
         for recording in inputs["recordings"].values()
         for value in (recording["artist"], recording["title"], recording["album"])
     )
-    previous = []
     parts = []
     for part in plan.segments:
         if isinstance(part, Music):
@@ -113,15 +113,11 @@ def prepare(project: Project, client: AzuraCastClient) -> dict[str, Any]:
         else:
             spoken = prepare_narration(
                 part,
-                proposal,
-                sequence,
-                previous,
                 channel,
                 inputs["settings"],
                 project.runtime,
                 protected,
             )
-            previous.append(spoken["transcript"])
             parts.append(
                 {
                     "kind": "commentary",
@@ -165,6 +161,7 @@ def prepare(project: Project, client: AzuraCastClient) -> dict[str, Any]:
         raise ValueError(
             "Episode documents changed during production; review and prepare again"
         )
+    require_manuscript_approval(project, plan)
     receipt = {
         "version": 1,
         "episode_id": project.id,

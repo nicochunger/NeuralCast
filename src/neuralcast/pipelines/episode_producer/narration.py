@@ -1,18 +1,13 @@
-"""Episode writing uses the existing host personality, speech and TTS boundaries."""
+"""Synthesize frozen manuscript passages with the configured host voice."""
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import Any
 
 from neuralcast.services.ai_client import synthesize_speech, DEFAULT_GEMINI_TTS_MODEL
 from neuralcast.pipelines.host_orchestrator.channels import HostChannel
-from neuralcast.pipelines.host_orchestrator.companion import (
-    companion_prompt,
-    split_companion_output,
-)
 from neuralcast.pipelines.host_orchestrator.models import Archetype, StationPersonality
 from neuralcast.pipelines.host_orchestrator.prompts import (
     build_system_prompt,
@@ -20,10 +15,9 @@ from neuralcast.pipelines.host_orchestrator.prompts import (
     station_name_for_generation,
 )
 from neuralcast.pipelines.host_orchestrator.speech import validate_speech_transcript
-from neuralcast.pipelines.host_orchestrator.text_generation import gemini_generate_text
 from neuralcast.pipelines.host_orchestrator.utils import run_with_retries
 from neuralcast.config import ASSETS_ROOT
-from .models import Commentary, Proposal, Summary
+from .models import Commentary
 from .storage import digest, read_json, write_json, file_hash
 
 TEMPLATE = ASSETS_ROOT / "stories" / "prompts" / "episode_commentary.md"
@@ -43,8 +37,7 @@ def writing_settings(
             ),
             personality,
             locale=channel.locale,
-        )
-        + companion_prompt(),
+        ),
         "tts": build_tts_instructions(
             personality,
             locale=channel.locale,
@@ -60,9 +53,6 @@ def writing_settings(
 
 def prepare_narration(
     segment: Commentary,
-    proposal: Proposal,
-    sequence: list[dict[str, Any]],
-    previous: list[str],
     channel: HostChannel,
     settings: dict[str, str],
     workspace: Path,
@@ -72,13 +62,25 @@ def prepare_narration(
         **settings,
         "tts": writing_settings(channel, Archetype(segment.archetype))["tts"],
     }
-    context = {
-        "episode": proposal.model_dump(),
-        "sequence": sequence,
-        "intervention": segment.model_dump(),
-        "previous_interventions": previous,
+    if not segment.script or not segment.companion:
+        raise ValueError(f"Commentary {segment.id} needs an approved complete script")
+    speech = validate_speech_transcript(segment.script, protected_texts=protected)
+    if len(speech.plain_text.split()) > segment.max_words:
+        raise ValueError(f"Commentary {segment.id} exceeds its word budget")
+    metadata = {
+        "script": speech.tts_text,
+        "transcript": speech.plain_text,
+        "companion": segment.companion.model_dump(),
+        "sources": [source.model_dump() for source in segment.sources],
     }
-    fingerprint = digest({"context": context, "settings": settings})
+    fingerprint = digest(
+        {
+            "script": speech.tts_text,
+            "settings": {
+                key: settings[key] for key in ("tts", "voice", "tts_model", "provider")
+            },
+        }
+    )
     directory = workspace / "narration" / fingerprint
     receipt = directory / "narration.json"
     if receipt.exists():
@@ -86,31 +88,8 @@ def prepare_narration(
         if (directory / "speech.mp3").exists() and saved.get("audio_hash") == file_hash(
             directory / "speech.mp3"
         ):
-            return {**saved, "path": str(directory / "speech.mp3")}
+            return {**saved, **metadata, "path": str(directory / "speech.mp3")}
     directory.mkdir(parents=True, exist_ok=True)
-    if segment.script:
-        script = segment.script
-        summary = segment.companion
-    else:
-        prompt = (
-            settings["template"].replace(
-                "{context_json}", json.dumps(context, ensure_ascii=False)
-            )
-            + companion_prompt()
-        )
-        raw = run_with_retries(
-            "Episode commentary",
-            lambda: gemini_generate_text(prompt, settings["system"], 0.75, 0.9, False),
-        )
-        script, metadata = split_companion_output(raw)
-        if script == "NO_SCRIPT" or metadata is None:
-            raise ValueError(
-                f"Commentary {segment.id} needs revision: no usable script/summary"
-            )
-        summary = Summary.model_validate(metadata)
-    speech = validate_speech_transcript(script, protected_texts=protected)
-    if len(speech.plain_text.split()) > segment.max_words:
-        raise ValueError(f"Commentary {segment.id} exceeds its word budget")
     (directory / "script.txt").write_text(speech.tts_text + "\n", encoding="utf-8")
     temporary = directory / "speech.partial.mp3"
     try:
@@ -129,10 +108,7 @@ def prepare_narration(
     finally:
         temporary.unlink(missing_ok=True)
     saved = {
-        "script": speech.tts_text,
-        "transcript": speech.plain_text,
-        "companion": summary.model_dump(),
-        "sources": [source.model_dump() for source in segment.sources],
+        **metadata,
         "audio_hash": file_hash(directory / "speech.mp3"),
     }
     write_json(receipt, saved)

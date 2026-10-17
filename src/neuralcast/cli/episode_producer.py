@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from collections.abc import Sequence
 
 from dotenv import load_dotenv
 from neuralcast.config import DEFAULT_STATION_SLUG, ALLOWED_STATION_SLUGS, PROJECT_ROOT
-from neuralcast.pipelines.episode_producer.models import Proposal
+from neuralcast.pipelines.episode_producer.models import Plan, Proposal
+from neuralcast.pipelines.episode_producer.editorial_models import EditorialBrief
+from neuralcast.pipelines.episode_producer.editorial import edit_episode
+from neuralcast.pipelines.episode_producer.manuscript import (
+    approve_manuscript,
+    manuscript_hash,
+    validate_manuscript,
+)
 from neuralcast.pipelines.episode_producer.storage import (
     Project,
     digest,
@@ -34,6 +42,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "init",
             "inspect",
             "approve-proposal",
+            "editorial",
+            "approve-manuscript",
             "validate",
             "prepare",
             "publish",
@@ -47,7 +57,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--proposal", type=Path, help="Initial proposal JSON; init only"
     )
     parser.add_argument(
-        "--hash", help="Exact proposal hash or rendered-audio hash being approved"
+        "--brief",
+        type=Path,
+        help="Editorial concept/song/research brief JSON; init only",
+    )
+    parser.add_argument(
+        "--feedback", default="", help="Owner revision instructions; editorial only"
+    )
+    parser.add_argument(
+        "--hash",
+        help="Exact concept, manuscript, or rendered-audio hash being approved",
     )
     parser.add_argument(
         "--description", help="Listener-facing episode description; publish only"
@@ -60,8 +79,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = {
                 "proposal": proposal.model_dump(),
                 "proposal_hash": digest(proposal.model_dump()),
+                "concept_hash": project.concept_hash(),
                 "documents": str(project.documents),
             }
+            plan_path = project.documents / "plan.json"
+            if plan_path.exists():
+                plan = Plan.model_validate(read_json(plan_path))
+                result["manuscript_hash"] = manuscript_hash(project, plan)
+            editorial_path = project.runtime / "editorial_latest.json"
+            if editorial_path.exists():
+                result["editorial"] = read_json(editorial_path)
             latest = project.runtime / "latest.json"
             if latest.exists():
                 result["latest"] = read_json(latest)
@@ -89,20 +116,43 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise ValueError(
                         "Project already exists; edit its proposal instead"
                     )
+                brief = None
+                if args.brief:
+                    brief = EditorialBrief.model_validate(read_json(args.brief))
+                    if brief.proposal_hash != digest(proposal.model_dump()):
+                        raise ValueError("Brief references a different proposal")
                 write_json(project.documents / "proposal.json", proposal.model_dump())
+                if brief:
+                    write_json(project.documents / "brief.json", brief.model_dump())
                 result = {
                     "proposal_hash": digest(proposal.model_dump()),
+                    "concept_hash": project.concept_hash(),
                     "documents": str(project.documents),
                 }
             elif args.action == "approve-proposal":
                 if not args.hash:
                     raise ValueError(
-                        "Approval requires --hash of the reviewed proposal"
+                        "Approval requires --hash of the reviewed concept from inspect"
                     )
                 project.approve_proposal(args.hash)
-                result = {"approved_proposal": args.hash}
+                result = {"approved_concept": args.hash}
+            elif args.action == "editorial":
+                result = edit_episode(
+                    project,
+                    feedback=args.feedback,
+                    progress=lambda message: print(
+                        message, file=sys.stderr, flush=True
+                    ),
+                )
+            elif args.action == "approve-manuscript":
+                if not args.hash:
+                    raise ValueError(
+                        "Manuscript approval requires --hash from inspect/editorial"
+                    )
+                result = approve_manuscript(project, args.hash)
             elif args.action == "validate":
-                _, _, _, _, revision = validated_inputs(project)
+                _, plan, _, _, revision = validated_inputs(project)
+                validate_manuscript(plan)
                 result = {"valid": True, "revision": revision}
             elif args.action == "publish":
                 if not args.hash:

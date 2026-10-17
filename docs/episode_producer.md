@@ -1,123 +1,98 @@
-# Manual podcast episode production
+# Podcast episode production
 
-This is an agent-operated workshop, not a scheduled producer. Discuss a premise
-with the agent, approve its proposal, let it select existing recordings and write
-commentary, then review the finished audio in AzuraCast. Rendering automatically
-uploads for preview. After review, explicit approval publishes that exact render
-as a standalone podcast on the website. Episode production is podcast-only: it
-does not queue recordings to live radio. There is no episode-review web page,
-scheduler, cron, or host-cadence change. RSS remains deferred.
+The main workflow has two editorial owner approvals. First, discuss the research,
+concept, narrative direction, candidate songs, host language, and timing with the
+owner. Approve that package, run three automated headless Codex stages (research
+and write, review, revise), then return the final Markdown manuscript for the
+owner's approval. Only then synthesize and render the approved scripts for private
+preview. Publication requires separate explicit approval of the finished audio.
 
-## Documents and workflow
+Default to Argentinian Spanish (`es-AR`) unless the owner requests otherwise.
+The owner selects NeuralForge or NeuralCast during concept building; resolve its
+Spanish host channel and record it in the proposal. Ask if the station has not
+been specified, and pass it explicitly rather than relying on the CLI default.
+See [station and language defaults](episode_editorial.md#station-and-language-defaults).
 
-Projects live in `<station>/metadata/episodes/<episode-id>/`. `proposal.json` and
-`plan.json` are local editorial source documents, ignored by Git along with the
-rest of each station's episode project directory.
-Approvals, locks, cached narration, render receipts, and audio live under
-Git-ignored `runtime/episodes/<station>/<episode-id>/`. Keep that runtime directory
-on this VPS: it contains upload and production receipts and must survive restarts.
-Preserve any historical queue receipts for audit; they are not replay instructions.
+This is an on-demand podcast workflow. It does not queue recordings to live
+radio, schedule production, or change live-host cadence. RSS and a separate review
+web page remain outside this version.
 
-1. The agent researches the proposed topic and writes a proposal like this:
+## Editorial workshop and commands
 
-```json
-{
-  "version": 1,
-  "episode_id": "folk-to-fantasy",
-  "channel": "neuralforge-es",
-  "title": "From folk melodies to fantasy metal",
-  "premise": "Explore how folk melody becomes fantasy storytelling.",
-  "target_seconds": 2400,
-  "commentary_budget_seconds": 240,
-  "outline": ["Folk roots", "Heavier arrangements", "Fantasy and theatricality"]
-}
-```
+Read [the editorial workflow](episode_editorial.md) for input schemas, prompts,
+research/review responsibilities, recovery, and approval rules. The exact prompts
+are [write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md),
+[review](../src/neuralcast/assets/stories/prompts/episode_editorial/review.md), and
+[revise](../src/neuralcast/assets/stories/prompts/episode_editorial/revise.md).
+All receive the [shared writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
+and resolved host instructions.
 
-Initialize the project and inspect the resulting proposal hash:
-
-```bash
-python -m neuralcast.cli.episode_producer init -s neuralforge --episode folk-to-fantasy --proposal /tmp/proposal.json
-python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode folk-to-fantasy
-```
-
-2. Once the owner approves that direction, the agent records the reviewed hash:
+Projects live in `<station>/metadata/episodes/<episode-id>/`. `proposal.json`
+defines the premise, channel, target duration, commentary budget, and outline.
+`brief.json` binds that proposal to owner instructions, candidate songs, initial
+research, and estimated timing policy. Both are local, Git-ignored editorial data.
+The agent prepares and discusses these documents with the owner before recording
+concept approval. Existing exact recordings must already be in the station
+catalogue and media library; this workflow never runs sync or downloads songs.
 
 ```bash
-python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --episode folk-to-fantasy --hash PROPOSAL_SHA256
+python -m neuralcast.cli.episode_producer init -s neuralforge --episode EPISODE_ID --proposal /tmp/proposal.json --brief /tmp/brief.json
+python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode EPISODE_ID
+# After owner approval of the concept and candidate songs:
+python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --episode EPISODE_ID --hash CONCEPT_HASH
+python -m neuralcast.cli.episode_producer editorial -s neuralforge --episode EPISODE_ID
+# Read the generated manuscript.md with the owner. No audio exists from this step.
+# After owner approval of that exact manuscript:
+python -m neuralcast.cli.episode_producer approve-manuscript -s neuralforge --episode EPISODE_ID --hash MANUSCRIPT_HASH
+python -m neuralcast.cli.episode_producer validate -s neuralforge --episode EPISODE_ID
+python -m neuralcast.cli.episode_producer prepare -s neuralforge --episode EPISODE_ID
 ```
 
-This command records an approval already given by the owner; an agent must not
-infer approval from the fact that a proposal exists. Editing the proposal
-invalidates its approval. The initial feature implementation does not authorize
-any particular episode or public podcast release.
+`approve-proposal` uses the combined `concept_hash` from inspect when a brief
+exists. `editorial` writes a complete `plan.json` and `manuscript.md`, saving all
+three prompts, contexts, stage results, source evidence, and prior plans under
+`runtime/episodes/<station>/<episode-id>/editorial/<run-hash>/`. It ends at manuscript
+review. Unresolved editorial issues are visible and prevent approval. Unchanged
+reruns resume accepted stages; no unbounded review loop is launched.
 
-3. The agent reads the station playlist definitions and catalog, researches
-supporting facts, and writes `plan.json` in the project directory. It contains
-`version: 1`, `proposal_hash`, and ordered `segments`. The following are segment
-shapes, not approved song selections:
+`approve-manuscript` records the exact concept/plan hash after explicit owner
+approval. Any change invalidates it. `prepare` requires finished scripts and that
+approval before TTS; it no longer generates commentary through Gemini. It uses
+the existing host voice, speech validation, and synthesizer. Unchanged speech is
+cached by script and TTS settings. Existing complete manual plans remain usable
+through the same manuscript approval; old incomplete plans need scripts first.
 
-```json
-{
-  "kind": "music",
-  "id": "folk-roots",
-  "playlist": "Folk Metal",
-  "artist": "Canonical Artist",
-  "title": "Canonical Song",
-  "rationale": "Explain the recording's specific role in the episode."
-}
-```
+Approval is never inferred from a document's existence or an automated review.
+Respect approvals already explicitly given in the session. Preserve rendered
+revisions, receipts, historical queue records, and published catalogues; do not
+rewrite old audio to adopt new editorial guidance.
 
-```json
-{
-  "kind": "commentary",
-  "id": "opening",
-  "role": "opening",
-  "archetype": "short_story",
-  "brief": "Welcome listeners to a new episode of the station podcast, introduce the theme, and preview the musical journey before the first song.",
-  "max_words": 90,
-  "sources": [
-    {"url": "https://example.com/interview", "claim": "The specific supported fact to use."}
-  ]
-}
-```
+## Writing guidance
 
-Begin with an `opening` commentary, end with a `closing`, and include music.
-The opening must sound like the start of a podcast, rather than a radio break:
-welcome listeners to a new episode, name the configured station's podcast,
-introduce the theme and its appeal, and briefly preview the journey before the
-first song. Write it for a newcomer who may never have heard the live station.
-For example, in Spanish: “Bienvenidos a un nuevo episodio del podcast de
-NeuralForge. Hoy vamos a recorrer…” Adapt the wording naturally to the episode,
-brand, and configured host language; this is not a mandatory catchphrase. Do not
-invent an episode number or publication schedule, or assume a previous broadcast.
-Bridges develop the story without restarting the welcome; the closing resolves
-the theme and thanks the listener. Apply the same guidance to manually supplied
-scripts. The generator receives it through `episode_commentary.md`.
+The opening must welcome newcomers to the configured brand's podcast, introduce
+the theme and why it is interesting, and briefly preview the journey in the host
+language. Bridges develop the story without repeating the welcome; the closing
+resolves the theme and thanks the listener. Do not invent a presenter, episode
+number, release date, or schedule. These rules also apply to manual scripts.
 
-Other narration uses `role: bridge`. Allowed writing archetypes are `short_story`,
-`album_spotlight`, `era_snapshot`, `deep_dive`, and `block_intro`. Choose these for
-their delivery guidance, not live-host selection weights. Segment IDs must be
-unique. Use playlist stems, not CSV filenames or paths. Each recording resolves
-to one canonical catalog identity and existing MP3; no sync or download occurs.
-Ambiguous filenames, mismatched ID3 identities, and missing recordings stop work.
+Keep research references out of spoken narration, including manually supplied
+scripts. Publication names, interview citations, books, and URLs belong in the
+structured evidence and Episode guide. Tell the stories directly; distinguish
+conflicting accounts through the participants' perspectives without reading a
+bibliography aloud.
 
-Factual research is supplied by the editorial agent as source URLs and claims.
-The commentary writer uses this evidence without another research pass. A
-commentary may include an explicitly edited `script`, but then must also provide
-`companion: {title, summary, key_points}`. This supports requested revisions.
+Before synthesis, review the complete spoken manuscript in sequence, including
+the music breaks. Give the episode a central question and a causal narrative:
+each bridge should pick up a person, decision, or unresolved consequence from
+earlier, develop it with supported detail, and make the next recording matter
+to that story. Develop important scenes with people, stakes, actions, and
+consequences; avoid a sequence of isolated artist facts or anecdotes chosen only
+because a band's song comes next. Establish relationships before relying on
+them for an emotional ending. Allocate the narration budget to the strongest
+stories, and reduce the song count when the owner wants more depth within the
+same duration. Expression tags support the writing and cannot replace it.
 
-4. Validate, produce, render, and automatically upload:
-
-```bash
-python -m neuralcast.cli.episode_producer validate -s neuralforge --episode folk-to-fantasy
-python -m neuralcast.cli.episode_producer prepare -s neuralforge --episode folk-to-fantasy
-```
-
-Preparation uses the channel's current brand, script style, locale, voice, TTS
-instructions and model configuration. The existing host system prompt and speech
-validation are reused. One commentary-writing call produces speech and its
-reading summary. TTS uses the existing synthesizer. Unchanged narration is cached
-by its inputs; edited or dependent narration is regenerated.
+## Audio preparation and private preview
 
 ffmpeg decodes each segment to 44.1-kHz stereo PCM and applies a common -18 LUFS
 loudness target with a -1.5-dB true-peak target. Complete songs and narration are
@@ -151,18 +126,6 @@ identities. Re-running prepare reuses an unchanged render and confirmed upload.
 Changing inputs creates a new revision and preserves earlier previews. If a
 finished local render is altered or missing, preparation stops rather than
 rebuilding it and resetting its upload/queue receipts.
-
-5. After the owner listens and approves the finished recording for public
-on-demand release, publish the reviewed render:
-
-```bash
-python -m neuralcast.cli.episode_producer publish -s neuralforge --episode folk-to-fantasy --hash RENDER_SHA256 --description 'Listener-facing episode description'
-```
-
-Publication makes the recording and its permanent Episode guide available on the
-website. It never submits an AzuraCast playback request or assigns a rotation
-playlist. The former `approve-and-queue` command has been removed; radio airing
-is not part of this workflow. See the publication/storage details below.
 
 ## Failure and recovery
 
