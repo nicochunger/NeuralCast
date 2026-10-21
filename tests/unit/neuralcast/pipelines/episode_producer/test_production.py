@@ -115,6 +115,7 @@ def test_approved_script_channel_voice_and_companion_are_reused(
     tts = Mock(side_effect=synthesize)
     monkeypatch.setattr(narration, "synthesize_speech", tts)
     settings = narration.writing_settings(channel)
+    assert settings["tts_model"] == "gemini-3.8-flash-lite-tts"
     output = narration.prepare_narration(segment, channel, settings, tmp_path, ())
     assert output["transcript"] == "Une histoire."
     assert output["companion"] == metadata
@@ -137,6 +138,29 @@ def test_approved_script_channel_voice_and_companion_are_reused(
     reused = narration.prepare_narration(changed, channel, settings, tmp_path, ())
     assert reused["companion"]["summary"] == "A revised reading summary."
     assert tts.call_count == 1
+    flash = "gemini-3.8-flash-tts"
+    flash_settings = narration.writing_settings(channel, tts_model=flash)
+    alternative = narration.prepare_narration(
+        segment, channel, flash_settings, tmp_path, ()
+    )
+    assert alternative["path"] != output["path"]
+    assert tts.call_count == 2
+    assert tts.call_args.kwargs["gemini_model"] == flash
+    assert tts.call_args.kwargs["gemini_voice"] == channel.tts_voice
+    assert (
+        narration.prepare_narration(segment, channel, flash_settings, tmp_path, ())
+        == alternative
+    )
+    assert tts.call_count == 2
+
+
+def test_explicit_tts_model_requires_a_supported_gemini_backend(monkeypatch, proposal):
+    channel = get_channel_registry().channels[proposal.channel]
+    with pytest.raises(ValueError, match="Unsupported episode TTS model"):
+        narration.writing_settings(channel, tts_model="wrong-model")
+    monkeypatch.setenv("TTS_PROVIDER", "openai")
+    with pytest.raises(ValueError, match="requires TTS_PROVIDER=gemini"):
+        narration.writing_settings(channel, tts_model="gemini-3.8-flash-lite-tts")
 
 
 def test_missing_script_stops_production_before_tts(tmp_path, monkeypatch, proposal):

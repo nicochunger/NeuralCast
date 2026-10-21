@@ -32,6 +32,7 @@ from neuralcast.pipelines.episode_producer.service import (
 from neuralcast.pipelines.host_orchestrator.transport import AzuraCastClient
 from neuralcast.services.azuracast_config import load_azuracast_settings
 from neuralcast.pipelines.episode_producer.publication import publish
+from neuralcast.pipelines.episode_producer.narration import SUPPORTED_TTS_MODELS
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -71,7 +72,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--description", help="Listener-facing episode description; publish only"
     )
+    parser.add_argument(
+        "--tts-model",
+        choices=SUPPORTED_TTS_MODELS,
+        help="Gemini speech model for prepare/validate only; defaults to GEMINI_TTS_MODEL or gemini-3.8-flash-lite-tts",
+    )
     args = parser.parse_args(argv)
+    if args.tts_model and args.action not in {"prepare", "validate"}:
+        parser.error("--tts-model is supported only for prepare and validate")
     project = Project(args.station, args.episode)
     try:
         if args.action == "inspect":
@@ -100,7 +108,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 production = read_json(project.runtime / revision / "production.json")
                 result["production"] = {
                     key: production.get(key)
-                    for key in ("duration", "uploaded", "queue", "broadcast_title")
+                    for key in (
+                        "duration",
+                        "uploaded",
+                        "queue",
+                        "broadcast_title",
+                        "tts",
+                    )
                 }
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
@@ -151,9 +165,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                 result = approve_manuscript(project, args.hash)
             elif args.action == "validate":
-                _, plan, _, _, revision = validated_inputs(project)
+                _, plan, _, inputs, revision = validated_inputs(
+                    project, tts_model=args.tts_model
+                )
                 validate_manuscript(plan)
-                result = {"valid": True, "revision": revision}
+                result = {
+                    "valid": True,
+                    "revision": revision,
+                    "tts_model": inputs["settings"]["tts_model"],
+                }
             elif args.action == "publish":
                 if not args.hash:
                     raise ValueError(
@@ -164,12 +184,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 load_dotenv(PROJECT_ROOT / ".env")
                 settings = load_azuracast_settings(station=args.station)
                 client = AzuraCastClient(settings.base_url, settings.api_key)
-                receipt = prepare(project, client)
+                receipt = prepare(project, client, tts_model=args.tts_model)
                 result = {
                     "revision": receipt["revision"],
                     "render_hash": receipt["render_hash"],
                     "duration_seconds": receipt["duration"],
                     "uploaded": receipt["uploaded"],
+                    "tts": receipt.get("tts"),
                 }
         print(json.dumps(result, ensure_ascii=False, indent=2))
     except (ValueError, OSError, RuntimeError) as exc:

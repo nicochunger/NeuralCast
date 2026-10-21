@@ -94,6 +94,27 @@ same duration. Expression tags support the writing and cannot replace it.
 
 ## Audio preparation and private preview
 
+Choose the speech model per render with `--tts-model` on `prepare` (and optionally
+`validate` with the same flag):
+
+```bash
+python -m neuralcast.cli.episode_producer prepare -s neuralforge --episode EPISODE_ID --tts-model gemini-3.8-flash-lite-tts
+```
+
+The supported explicit choices are `gemini-3.8-flash-tts` and
+`gemini-3.8-flash-lite-tts`. Without an override, the model remains
+`GEMINI_TTS_MODEL`, defaulting to `gemini-3.8-flash-lite-tts`. An explicit model requires
+the Gemini backend. This option leaves live-host configuration untouched and
+does not change or reapprove the manuscript. The selected model contributes to
+the render revision and speech cache keys, and is recorded with provider/voice
+in the production receipt's `tts` field. Comparing models creates separate
+editions while preserving previous renders; use the same flag on retries to
+resume the intended edition. Validation does not persist the model choice.
+
+Google documents Flash-Lite as a lower-latency, cost-efficient model with the same
+request format and custom-voice support; Flash prioritizes fidelity, acting, and
+regional dialects. See the [official model comparison](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash-lite-tts).
+
 ffmpeg decodes each segment to 44.1-kHz stereo PCM and applies a common -18 LUFS
 loudness target with a -1.5-dB true-peak target. Complete songs and narration are
 concatenated without overlaps, then encoded once to 192-kbps MP3. Chapter offsets

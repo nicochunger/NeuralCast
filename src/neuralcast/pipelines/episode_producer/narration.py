@@ -21,11 +21,21 @@ from .models import Commentary
 from .storage import digest, read_json, write_json, file_hash
 
 TEMPLATE = ASSETS_ROOT / "stories" / "prompts" / "episode_commentary.md"
+SUPPORTED_TTS_MODELS = ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts")
 
 
 def writing_settings(
-    channel: HostChannel, archetype: Archetype = Archetype.SHORT_STORY
+    channel: HostChannel,
+    archetype: Archetype = Archetype.SHORT_STORY,
+    *,
+    tts_model: str | None = None,
 ) -> dict[str, str]:
+    provider = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
+    if tts_model is not None:
+        if tts_model not in SUPPORTED_TTS_MODELS:
+            raise ValueError(f"Unsupported episode TTS model: {tts_model}")
+        if provider != "gemini":
+            raise ValueError("--tts-model requires TTS_PROVIDER=gemini")
     personality = StationPersonality(
         script_profile=channel.script_style_override or channel.brand.script_style,
         tts_profile=channel.brand.tts_style,
@@ -46,8 +56,8 @@ def writing_settings(
         ),
         "template": TEMPLATE.read_text(encoding="utf-8"),
         "voice": channel.tts_voice,
-        "tts_model": DEFAULT_GEMINI_TTS_MODEL,
-        "provider": os.getenv("TTS_PROVIDER", "gemini").strip().lower(),
+        "tts_model": tts_model or DEFAULT_GEMINI_TTS_MODEL,
+        "provider": provider,
     }
 
 

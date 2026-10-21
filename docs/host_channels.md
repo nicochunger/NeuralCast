@@ -10,6 +10,13 @@ in `src/neuralcast/assets/stories/host_channels.json`:
 - a **channel** selects the AzuraCast target station and combines one brand with
   one locale.
 
+All channels use the shared Gemini speech-model default,
+`gemini-3.8-flash-lite-tts`, from `services/ai_client.py`. Episode narration,
+direct speech synthesis, and the voice-creation CLI inherit the same default.
+`GEMINI_TTS_MODEL` can override it globally; episode renders can select a model
+explicitly with `--tts-model`. Channel voice identities and delivery instructions
+are configured separately from the model.
+
 Combined host behavior lives separately in
 `src/neuralcast/assets/stories/archetype_profiles.json`. It defines reusable,
 inheritable profiles for song spacing, speaking deadlines, cooldown multipliers,

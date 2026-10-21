@@ -152,6 +152,60 @@ def test_removed_queue_command_is_rejected_before_operational_work():
     assert exc.value.code == 2
 
 
+def test_tts_model_override_creates_distinct_reusable_render_and_receipt(production):
+    project, client, proposal_hash = production
+    approve(project, proposal_hash)
+    original = service.prepare(project, client)
+    assert original["tts"]["model"] == "gemini-3.8-flash-lite-tts"
+    flash = service.prepare(project, client, tts_model="gemini-3.8-flash-tts")
+    assert original["revision"] != flash["revision"]
+    assert flash["tts"]["model"] == "gemini-3.8-flash-tts"
+    assert flash["tts"]["voice"] == original["tts"]["voice"]
+    assert (project.runtime / original["revision"] / "production.json").exists()
+    assert (
+        service.prepare_narration.call_args.args[2]["tts_model"]
+        == "gemini-3.8-flash-tts"
+    )
+    assert (
+        service.prepare(project, client, tts_model="gemini-3.8-flash-tts") == flash
+    )
+    assert service.render.call_count == 2
+    assert client.upload_media.call_count == 2
+
+
+def test_cli_forwards_model_choice_and_rejects_it_outside_rendering(
+    production, monkeypatch
+):
+    from types import SimpleNamespace
+    from neuralcast.cli import episode_producer as cli
+
+    project, client, _ = production
+    monkeypatch.setattr(cli, "Project", lambda *args: project)
+    monkeypatch.setattr(
+        cli,
+        "load_azuracast_settings",
+        lambda **kw: SimpleNamespace(base_url="unused", api_key="unused"),
+    )
+    monkeypatch.setattr(cli, "AzuraCastClient", lambda *args: client)
+    prepare = Mock(
+        return_value={
+            "revision": "r",
+            "render_hash": "h",
+            "duration": 10,
+            "uploaded": {},
+        }
+    )
+    monkeypatch.setattr(cli, "prepare", prepare)
+    arguments = ["--episode", project.id, "--tts-model", "gemini-3.8-flash-lite-tts"]
+    assert cli.main(["prepare", *arguments]) == 0
+    prepare.assert_called_once_with(
+        project, client, tts_model="gemini-3.8-flash-lite-tts"
+    )
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["editorial", *arguments])
+    assert exc.value.code == 2
+
+
 def legacy_guide(receipt, directory):
     """Seed the old on-disk format without a production writer or queue action."""
     uploaded = receipt["uploaded"]

@@ -34,6 +34,8 @@ def channel_for(project: Project, proposal: Proposal) -> HostChannel:
 
 def validated_inputs(
     project: Project,
+    *,
+    tts_model: str | None = None,
 ) -> tuple[Proposal, Plan, HostChannel, dict[str, Any], str]:
     proposal, approved_hash = project.approved_proposal()
     channel = channel_for(project, proposal)
@@ -47,7 +49,7 @@ def validated_inputs(
         for part in plan.segments
         if isinstance(part, Music)
     }
-    settings = writing_settings(channel)
+    settings = writing_settings(channel, tts_model=tts_model)
     fingerprint = digest(
         {
             "proposal": proposal.model_dump(),
@@ -71,9 +73,16 @@ def validated_inputs(
     )
 
 
-def prepare(project: Project, client: AzuraCastClient) -> dict[str, Any]:
+def prepare(
+    project: Project,
+    client: AzuraCastClient,
+    *,
+    tts_model: str | None = None,
+) -> dict[str, Any]:
     """The caller holds project.lock(); no queue submission occurs here."""
-    proposal, plan, channel, inputs, revision = validated_inputs(project)
+    proposal, plan, channel, inputs, revision = validated_inputs(
+        project, tts_model=tts_model
+    )
     directory = project.runtime / revision
     receipt_path = directory / "production.json"
     if receipt_path.exists():
@@ -173,6 +182,11 @@ def prepare(project: Project, client: AzuraCastClient) -> dict[str, Any]:
         "broadcast_title": broadcast_title,
         "summary": proposal.premise,
         "duration": duration,
+        "tts": {
+            "model": inputs["settings"]["tts_model"],
+            "provider": inputs["settings"]["provider"],
+            "voice": inputs["settings"]["voice"],
+        },
         "chapters": chapters,
         "uploaded": None,
     }

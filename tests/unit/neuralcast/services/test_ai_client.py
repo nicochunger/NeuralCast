@@ -29,7 +29,7 @@ class AIClientDefaultsTest(unittest.TestCase):
         self.assertEqual(DEFAULT_GEMINI_TEXT_MODEL, "gemini-3.8-flash")
 
     def test_default_gemini_tts_model_matches_expected_model_id(self) -> None:
-        self.assertEqual(DEFAULT_GEMINI_TTS_MODEL, "gemini-3.8-flash-tts")
+        self.assertEqual(DEFAULT_GEMINI_TTS_MODEL, "gemini-3.8-flash-lite-tts")
 
     def test_ensure_story_assets_uses_default_gemini_tts_model(self) -> None:
         track = QueueTrack(

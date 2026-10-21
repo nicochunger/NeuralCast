@@ -37,7 +37,7 @@ DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3.8-flash")
 # Keep the private name for callers that imported it before the public constant
 # was introduced.
 _DEFAULT_GEMINI_TEXT_MODEL = DEFAULT_GEMINI_TEXT_MODEL
-DEFAULT_GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
+DEFAULT_GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-3.8-flash-lite-tts")
 
 
 def get_openai_client() -> openai.OpenAI:
