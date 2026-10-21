@@ -51,7 +51,7 @@ def test_all_repository_cron_definitions_use_zurich_time() -> None:
 def test_host_orchestrator_cron_preserves_production_configuration() -> None:
     entries = _cron_entries("neuralcast-host-orchestrator")
 
-    assert len(entries) == 3
+    assert len(entries) == 2
     _assert_entry(
         entries[0],
         schedule=("*", "*", "*", "*", "*"),
@@ -64,11 +64,17 @@ def test_host_orchestrator_cron_preserves_production_configuration() -> None:
         invocation="-m neuralcast.cli.host_orchestrator -s neuralforge",
         log_path="runtime/logs/host_orchestrator/neuralforge/cron.log",
     )
+    assert all("--channel neuralforge-fr" not in command for _, command in entries)
+
+
+def test_host_retention_runs_daily_without_generating_or_queueing() -> None:
+    entries = _cron_entries("neuralcast-host-retention")
+    assert len(entries) == 1
     _assert_entry(
-        entries[2],
-        schedule=("*", "*", "*", "*", "*"),
-        invocation="-m neuralcast.cli.host_orchestrator --channel neuralforge-fr",
-        log_path="runtime/logs/host_orchestrator/neuralforge-fr/cron.log",
+        entries[0],
+        schedule=("0", "3", "*", "*", "*"),
+        invocation="-m neuralcast.cli.cleanup_host_stories",
+        log_path="runtime/logs/host_retention.log",
     )
 
 

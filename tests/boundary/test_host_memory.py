@@ -184,6 +184,7 @@ def test_only_successful_queue_insertion_commits_memory(monkeypatch, tmp_path, f
             channel_key="neuralforge-es"
         ).archetype_policy,
         remote_prefix="stories",
+        media_owner_station="neuralforge",
     )
     runtime = SimpleNamespace(client=client, channel=channel, station_id=1)
     current = QueueTrack("a", "1", "Artist", "Song", 240)
@@ -210,12 +211,13 @@ def test_only_successful_queue_insertion_commits_memory(monkeypatch, tmp_path, f
     monkeypatch.setattr(main, "build_request_command", lambda **_: "queue")
     monkeypatch.setattr(main, "log_segment_event", lambda **_: None)
     monkeypatch.setattr(main, "cleanup_local_stories", lambda *_: None)
-    monkeypatch.setattr(main, "cleanup_remote_stories", lambda *_, **__: None)
+    cleanup_remote = Mock()
+    monkeypatch.setattr(main, "cleanup_remote_stories", cleanup_remote)
 
     def publish():
         return main._publish_segment(
             SimpleNamespace(
-                station="neuralforge", keep_local_days=7, keep_remote_days=7
+                station="neuralforge_fr", keep_local_days=7, keep_remote_days=7
             ),
             runtime,
             playback,
@@ -234,9 +236,17 @@ def test_only_successful_queue_insertion_commits_memory(monkeypatch, tmp_path, f
         with pytest.raises(RuntimeError):
             publish()
         assert state.broadcast_memory == []
+        cleanup_remote.assert_not_called()
     else:
         publish()
         assert len(state.broadcast_memory) == 1
         assert state.broadcast_memory[0]["media_id"] == "42"
         assert state.broadcast_memory[0]["callback_source_id"] == "earlier"
         assert state.broadcast_memory[0]["expected_play_at"] == NOW + 120
+        cleanup_remote.assert_called_once_with(
+            client,
+            "neuralforge_fr",
+            7,
+            remote_prefix="stories",
+            media_owner_station="neuralforge",
+        )

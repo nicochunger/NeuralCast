@@ -72,26 +72,61 @@ root's personal crontab:
 
 ```bash
 sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-host-orchestrator /etc/cron.d/neuralcast-host-orchestrator
+sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-host-retention /etc/cron.d/neuralcast-host-retention
 sudo install -m 0644 /root/projects/NeuralCast/deployment/cron/neuralcast-schedule-generator /etc/cron.d/neuralcast-schedule-generator
 sudo systemctl restart cron
 ```
 
 Remove any equivalent personal-crontab entries before installing these files so
-the same cycle cannot run twice. Both definitions use Europe/Zurich time. The
+the same cycle cannot run twice. All definitions use Europe/Zurich time. The
 production cadence is:
 
-- one normal host cycle every minute on NeuralCast and both NeuralForge channels,
-  including scheduled-block-intro checks;
+- one normal host cycle every minute on the Spanish NeuralCast and NeuralForge
+  channels, including scheduled-block-intro checks;
+- French NeuralForge host checks are paused while that stream is disabled;
+- daily host snippet retention at `03:00`, including paused channels;
 - NeuralForge weekly schedule generation Monday at `00:05`;
 - NeuralCast weekly schedule generation Monday at `00:15`.
 
 Speaking frequency is controlled by each channel's `host_profile` in
 `src/neuralcast/assets/stories/host_channels.json`. Cadence and archetype
 settings live together in `archetype_profiles.json`. NeuralCast uses `relaxed`;
-both NeuralForge channels use `frequent`. Profile edits reload next cycle without
+NeuralForge Spanish uses `frequent`; French retains its profile while paused.
+Profile edits reload next cycle without
 reinstalling cron or restarting the API. See `docs/host_channels.md` for switching,
 inheritance, and saved-state transition rules. Do not install additional
 intro-only cron entries alongside these normal cycles.
+
+### Host snippet retention
+
+Install `deployment/cron/neuralcast-host-retention` into `/etc/cron.d/` alongside
+the other repository-managed jobs. It runs at 03:00 every day, independently of
+listeners, playback, or a successful host broadcast:
+
+```bash
+python -m neuralcast.cli.cleanup_host_stories --dry-run
+python -m neuralcast.cli.cleanup_host_stories
+```
+
+This includes disabled channels, using each channel's media-owner station API
+rather than its disabled stream. It retains local snippets for 3 days and remote
+ones for 7 days by default; podcasts remain outside the cleanup prefixes.
+
+After a snippet is successfully uploaded and queued, the host removes remote
+recordings older than `--keep-remote-days` (default: 7) through the AzuraCast
+API, then prunes empty `YYYY-MM-DD` folders directly under that channel's
+`remote_prefix`. Folder pruning uses the configured `media_owner_station`'s
+existing `songs` symlink on this VPS, including for channels with shared media.
+It uses `rmdir`, so nonempty folders, channel/locale parents, and other channels
+are preserved. Additional symlinks inside the media tree are skipped.
+
+A nonpositive `--keep-remote-days` disables both remote file and folder cleanup.
+Failed media inventory skips cleanup; individual deletion failures are logged
+and do not prevent pruning other empty date folders. Legacy folders outside the
+current channel prefix require a separate empty-folder sweep; the normal cycle
+does not expand its file-retention scope to include them. Cron and admin jobs
+launch fresh CLI processes. Changes to API capabilities or
+job construction require restarting `neuralcast-admin-api` and checking `/healthz`.
 
 ### Block intro preparation and insertion
 

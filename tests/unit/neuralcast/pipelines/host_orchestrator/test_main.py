@@ -4,19 +4,43 @@ from __future__ import annotations
 
 import argparse
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 from neuralcast.pipelines.host_orchestrator import main as host_main
-from neuralcast.pipelines.host_orchestrator.models import Archetype, QueueTrack, TrackFocus
+from neuralcast.pipelines.host_orchestrator.models import (
+    Archetype,
+    QueueTrack,
+    TrackFocus,
+)
 from neuralcast.pipelines.host_orchestrator.state import default_state
 import random
 
 
+def test_paused_channel_skips_before_credentials_or_api_calls():
+    settings = Mock(
+        side_effect=AssertionError("Paused channel must not load credentials")
+    )
+    runtime = host_main.HostOrchestratorRuntime(
+        host_main.HostRuntimeDependencies(load_settings=settings)
+    )
+    result = runtime.run_cycle(
+        host_main.HostCycleRequest(
+            station="neuralforge", base_url=None, channel="neuralforge-fr"
+        )
+    )
+    assert result.reason == "channel disabled"
+    settings.assert_not_called()
+
+
 def test_validate_runtime_args_accepts_empty_focus() -> None:
-    assert host_main.validate_runtime_args(
-        argparse.Namespace(force_archetype=None, force_track_focus=None)
-    ) is None
+    assert (
+        host_main.validate_runtime_args(
+            argparse.Namespace(force_archetype=None, force_track_focus=None)
+        )
+        is None
+    )
 
 
 def test_validate_runtime_args_rejects_invalid_focus_pairing() -> None:
@@ -65,13 +89,19 @@ def _now_playing(*, remaining: int = 120, listeners: int | None = 4) -> dict:
     return payload
 
 
-def test_fetch_playback_context_applies_listener_and_lead_time_gates(monkeypatch) -> None:
+def test_fetch_playback_context_applies_listener_and_lead_time_gates(
+    monkeypatch,
+) -> None:
     args = SimpleNamespace(station="neuralforge", min_listeners=3)
     state = default_state(0, random.Random(1))
     monkeypatch.setattr(host_main, "now_ts", lambda: 100.0)
 
-    low_listener_client = SimpleNamespace(get_now_playing=lambda _station: _now_playing(listeners=2))
-    short_track_client = SimpleNamespace(get_now_playing=lambda _station: _now_playing(remaining=10))
+    low_listener_client = SimpleNamespace(
+        get_now_playing=lambda _station: _now_playing(listeners=2)
+    )
+    short_track_client = SimpleNamespace(
+        get_now_playing=lambda _station: _now_playing(remaining=10)
+    )
     good_client = SimpleNamespace(get_now_playing=lambda _station: _now_playing())
 
     assert host_main._fetch_playback_context(args, low_listener_client, state) is None
@@ -90,9 +120,13 @@ def test_fetch_queue_context_and_forced_archetype_resolution(monkeypatch) -> Non
     next_track = QueueTrack("next", "2", "Gojira", "Mea Culpa", 240)
     playback = host_main.PlaybackContext(current, 120, "ghost|rats", 4)
     client = SimpleNamespace(get_upcoming_queue=lambda _station: {"queue": []})
-    monkeypatch.setattr(host_main, "parse_queue_tracks", lambda _payload: [current, next_track])
+    monkeypatch.setattr(
+        host_main, "parse_queue_tracks", lambda _payload: [current, next_track]
+    )
     monkeypatch.setattr(host_main, "now_ts", lambda: 100.0)
-    monkeypatch.setattr(host_main, "resolve_schedule_context_for_upcoming_break", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        host_main, "resolve_schedule_context_for_upcoming_break", lambda **_kwargs: None
+    )
 
     queue_context = host_main._fetch_queue_context(args, client, playback, None, {})
 
@@ -104,17 +138,32 @@ def test_fetch_queue_context_and_forced_archetype_resolution(monkeypatch) -> Non
     assert (forced, automatic) == (Archetype.NEWS, False)
 
 
-def test_select_archetype_respects_closed_gate_and_short_forced_lead_time(monkeypatch) -> None:
+def test_select_archetype_respects_closed_gate_and_short_forced_lead_time(
+    monkeypatch,
+) -> None:
     args = SimpleNamespace(archetype_profile="default")
     current = QueueTrack("current", "1", "Ghost", "Rats", 240)
     playback = host_main.PlaybackContext(current, 5, "ghost|rats", 4)
     queue_context = host_main.QueueContext([], current, None, 100)
     state = default_state(100, random.Random(1))
 
-    assert host_main._select_archetype(
-        args, state, playback, queue_context, Archetype.SHORT_STORY, False, None, random.Random(1)
-    ) is None
+    assert (
+        host_main._select_archetype(
+            args,
+            state,
+            playback,
+            queue_context,
+            Archetype.SHORT_STORY,
+            False,
+            None,
+            random.Random(1),
+        )
+        is None
+    )
     monkeypatch.setattr(host_main, "should_speak_now", lambda *_args: (False, "wait"))
-    assert host_main._select_archetype(
-        args, state, playback, queue_context, None, False, None, random.Random(1)
-    ) is None
+    assert (
+        host_main._select_archetype(
+            args, state, playback, queue_context, None, False, None, random.Random(1)
+        )
+        is None
+    )

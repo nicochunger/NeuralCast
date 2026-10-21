@@ -111,9 +111,9 @@ Schedule generator:
 python -m neuralcast.cli.schedule_generator --dry-run -s neuralforge
 ```
 
-Applying a generated `neuralforge` schedule updates both the Spanish
-`neuralforge` station and the French `neuralforge_fr` station. Playlist IDs are
-matched by name so both streams follow the same weekly plan.
+Applying a generated `neuralforge` schedule updates its Spanish station and any
+enabled French mirror. The French stream is currently paused, so it is skipped.
+Playlist IDs are matched by name when the mirror is enabled.
 
 `OPEN_ROTATION_ONLY_PLAYLISTS` in
 `src/neuralcast/pipelines/schedule_generator/config.py` lists playlists that can
@@ -159,7 +159,7 @@ canonical news IDs and country codes in configuration; localized labels are
 kept in the policy catalog and model output is validated against the effective
 channel policy.
 
-The French NeuralForge channel currently inherits `neuralforge`, removes
+The paused French NeuralForge channel retains the `frequent` profile, removes
 Argentine political/general news, and replaces the concert-country list with
 Switzerland (`CH`) only. See [docs/host_channels.md](docs/host_channels.md) for
 the schema, precedence rules, and extension examples.

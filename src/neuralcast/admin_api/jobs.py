@@ -161,7 +161,7 @@ def build_force_archetype_command(
 ) -> tuple[list[str], dict[str, str], Path]:
     """Return the argv, environment, and cwd for the real host-orchestrator CLI."""
 
-    python_executable = project_root / "venv" / "bin" / "python"
+    python_executable = project_root / ".venv" / "bin" / "python"
     if not python_executable.exists():
         python_executable = Path(sys.executable)
 
@@ -207,7 +207,7 @@ def build_schedule_generator_command(
 ) -> tuple[list[str], dict[str, str], Path]:
     """Return the argv, environment, and cwd for the real schedule-generator CLI."""
 
-    python_executable = project_root / "venv" / "bin" / "python"
+    python_executable = project_root / ".venv" / "bin" / "python"
     if not python_executable.exists():
         python_executable = Path(sys.executable)
 
@@ -435,7 +435,7 @@ class JobManager:
 
         return {
             "stations": list(SUPPORTED_STATIONS),
-            "host_channels": list(SUPPORTED_HOST_CHANNELS),
+            "host_channels": list(host_channel_keys(enabled_only=True)),
             "archetypes": list(SUPPORTED_ARCHETYPES),
         }
 
@@ -444,7 +444,7 @@ class JobManager:
 
         return {
             "stations": list(SUPPORTED_STATIONS),
-            "host_channels": list(SUPPORTED_HOST_CHANNELS),
+            "host_channels": list(host_channel_keys(enabled_only=True)),
             "archetypes": list(SUPPORTED_ARCHETYPES),
             "track_focus_values": list(SUPPORTED_TRACK_FOCUSES),
             "track_focus_archetypes": list(SUPPORTED_TRACK_FOCUS_ARCHETYPES),
@@ -685,7 +685,9 @@ def _normalize_schedule_options(
     min_block_minutes: int | None,
     max_block_minutes: int | None,
 ) -> dict[str, object]:
-    normalized_seed_mode = str(seed_mode or DEFAULT_ADMIN_SCHEDULE_SEED_MODE).strip().lower()
+    normalized_seed_mode = (
+        str(seed_mode or DEFAULT_ADMIN_SCHEDULE_SEED_MODE).strip().lower()
+    )
     normalized_seed_salt = str(seed_salt).strip() if seed_salt is not None else None
     if normalized_seed_salt == "":
         normalized_seed_salt = None

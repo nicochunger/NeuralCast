@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import pytest
+
 from neuralcast.pipelines.host_orchestrator.channels import (
     get_channel_registry,
     resolve_host_channel,
@@ -173,3 +176,21 @@ def test_all_configured_channels_reference_loaded_brand_and_locale() -> None:
         assert channel.locale.tag in registry.locales
         assert channel.brand.script_style
         assert channel.brand.tts_style
+
+
+def test_paused_channels_are_retained_but_not_advertised():
+    from neuralcast.pipelines.host_orchestrator.channels import host_channel_keys
+
+    assert resolve_host_channel(channel_key="neuralforge-fr").enabled is False
+    assert resolve_host_channel(channel_key="neuralcast-en").enabled is False
+    assert host_channel_keys(enabled_only=True) == ("neuralcast-es", "neuralforge-es")
+    assert "neuralforge-fr" in host_channel_keys()
+
+
+def test_channel_enabled_flag_requires_boolean():
+    from neuralcast.pipelines.host_orchestrator import channels
+
+    payload = json.loads(channels.CHANNEL_CONFIG_PATH.read_text())
+    payload["channels"]["neuralforge-fr"]["enabled"] = "false"
+    with pytest.raises(ValueError, match="enabled must be a boolean"):
+        channels.load_channel_registry(contents=json.dumps(payload).encode())

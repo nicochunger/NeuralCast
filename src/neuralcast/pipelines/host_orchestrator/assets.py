@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import errno
 import json
 import pathlib
 import re
@@ -24,6 +25,7 @@ from .speech import validate_speech_transcript
 from .transport import AzuraCastClient
 from .utils import normalize_component, track_key
 from neuralcast.audio.album_art import embed_local_cover_art
+from neuralcast.config import station_dir_from_slug
 from neuralcast.metadata.constants import NEW_RELEASES_METADATA_FILENAME
 from neuralcast.services.ai_client import (
     DEFAULT_GEMINI_TTS_MODEL,
@@ -220,7 +222,9 @@ def ensure_story_assets(
     )
 
 
-def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
+def cleanup_local_stories(
+    station_slug: str, keep_days: int, *, dry_run: bool = False
+) -> None:
     if keep_days <= 0:
         return
 
@@ -239,15 +243,87 @@ def cleanup_local_stories(station_slug: str, keep_days: int) -> None:
         except OSError:
             continue
         if mtime < cutoff:
-            file_path.unlink(missing_ok=True)
+            if dry_run:
+                LOGGER.info("[cleanup] Would delete local story asset: %s", file_path)
+            else:
+                file_path.unlink(missing_ok=True)
 
     # Prune empty dated folders left behind after file cleanup.
     subdirs = [path for path in base_dir.rglob("*") if path.is_dir()]
     for dir_path in sorted(subdirs, key=lambda path: len(path.parts), reverse=True):
+        if dry_run:
+            continue
         try:
             dir_path.rmdir()
         except OSError:
             continue
+
+
+def prune_empty_story_date_folders(
+    media_owner_station: str, remote_prefix: str, *, dry_run: bool = False
+) -> int:
+    """Remove only empty dated children of a prefix in the VPS media tree.
+
+    The station's songs symlink is intentional. Do not follow additional
+    symlinks inside that media tree or remove channel/locale parent folders.
+    rmdir checks emptiness at deletion time, including concurrent uploads.
+    """
+    prefix = pathlib.PurePosixPath(remote_prefix)
+    if (
+        not remote_prefix
+        or not prefix.parts
+        or prefix.is_absolute()
+        or ".." in prefix.parts
+        or "\\" in remote_prefix
+        or str(prefix) != remote_prefix
+    ):
+        raise ValueError("Story prefix must be a canonical relative path")
+
+    base_dir = station_dir_from_slug(media_owner_station) / "songs"
+    removed = 0
+    try:
+        for part in prefix.parts:
+            base_dir = base_dir / part
+            if base_dir.is_symlink():
+                LOGGER.warning(
+                    "[cleanup] Skipping symlinked story prefix: %s", base_dir
+                )
+                return 0
+
+        for directory in base_dir.iterdir():
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", directory.name):
+                continue
+            try:
+                dt.date.fromisoformat(directory.name)
+            except ValueError:
+                continue
+            if directory.is_symlink() or not directory.is_dir():
+                continue
+            try:
+                if dry_run:
+                    if not any(directory.iterdir()):
+                        LOGGER.info(
+                            "[cleanup] Would remove empty story folder: %s", directory
+                        )
+                    continue
+                directory.rmdir()
+            except OSError as exc:
+                if exc.errno not in {errno.ENOTEMPTY, errno.EEXIST, errno.ENOENT}:
+                    LOGGER.warning(
+                        "[cleanup] Unable to remove empty story folder '%s': %s",
+                        directory,
+                        exc,
+                    )
+            else:
+                removed += 1
+                LOGGER.info("[cleanup] Removed empty story folder: %s", directory)
+    except FileNotFoundError:
+        pass  # A channel may not have uploaded any stories yet.
+    except OSError as exc:
+        LOGGER.warning(
+            "[cleanup] Unable to inspect story folder '%s': %s", base_dir, exc
+        )
+    return removed
 
 
 def cleanup_remote_stories(
@@ -255,7 +331,11 @@ def cleanup_remote_stories(
     station_slug: str,
     keep_days: int,
     remote_prefix: str = "AI Stories",
+    *,
+    media_owner_station: str,
+    dry_run: bool = False,
 ) -> None:
+    """Expire API media, then prune empty dates in the owner's channel folder."""
     if keep_days <= 0:
         return
 
@@ -279,7 +359,14 @@ def cleanup_remote_stories(
         try:
             if float(mtime) >= cutoff_ts:
                 continue
-            client.delete_media_file(station_slug, int(media_id))
+            if dry_run:
+                LOGGER.info(
+                    "[cleanup] Would delete remote story: %s (media_id=%s)",
+                    path,
+                    media_id,
+                )
+            else:
+                client.delete_media_file(station_slug, int(media_id))
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning(
                 "[cleanup] Failed deleting remote story file '%s' (media_id=%s): %s",
@@ -287,3 +374,5 @@ def cleanup_remote_stories(
                 media_id,
                 exc,
             )
+
+    prune_empty_story_date_folders(media_owner_station, remote_prefix, dry_run=dry_run)

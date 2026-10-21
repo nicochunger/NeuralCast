@@ -138,6 +138,7 @@
       "legacy_station": "neuralcast"
     },
     "neuralcast-en": {
+      "enabled": false,
       "azuracast_station": "neuralcast_shared_media_test",
       "azuracast_station_id": 3,
       "brand": "neuralcast",
@@ -159,6 +160,7 @@
       "legacy_station": "neuralforge"
     },
     "neuralforge-fr": {
+      "enabled": false,
       "azuracast_station": "neuralforge_fr",
       "azuracast_station_id": 4,
       "brand": "neuralforge",

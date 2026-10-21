@@ -92,6 +92,7 @@ class HostChannel:
     tts_instructions_override_path: pathlib.Path | None = None
     tts_voice_override: str | None = None
     legacy_station: str | None = None
+    enabled: bool = True
 
     @property
     def content_station(self) -> str:
@@ -241,6 +242,9 @@ def load_channel_registry(
         if not isinstance(raw, Mapping):
             raise ValueError(f"Channel '{key}' must be an object.")
         channel_key = str(key).strip()
+        enabled = raw.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ValueError(f"Channel '{key}' enabled must be a boolean.")
         brand_key = _required_string(raw, "brand", f"channel '{key}'")
         locale_key = _required_string(raw, "locale", f"channel '{key}'")
         if brand_key not in brands:
@@ -315,6 +319,7 @@ def load_channel_registry(
             tts_instructions_override_path=tts_instructions_override_path,
             tts_voice_override=tts_voice_override,
             legacy_station=(str(raw.get("legacy_station") or "").strip() or None),
+            enabled=enabled,
         )
 
     legacy_raw = _mapping(
@@ -361,8 +366,12 @@ def resolve_host_channel(
     )
 
 
-def host_channel_keys() -> tuple[str, ...]:
-    return tuple(get_channel_registry().channels)
+def host_channel_keys(*, enabled_only: bool = False) -> tuple[str, ...]:
+    return tuple(
+        key
+        for key, channel in get_channel_registry().channels.items()
+        if channel.enabled or not enabled_only
+    )
 
 
 __all__ = [

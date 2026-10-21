@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
+from dataclasses import replace
 from typing import Any, Mapping, Sequence
 
 import pytest
@@ -20,6 +21,34 @@ from neuralcast.pipelines.schedule_generator.runtime import (
     StationScheduleContext,
 )
 from tests.factories import station_playlist_factory
+from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
+
+
+@pytest.fixture(autouse=True)
+def enabled_mirror(monkeypatch):
+    """Exercise mirroring independently of the current production pause."""
+    from neuralcast.pipelines.schedule_generator import runtime
+
+    registry = get_channel_registry()
+    channels = dict(registry.channels)
+    channels["neuralforge-fr"] = replace(channels["neuralforge-fr"], enabled=True)
+    monkeypatch.setattr(
+        runtime, "get_channel_registry", lambda: replace(registry, channels=channels)
+    )
+
+
+def test_runtime_skips_paused_mirror(tmp_path, monkeypatch):
+    from neuralcast.pipelines.schedule_generator import runtime as module
+
+    monkeypatch.setattr(module, "get_channel_registry", get_channel_registry)
+    remote = FakeRemote()
+    state = MemoryStateStore(path=tmp_path / "state.json")
+    runtime = ScheduleGeneratorRuntime(
+        remote=remote, state_store=state, planner=lambda **kwargs: weekly_plan_factory()
+    )
+    runtime.run(request_factory(tmp_path))
+    assert [station for station, _ in remote.apply_calls] == ["neuralforge"]
+    assert state.saved_payloads[-1]["applied_station_slugs"] == ["neuralforge"]
 
 
 def daily_block_factory() -> DailyTemplateBlock:
@@ -72,7 +101,9 @@ def weekly_plan_factory(
 class FakeRemote:
     def __init__(self) -> None:
         self.playlists = [station_playlist_factory(name="Prog")]
-        self.mirror_playlists = [station_playlist_factory(playlist_id="20", name="Prog")]
+        self.mirror_playlists = [
+            station_playlist_factory(playlist_id="20", name="Prog")
+        ]
         self.apply_calls: list[tuple[str, Sequence[StationPlaylist]]] = []
         self.applied_templates: list[tuple[str, Sequence[DailyTemplateBlock]]] = []
 

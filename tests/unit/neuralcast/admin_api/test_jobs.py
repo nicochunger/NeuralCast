@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import pytest
 
 from neuralcast.admin_api import jobs
 
 
 def test_build_job_id_uses_station_and_label() -> None:
-    assert jobs.build_job_id(
-        "neuralforge",
-        "deep_dive",
-        now=datetime(2026, 3, 14, 15, 30, 12, tzinfo=UTC),
-    ) == "20260314T153012Z-neuralforge-deep_dive"
+    assert (
+        jobs.build_job_id(
+            "neuralforge",
+            "deep_dive",
+            now=datetime(2026, 3, 14, 15, 30, 12, tzinfo=UTC),
+        )
+        == "20260314T153012Z-neuralforge-deep_dive"
+    )
 
 
 def test_build_job_command_dispatches_by_operation(tmp_path) -> None:
@@ -59,3 +63,28 @@ def test_read_log_tail_returns_last_lines(tmp_path) -> None:
     log_path.write_text("one\ntwo\nthree\n", encoding="utf-8")
 
     assert jobs.read_log_tail(log_path, max_lines=2) == "two\nthree\n"
+
+
+@pytest.mark.parametrize("operation", ["host", "schedule"])
+def test_job_commands_prefer_supported_dot_venv(tmp_path, operation):
+    python = tmp_path / ".venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.touch()
+    if operation == "host":
+        argv, _, _ = jobs.build_force_archetype_command(
+            "neuralforge", "back_sell", None, True, project_root=tmp_path
+        )
+    else:
+        argv, _, _ = jobs.build_schedule_generator_command(
+            "neuralforge", True, project_root=tmp_path
+        )
+    assert argv[0] == str(python)
+
+
+def test_capabilities_hide_paused_channels(tmp_path):
+    manager = jobs.JobManager(base_dir=tmp_path)
+    assert manager.options()["host_channels"] == ["neuralcast-es", "neuralforge-es"]
+    assert manager.capabilities()["host_channels"] == [
+        "neuralcast-es",
+        "neuralforge-es",
+    ]

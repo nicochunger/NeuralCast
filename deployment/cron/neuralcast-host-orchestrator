@@ -7,4 +7,5 @@ CRON_TZ=Europe/Zurich
 
 * * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
 
-* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1
+# French stream paused. Re-enable the channel and this entry when it returns.
+# * * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1

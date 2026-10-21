@@ -748,6 +748,7 @@ def _publish_segment(
         args.station,
         args.keep_remote_days,
         remote_prefix=runtime.channel.remote_prefix,
+        media_owner_station=runtime.channel.media_owner_station,
     )
     return PublishResult(
         queued_request_id=request_id,
@@ -976,6 +977,13 @@ class HostOrchestratorRuntime:
         deps = self.dependencies
         args = _args_from_cycle_request(request)
         channel = resolve_host_channel(channel_key=args.channel)
+        if not channel.enabled:
+            return HostCycleResult(
+                status="skipped",
+                reason="channel disabled",
+                station=args.station,
+                channel=channel.key,
+            )
         deps.configure_logging()
         forced_track_focus = validate_runtime_args(args)
         LOGGER.info("%s", "=" * 84)

@@ -9,6 +9,7 @@ from typing import Any, Callable, Literal, Mapping, Protocol, Sequence
 from zoneinfo import ZoneInfo
 
 from neuralcast.config import PROJECT_ROOT
+from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
 
 from .client import (
     AzuraCastClient,
@@ -287,7 +288,16 @@ class ScheduleGeneratorRuntime:
         )
         apply_station_slugs = (
             request.station,
-            *SCHEDULE_MIRROR_STATIONS.get(request.station.strip().lower(), ()),
+            *(
+                slug
+                for slug in SCHEDULE_MIRROR_STATIONS.get(
+                    request.station.strip().lower(), ()
+                )
+                if any(
+                    channel.azuracast_station == slug and channel.enabled
+                    for channel in get_channel_registry().channels.values()
+                )
+            ),
         )
 
         if request.dry_run:

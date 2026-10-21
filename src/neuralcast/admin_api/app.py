@@ -36,7 +36,10 @@ from neuralcast.pipelines.episode_producer.publication import (
     published_audio,
     published_artwork,
 )
-from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
+from neuralcast.pipelines.host_orchestrator.channels import (
+    get_channel_registry,
+    host_channel_keys,
+)
 from neuralcast.pipelines.host_orchestrator.companion import current_companion
 from neuralcast.pipelines.host_orchestrator.models import (
     Archetype,
@@ -51,7 +54,6 @@ from .jobs import (
     JobManager,
     JobNotFoundError,
     SUPPORTED_ARCHETYPES,
-    SUPPORTED_HOST_CHANNELS,
     SUPPORTED_SCHEDULE_SEED_MODES,
     SUPPORTED_STATIONS,
     SUPPORTED_TRACK_FOCUSES,
@@ -106,7 +108,7 @@ class ForceArchetypeRequest(BaseModel):
     @field_validator("station")
     @classmethod
     def validate_station(cls, value: str) -> str:
-        allowed = SUPPORTED_STATIONS + SUPPORTED_HOST_CHANNELS
+        allowed = SUPPORTED_STATIONS + host_channel_keys(enabled_only=True)
         if value not in allowed:
             raise ValueError(
                 f"Unsupported host target '{value}'. Allowed values: {allowed}."

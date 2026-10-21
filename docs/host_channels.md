@@ -30,6 +30,15 @@ reads NeuralForge playlists and metadata and uses NeuralForge's shared
 AzuraCast media root; it does not create a second music catalog. Its locale uses
 a complete French prompt pack and a natural Swiss Romand accent direction.
 
+Both `neuralforge-fr` and `neuralcast-en` have `enabled: false` while their
+streams are paused. Disabled channels retain voice, policy, state, and historical
+metadata, but are omitted from admin host options and rejected for new host
+jobs. The CLI skips them before making API calls. Scheduler mirrors also skip
+disabled channels. Daily snippet retention still expires their old assets
+through the media-owner station. To resume French, enable the AzuraCast stream,
+set `enabled: true`, restore its commented cron entry, and restore its webapp
+host option. The optional `enabled` field defaults to true and must be a boolean.
+
 `neuralcast-en` remains configured for the retained AzuraCast station
 `neuralcast_shared_media_test`, but that station and its cron cycle are disabled.
 
