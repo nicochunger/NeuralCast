@@ -97,6 +97,12 @@ reinstalling cron or restarting the API. See `docs/host_channels.md` for switchi
 inheritance, and saved-state transition rules. Do not install additional
 intro-only cron entries alongside these normal cycles.
 
+Scheduled host checks acquire a nonblocking `flock` on
+`runtime/host-orchestrator-<channel>.cron.lock` before starting Python. A check
+skips if its previous scheduled invocation is still running, preventing process
+accumulation during resource pressure. The internal channel lock also serializes
+scheduled cycles with admin jobs. Keep the once-per-minute schedule unchanged.
+
 ### Host snippet retention
 
 Install `deployment/cron/neuralcast-host-retention` into `/etc/cron.d/` alongside

@@ -28,14 +28,16 @@ def _assert_entry(
     schedule: tuple[str, ...],
     invocation: str,
     log_path: str,
+    lock_path: str | None = None,
 ) -> None:
     actual_schedule, command = entry
     log_dir = str(Path(log_path).parent)
+    launcher = f"/usr/bin/flock -n {lock_path} " if lock_path else ""
 
     assert actual_schedule == schedule
     assert command.startswith(
         f"cd {PROJECT_ROOT} && mkdir -p {log_dir} && "
-        f"PYTHONPATH={PROJECT_ROOT}/src ./.venv/bin/python "
+        f"PYTHONPATH={PROJECT_ROOT}/src {launcher}./.venv/bin/python "
     )
     assert invocation in command
     assert command.endswith(f">> {log_path} 2>&1")
@@ -57,12 +59,14 @@ def test_host_orchestrator_cron_preserves_production_configuration() -> None:
         schedule=("*", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator -s neuralcast",
         log_path="runtime/logs/host_orchestrator/neuralcast/cron.log",
+        lock_path="runtime/host-orchestrator-neuralcast.cron.lock",
     )
     _assert_entry(
         entries[1],
         schedule=("*", "*", "*", "*", "*"),
         invocation="-m neuralcast.cli.host_orchestrator -s neuralforge",
         log_path="runtime/logs/host_orchestrator/neuralforge/cron.log",
+        lock_path="runtime/host-orchestrator-neuralforge.cron.lock",
     )
     assert all("--channel neuralforge-fr" not in command for _, command in entries)
 

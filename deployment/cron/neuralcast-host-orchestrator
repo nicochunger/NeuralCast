@@ -2,10 +2,11 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 CRON_TZ=Europe/Zurich
 
-# Check each active channel every minute; its host profile controls speaking.
-* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1
+# Check each active channel every minute; skip overlapping launches before Python loads.
+# Its host profile controls speaking; the internal lock also covers admin jobs.
+* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralcast && PYTHONPATH=/root/projects/NeuralCast/src /usr/bin/flock -n runtime/host-orchestrator-neuralcast.cron.lock ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralcast >> runtime/logs/host_orchestrator/neuralcast/cron.log 2>&1
 
-* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
+* * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge && PYTHONPATH=/root/projects/NeuralCast/src /usr/bin/flock -n runtime/host-orchestrator-neuralforge.cron.lock ./.venv/bin/python -m neuralcast.cli.host_orchestrator -s neuralforge >> runtime/logs/host_orchestrator/neuralforge/cron.log 2>&1
 
 # French stream paused. Re-enable the channel and this entry when it returns.
-# * * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1
+# * * * * * root cd /root/projects/NeuralCast && mkdir -p runtime/logs/host_orchestrator/neuralforge-fr && PYTHONPATH=/root/projects/NeuralCast/src /usr/bin/flock -n runtime/host-orchestrator-neuralforge-fr.cron.lock ./.venv/bin/python -m neuralcast.cli.host_orchestrator --channel neuralforge-fr >> runtime/logs/host_orchestrator/neuralforge-fr/cron.log 2>&1
