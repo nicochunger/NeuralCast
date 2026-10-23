@@ -114,7 +114,7 @@ class AdminApiUnitTest(unittest.TestCase):
             job_manager=self.manager,
             station_service=self.station_service,
         )
-        paths = {route.path for route in app.routes}
+        paths = set(app.openapi()["paths"])
         self.assertIn("/healthz", paths)
         self.assertIn("/admin/options", paths)
         self.assertIn("/admin/capabilities", paths)
@@ -125,6 +125,7 @@ class AdminApiUnitTest(unittest.TestCase):
         self.assertIn("/admin/run-schedule-generator", paths)
         self.assertIn("/admin/jobs/{job_id}", paths)
         self.assertIn("/admin/favorites", paths)
+        self.assertIn("/admin/discovery/{station}", paths)
 
     def test_http_favorites_endpoint_persists_authenticated_admin_favorites(self) -> None:
         client = TestClient(

@@ -1,0 +1,8 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=Europe/Zurich
+
+# Each station skips discovery while its previous batch awaits review/processing.
+# Feedback processing is owner-triggered only, never scheduled.
+0 11 * * 0 root cd /root/projects/NeuralCast && .venv/bin/python -m neuralcast.cli.music_discovery generate -s neuralforge --scheduled >> runtime/logs/music_discovery-neuralforge.log 2>&1
+0 12 * * 0 root cd /root/projects/NeuralCast && .venv/bin/python -m neuralcast.cli.music_discovery generate -s neuralcast --scheduled >> runtime/logs/music_discovery-neuralcast.log 2>&1

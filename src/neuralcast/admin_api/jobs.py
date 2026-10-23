@@ -42,9 +42,13 @@ SUPPORTED_TRACK_FOCUS_ARCHETYPES = tuple(
 )
 JOB_OPERATION_FORCE_ARCHETYPE = "force_archetype"
 JOB_OPERATION_SCHEDULE_GENERATOR = "schedule_generator"
+JOB_OPERATION_DISCOVERY_GENERATE = "discovery_generate"
+JOB_OPERATION_DISCOVERY_PROCESS = "discovery_process"
 SUPPORTED_JOB_OPERATIONS = (
     JOB_OPERATION_FORCE_ARCHETYPE,
     JOB_OPERATION_SCHEDULE_GENERATOR,
+    JOB_OPERATION_DISCOVERY_GENERATE,
+    JOB_OPERATION_DISCOVERY_PROCESS,
 )
 DEFAULT_ADMIN_HTTP_HOST = "127.0.0.1"
 DEFAULT_ADMIN_HTTP_PORT = 8787
@@ -103,6 +107,7 @@ class JobRecord:
     runner_pid: int | None = None
     orchestrator_pid: int | None = None
     command: list[str] | None = None
+    discovery_options: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -126,6 +131,7 @@ class JobRecord:
             runner_pid=_optional_int(payload.get("runner_pid")),
             orchestrator_pid=_optional_int(payload.get("orchestrator_pid")),
             command=_optional_str_list(payload.get("command")),
+            discovery_options=_optional_mapping(payload.get("discovery_options")),
         )
 
 
@@ -256,6 +262,40 @@ def build_job_command(
     project_root: Path = PROJECT_ROOT,
 ) -> tuple[list[str], dict[str, str], Path]:
     """Return the argv, environment, and cwd for one persisted admin job."""
+
+    if job.operation in {
+        JOB_OPERATION_DISCOVERY_GENERATE,
+        JOB_OPERATION_DISCOVERY_PROCESS,
+    }:
+        if job.station not in SUPPORTED_STATIONS or job.dry_run:
+            raise ValueError("Invalid discovery job target or mode")
+        python = project_root / ".venv" / "bin" / "python"
+        action = (
+            "generate"
+            if job.operation == JOB_OPERATION_DISCOVERY_GENERATE
+            else "process"
+        )
+        argv = [
+            str(python if python.exists() else Path(sys.executable)),
+            "-m",
+            "neuralcast.cli.music_discovery",
+            action,
+            "-s",
+            job.station,
+        ]
+        if action == "process":
+            from pydantic import TypeAdapter
+            from neuralcast.pipelines.music_discovery.models import Identifier
+
+            batch_id = TypeAdapter(Identifier).validate_python(
+                (job.discovery_options or {}).get("batch_id")
+            )
+            argv.extend(["--batch-id", batch_id])
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(project_root / "src") + (
+            ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+        )
+        return argv, env, project_root
 
     if job.operation == JOB_OPERATION_FORCE_ARCHETYPE:
         if not job.archetype:
@@ -449,6 +489,14 @@ class JobManager:
             "track_focus_values": list(SUPPORTED_TRACK_FOCUSES),
             "track_focus_archetypes": list(SUPPORTED_TRACK_FOCUS_ARCHETYPES),
             "operations": {
+                JOB_OPERATION_DISCOVERY_GENERATE: {
+                    "dry_run_supported": False,
+                    "track_focus_supported": False,
+                },
+                JOB_OPERATION_DISCOVERY_PROCESS: {
+                    "dry_run_supported": False,
+                    "track_focus_supported": False,
+                },
                 JOB_OPERATION_FORCE_ARCHETYPE: {
                     "dry_run_supported": True,
                     "track_focus_supported": True,
@@ -523,6 +571,28 @@ class JobManager:
             ),
         )
 
+    def enqueue_discovery(
+        self, *, station: str, action: str, batch_id: str | None = None
+    ) -> JobRecord:
+        """Launch a bounded discovery or frozen-feedback operation."""
+        if station not in SUPPORTED_STATIONS or action not in {"generate", "process"}:
+            raise ValueError("Invalid discovery operation")
+        if action == "process" and not batch_id:
+            raise ValueError("Feedback processing requires a frozen batch")
+        return self._enqueue_job(
+            operation=(
+                JOB_OPERATION_DISCOVERY_GENERATE
+                if action == "generate"
+                else JOB_OPERATION_DISCOVERY_PROCESS
+            ),
+            station=station,
+            label=f"discovery-{action}",
+            archetype=None,
+            track_focus=None,
+            dry_run=False,
+            discovery_options={"batch_id": batch_id} if batch_id else None,
+        )
+
     def _enqueue_job(
         self,
         *,
@@ -533,6 +603,7 @@ class JobManager:
         track_focus: str | None,
         dry_run: bool,
         schedule_options: dict[str, object] | None = None,
+        discovery_options: dict[str, object] | None = None,
     ) -> JobRecord:
         """Create and launch one background admin job."""
 
@@ -558,11 +629,18 @@ class JobManager:
                 exit_code=None,
                 schedule_options=schedule_options,
                 log_path=str(self.log_path(job_id)),
+                discovery_options=discovery_options,
             )
             job_path = self.job_path(job_id)
             save_job_record(job_path, job)
 
-            runner_pid = self._runner_launcher(job_path)
+            try:
+                runner_pid = self._runner_launcher(job_path)
+            except Exception:
+                job.status = "failed"
+                job.finished_at = utc_now_iso()
+                save_job_record(job_path, job)
+                raise
             latest = load_job_record(job_path)
             latest.runner_pid = latest.runner_pid or runner_pid
             save_job_record(job_path, latest)
@@ -580,6 +658,21 @@ class JobManager:
         if refreshed is not None:
             job = refreshed
         return job
+
+    def latest_discovery_job(self, station: str) -> dict[str, object] | None:
+        """Recover the latest discovery progress after page or API restarts."""
+        matching = []
+        for path in self.jobs_dir.glob("*.json"):
+            job = load_job_record(path)
+            if job.station == station and job.operation in {
+                JOB_OPERATION_DISCOVERY_GENERATE,
+                JOB_OPERATION_DISCOVERY_PROCESS,
+            }:
+                matching.append(job)
+        if not matching:
+            return None
+        job = max(matching, key=lambda item: (item.accepted_at, item.job_id))
+        return self.job_status_payload(job.job_id)
 
     def job_status_payload(self, job_id: str) -> dict[str, object]:
         """Return the external job status payload including a short log tail."""

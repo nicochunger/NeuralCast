@@ -2,6 +2,10 @@
 
 This repository is the production and development workspace on the VPS at `/root/projects/NeuralCast`. Make changes in this checkout; do not use another checkout as a deployment source.
 
+For private weekly music auditions and the web admin Discovery tab, see
+[music discovery](../docs/music_discovery.md). Its dedicated cron template is
+`deployment/cron/neuralcast-music-discovery`; feedback processing remains manual.
+
 ## Prerequisites
 
 - The `/root/projects/NeuralCast` checkout on this VPS

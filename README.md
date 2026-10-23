@@ -6,6 +6,8 @@ NeuralCast is a package-first toolkit for:
 - New Releases updates (`neuralcast.cli.update_new_releases`)
 - AI host orchestration for AzuraCast (`neuralcast.cli.host_orchestrator`)
 - Weekly schedule generation for AzuraCast (`neuralcast.cli.schedule_generator`)
+- Private five-song discovery auditions with owner feedback
+  (`neuralcast.cli.music_discovery`; [workflow](docs/music_discovery.md))
 
 Default station for CLI workflows is `neuralforge` unless overridden.
 

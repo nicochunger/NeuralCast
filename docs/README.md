@@ -10,6 +10,8 @@
   policies, per-channel topic/country overrides, and test workflow.
 - [Editorial feature ideas](editorial_feature_ideas.md): proposed release-retention
   checks, a host companion, and the historical radio episode concept.
+- [Private music discovery](music_discovery.md): five-song auditions, admin feedback,
+  accepted-only catalog promotion, and weekly/manual generation.
 - [Manual podcast episodes](episode_producer.md): podcast introductions, proposal
   approvals, production, preview uploads, website publication, and Episode guides.
 - [Listener host companion](host_companion.md): summary cards, generation,

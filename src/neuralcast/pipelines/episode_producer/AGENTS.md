@@ -73,7 +73,8 @@ outside this version. The existing live host orchestrator remains separate.
 - `models.py`: strict proposal, plan, recording, evidence, and commentary schemas.
 - `editorial_models.py`: approved concept/song brief and three stage contracts.
 - `editorial.py`: persisted sequential editing, validation, and Markdown export.
-- `codex.py`: read-only headless Codex boundary with web research and strict JSON.
+- `services/editorial_agent.py`: shared read-only headless Codex boundary with web
+  research and strict JSON; episode editorial uses its default research-enabled mode.
 - `manuscript.py`: complete-script checks and exact owner approval before TTS.
 - `storage.py`: project paths, hashes, atomic receipts, approvals, and locks.
 - `library.py`: read-only resolution of exact catalog recordings and artwork.

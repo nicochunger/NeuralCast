@@ -59,6 +59,8 @@ from .jobs import (
     SUPPORTED_TRACK_FOCUSES,
 )
 from .favorites import FavoriteStore
+from .discovery import discovery_router
+from neuralcast.pipelines.music_discovery.service import DiscoveryService
 from .stations import AdminStationService, StationServiceConfigError
 
 BEARER_PREFIX = "Bearer "
@@ -404,6 +406,7 @@ def create_app(
     schedule_presentation_loader=load_schedule_presentation,
     favorite_store: FavoriteStore | None = None,
     companion_loader: Callable[[str, float], dict[str, Any] | None] = current_companion,
+    discovery_factory: Callable[[str], DiscoveryService] = DiscoveryService,
 ) -> FastAPI:
     """Create the FastAPI application for the admin HTTP service."""
 
@@ -414,6 +417,8 @@ def create_app(
     app.state.favorite_store = favorite_store or FavoriteStore()
 
     app.state.companion_loader = companion_loader
+    app.state.discovery_factory = discovery_factory
+    app.include_router(discovery_router(require_admin_token))
 
     # Intentionally public, read-only routes. The explicit publication catalogue
     # is the allowlist; previews and administrative data are never exposed.

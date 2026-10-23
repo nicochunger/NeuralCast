@@ -9,7 +9,7 @@ from neuralcast.pipelines.host_orchestrator.speech import (
     validate_speech_transcript,
 )
 
-from . import codex
+from neuralcast.services import editorial_agent as codex
 from .editorial_models import Draft, EditorialBrief, Review, Revision
 from .library import resolve_recording
 from .manuscript import manuscript_hash, validate_manuscript
