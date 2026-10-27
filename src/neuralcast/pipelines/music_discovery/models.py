@@ -137,5 +137,6 @@ class Batch(Document):
 class State(Document):
     version: Literal[1] = 1
     current_batch_id: Identifier | None = None
+    # Preserve legacy receipts without using them to gate generation.
     last_scheduled_week: str | None = None
     preferences: list[dict] = Field(default_factory=list)

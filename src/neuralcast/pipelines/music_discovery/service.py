@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import json
 import os
 from pathlib import Path
 import uuid
 from typing import Callable
-from zoneinfo import ZoneInfo
 
-from neuralcast.config import DEFAULT_TIMEZONE_NAME, RUNTIME_ROOT, station_dir_from_slug
+from neuralcast.config import RUNTIME_ROOT, station_dir_from_slug
 from neuralcast.models import Song
 from neuralcast.playlists.catalog import StationPlaylistCatalog, playlist_song_key
 from neuralcast.services.editorial_agent import EditorialStageError
@@ -137,16 +135,8 @@ class DiscoveryService:
                     "reason": "The current batch is awaiting review or processing",
                     "batch_id": batch.id,
                 }
-            week = datetime.now(ZoneInfo(DEFAULT_TIMEZONE_NAME)).strftime("%G-W%V")
-            if (
-                scheduled
-                and state.last_scheduled_week == week
-                and (not batch or batch.status == "processed")
-            ):
-                return {
-                    "skipped": True,
-                    "reason": "Suggestions already generated this week",
-                }
+            # Cron owns the weekly cadence. A completed review makes the station
+            # eligible again, regardless of when its previous batch was generated.
             if batch is None or batch.status == "processed":
                 batch = Batch(
                     id=f"batch-{uuid.uuid4().hex}",
@@ -163,7 +153,6 @@ class DiscoveryService:
                 )
                 self.store.save_batch(batch)
                 state.current_batch_id = batch.id
-                state.last_scheduled_week = week
                 self.store.save_state(state)
             if batch.error is not None:
                 batch.error = None
@@ -209,8 +198,6 @@ class DiscoveryService:
                 batch.status = "review"
                 batch.error = None
                 self.store.save_batch(batch)
-                state.last_scheduled_week = week
-                self.store.save_state(state)
                 return {"skipped": False, "batch_id": batch.id}
             except Exception as exc:
                 reason = (

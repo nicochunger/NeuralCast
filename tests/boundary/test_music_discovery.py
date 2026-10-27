@@ -1,6 +1,8 @@
 """Offline owner-review workflow, retry safety, and private API boundaries."""
 
 from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import csv
 import json
 
@@ -166,7 +168,45 @@ def test_feedback_only_promotes_explicit_yes_reuses_audio_and_learns_once(rig):
     assert service.process(batch.id)["already_processed"] is True
     assert len(service.store.state().preferences) == 1
     assert len(calls) == 2 and len(downloads) == 5
+
+
+@pytest.mark.parametrize("previous_scheduled", [False, True])
+def test_scheduled_generation_replaces_processed_batch_in_same_week(
+    rig, previous_scheduled
+):
+    service, calls, downloads = rig
+    original_agent = service.agent
+
+    def agent(stage, context, attempt):
+        result = original_agent(stage, context, attempt)
+        if stage == "discovery" and context["previous_batches"]:
+            for candidate in result["candidates"]:
+                candidate["artist"] += " Next"
+                candidate["title"] += " Next"
+        return result
+
+    service.agent = agent
+    service.generate(scheduled=previous_scheduled)
+    batch = review(service)
+    service.submit(batch.id, batch.revision)
     assert service.generate(scheduled=True)["skipped"] is True
+    service.process(batch.id)
+
+    # Existing state files retain this old field. It must not suppress Sunday.
+    state = service.store.state()
+    state.last_scheduled_week = datetime.now(ZoneInfo("Europe/Zurich")).strftime(
+        "%G-W%V"
+    )
+    service.store.save_state(state)
+    result = service.generate(scheduled=True)
+    assert result["skipped"] is False
+    assert result["batch_id"] != batch.id
+    assert service.store.load_batch(batch.id).status == "processed"
+    assert service.store.current().status == "review"
+    assert [stage for stage, _ in calls] == ["discovery", "feedback", "discovery"]
+    assert len(downloads) == 10
+    assert service.generate(scheduled=True)["skipped"] is True
+    assert len(downloads) == 10
 
 
 def test_draft_revision_and_partial_review_are_guarded(rig):

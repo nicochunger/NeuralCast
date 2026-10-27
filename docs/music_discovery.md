@@ -88,8 +88,10 @@ to retain learned preferences and review history; it is intentionally Git-ignore
 
 The optional cron template runs Sunday at 11:00 for NeuralForge and 12:00 for
 NeuralCast, Europe/Zurich time. Both scheduled and manual generation skip/refuse
-while a batch awaits review or feedback processing. Scheduled calls also skip
-after a batch has been generated in the same station-local ISO week. The manual
+while a batch awaits review or feedback processing. Each Sunday starts a new batch
+if the previous batch is processed, even if it was generated earlier that same
+calendar week. Cron owns the weekly cadence; manual generation does not consume
+the next scheduled run. Completed results remain visible until replaced. The manual
 **Generate suggestions** button can start another batch after processing finishes.
 Stations have independent state and locks. Feedback processing is never scheduled.
 
