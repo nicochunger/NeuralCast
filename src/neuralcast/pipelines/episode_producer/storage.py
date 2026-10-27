@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from neuralcast.config import RUNTIME_ROOT, station_dir_from_slug
-from .models import Identifier, Proposal
+from .models import EpisodeNumber, Identifier, Proposal
 from pydantic import TypeAdapter
 
 
@@ -73,8 +73,78 @@ class Project:
         self.station = station
         self.id = identifier(episode_id)
         self.station_root = station_root or station_dir_from_slug(station)
-        self.documents = self.station_root / "metadata" / "episodes" / self.id
         self.runtime = (runtime_root or RUNTIME_ROOT / "episodes") / station / self.id
+
+    @property
+    def documents(self) -> Path:
+        """Resolve numbered folders without changing the stable episode slug."""
+        root = self.station_root / "metadata" / "episodes"
+        legacy = root / self.id
+        matches = [legacy] if legacy.exists() else []
+        matches.extend(
+            path
+            for path in root.glob(f"*-{self.id}")
+            if path.is_dir() and path.name[: -len(self.id) - 1].isdigit()
+        )
+        if len(matches) > 1:
+            raise ValueError(f"Multiple document folders for episode {self.id}")
+        return matches[0] if matches else legacy
+
+    @property
+    def episode_number(self) -> int | None:
+        directory = self.documents
+        path = directory / "proposal.json"
+        if not path.exists():
+            if directory.name != self.id:
+                raise ValueError("Numbered episode folder needs proposal.json")
+            return None
+        proposal = self.proposal()
+        number = proposal.episode_number
+        if number is None:
+            if directory.name != self.id:
+                raise ValueError(
+                    "Numbered episode folder needs episode_number in proposal.json"
+                )
+            return None
+        if directory.name != self.id and directory.name != (f"{number:03d}-{self.id}"):
+            raise ValueError("Episode folder does not match its number")
+        return number
+
+    def set_episode_number(self, number: int) -> Path:
+        """Caller holds project lock; assign a station-local publication number."""
+        number = TypeAdapter(EpisodeNumber).validate_python(number)
+        current = self.documents
+        existing = self.episode_number
+        if existing is not None and existing != number:
+            raise ValueError("Episode already has a different number")
+        root = current.parent
+        for path in root.glob("*/proposal.json"):
+            if path.parent == current:
+                continue
+            other = Proposal.model_validate(read_json(path))
+            if other.episode_number == number:
+                raise ValueError("Episode number is already assigned in this station")
+        for path in root.glob("*-*"):
+            prefix = path.name.split("-", 1)[0]
+            if path != current and path.is_dir() and prefix.isdigit():
+                if int(prefix) == number:
+                    raise ValueError(
+                        "Episode number is already assigned in this station"
+                    )
+        destination = root / f"{number:03d}-{self.id}"
+        if destination != current and destination.exists():
+            raise ValueError("Numbered episode folder already exists")
+        proposal_path = current / "proposal.json"
+        proposal = read_json(proposal_path)
+        write_json(proposal_path, {**proposal, "episode_number": number})
+        if current != destination:
+            current.rename(destination)
+        latest_path = self.runtime / "editorial_latest.json"
+        if latest_path.exists():
+            latest = read_json(latest_path)
+            latest["manuscript"] = str(destination / "manuscript.md")
+            write_json(latest_path, latest)
+        return destination
 
     def proposal(self) -> Proposal:
         result = Proposal.model_validate(read_json(self.documents / "proposal.json"))
@@ -110,14 +180,37 @@ class Project:
     def editorial_brief(self):
         from .editorial_models import EditorialBrief
 
-        brief = EditorialBrief.model_validate(read_json(self.documents / "brief.json"))
+        embedded = self.proposal().editorial_brief
+        legacy_path = self.documents / "brief.json"
+        legacy = (
+            EditorialBrief.model_validate(read_json(legacy_path))
+            if legacy_path.exists()
+            else None
+        )
+        if embedded is None:
+            if legacy is None:
+                raise ValueError(
+                    "Editorial workflow requires editorial_brief in proposal.json"
+                )
+            brief = legacy
+        else:
+            brief = EditorialBrief.model_validate(embedded)
+            if legacy is not None and legacy != brief:
+                raise ValueError("Embedded and legacy editorial briefs disagree")
         if brief.proposal_hash != digest(self.proposal().model_dump()):
             raise ValueError("Editorial brief references a different proposal")
         return brief
 
+    @property
+    def has_editorial_brief(self) -> bool:
+        return (
+            self.proposal().editorial_brief is not None
+            or (self.documents / "brief.json").exists()
+        )
+
     def concept_hash(self) -> str:
         proposal_hash = digest(self.proposal().model_dump())
-        if not (self.documents / "brief.json").exists():
+        if not self.has_editorial_brief:
             return proposal_hash  # Preserve legacy proposal-only projects.
         return digest(
             {

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Identifier = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")]
 Text = Annotated[str, Field(min_length=1, max_length=5000)]
+EpisodeNumber = Annotated[int, Field(ge=1, strict=True)]
 
 
 class Document(BaseModel):
@@ -18,12 +19,29 @@ class Document(BaseModel):
 class Proposal(Document):
     version: Literal[1] = 1
     episode_id: Identifier
+    # Publication metadata must not invalidate concept/manuscript approvals or
+    # change render identities. Persist explicitly when numbering the project.
+    episode_number: EpisodeNumber | None = Field(default=None, exclude=True)
+    # The brief remains a separate component of concept_hash, preserving the
+    # original approval contract when it is embedded instead of stored alone.
+    editorial_brief: dict[str, Any] | None = Field(default=None, exclude=True)
     channel: Identifier
     title: Annotated[str, Field(min_length=1, max_length=160)]
     premise: Text
     target_seconds: int = Field(default=2400, ge=300, le=7200)
     commentary_budget_seconds: int = Field(default=240, ge=30, le=1200)
     outline: list[Text] = Field(min_length=1, max_length=20)
+
+    @field_validator("editorial_brief")
+    @classmethod
+    def valid_editorial_brief(
+        cls, value: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
+        if value is None:
+            return None
+        from .editorial_models import EditorialBrief
+
+        return EditorialBrief.model_validate(value).model_dump()
 
     @model_validator(mode="after")
     def budget_fits(self) -> Proposal:

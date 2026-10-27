@@ -195,6 +195,103 @@ def test_three_calls_have_full_handoffs_and_stop_before_audio(episode, monkeypat
         service.prepare(project, client)
 
 
+def embed_brief(project):
+    brief = read_json(project.documents / "brief.json")
+    proposal = read_json(project.documents / "proposal.json")
+    write_json(
+        project.documents / "proposal.json", {**proposal, "editorial_brief": brief}
+    )
+    (project.documents / "brief.json").unlink()
+
+
+def test_embedding_brief_preserves_approvals_and_cached_editorial_run(episode):
+    project, outputs = episode
+    result = editorial.edit_episode(project, runner=runner_for(outputs, []))
+    approve_manuscript(project, result["manuscript_hash"])
+    concept = project.concept_hash()
+    revision = service.validated_inputs(project)[-1]
+    approval = read_json(project.runtime / "manuscript_approval.json")
+    embed_brief(project)
+    assert project.has_editorial_brief
+    assert project.concept_hash() == concept
+    project.approved_proposal()
+    assert service.validated_inputs(project)[-1] == revision
+    assert read_json(project.runtime / "manuscript_approval.json") == approval
+    never = Mock(side_effect=AssertionError("Reuse the existing editorial stages"))
+    assert editorial.edit_episode(project, runner=never) == result
+    never.assert_not_called()
+    proposal = read_json(project.documents / "proposal.json")
+    proposal["editorial_brief"]["instructions"] += " Add more detail."
+    write_json(project.documents / "proposal.json", proposal)
+    with pytest.raises(ValueError, match="not been approved"):
+        project.approved_proposal()
+    project.approve_proposal(project.concept_hash())
+    with pytest.raises(ValueError, match="not been approved"):
+        service.prepare(project, Mock())
+
+
+def test_embedded_brief_still_rejects_unapproved_recordings(episode):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    embed_brief(project)
+    plan = read_json(project.documents / "plan.json")
+    next(s for s in plan["segments"] if s["kind"] == "music")["title"] = "Other Song"
+    write_json(project.documents / "plan.json", plan)
+    with pytest.raises(ValueError, match="Unapproved song identity"):
+        service.validated_inputs(project)
+
+
+def test_conflicting_embedded_and_legacy_briefs_are_rejected(episode):
+    project, _ = episode
+    proposal = read_json(project.documents / "proposal.json")
+    brief = read_json(project.documents / "brief.json")
+    brief["instructions"] += " Different instructions."
+    write_json(
+        project.documents / "proposal.json", {**proposal, "editorial_brief": brief}
+    )
+    with pytest.raises(ValueError, match="briefs disagree"):
+        project.concept_hash()
+
+
+@pytest.mark.parametrize("import_legacy", [False, True])
+def test_init_embeds_editorial_brief_without_creating_an_extra_file(
+    episode, tmp_path, monkeypatch, capsys, import_legacy
+):
+    from neuralcast.cli import episode_producer as cli
+
+    original, _ = episode
+    project = Project(
+        original.station,
+        original.id,
+        station_root=tmp_path / "new-station",
+        runtime_root=tmp_path / "new-runtime",
+    )
+    proposal = read_json(original.documents / "proposal.json")
+    brief = read_json(original.documents / "brief.json")
+    if not import_legacy:
+        proposal["editorial_brief"] = brief
+    source = tmp_path / "source-proposal.json"
+    write_json(source, proposal)
+    monkeypatch.setattr(cli, "Project", lambda station, episode: project)
+    args = [
+        "init",
+        "-s",
+        project.station,
+        "--episode",
+        project.id,
+        "--proposal",
+        str(source),
+    ]
+    if import_legacy:
+        args += ["--brief", str(original.documents / "brief.json")]
+    assert cli.main(args) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["concept_hash"] == original.concept_hash()
+    assert project.editorial_brief().model_dump() == brief
+    assert not (project.documents / "brief.json").exists()
+    assert read_json(project.documents / "proposal.json")["editorial_brief"] == brief
+
+
 def test_candidate_or_concept_edits_invalidate_initial_approval(episode):
     project, _ = episode
     brief = read_json(project.documents / "brief.json")

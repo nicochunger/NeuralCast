@@ -55,6 +55,18 @@ Do not invent a host name, episode number, release date, or schedule. Develop
 bridges without restarting the show. Close by resolving the episode's question
 as far as the evidence permits and thanking the listener.
 
+In Spanish, begin with "Bienvenidos", not "Bienvenidas y bienvenidos" or a
+similar doubled greeting. For NeuralForge, spell the brand "NeuralForsch" in
+spoken scripts as a TTS pronunciation aid. Keep the canonical "NeuralForge"
+spelling in titles, companion summaries, metadata, and other display text.
+NeuralCast keeps its usual spelling. Review the opening and closing for this
+distinction rather than copying the display brand into the spoken script.
+
+Let each band stand on its own merits in the opening preview. Do not frame its
+place in the episode as owing something to a more famous band. A documented
+influence may be explored later in that band's song explanation if relevant;
+it is not, by itself, a reason for inclusion.
+
 Research stays outside spoken narration. Do not read source URLs, publication
 names, interview/book citations, or a bibliography aloud. A participant's
 perspective can be made clear without naming the publication carrying it.

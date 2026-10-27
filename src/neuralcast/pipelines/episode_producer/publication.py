@@ -10,6 +10,9 @@ from typing import Any
 
 from neuralcast.config import ALLOWED_STATION_SLUGS, RUNTIME_ROOT, station_dir_from_slug
 from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
+from pydantic import TypeAdapter
+
+from .models import EpisodeNumber
 from .storage import Project, file_hash, identifier, read_json, write_json
 
 CHAPTER_FIELDS = {
@@ -57,7 +60,37 @@ def load_publication(station: str, episode_id: str) -> dict[str, Any]:
     value = read_json(episode_directory(station, episode_id) / "manifest.json")
     if value["station"] != station or value["id"] != episode_id:
         raise ValueError("Invalid publication identity")
+    if "episode_number" in value:
+        TypeAdapter(EpisodeNumber).validate_python(value["episode_number"])
     return value
+
+
+def set_episode_number(project: Project, number: int) -> dict[str, Any]:
+    """Assign display metadata without changing published URLs or audio approvals.
+
+    Caller holds the project lock. Existing publication snapshots receive only
+    the number; the existing proposal supplies source metadata, while station
+    media and historical production receipts remain untouched.
+    """
+    number = TypeAdapter(EpisodeNumber).validate_python(number)
+    manifest = episode_directory(project.station, project.id) / "manifest.json"
+    existing = (
+        load_publication(project.station, project.id) if manifest.exists() else None
+    )
+    if existing and existing.get("episode_number") not in (None, number):
+        raise ValueError("Published episode already has a different number")
+    for path in (catalogue_root() / project.station).glob("*/manifest.json"):
+        other = load_publication(project.station, path.parent.name)
+        if other["id"] != project.id and other.get("episode_number") == number:
+            raise ValueError("Episode number is already published in this station")
+    directory = project.set_episode_number(number)
+    if existing is not None:
+        write_json(manifest, {**existing, "episode_number": number})
+    return {
+        "episode_id": project.id,
+        "episode_number": number,
+        "documents": str(directory),
+    }
 
 
 def public_episode(value: dict[str, Any], *, detail: bool = True) -> dict[str, Any]:
@@ -77,6 +110,8 @@ def public_episode(value: dict[str, Any], *, detail: bool = True) -> dict[str, A
             "revision",
         )
     }
+    if "episode_number" in value:
+        result["episode_number"] = value["episode_number"]
     result["audio_url"] = f"{prefix}/audio"
     if detail:
         result["chapters"] = [
@@ -211,6 +246,8 @@ def publish(
         "audio_bytes": audio.stat().st_size,
         "chapters": chapters,
     }
+    if project.episode_number is not None:
+        value["episode_number"] = project.episode_number
     # This is the visibility boundary: all assets exist before the atomic manifest write.
     write_json(destination / "manifest.json", value)
     return public_episode(value)

@@ -8,7 +8,13 @@ from fastapi.testclient import TestClient
 
 from neuralcast.admin_api.app import create_app
 from neuralcast.pipelines.episode_producer import publication
-from neuralcast.pipelines.episode_producer.storage import Project, file_hash, write_json
+from neuralcast.pipelines.episode_producer.models import Proposal
+from neuralcast.pipelines.episode_producer.storage import (
+    Project,
+    file_hash,
+    read_json,
+    write_json,
+)
 
 
 @pytest.fixture
@@ -100,6 +106,73 @@ def test_publish_is_explicit_snapshot_and_does_not_need_queue_or_source_document
         )
         == value
     )
+
+
+def write_proposal(project):
+    proposal = Proposal(
+        episode_id=project.id,
+        channel="neuralforge-es",
+        title="A journey",
+        premise="Music and stories",
+        outline=["Opening", "Music", "Closing"],
+    )
+    write_json(project.documents / "proposal.json", proposal.model_dump())
+
+
+def test_number_existing_publication_preserves_audio_urls_and_snapshot(episode):
+    project, receipt, directory, remote = episode
+    before = publication.publish(project, receipt["render_hash"])
+    manifest = (
+        publication.episode_directory(project.station, project.id) / "manifest.json"
+    )
+    original = read_json(manifest)
+    production = (directory / "production.json").read_bytes()
+    audio_hash = file_hash(remote)
+    write_proposal(project)
+    with project.lock():
+        result = publication.set_episode_number(project, 2)
+    assert result["episode_number"] == 2
+    assert project.documents.name == "002-journey"
+    assert read_json(manifest) == {**original, "episode_number": 2}
+    after = publication.public_episode(
+        publication.load_publication(project.station, project.id)
+    )
+    assert after == {**before, "episode_number": 2}
+    assert publication.list_episodes(project.station)[0]["episode_number"] == 2
+    assert publication.publish(project, receipt["render_hash"]) == after
+    assert publication.published_audio(project.station, project.id) == remote
+    assert file_hash(remote) == audio_hash
+    assert (directory / "production.json").read_bytes() == production
+    assert publication.set_episode_number(project, 2) == result
+    with pytest.raises(ValueError, match="different number"):
+        publication.set_episode_number(project, 3)
+
+
+def test_new_publication_copies_number_and_public_api_exposes_it(episode):
+    project, receipt, _, _ = episode
+    write_proposal(project)
+    publication.set_episode_number(project, 3)
+    value = publication.publish(project, receipt["render_hash"])
+    assert value["episode_number"] == 3
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        assert (
+            client.get("/public/episodes").json()["episodes"][0]["episode_number"] == 3
+        )
+        assert (
+            client.get("/public/episodes/neuralforge/journey").json()["episode_number"]
+            == 3
+        )
+
+
+def test_episode_number_cannot_duplicate_a_published_number(episode):
+    project, receipt, _, _ = episode
+    write_proposal(project)
+    publication.set_episode_number(project, 1)
+    publication.publish(project, receipt["render_hash"])
+    other = Project(project.station, "other", station_root=project.station_root)
+    with pytest.raises(ValueError, match="already published"):
+        publication.set_episode_number(other, 1)
+    assert not other.documents.exists()
 
 
 def test_publication_checks_both_copies_of_reviewed_audio(episode):

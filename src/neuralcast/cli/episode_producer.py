@@ -31,7 +31,10 @@ from neuralcast.pipelines.episode_producer.service import (
 )
 from neuralcast.pipelines.host_orchestrator.transport import AzuraCastClient
 from neuralcast.services.azuracast_config import load_azuracast_settings
-from neuralcast.pipelines.episode_producer.publication import publish
+from neuralcast.pipelines.episode_producer.publication import (
+    publish,
+    set_episode_number,
+)
 from neuralcast.pipelines.episode_producer.narration import SUPPORTED_TTS_MODELS
 
 
@@ -42,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=[
             "init",
             "inspect",
+            "number",
             "approve-proposal",
             "editorial",
             "approve-manuscript",
@@ -55,12 +59,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--episode", required=True)
     parser.add_argument(
+        "--episode-number",
+        type=int,
+        help="Station-local episode number; init/number only",
+    )
+    parser.add_argument(
         "--proposal", type=Path, help="Initial proposal JSON; init only"
     )
     parser.add_argument(
         "--brief",
         type=Path,
-        help="Editorial concept/song/research brief JSON; init only",
+        help="Import a legacy brief JSON into proposal.json; init only",
     )
     parser.add_argument(
         "--feedback", default="", help="Owner revision instructions; editorial only"
@@ -78,6 +87,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Gemini speech model for prepare/validate only; defaults to GEMINI_TTS_MODEL or gemini-3.8-flash-lite-tts",
     )
     args = parser.parse_args(argv)
+    if args.episode_number is not None and args.action not in {"init", "number"}:
+        parser.error("--episode-number is supported only for init and number")
     if args.tts_model and args.action not in {"prepare", "validate"}:
         parser.error("--tts-model is supported only for prepare and validate")
     project = Project(args.station, args.episode)
@@ -89,6 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "proposal_hash": digest(proposal.model_dump()),
                 "concept_hash": project.concept_hash(),
                 "documents": str(project.documents),
+                "episode_number": project.episode_number,
             }
             plan_path = project.documents / "plan.json"
             if plan_path.exists():
@@ -125,24 +137,48 @@ def main(argv: Sequence[str] | None = None) -> int:
                 proposal = Proposal.model_validate(read_json(args.proposal))
                 if proposal.episode_id != project.id:
                     raise ValueError("Proposal ID does not match --episode")
+                number = args.episode_number
+                if proposal.episode_number is not None:
+                    if number is not None and number != proposal.episode_number:
+                        raise ValueError("--episode-number differs from proposal.json")
+                    number = proposal.episode_number
                 channel_for(project, proposal)
                 if (project.documents / "proposal.json").exists():
                     raise ValueError(
                         "Project already exists; edit its proposal instead"
                     )
-                brief = None
+                brief = (
+                    EditorialBrief.model_validate(proposal.editorial_brief)
+                    if proposal.editorial_brief is not None
+                    else None
+                )
                 if args.brief:
-                    brief = EditorialBrief.model_validate(read_json(args.brief))
+                    imported = EditorialBrief.model_validate(read_json(args.brief))
+                    if brief is not None and brief != imported:
+                        raise ValueError(
+                            "--brief differs from embedded editorial_brief"
+                        )
+                    brief = imported
+                if brief is not None:
                     if brief.proposal_hash != digest(proposal.model_dump()):
                         raise ValueError("Brief references a different proposal")
-                write_json(project.documents / "proposal.json", proposal.model_dump())
-                if brief:
-                    write_json(project.documents / "brief.json", brief.model_dump())
+                document = proposal.model_dump()
+                if brief is not None:
+                    document["editorial_brief"] = brief.model_dump()
+                write_json(project.documents / "proposal.json", document)
                 result = {
                     "proposal_hash": digest(proposal.model_dump()),
                     "concept_hash": project.concept_hash(),
                     "documents": str(project.documents),
                 }
+                if number is not None:
+                    result.update(set_episode_number(project, number))
+            elif args.action == "number":
+                if args.episode_number is None:
+                    raise ValueError("number requires --episode-number")
+                if not (project.documents / "proposal.json").exists():
+                    raise ValueError("Initialize the episode before assigning a number")
+                result = set_episode_number(project, args.episode_number)
             elif args.action == "approve-proposal":
                 if not args.hash:
                     raise ValueError(

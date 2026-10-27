@@ -19,6 +19,16 @@ naturally rather than copied mechanically. Do not open mid-conversation or assum
 the listener heard an earlier broadcast. Do not invent an episode number, host
 name, publication date, or release schedule.
 
+For Spanish openings, use "Bienvenidos", without doubling it as "Bienvenidas y
+bienvenidos". In NeuralForge spoken scripts, write the brand as "NeuralForsch"
+so TTS pronounces it correctly. Keep "NeuralForge" in titles, companion summaries,
+metadata, and other non-spoken display text; this spelling adjustment is only for
+the narration supplied to TTS. Leave NeuralCast's name unchanged.
+
+Introduce each band on its own merits. Do not use the opening preview to justify
+a band's inclusion through its debt to or admiration for another band. Verified
+influences can appear later in the relevant song's story when they add meaning.
+
 Bridges connect the supplied recordings without repeatedly welcoming listeners.
 The closing resolves the theme and briefly thanks the podcast listener.
 Do not invent song transitions, claim

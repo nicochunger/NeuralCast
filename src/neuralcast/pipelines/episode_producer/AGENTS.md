@@ -17,15 +17,25 @@ Repository-wide instructions still apply. Run commands from the repository root.
   registry (`host_channels.json`); currently `neuralforge-es` and `neuralcast-es`.
   Record the resolved channel in `proposal.json` before concept approval. All
   three editorial stages and TTS inherit that channel's language and host style.
+- Assign the station-local publication number with `init --episode-number N`
+  or `number --episode-number N`. Display metadata lives in `proposal.json`;
+  document folders use zero-padded numbers such as `003-laberintos-humanos`.
+  Keep the stable slug in `--episode`, runtime/media paths, and public URLs.
+  The display-only number is excluded from normalized approval/render inputs;
+  numbering does not change manuscript approval or require new approval.
+  Preserve a backup of published catalogue snapshots before assigning numbers
+  to existing publications. Do not rewrite historical render/editorial receipts.
 
 ## Operator workflow
 
 1. Read [docs/episode_editorial.md](../../../../docs/episode_editorial.md). Discuss
    initial research, topic, channel, narrative direction, language, timing, and
    candidate songs with the owner. Read the station playlist definitions, resolve
-   existing recordings, and prepare `proposal.json` plus `brief.json`.
+   existing recordings, and prepare `proposal.json` with an `editorial_brief`
+   object containing instructions, candidate songs, research, and timing policy.
 2. After the owner approves that package, use `inspect` and record
-   `approve-proposal --hash CONCEPT_HASH`. This binds both files and the candidates;
+   `approve-proposal --hash CONCEPT_HASH`. This binds the proposal, embedded brief,
+   and candidates;
    `proposal_hash` remains the plan's proposal reference, not the concept approval.
 3. Run `editorial`: three sequential headless Codex calls research/write, review,
    and revise the complete manuscript. All stage prompts and a shared writing
@@ -38,8 +48,12 @@ Repository-wide instructions still apply. Run commands from the repository root.
    episode of the configured brand's podcast, introduce the theme and its appeal,
    and briefly preview the journey before the first song. Address newcomers who
    may never have heard the live station. For Spanish, an appropriate opening is
-   “Bienvenidos a un nuevo episodio del podcast de NeuralForge…”; adapt it
-   naturally to the topic, brand, and host language. Do not invent an episode
+   “Bienvenidos a un nuevo episodio del podcast de NeuralForsch…”; adapt it
+   naturally to the topic, brand, and host language. Use "Bienvenidos" without
+   doubling the Spanish greeting. "NeuralForsch" is the NeuralForge TTS spelling
+   in spoken scripts only; titles, summaries, and metadata keep "NeuralForge".
+   Introduce bands on their own merits in the opening, keeping relevant verified
+   influences for their later song explanations. Do not invent an episode
    number or release schedule. Bridges should not repeat the opening welcome;
    the closing resolves the theme and thanks the listener. This also applies
    when the agent provides edited scripts directly in the plan.
@@ -70,6 +84,26 @@ outside this version. The existing live host orchestrator remains separate.
 
 ## Ownership and reuse
 
+### Standard working-file contract
+
+- Use only `proposal.json`, `plan.json`, and `manuscript.md` in a completed
+  episode's document folder. Initialization needs only `proposal.json`; editorial
+  production adds the plan and readable manuscript before owner approval.
+- Store `episode_number` and `editorial_brief` in `proposal.json`. The embedded
+  brief is required for the editorial workshop; complete legacy/manual episodes
+  may omit it. Do not invent retrospective concept approvals.
+- `plan.json` is the authoritative renderer input. Keep `manuscript.md` in sync
+  after every narration edit, including speech tags. Keep only the final produced
+  edition in a published episode's working folder.
+- Do not add `episode.json`, `brief.json`, `proposal.md`, `script.md`, or
+  edition-suffixed draft copies. Preserve old drafts in runtime backups and leave
+  historical editorial/production receipts, approvals, and catalogue assets intact.
+- Legacy `brief.json` files remain readable; `init --brief PATH` imports their
+  contents into the proposal without creating another working file. Moving an
+  unchanged brief preserves approval hashes; editing it still changes the concept.
+
+### Package responsibilities
+
 - `models.py`: strict proposal, plan, recording, evidence, and commentary schemas.
 - `editorial_models.py`: approved concept/song brief and three stage contracts.
 - `editorial.py`: persisted sequential editing, validation, and Markdown export.
@@ -91,7 +125,8 @@ Do not add an episode-review page, scheduled production, or live-host changes.
 
 ## Operational boundaries
 
-- Local editorial documents live in `<station>/metadata/episodes/<episode-id>/`;
+- Local editorial documents live in `<station>/metadata/episodes/<NNN>-<episode-id>/`
+  (unnumbered legacy folders remain readable);
   generated assets, approvals, and receipts live under `runtime/episodes/`.
 - Station MP3s are authoritative live media. Read existing recordings directly;
   do not run sync, download replacements, or edit catalog rows for production.

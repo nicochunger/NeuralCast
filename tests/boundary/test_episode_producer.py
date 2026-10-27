@@ -128,6 +128,140 @@ def approve(project, proposal_hash):
     approve_manuscript(project, manuscript_hash(project, plan))
 
 
+def test_numbered_documents_preserve_approvals_and_render_identity(production):
+    project, client, proposal_hash = production
+    approve(project, proposal_hash)
+    before = service.validated_inputs(project)[-1]
+    approved = read_json(project.runtime / "manuscript_approval.json")
+    old = project.documents
+    with project.lock():
+        directory = project.set_episode_number(3)
+    assert directory.name == "003-test-episode"
+    assert project.documents == directory and not old.exists()
+    assert project.episode_number == 3
+    assert read_json(directory / "proposal.json")["episode_number"] == 3
+    assert not (directory / "episode.json").exists()
+    assert project.proposal().episode_number == 3
+    assert "episode_number" not in project.proposal().model_dump()
+    assert service.validated_inputs(project)[-1] == before
+    assert read_json(project.runtime / "manuscript_approval.json") == approved
+    reopened = Project(
+        project.station,
+        project.id,
+        station_root=project.station_root,
+        runtime_root=project.runtime.parent.parent,
+    )
+    assert reopened.documents == directory
+    assert reopened.episode_number == 3
+    assert service.prepare(reopened, client)["uploaded"]["media_id"] == "42"
+
+
+@pytest.mark.parametrize("number", [0, -1, True, "3", 1.5])
+def test_episode_number_rejects_invalid_values(production, number):
+    project, _, _ = production
+    with pytest.raises(ValueError):
+        project.set_episode_number(number)
+    assert "episode_number" not in read_json(project.documents / "proposal.json")
+
+
+def test_number_cli_and_inspect_keep_the_stable_slug(
+    production, tmp_path, monkeypatch, capsys
+):
+    from neuralcast.cli import episode_producer as cli
+    from neuralcast.pipelines.episode_producer import publication
+
+    project, _, _ = production
+    monkeypatch.setattr(cli, "Project", lambda station, episode: project)
+    monkeypatch.setattr(publication, "catalogue_root", lambda: tmp_path / "catalogue")
+    args = ["-s", project.station, "--episode", project.id]
+    assert cli.main(["number", *args, "--episode-number", "3"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["episode_id"] == "test-episode"
+    assert result["episode_number"] == 3
+    assert result["documents"].endswith("003-test-episode")
+    assert cli.main(["inspect", *args]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["proposal"]["episode_id"] == "test-episode"
+    assert result["episode_number"] == 3
+
+
+def test_episode_number_rejects_duplicates_and_conflicting_folders(production):
+    project, _, _ = production
+    other = Project(project.station, "other", station_root=project.station_root)
+    write_json(
+        other.documents / "proposal.json",
+        {**read_json(project.documents / "proposal.json"), "episode_id": other.id},
+    )
+    other.set_episode_number(3)
+    with pytest.raises(ValueError, match="already assigned"):
+        project.set_episode_number(3)
+    project.set_episode_number(4)
+    with pytest.raises(ValueError, match="different number"):
+        project.set_episode_number(5)
+    # Do not silently pick one of two copies of the same project.
+    (project.documents.parent / project.id).mkdir()
+    with pytest.raises(ValueError, match="Multiple document folders"):
+        _ = project.documents
+
+
+def test_init_preserves_number_supplied_in_proposal(
+    production, tmp_path, monkeypatch, capsys
+):
+    from neuralcast.cli import episode_producer as cli
+    from neuralcast.pipelines.episode_producer import publication
+
+    existing, _, _ = production
+    project = Project(
+        existing.station,
+        "new-episode",
+        station_root=existing.station_root,
+        runtime_root=tmp_path / "runtime",
+    )
+    source = tmp_path / "proposal.json"
+    raw = {
+        **read_json(existing.documents / "proposal.json"),
+        "episode_id": project.id,
+        "episode_number": 7,
+    }
+    write_json(source, raw)
+    monkeypatch.setattr(cli, "Project", lambda station, episode: project)
+    monkeypatch.setattr(publication, "catalogue_root", lambda: tmp_path / "catalogue")
+    assert (
+        cli.main(
+            [
+                "init",
+                "-s",
+                project.station,
+                "--episode",
+                project.id,
+                "--proposal",
+                str(source),
+            ]
+        )
+        == 0
+    )
+    result = json.loads(capsys.readouterr().out)
+    assert result["episode_number"] == 7
+    assert project.documents.name == "007-new-episode"
+    assert read_json(project.documents / "proposal.json")["episode_number"] == 7
+    assert result["proposal_hash"] == digest(project.proposal().model_dump())
+
+
+def test_numbered_folder_requires_matching_metadata(production):
+    project, _, _ = production
+    current = project.documents
+    destination = current.with_name(f"003-{project.id}")
+    current.rename(destination)
+    with pytest.raises(ValueError, match="needs episode_number"):
+        _ = project.episode_number
+    write_json(
+        destination / "proposal.json",
+        {**read_json(destination / "proposal.json"), "episode_number": 4},
+    )
+    with pytest.raises(ValueError, match="does not match its number"):
+        _ = project.episode_number
+
+
 def test_prepare_requires_proposal_approval_and_uploads_without_queue(production):
     project, client, proposal_hash = production
     with pytest.raises(FileNotFoundError):
@@ -166,9 +300,7 @@ def test_tts_model_override_creates_distinct_reusable_render_and_receipt(product
         service.prepare_narration.call_args.args[2]["tts_model"]
         == "gemini-3.8-flash-tts"
     )
-    assert (
-        service.prepare(project, client, tts_model="gemini-3.8-flash-tts") == flash
-    )
+    assert service.prepare(project, client, tts_model="gemini-3.8-flash-tts") == flash
     assert service.render.call_count == 2
     assert client.upload_media.call_count == 2
 

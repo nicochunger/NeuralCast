@@ -42,7 +42,7 @@ def validated_inputs(
     plan = Plan.model_validate(read_json(project.documents / "plan.json"))
     if plan.proposal_hash != approved_hash:
         raise ValueError("Plan references a different approved proposal")
-    if (project.documents / "brief.json").exists():
+    if project.has_editorial_brief:
         project.editorial_brief().validate_selection(plan)
     recordings = {
         part.id: resolve_recording(project.station_root, part)

@@ -27,16 +27,62 @@ are [write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md)
 All receive the [shared writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
 and resolved host instructions.
 
-Projects live in `<station>/metadata/episodes/<episode-id>/`. `proposal.json`
-defines the premise, channel, target duration, commentary budget, and outline.
-`brief.json` binds that proposal to owner instructions, candidate songs, initial
-research, and estimated timing policy. Both are local, Git-ignored editorial data.
-The agent prepares and discusses these documents with the owner before recording
+Numbered projects live in `<station>/metadata/episodes/<NNN>-<episode-id>/`
+(for example `003-laberintos-humanos/`); unnumbered legacy folders remain readable.
+`proposal.json` stores the positive, station-local `episode_number` alongside
+`episode_id`. This display-only field is explicitly excluded from normalized
+approval/render inputs, so assigning it preserves approvals and render caches.
+The stable slug remains the CLI `--episode` argument, public URL ID, runtime
+folder, and media path. Do not prefix those identities with the folder number.
+
+Assign an existing project's number and rename its document folder with:
+
+```bash
+python -m neuralcast.cli.episode_producer number -s neuralforge --episode laberintos-humanos --episode-number 3
+```
+
+`init` also accepts `--episode-number`. Numbers must be unique within a station;
+NeuralCast and NeuralForge have independent sequences. The numbering command
+also updates an already published manifest's `episode_number` without changing
+its audio, artwork, publication date, revision, or URL. New publications copy the
+number from `proposal.json`; public list/detail responses expose it when present.
+Legacy publications without a number remain readable. Back up the published
+catalogue before numbering existing publications.
+
+### Standard working files
+
+A completed episode has exactly these three working documents:
+
+| Filename | Purpose | When required |
+| --- | --- | --- |
+| `proposal.json` | Stable episode ID, number, channel, theme, duration, outline, and embedded `editorial_brief` | From initialization onward |
+| `plan.json` | Ordered songs and complete tagged narration, with summaries and sources; the authoritative renderer input | Before manuscript approval or rendering |
+| `manuscript.md` | Human-readable song order and the same exact narration as `plan.json` | Before owner manuscript review; retain the final produced edition |
+
+The `editorial_brief` object contains the writing instructions, approved candidate
+songs, initial research, speaking-rate estimate, and duration tolerance. It is
+required for the automated editorial workshop. Complete legacy/manual episodes
+may omit it; do not invent an approval brief retrospectively. The controller hashes
+the base proposal and brief separately, so moving an unchanged legacy brief into
+the proposal preserves approvals. Editing its content still invalidates approval.
+
+Before editorial runs, only `proposal.json` needs to exist. After editorial runs,
+all three files exist. If narration changes, update both `plan.json` and
+`manuscript.md`; editing the Markdown alone never changes the renderer input.
+Do not create separate `episode.json`, `brief.json`, `proposal.md`, `script.md`,
+or edition-suffixed draft files in the working folder. `brief.json` remains a
+read-only compatibility input; `init --brief PATH` imports it into `proposal.json`.
+Keep previous editions, backups, approvals, production receipts, and editorial
+stage history under `runtime/episodes/`, outside the working document folder.
+Never delete historical runtime receipts or published catalogue/audio as cleanup.
+
+These documents are local, Git-ignored editorial data. The agent prepares and
+discusses the concept and embedded brief with the owner before recording
 concept approval. Existing exact recordings must already be in the station
 catalogue and media library; this workflow never runs sync or downloads songs.
 
 ```bash
-python -m neuralcast.cli.episode_producer init -s neuralforge --episode EPISODE_ID --proposal /tmp/proposal.json --brief /tmp/brief.json
+python -m neuralcast.cli.episode_producer init -s neuralforge --episode EPISODE_ID --proposal /tmp/proposal.json --episode-number NUMBER
 python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode EPISODE_ID
 # After owner approval of the concept and candidate songs:
 python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --episode EPISODE_ID --hash CONCEPT_HASH

@@ -14,6 +14,13 @@ voseo and restrained Rioplatense phrasing. Apply this default during concept
 building unless the owner requests another language; it need not be asked again
 for every episode. Preserve artist, song, and album names as supplied.
 
+Spanish openings use **"Bienvenidos"**, without "Bienvenidas y bienvenidos".
+NeuralForge spoken scripts use **"NeuralForsch"** as a TTS pronunciation aid;
+titles, companion summaries, metadata, and other display text retain
+**"NeuralForge"**. NeuralCast keeps its usual spelling. Introduce each band on
+its own merits in the opening; save relevant, verified influence relationships
+for the later song explanation instead of using them to justify inclusion.
+
 The owner chooses **NeuralForge or NeuralCast** in the concept conversation.
 Use that station's catalog, brand, host style, and media destination. If the
 station is missing, ask during concept building rather than relying on the CLI's
@@ -56,12 +63,12 @@ accounts for every issue. There is no automatic fourth review or indefinite loop
 Use the existing project paths:
 
 ```text
-<station>/metadata/episodes/<episode-id>/
-  proposal.json       # premise, channel, duration, commentary budget, outline
-  brief.json          # approved instructions, candidate songs, initial research
+<station>/metadata/episodes/<NNN>-<episode-id>/
+  proposal.json       # episode_number, premise, channel, duration, budget, outline
+                      # includes editorial_brief: instructions, songs, research, timing
 ```
 
-The proposal schema is unchanged. `brief.json` uses this shape:
+The `editorial_brief` property inside `proposal.json` uses this shape:
 
 ```json
 {
@@ -93,14 +100,16 @@ and tolerance are explicit estimates approved with the concept. The writer sees
 measured music durations and must leave enough room for narration. Exact speech
 and total duration are measured again by the audio renderer.
 
-Initialize with `init --proposal PATH --brief PATH` if both files are ready.
-Alternatively initialize the proposal first, obtain `proposal_hash` with inspect,
-then write `brief.json` in the project directory before requesting concept approval:
+Initialize with `init --proposal PATH` using a proposal containing the embedded
+brief. Alternatively initialize the base proposal first, obtain `proposal_hash`
+with inspect, then add the `editorial_brief` object to `proposal.json` before
+requesting concept approval. That object's `proposal_hash` refers to the normalized
+base proposal, excluding `episode_number` and `editorial_brief` itself:
 
 ```bash
 python -m neuralcast.cli.episode_producer init -s neuralforge --episode EPISODE_ID --proposal /tmp/proposal.json
 python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode EPISODE_ID
-# Write brief.json using that proposal_hash; discuss the whole package with owner.
+# Add editorial_brief to proposal.json using that proposal_hash; discuss the package.
 python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode EPISODE_ID
 python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --episode EPISODE_ID --hash CONCEPT_HASH
 ```
@@ -112,6 +121,14 @@ reference `proposal_hash`. Old proposal-only projects retain their existing
 proposal approval; adding a brief requires approval of the combined concept.
 Approval commands record an approval explicitly given by the owner, never one
 inferred from files or an automated agent's verdict.
+
+The standard completed folder contains only `proposal.json`, `plan.json`, and
+`manuscript.md`. See [the working-file contract](episode_producer.md#standard-working-files).
+Do not create an additional brief or numbered draft copies. For compatibility,
+an existing `brief.json` can still be read, and `init --brief PATH` imports a
+legacy file into the proposal. If embedded and legacy briefs disagree, loading
+fails rather than choosing one silently. Moving identical brief content preserves
+the concept/manuscript hashes; changes to the brief still require concept approval.
 
 ## Run the three stages
 
@@ -139,7 +156,7 @@ and owner's manuscript review remain essential.
 Successful output:
 
 ```text
-<station>/metadata/episodes/<episode-id>/
+<station>/metadata/episodes/<NNN>-<episode-id>/
   plan.json           # final complete manuscript; renderer input
   manuscript.md       # song list, full tagged transcript, estimates, changes/gaps
 
