@@ -191,11 +191,14 @@ For podcast requests, read [docs/episode_producer.md](docs/episode_producer.md) 
 Use `python -m neuralcast.cli.episode_producer`; domain code lives in
 `pipelines/episode_producer/`. The main writing path is documented in
 [docs/episode_editorial.md](docs/episode_editorial.md): discuss and approve the
-concept and candidate-song brief, run `editorial` for three headless Codex stages
-(research/write, review, revise), then obtain explicit owner approval of the
+concept and candidate-song brief, run `editorial` for four headless Codex stages
+(research/write, review, content revision, speech/delivery), then obtain explicit owner approval of the
 final Markdown manuscript with `approve-manuscript --hash MANUSCRIPT_HASH` before
 `prepare`. Complete existing manual scripts use the same manuscript approval;
-preparation no longer generates missing scripts. Default episode language is
+preparation no longer generates missing scripts. For a delivery-only revision of
+an unpublished complete manuscript with an approved editorial brief, use
+`delivery --feedback '...'`: one search-disabled pass saves before/after snapshots
+and updates the plan and manuscript together. Default episode language is
 Argentinian Spanish (`es-AR`) unless explicitly overridden. The owner chooses
 NeuralForge or NeuralCast during concept building; ask if unspecified, resolve
 its current Spanish channel, and pass the station explicitly to commands rather

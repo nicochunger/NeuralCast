@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 import json
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -11,6 +12,7 @@ from neuralcast.pipelines.episode_producer.editorial_models import EditorialBrie
 from neuralcast.pipelines.episode_producer.manuscript import (
     approve_manuscript,
     manuscript_hash,
+    require_manuscript_approval,
 )
 from neuralcast.pipelines.episode_producer.models import Plan, Proposal
 from neuralcast.pipelines.episode_producer.storage import (
@@ -72,7 +74,7 @@ def episode(tmp_path, monkeypatch):
         (
             "intro",
             "opening",
-            "Bienvenidos al podcast de NeuralForge. Hoy seguimos una historia compartida.",
+            "Bienvenidos al podcast de NeuralForsch. Hoy seguimos una historia compartida.",
         ),
         (
             "decision",
@@ -141,30 +143,54 @@ def episode(tmp_path, monkeypatch):
             }
         ],
     )
-    outputs = [draft, review, revision]
+    delivery = {
+        "passages": [
+            {
+                "segment_id": part["id"],
+                "script": part["script"],
+                "explanation": "Kept the clear spoken phrasing.",
+            }
+            for part in revision["plan"]["segments"]
+            if part["kind"] == "commentary"
+        ],
+        "listening_notes": [],
+        "editorial_issues": [],
+    }
+    delivery["passages"][1]["script"] = delivery["passages"][1]["script"].replace(
+        "<breath>", "<sigh>"
+    )
+    delivery["passages"][1]["explanation"] = "Use a reflective sigh at the consequence."
+    outputs = [draft, review, revision, delivery]
     monkeypatch.setattr(editorial, "audio_duration", lambda path: 500)
     return project, outputs
 
 
 def runner_for(outputs, calls):
-    def runner(prompt, context, schema, attempt):
+    def runner(prompt, context, schema, attempt, **kwargs):
         stage = len(calls)
-        calls.append({"prompt": prompt, "context": deepcopy(context), "schema": schema})
+        calls.append(
+            {"prompt": prompt, "context": deepcopy(context), "schema": schema, **kwargs}
+        )
         return deepcopy(outputs[stage])
 
     return runner
 
 
-def test_three_calls_have_full_handoffs_and_stop_before_audio(episode, monkeypatch):
+def test_four_calls_have_full_handoffs_and_stop_before_audio(episode, monkeypatch):
     project, outputs = episode
     tts = Mock(side_effect=AssertionError("No audio during editing"))
     monkeypatch.setattr(service, "prepare_narration", tts)
     calls = []
     result = editorial.edit_episode(project, runner=runner_for(outputs, calls))
-    assert len(calls) == 3
+    assert len(calls) == 4
     assert "draft" not in calls[0]["context"]
     assert calls[1]["context"]["draft"]["plan"] == outputs[0]["plan"]
     assert calls[2]["context"]["review"]["issues"][0]["id"] == "detail"
+    assert calls[3]["context"]["source_plan"] == outputs[2]["plan"]
+    assert calls[3]["context"]["editorial_blockers"] == []
+    assert not {"draft", "review", "revise"} & calls[3]["context"].keys()
+    assert calls[3]["search"] is False
+    assert all("search" not in call for call in calls[:3])
     for call in calls:
         context = call["context"]
         assert context["host"]["locale"] == "es-AR"
@@ -175,7 +201,10 @@ def test_three_calls_have_full_handoffs_and_stop_before_audio(episode, monkeypat
         assert call["schema"]["additionalProperties"] is False
     assert result["status"] == "awaiting_manuscript_approval"
     markdown = (project.documents / "manuscript.md").read_text()
-    assert "Artist | Song" in markdown and "\\<breath\\>" in markdown
+    assert "Artist | Song" in markdown and "\\<sigh\\>" in markdown
+    report = Path(result["delivery_report"]).read_text()
+    assert "Before:" in report and "After:" in report
+    assert "<breath>" in report and "<sigh>" in report
     assert "https://" not in markdown
     assert not (project.runtime / "manuscript_approval.json").exists()
     assert not list(project.runtime.glob("**/*.mp3"))
@@ -372,7 +401,7 @@ def test_failure_resumes_completed_stages_and_preserves_attempts(episode):
     assert not (project.documents / "plan.json").exists()
     calls = []
     result = editorial.edit_episode(project, runner=runner_for(outputs[1:], calls))
-    assert len(calls) == 2 and "Stage 2" in calls[0]["prompt"]
+    assert len(calls) == 3 and "Stage 2" in calls[0]["prompt"]
     assert list(project.runtime.glob("editorial/*/review/attempt-001/failure.json"))
     assert result["status"] == "awaiting_manuscript_approval"
 
@@ -431,8 +460,8 @@ def test_concurrent_manual_edits_are_preserved(episode):
     project, outputs = episode
     normal = runner_for(outputs, [])
 
-    def runner(prompt, context, schema, attempt):
-        result = normal(prompt, context, schema, attempt)
+    def runner(prompt, context, schema, attempt, **kwargs):
+        result = normal(prompt, context, schema, attempt, **kwargs)
         if "Stage 3" in prompt:
             write_json(project.documents / "plan.json", {"manual": "Do not overwrite"})
         return result
@@ -472,3 +501,290 @@ def test_inspect_and_approval_cli_use_exact_concept_and_manuscript_hashes(
     )
     stored = read_json(project.runtime / "manuscript_approval.json")
     assert stored["manuscript_hash"] == result["manuscript_hash"]
+
+
+def delivery_edit(outputs):
+    result = deepcopy(outputs[3])
+    result["passages"][0]["script"] = result["passages"][0]["script"].replace(
+        "Hoy seguimos", "Hoy vamos a seguir"
+    )
+    result["passages"][0]["explanation"] = "Make the welcome more conversational."
+    result["listening_notes"] = [
+        {"segment_id": "decision", "note": "Check the sigh stays understated."}
+    ]
+    return result
+
+
+def test_delivery_only_freezes_structure_snapshots_edits_and_reuses_result(
+    episode, monkeypatch
+):
+    project, outputs = episode
+    initial = editorial.edit_episode(project, runner=runner_for(outputs, []))
+    approve_manuscript(project, initial["manuscript_hash"])
+    old = read_json(project.documents / "plan.json")
+    manuscript = (project.documents / "manuscript.md").read_bytes()
+    approval = (project.runtime / "manuscript_approval.json").read_bytes()
+    never_tts = Mock(side_effect=AssertionError("No audio during delivery"))
+    monkeypatch.setattr(service, "prepare_narration", never_tts)
+    calls = []
+    result = editorial.polish_delivery(
+        project, runner=runner_for([delivery_edit(outputs)], calls)
+    )
+    assert len(calls) == 1 and calls[0]["search"] is False
+    assert "draft" not in calls[0]["context"] and "review" not in calls[0]["context"]
+    assert calls[0]["context"]["source_plan"] == old
+    current = read_json(project.documents / "plan.json")
+    assert current != old
+    for before, after in zip(old["segments"], current["segments"]):
+        assert {k: v for k, v in before.items() if k != "script"} == {
+            k: v for k, v in after.items() if k != "script"
+        }
+    directory = Path(result["artifacts"])
+    assert read_json(directory / "previous_plan.json") == old
+    assert (directory / "previous_manuscript.md").read_bytes() == manuscript
+    assert (project.runtime / "manuscript_approval.json").read_bytes() == approval
+    assert result["manuscript_hash"] != initial["manuscript_hash"]
+    assert "understated" in (project.documents / "manuscript.md").read_text()
+    report = Path(result["delivery_report"]).read_text()
+    assert "Hoy seguimos" in report and "Hoy vamos a seguir" in report
+    with pytest.raises(ValueError, match="not been approved"):
+        require_manuscript_approval(project, Plan.model_validate(current))
+    never = Mock(side_effect=AssertionError("Do not run the delivery model again"))
+    assert editorial.polish_delivery(project, runner=never) == result
+    never.assert_not_called()
+    never_tts.assert_not_called()
+
+
+def test_delivery_failure_preserves_current_draft_and_retries_one_call(episode):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    before = (project.documents / "plan.json").read_bytes()
+    manuscript = (project.documents / "manuscript.md").read_bytes()
+
+    def failed(prompt, context, schema, attempt, **kwargs):
+        assert kwargs["search"] is False
+        write_json(attempt / "response.json", {"partial": "preserve this attempt"})
+        raise RuntimeError("Simulated delivery timeout")
+
+    with pytest.raises(RuntimeError, match="timeout"):
+        editorial.polish_delivery(project, runner=failed)
+    assert (project.documents / "plan.json").read_bytes() == before
+    assert (project.documents / "manuscript.md").read_bytes() == manuscript
+    attempts = list(project.runtime.glob("delivery/*/delivery/attempt-001"))
+    assert len(attempts) == 1
+    assert (attempts[0] / "response.json").exists() and (
+        attempts[0] / "failure.json"
+    ).exists()
+    calls = []
+    editorial.polish_delivery(
+        project, runner=runner_for([delivery_edit(outputs)], calls)
+    )
+    assert len(calls) == 1
+
+
+def test_fourth_stage_failure_reuses_the_three_content_stages(episode):
+    project, outputs = episode
+    content = runner_for(outputs[:3], [])
+
+    def fail_delivery(prompt, context, schema, attempt, **kwargs):
+        if kwargs.get("search") is False:
+            raise RuntimeError("Delivery failed")
+        return content(prompt, context, schema, attempt)
+
+    with pytest.raises(RuntimeError, match="Delivery failed"):
+        editorial.edit_episode(project, runner=fail_delivery)
+    assert not (project.documents / "plan.json").exists()
+    assert len(list(project.runtime.glob("editorial/*/revise.json"))) == 1
+    calls = []
+    result = editorial.edit_episode(project, runner=runner_for([outputs[3]], calls))
+    assert result["status"] == "awaiting_manuscript_approval"
+    assert len(calls) == 1 and calls[0]["search"] is False
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda result: result["passages"].pop(),
+        lambda result: result["passages"].append(deepcopy(result["passages"][0])),
+        lambda result: result["passages"][0].update(segment_id="song"),
+        lambda result: result["listening_notes"].append(
+            {"segment_id": "missing", "note": "Unknown"}
+        ),
+        lambda result: result["passages"][0].update(script="Bad <invented> tag"),
+        lambda result: result["passages"][0].update(script="word " * 400),
+        lambda result: result.update(plan={"segments": []}),
+    ],
+)
+def test_invalid_delivery_cannot_replace_the_active_manuscript(episode, mutation):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    before = (project.documents / "plan.json").read_bytes()
+    manuscript = (project.documents / "manuscript.md").read_bytes()
+    result = delivery_edit(outputs)
+    mutation(result)
+    with pytest.raises(ValueError):
+        editorial.polish_delivery(project, runner=runner_for([result], []))
+    assert (project.documents / "plan.json").read_bytes() == before
+    assert (project.documents / "manuscript.md").read_bytes() == manuscript
+
+
+def test_delivery_issues_block_approval_and_cannot_clear_existing_blockers(episode):
+    project, outputs = episode
+    initial = editorial.edit_episode(project, runner=runner_for(outputs, []))
+    approve_manuscript(project, initial["manuscript_hash"])
+    result = deepcopy(
+        outputs[3]
+    )  # Unchanged text can still have a newly identified blocker.
+    result["editorial_issues"] = [
+        {"segment_id": "decision", "note": "Attribution needs content review."}
+    ]
+    receipt = editorial.polish_delivery(project, runner=runner_for([result], []))
+    assert receipt["status"] == "blocked"
+    assert "Status: blocked." in (project.documents / "manuscript.md").read_text()
+    with pytest.raises(ValueError, match="unresolved editorial blockers"):
+        approve_manuscript(project, receipt["manuscript_hash"])
+    never = Mock()
+    with pytest.raises(ValueError, match="Resolve existing editorial blockers"):
+        editorial.polish_delivery(project, runner=never)
+    never.assert_not_called()
+
+
+def test_delivery_preserves_concurrent_manual_changes(episode):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    changed = read_json(project.documents / "plan.json")
+    changed["segments"][0]["script"] += " Manual edit."
+
+    def concurrent(*args, **kwargs):
+        write_json(project.documents / "plan.json", changed)
+        return delivery_edit(outputs)
+
+    with pytest.raises(ValueError, match="edits were preserved"):
+        editorial.polish_delivery(project, runner=concurrent)
+    assert read_json(project.documents / "plan.json") == changed
+
+
+def test_delivery_cache_tampering_is_rejected(episode):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    result = editorial.polish_delivery(
+        project, runner=runner_for([delivery_edit(outputs)], [])
+    )
+    path = Path(result["artifacts"]) / "delivery.json"
+    raw = read_json(path)
+    raw["output"]["passages"][0]["script"] += " Tampered."
+    write_json(path, raw)
+    with pytest.raises(ValueError, match="stage changed"):
+        editorial.polish_delivery(project, runner=Mock())
+
+
+def test_delivery_preserves_concurrent_markdown_only_edits(episode):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    before = (project.documents / "plan.json").read_bytes()
+
+    def concurrent(*args, **kwargs):
+        (project.documents / "manuscript.md").write_text("An owner's concurrent edit.")
+        return delivery_edit(outputs)
+
+    with pytest.raises(ValueError, match="Manuscript changed"):
+        editorial.polish_delivery(project, runner=concurrent)
+    assert (project.documents / "plan.json").read_bytes() == before
+    assert (
+        project.documents / "manuscript.md"
+    ).read_text() == "An owner's concurrent edit."
+
+
+def test_new_feedback_and_manual_plan_edits_create_new_delivery_runs(episode):
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    calls = []
+
+    def current_draft(prompt, context, schema, attempt, **kwargs):
+        calls.append(deepcopy(context))
+        return {
+            "passages": [
+                {
+                    "segment_id": part["id"],
+                    "script": part["script"],
+                    "explanation": "Keep this phrasing.",
+                }
+                for part in context["source_plan"]["segments"]
+                if part["kind"] == "commentary"
+            ],
+            "listening_notes": [],
+            "editorial_issues": [],
+        }
+
+    first = editorial.polish_delivery(
+        project, feedback="First direction", runner=current_draft
+    )
+    second = editorial.polish_delivery(
+        project, feedback="New direction", runner=current_draft
+    )
+    assert first["run_hash"] != second["run_hash"]
+    plan = read_json(project.documents / "plan.json")
+    plan["segments"][-1][
+        "script"
+    ] = "Las canciones guardan esas conexiones. Gracias por acompañarnos."
+    write_json(project.documents / "plan.json", plan)
+    third = editorial.polish_delivery(
+        project, feedback="New direction", runner=current_draft
+    )
+    assert second["run_hash"] != third["run_hash"]
+    assert len(calls) == 3
+    assert calls[-1]["source_plan"] == plan
+
+
+def test_published_episode_cannot_be_rewritten(episode, monkeypatch, tmp_path):
+    project, _ = episode
+    catalogue = tmp_path / "catalogue"
+    write_json(catalogue / "manifest.json", {"published": True})
+    monkeypatch.setattr(editorial, "episode_directory", lambda *args: catalogue)
+    never = Mock()
+    for operation in (editorial.edit_episode, editorial.polish_delivery):
+        with pytest.raises(ValueError, match="Published episodes"):
+            operation(project, runner=never)
+    never.assert_not_called()
+
+
+def test_cli_delivery_uses_current_draft_without_audio_credentials(
+    episode, monkeypatch, capsys
+):
+    from neuralcast.cli import episode_producer as cli
+
+    project, outputs = episode
+    editorial.edit_episode(project, runner=runner_for(outputs, []))
+    monkeypatch.setattr(cli, "Project", lambda *args: project)
+    calls = []
+    monkeypatch.setattr(
+        cli,
+        "polish_delivery",
+        lambda project, **kwargs: editorial.polish_delivery(
+            project, runner=runner_for([delivery_edit(outputs)], calls), **kwargs
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "load_azuracast_settings",
+        Mock(side_effect=AssertionError("No audio credentials")),
+    )
+    assert (
+        cli.main(
+            [
+                "delivery",
+                "-s",
+                "neuralforge",
+                "--episode",
+                project.id,
+                "--feedback",
+                "Keep the sigh subtle.",
+            ]
+        )
+        == 0
+    )
+    assert (
+        json.loads(capsys.readouterr().out)["status"] == "awaiting_manuscript_approval"
+    )
+    assert len(calls) == 1 and calls[0]["search"] is False
+    assert calls[0]["context"]["owner_feedback"] == "Keep the sigh subtle."

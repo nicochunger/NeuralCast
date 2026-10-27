@@ -2,8 +2,8 @@
 
 The main workflow has two editorial owner approvals. First, discuss the research,
 concept, narrative direction, candidate songs, host language, and timing with the
-owner. Approve that package, run three automated headless Codex stages (research
-and write, review, revise), then return the final Markdown manuscript for the
+owner. Approve that package, run four automated headless Codex stages (research
+and write, review, content revision, speech/delivery), then return the final Markdown manuscript for the
 owner's approval. Only then synthesize and render the approved scripts for private
 preview. Publication requires separate explicit approval of the finished audio.
 
@@ -23,7 +23,8 @@ Read [the editorial workflow](episode_editorial.md) for input schemas, prompts,
 research/review responsibilities, recovery, and approval rules. The exact prompts
 are [write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md),
 [review](../src/neuralcast/assets/stories/prompts/episode_editorial/review.md), and
-[revise](../src/neuralcast/assets/stories/prompts/episode_editorial/revise.md).
+[revise](../src/neuralcast/assets/stories/prompts/episode_editorial/revise.md), and
+[speech/delivery](../src/neuralcast/assets/stories/prompts/episode_editorial/delivery.md).
 All receive the [shared writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
 and resolved host instructions.
 
@@ -96,10 +97,33 @@ python -m neuralcast.cli.episode_producer prepare -s neuralforge --episode EPISO
 
 `approve-proposal` uses the combined `concept_hash` from inspect when a brief
 exists. `editorial` writes a complete `plan.json` and `manuscript.md`, saving all
-three prompts, contexts, stage results, source evidence, and prior plans under
+four prompts, contexts, stage results, source evidence, and prior plans under
 `runtime/episodes/<station>/<episode-id>/editorial/<run-hash>/`. It ends at manuscript
 review. Unresolved editorial issues are visible and prevent approval. Unchanged
 reruns resume accepted stages; no unbounded review loop is launched.
+
+For a small spoken-phrasing or vocal-tag revision after owner feedback, use the
+independent delivery pass instead of rerunning research and content review:
+
+```bash
+python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPISODE_ID --feedback 'Make the transitions more conversational; keep expressive cues restrained.'
+```
+
+It requires the approved concept/editorial brief and a complete current plan.
+One search-disabled Codex call returns exactly one script per existing commentary.
+The controller locks segment IDs/order, songs, sources, summaries and other plan
+metadata, validates speech tags/word budgets/timing, and writes `plan.json` plus
+`manuscript.md` together. Factual meaning and attribution within rewritten speech
+still need owner judgment; structural constraints alone cannot prove them.
+
+Before/after text, the previous plan/manuscript/approval, input/output hashes and
+listening notes are retained under `runtime/episodes/<station>/<id>/delivery/<hash>/`.
+The CLI returns the report path and new manuscript hash. Unchanged retries reuse
+the result; edits, feedback or guidance changes create another run. A failure
+preserves the current working documents and previous attempts. Existing editorial
+blockers require content revision; newly flagged content problems block approval.
+Published episodes cannot be rewritten. No audio or upload occurs; approve the
+new manuscript before rendering.
 
 `approve-manuscript` records the exact concept/plan hash after explicit owner
 approval. Any change invalidates it. `prepare` requires finished scripts and that

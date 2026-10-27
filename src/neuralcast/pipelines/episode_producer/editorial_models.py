@@ -1,4 +1,4 @@
-"""Contracts for the approved concept and three manuscript editorial stages."""
+"""Contracts for the approved concept and manuscript editorial stages."""
 
 from typing import Annotated, Literal
 
@@ -81,3 +81,20 @@ class Resolution(Document):
 class Revision(Draft):
     changes: list[Text] = Field(default_factory=list, max_length=40)
     resolutions: list[Resolution] = Field(default_factory=list, max_length=40)
+
+
+class DeliveryPassage(Document):
+    segment_id: Identifier
+    script: Text
+    explanation: Text
+
+
+class DeliveryNote(Document):
+    segment_id: Identifier
+    note: Text
+
+
+class Delivery(Document):
+    passages: list[DeliveryPassage] = Field(min_length=1, max_length=40)
+    listening_notes: list[DeliveryNote] = Field(default_factory=list, max_length=40)
+    editorial_issues: list[DeliveryNote] = Field(default_factory=list, max_length=40)

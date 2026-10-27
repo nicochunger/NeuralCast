@@ -12,7 +12,10 @@ from dotenv import load_dotenv
 from neuralcast.config import DEFAULT_STATION_SLUG, ALLOWED_STATION_SLUGS, PROJECT_ROOT
 from neuralcast.pipelines.episode_producer.models import Plan, Proposal
 from neuralcast.pipelines.episode_producer.editorial_models import EditorialBrief
-from neuralcast.pipelines.episode_producer.editorial import edit_episode
+from neuralcast.pipelines.episode_producer.editorial import (
+    edit_episode,
+    polish_delivery,
+)
 from neuralcast.pipelines.episode_producer.manuscript import (
     approve_manuscript,
     manuscript_hash,
@@ -48,6 +51,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "number",
             "approve-proposal",
             "editorial",
+            "delivery",
             "approve-manuscript",
             "validate",
             "prepare",
@@ -72,7 +76,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Import a legacy brief JSON into proposal.json; init only",
     )
     parser.add_argument(
-        "--feedback", default="", help="Owner revision instructions; editorial only"
+        "--feedback",
+        default="",
+        help="Owner revision instructions; editorial/delivery only",
     )
     parser.add_argument(
         "--hash",
@@ -188,6 +194,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = {"approved_concept": args.hash}
             elif args.action == "editorial":
                 result = edit_episode(
+                    project,
+                    feedback=args.feedback,
+                    progress=lambda message: print(
+                        message, file=sys.stderr, flush=True
+                    ),
+                )
+            elif args.action == "delivery":
+                result = polish_delivery(
                     project,
                     feedback=args.feedback,
                     progress=lambda message: print(

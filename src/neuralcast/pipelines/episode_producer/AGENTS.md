@@ -16,7 +16,7 @@ Repository-wide instructions still apply. Run commands from the repository root.
 - Resolve the selected station's Spanish channel through the current channel
   registry (`host_channels.json`); currently `neuralforge-es` and `neuralcast-es`.
   Record the resolved channel in `proposal.json` before concept approval. All
-  three editorial stages and TTS inherit that channel's language and host style.
+  four editorial stages and TTS inherit that channel's language and host style.
 - Assign the station-local publication number with `init --episode-number N`
   or `number --episode-number N`. Display metadata lives in `proposal.json`;
   document folders use zero-padded numbers such as `003-laberintos-humanos`.
@@ -37,13 +37,21 @@ Repository-wide instructions still apply. Run commands from the repository root.
    `approve-proposal --hash CONCEPT_HASH`. This binds the proposal, embedded brief,
    and candidates;
    `proposal_hash` remains the plan's proposal reference, not the concept approval.
-3. Run `editorial`: three sequential headless Codex calls research/write, review,
-   and revise the complete manuscript. All stage prompts and a shared writing
+3. Run `editorial`: four sequential headless Codex calls research/write, review,
+   revise the content, and polish speech/delivery. The last pass has web search
+   disabled and can change only narration scripts, preserving the segment/song
+   order, sources, companions and other plan metadata. All stage prompts and a shared writing
    guide live under `assets/stories/prompts/episode_editorial/`. Each receives the
    approved context, resolved host guidance, and preceding stage outputs. Return
    `manuscript.md` with its song list and exact tagged transcript to the owner.
    Stop for manuscript approval; this step must never generate audio. Preserve
    stage snapshots and review reports. Do not silently ignore unresolved issues.
+   Use `delivery --feedback '...'` to run just the speech pass on an unpublished
+   complete plan with an approved concept/brief. It saves the previous plan,
+   manuscript and approval receipt, generates an exact before/after report under
+   runtime, and updates the active plan/Markdown together. Changed scripts require
+   manuscript approval again. Delivery cannot clear existing editorial blockers
+   or rewrite published episodes; content problems go back to editorial revision.
 4. Make the opening explicitly introduce a podcast: welcome listeners to a new
    episode of the configured brand's podcast, introduce the theme and its appeal,
    and briefly preview the journey before the first song. Address newcomers who
@@ -105,8 +113,9 @@ outside this version. The existing live host orchestrator remains separate.
 ### Package responsibilities
 
 - `models.py`: strict proposal, plan, recording, evidence, and commentary schemas.
-- `editorial_models.py`: approved concept/song brief and three stage contracts.
+- `editorial_models.py`: approved concept/song brief and four stage contracts.
 - `editorial.py`: persisted sequential editing, validation, and Markdown export.
+- `delivery.py`: script-only patch validation and owner-readable before/after reports.
 - `services/editorial_agent.py`: shared read-only headless Codex boundary with web
   research and strict JSON; episode editorial uses its default research-enabled mode.
 - `manuscript.py`: complete-script checks and exact owner approval before TTS.

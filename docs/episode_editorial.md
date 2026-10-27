@@ -2,8 +2,8 @@
 
 Episode production starts with a conversation: research the idea with the owner,
 agree on its angle, candidate recordings, host language, duration, and narrative
-direction. The owner approves that concept package. Three sequential headless
-Codex calls then research/write, review, and revise the complete manuscript.
+direction. The owner approves that concept package. Four sequential headless
+Codex calls then research/write, review, revise the content, and polish speech/delivery.
 The result stops at a Markdown manuscript for a second owner approval. This
 command never synthesizes, renders, uploads, publishes, or changes station media.
 
@@ -36,13 +36,14 @@ the reusable stage prompts continue to follow the supplied host locale and brand
 
 ## Main prompts
 
-These files are the exact main prompts sent to the three fresh Codex sessions:
+These files are the exact main prompts sent to the four fresh Codex sessions:
 
 1. [Research and write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md)
 2. [Review](../src/neuralcast/assets/stories/prompts/episode_editorial/review.md)
 3. [Revise](../src/neuralcast/assets/stories/prompts/episode_editorial/revise.md)
+4. [Speech and delivery](../src/neuralcast/assets/stories/prompts/episode_editorial/delivery.md)
 
-All three also receive the full [writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md),
+All four also receive the full [writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md),
 [passage guidelines](../src/neuralcast/assets/stories/prompts/episode_commentary.md),
 resolved host system/TTS instructions, the station playlist descriptions, approved
 brief, candidate durations, and allowed vocal tags. The references are included
@@ -55,8 +56,12 @@ Stage 2 reads the whole manuscript with music breaks and reports specific issues
 with segment IDs, severity, corrections, and acceptance criteria. It checks
 continuity, depth, song placement, spoken delivery, evidence, and pacing, and
 names strong material to preserve. Stage 3 addresses the issues, does targeted
-research, checks the complete revised narrative, polishes delivery/tags, and
-accounts for every issue. There is no automatic fourth review or indefinite loop.
+research, checks the complete revised narrative, and accounts for every issue.
+Stage 4 then focuses exclusively on spoken phrasing, listening continuity and
+purposeful vocal cues, with web search disabled. It can replace commentary scripts
+only: IDs, roles, song order, source evidence, companions and other metadata are
+locked. New content problems become visible blockers, not unsupported rewrites.
+No additional automatic review loop follows the delivery pass.
 
 ## Input documents and first approval
 
@@ -130,17 +135,18 @@ legacy file into the proposal. If embedded and legacy briefs disagree, loading
 fails rather than choosing one silently. Moving identical brief content preserves
 the concept/manuscript hashes; changes to the brief still require concept approval.
 
-## Run the three stages
+## Run the four stages
 
 ```bash
 python -m neuralcast.cli.episode_producer editorial -s neuralforge --episode EPISODE_ID
 ```
 
 The controller uses `codex exec --ephemeral`, `gpt-6.1-sol` at high reasoning
-effort, live web research, a read-only sandbox, and JSON-schema output. It needs
+effort, live web research in stages 1–3, a read-only sandbox, and JSON-schema output.
+Stage 4 explicitly disables web search. It needs
 an installed/authenticated Codex CLI with access to that model, plus ffprobe for
 music-duration measurement. It does not need Gemini or AzuraCast credentials.
-Each call has a 30-minute timeout; there are three calls maximum per successful
+Each call has a 30-minute timeout; there are four calls maximum per successful
 run. Timeouts/interruption terminate the child process group. Fresh sessions see
 only their supplied snapshots and preceding stage documents, not a resumed chat.
 Station/provider secrets are excluded from the subprocess environment. Raw CLI
@@ -169,6 +175,8 @@ runtime/episodes/<station>/<episode-id>/
     write.json
     review.json
     revise.json
+    delivery.json
+    delivery_report.md  # exact before/after text and listening-review notes
     final_plan.json
     manuscript.md
     receipt.json
@@ -184,10 +192,35 @@ up inside that run. A prompt, host guidance, concept, recording, or feedback cha
 creates a new run rather than rewriting the preceding run's stage history.
 
 For owner feedback, use `editorial --feedback 'Specific requested changes'`.
-This starts a fresh three-stage pass against the approved concept and the supplied
+This starts a fresh four-stage pass against the approved concept and the supplied
 feedback; it does not implicitly resume a model conversation. If feedback relies
 on exact previous wording, include that wording in the instructions. A change to
 concept or candidate recordings belongs in the brief and needs concept approval.
+
+For speech-only edits on the current complete draft, use the independent pass:
+
+```bash
+python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPISODE_ID --feedback 'Natural spoken phrasing; varied but restrained speech cues.'
+```
+
+This is one search-disabled call, with no research/content stages, TTS or upload.
+It requires the approved concept/brief, preserves exact song order and all non-script
+plan fields, and validates speech tags, word limits and estimated timing. It saves
+`previous_plan.json`, `previous_manuscript.md`, the previous approval when present,
+`delivery.json`, `delivery_report.md`, `final_plan.json`, `manuscript.md`, and a receipt
+under `runtime/episodes/<station>/<id>/delivery/<hash>/`. No new working-folder
+filenames are introduced. Active plan and manuscript are installed together after
+validation; concurrent manual edits are preserved. Unchanged retries reuse the
+accepted result. New source text, feedback, or guidance creates a new run.
+
+The Markdown includes listening notes for uncertain performance choices. The
+full before/after report is referenced by the CLI receipt. Inline directions use
+only the supplied allowlist, with no tag quotas or automatic laughter/theatrics.
+Meaning and attribution within rewritten text still need owner review; locking
+sources and structure cannot mechanically prove semantic equivalence.
+Existing editorial blockers must be addressed by content revision. Newly flagged
+content issues block approval. Published episodes cannot be rewritten by either
+command. Changed narration requires approval of the new manuscript hash before TTS.
 
 ## Second approval and rendering
 
