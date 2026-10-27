@@ -10,7 +10,10 @@ import pytest
 from neuralcast.admin_api.app import create_app
 from neuralcast.admin_api.jobs import JobManager, build_job_command
 from neuralcast.pipelines.music_discovery import media
-from neuralcast.pipelines.music_discovery.codex import run_agent
+from neuralcast.pipelines.music_discovery.codex import (
+    compact_feedback_context,
+    run_agent,
+)
 from neuralcast.pipelines.music_discovery.models import (
     FeedbackDraft,
     FeedbackResult,
@@ -252,7 +255,15 @@ def test_all_rejected_changes_no_catalog_or_station_media(rig):
 
 @pytest.mark.parametrize(
     "change",
-    ["extra", "rejected", "missing", "duplicate", "playlist", "broad_without_reason"],
+    [
+        "extra",
+        "rejected",
+        "missing",
+        "empty",
+        "duplicate",
+        "playlist",
+        "broad_without_reason",
+    ],
 )
 def test_agent_cannot_expand_or_override_owner_choices(rig, change):
     service, _, _ = rig
@@ -274,6 +285,8 @@ def test_agent_cannot_expand_or_override_owner_choices(rig, change):
             result["placements"][0]["candidate_id"] = "song-0"
         elif change == "missing":
             result["placements"].pop()
+        elif change == "empty":
+            result["placements"] = []
         elif change == "duplicate":
             result["placements"].append(result["placements"][0])
         elif change == "playlist":
@@ -285,6 +298,8 @@ def test_agent_cannot_expand_or_override_owner_choices(rig, change):
         service.process(batch.id)
     assert not list((service.station_dir / "songs").rglob("*.mp3"))
     assert service.store.state().preferences == []
+    if change == "empty":
+        assert "expected 2; received 0" in service.store.current().error
 
 
 def test_conflicting_live_file_is_not_overwritten_or_deleted(rig):
@@ -339,7 +354,7 @@ def test_invalid_discovery_never_downloads(rig, kind):
 
 
 def test_agent_stages_use_separate_search_modes_and_strict_schemas(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, rig
 ):
     calls = []
     monkeypatch.setattr(
@@ -347,8 +362,15 @@ def test_agent_stages_use_separate_search_modes_and_strict_schemas(
         "run_stage",
         lambda *args, **kwargs: calls.append((args, kwargs)) or {},
     )
+    service, _, _ = rig
+    service.generate()
+    batch = review(service)
+    service.submit(batch.id, batch.revision)
+    context = json.loads(
+        (service.store.batch_dir(batch.id) / "feedback_context.json").read_text()
+    )
     run_agent("discovery", {}, tmp_path / "research")
-    run_agent("feedback", {}, tmp_path / "feedback")
+    run_agent("feedback", context, tmp_path / "feedback")
     assert calls[0][1]["search"] is True
     assert calls[1][1]["search"] is False
     assert (
@@ -356,6 +378,83 @@ def test_agent_stages_use_separate_search_modes_and_strict_schemas(
     )
     assert "Do not search" in calls[1][0][0]
     assert calls[0][0][2]["additionalProperties"] is False
+
+
+@pytest.mark.parametrize("accepted", [(), (1, 3), (0, 1, 2, 3, 4)])
+def test_feedback_schema_binds_exact_approvals_and_reads_compact_review(
+    rig, monkeypatch, accepted
+):
+    service, _, downloads = rig
+    service.generate()
+    batch = review(service, accepted=accepted)
+    batch = service.submit(batch.id, batch.revision)
+    path = service.store.batch_dir(batch.id) / "feedback_context.json"
+    compact = json.loads(path.read_text())
+    expected = {f"song-{i}" for i in accepted}
+    assert set(compact["accepted_candidate_ids"]) == expected
+    assert compact["playlists"] == ["Folk Metal"]
+    assert "existing_identities" not in compact
+    assert "research_urls" not in compact["candidates"][0]
+    assert compact_feedback_context(compact) == compact
+    # Simulate a frozen batch written by the old version. Its original snapshot
+    # and feedback hash remain intact, while the agent sees only compact input.
+    legacy = {**compact, **service.catalog_context()}
+    atomic_json(path, legacy)
+    original_snapshot = path.read_bytes()
+    frozen_hash = batch.submission_hash
+
+    def stage(prompt, context, schema, attempt, **kwargs):
+        assert context == compact
+        assert kwargs["search"] is False
+        assert json.dumps(compact, ensure_ascii=False, indent=2) in prompt
+        assert "Read-only commands" in prompt
+        assert "Do not execute commands" not in prompt
+        placements = schema["properties"]["placements"]
+        assert placements["type"] == "object"
+        assert placements["additionalProperties"] is False
+        assert set(placements["properties"]) == set(placements["required"]) == expected
+        for item in placements["properties"].values():
+            assert item["properties"]["playlist"]["enum"] == ["Folk Metal"]
+            assert item["required"] == ["playlist"]
+            assert item["additionalProperties"] is False
+        assert set(
+            schema["$defs"]["PreferenceUpdate"]["properties"]["candidate_ids"]["items"][
+                "enum"
+            ]
+        ) == set(compact["feedback"])
+        return {
+            "placements": {key: {"playlist": "Folk Metal"} for key in expected},
+            "preference_updates": [],
+        }
+
+    monkeypatch.setattr(editorial_agent, "run_stage", stage)
+    service.agent = run_agent
+    result = service.process(batch.id)
+    assert result["accepted"] == len(expected)
+    saved = service.store.current()
+    assert set(saved.promoted) == expected
+    assert saved.submission_hash == frozen_hash
+    assert path.read_bytes() == original_snapshot
+    assert len(downloads) == 5
+
+
+def test_empty_feedback_response_can_retry_without_losing_owner_decisions(rig):
+    service, calls, downloads = rig
+    service.generate()
+    batch = review(service, accepted=(0, 1, 2, 3, 4))
+    frozen = service.submit(batch.id, batch.revision)
+    original = service.agent
+    service.agent = lambda *_: {"placements": [], "preference_updates": []}
+    with pytest.raises(ValueError, match="expected 5; received 0"):
+        service.process(batch.id)
+    failed = service.store.current()
+    assert failed.feedback == frozen.feedback
+    assert failed.submission_hash == frozen.submission_hash
+    assert failed.promoted == [] and failed.cleaned == []
+    assert len(list(service.store.root.rglob("*.mp3"))) == 5
+    service.agent = original
+    assert service.process(batch.id)["accepted"] == 5
+    assert len(downloads) == 5
 
 
 def test_api_requires_auth_and_streams_ranges_without_exposing_other_files(

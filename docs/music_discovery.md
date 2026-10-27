@@ -39,7 +39,13 @@ than appearing as listening guidance. Older batches without the new text fields
 remain readable.
 
 Feedback processing has web search disabled. It receives only the frozen batch,
-its decisions, definitions, catalog, and preferences. Its placements must match
+its decisions, playlist definitions and names, and preferences; the full track
+catalog is omitted. This compact review is included directly in the prompt and
+saved as `context.json`; read-only inspection of context/schema files is allowed.
+The output schema requires a named placement for every approved candidate ID and
+limits destinations to the supplied permanent playlists. The adapter converts
+that keyed response into the existing list format for persistence and validation.
+Its placements must match
 exactly the accepted candidate IDs; rejected, extra, missing, and repeated IDs are
 refused. It cannot change a yes/no decision. Broader artist, playlist, or station
 preferences require written owner reasoning; bare yes/no feedback can establish
@@ -92,6 +98,10 @@ preparation** resumes it. Submitted feedback stays frozen if the agent or applic
 fails. **Retry processing** resumes the saved plan and completed song operations.
 Submitting the same revision or processing a completed batch is idempotent. Optimistic
 feedback revisions prevent stale browser sessions overwriting newer decisions.
+Previously frozen reviews keep their original snapshots and decision hashes;
+legacy full-catalog snapshots are compacted only for the agent call. Failed
+responses remain in their attempt directories. A placement mismatch reports
+expected and received counts, leaves decisions/previews intact, and can be retried.
 
 Promotion holds the same `runtime/catalog-maintenance.lock` used by scheduled catalog
 maintenance (or `NC_MAINTENANCE_LOCK_FILE`). Conflicts fail for retry. Do not run direct

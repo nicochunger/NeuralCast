@@ -15,7 +15,7 @@ from neuralcast.models import Song
 from neuralcast.playlists.catalog import StationPlaylistCatalog, playlist_song_key
 from neuralcast.services.editorial_agent import EditorialStageError
 from . import media
-from .codex import MODEL, REASONING_EFFORT, run_agent
+from .codex import MODEL, REASONING_EFFORT, compact_feedback_context, run_agent
 from .models import Audition, Batch, FeedbackDraft, FeedbackResult, Suggestions
 from .storage import (
     Store,
@@ -26,6 +26,10 @@ from .storage import (
     file_hash,
     now_iso,
 )
+
+
+class FeedbackValidationError(ValueError):
+    """Safe, actionable feedback-response diagnostics for the owner."""
 
 
 class DiscoveryService:
@@ -304,13 +308,17 @@ class DiscoveryService:
             batch.error = None
             atomic_json(
                 self.store.batch_dir(batch.id) / "feedback_context.json",
-                {
-                    **self.catalog_context(),
-                    "preferences": self.store.state().preferences,
-                    "batch_id": batch.id,
-                    "candidates": [c.model_dump() for c in batch.candidates],
-                    "feedback": {k: v.model_dump() for k, v in batch.feedback.items()},
-                },
+                compact_feedback_context(
+                    {
+                        **self.catalog_context(),
+                        "preferences": self.store.state().preferences,
+                        "batch_id": batch.id,
+                        "candidates": [c.model_dump() for c in batch.candidates],
+                        "feedback": {
+                            k: v.model_dump() for k, v in batch.feedback.items()
+                        },
+                    }
+                ),
             )
             self.store.save_batch(batch)
             return batch
@@ -387,7 +395,7 @@ class DiscoveryService:
             except Exception as exc:
                 reason = (
                     str(exc)
-                    if isinstance(exc, EditorialStageError)
+                    if isinstance(exc, (EditorialStageError, FeedbackValidationError))
                     else f"Feedback processing failed ({type(exc).__name__})."
                 )
                 batch.error = f"{reason} Retry processing to resume."
@@ -402,19 +410,24 @@ class DiscoveryService:
         }
         ids = [p.candidate_id for p in result.placements]
         if set(ids) != accepted or len(ids) != len(set(ids)):
-            raise ValueError(
-                "Agent placements must match exactly the owner-accepted songs"
+            raise FeedbackValidationError(
+                "Agent placements must match exactly the owner-accepted songs "
+                f"(expected {len(accepted)}; received {len(ids)})."
             )
         for placement in result.placements:
             if placement.playlist not in context["playlists"]:
-                raise ValueError("Agent proposed an unknown permanent playlist")
+                raise FeedbackValidationError(
+                    "Agent proposed an unknown permanent playlist"
+                )
         for update in result.preference_updates:
             if set(update.candidate_ids) - set(batch.feedback):
-                raise ValueError("Preference evidence references an unknown suggestion")
+                raise FeedbackValidationError(
+                    "Preference evidence references an unknown suggestion"
+                )
             if update.scope != "recording" and any(
                 not batch.feedback[key].reasoning for key in update.candidate_ids
             ):
-                raise ValueError(
+                raise FeedbackValidationError(
                     "Broader preferences require explicit written feedback"
                 )
 
