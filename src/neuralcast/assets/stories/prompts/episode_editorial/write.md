@@ -23,6 +23,16 @@ allocate time; a subset and reordering are allowed within the approved brief.
 Then write the complete manuscript in listening order. Build connections and
 payoffs across songs. Make it sound like the configured host telling a story.
 
+Establish the conversational voice in this first draft; Stage 4 is refinement,
+not a rescue pass for an article written to be read. Apply the shared guide's
+spoken examples and mentally speak consecutive paragraphs. Lead with people
+doing things and the consequences. Remove repeated thesis statements, lessons
+after anecdotes, formal account-comparison language, and mechanical song
+introductions. Preserve attribution without making every paragraph a summary
+of testimony. Leave room for pauses within the budget rather than filling it
+with commentary about what the listener should learn. Neither short sentences
+nor a few colloquial words are sufficient evidence of conversational delivery.
+
 Return a Draft JSON document matching the supplied schema:
 - plan: the complete production Plan, referencing proposal_hash from context.
   Every commentary has script, companion, brief, max_words, and factual sources.
@@ -30,7 +40,10 @@ Return a Draft JSON document matching the supplied schema:
   rationale. All segment IDs must be unique.
 - research_notes: a concise account of evidence, disagreements, and important
   research decisions. The detailed claim-to-URL dossier lives in each segment's
-  sources, so do not waste this field repeating every URL.
+  sources, so do not waste this field repeating every URL. Briefly identify
+  presentation-like phrasing removed during your oral self-check and any
+  remaining delivery concern; refer to concrete passages, not a generic claim
+  that the draft is conversational.
 - open_questions: unresolved factual gaps or necessary changes to the approved
   concept. Empty if none; never hide a blocker by inventing an answer.
 

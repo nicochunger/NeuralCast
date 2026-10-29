@@ -49,6 +49,43 @@ Avoid essay phrasing, dense lists of names and dates, generic dramatic claims,
 forced jokes, repetitive rhetorical questions, and explanatory filler.
 Energetic storytelling need not sound breathless; loss deserves restraint.
 
+Imagine explaining this story to one curious person sitting with you. They may
+know the music but not the events. Let them follow what someone tried, what got
+in the way, and what happened next. Do not continually step outside the story
+to explain your editorial argument. A clear, grammatical paragraph can still
+sound like a presentation; shorter sentences and voseo alone do not make it oral.
+
+Use these examples to calibrate phrasing, not as evidence or reusable script:
+
+- Written: "La colaboración empezaba a producir material."
+  Spoken: "Se pusieron a trabajar juntos y empezaron a salir canciones."
+- Written: "La familiaridad de la voz no resolvía por sí sola ninguna de las dos
+  cosas." Spoken: "Que la voz les resultara familiar no alcanzaba. Todavía tenían
+  que ver cómo se llevaban y qué podían escribir juntos."
+- Written: "Los relatos difieren sobre cómo se tomó la decisión."
+  Spoken: "Paul lo contaba de otra manera." Then explain his account, provided
+  the preceding passage has established the other perspective.
+
+Adapt only when the supplied evidence supports the same meaning. Preserve
+necessary attribution and uncertainty; a conversational voice never permits
+invented dialogue, reactions, thoughts, or personal experiences.
+
+Watch for repeated framing such as "podemos pensar", "esto nos permite entender",
+"guardá esa idea", "la pregunta pasa a ser", and "nos queda escuchar cómo".
+These can work occasionally, but a series of them sounds like a guided analysis.
+Let actions and consequences carry the connection when it is already clear.
+Avoid giving each paragraph the same setup, explanation, and concluding lesson.
+Use a brief reflection where it adds something; do not explain every anecdote
+again immediately after telling it. Credits and chronology should enter when
+they matter, rather than arrive as a recital before each song.
+
+Before submitting, mentally speak several consecutive paragraphs, including
+their song handoffs. Check whether you could say them comfortably to that person
+without sounding as if you were reading an article. Rewrite the remaining
+presentation-like lines. Do not manufacture spontaneity with filler quotas,
+forced slang, fake hesitations, or a question at every turn. Do not claim an
+actual read-aloud or listening test unless one was performed.
+
 Open as a standalone podcast: welcome newcomers to the configured brand's
 podcast, introduce the theme and appeal, and briefly preview the journey.
 Do not invent a host name, episode number, release date, or schedule. Develop
@@ -81,6 +118,10 @@ context.json, enclosed in angle brackets. Use a varied selection when the text
 calls for it: a breath, thoughtful pause, quiet aside, sigh, or small chuckle.
 Do not use square-bracket directions. Tags must support a specific beat, not
 meet a quota; do not pepper serious passages with laughter or theatrical effects.
+Restraint does not mean reducing every cue to a pause. Consider a breath,
+exhale, sigh, phew, or quiet aside where the specific beat earns it; do not
+automatically remove useful expressive cues because the subject is serious.
+Tags cannot make explanatory prose conversational. Rewrite the prose first.
 The validator permits at most eight tags per commentary and fewer in short text.
 
 Write complete scripts and companion summaries for every commentary, each at

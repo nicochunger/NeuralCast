@@ -12,16 +12,27 @@ listener. Work on speech, not new research or content development:
 - Replace essay phrasing, abstract commentary, unnatural idioms and dense clauses
   with concrete, conversational language in the configured locale. Use natural
   voseo for es-AR, without forced slang or making every thought a rhetorical question.
+  Use the shared guide's examples to calibrate the difference between simple
+  written prose and someone telling a story. Shorter sentences alone are not
+  enough. Challenge repeated framing, explanations of what the listener should
+  learn, tidy lessons after anecdotes, and formulaic handoffs across passages.
 - Resolve unclear pronouns and awkward references using only the supplied text.
   Introduce people before referring to them. Smooth transitions and orientation
   after songs; remove repeated explanations without removing necessary context.
 - Preserve the factual meaning, chronology, uncertainty, attributed recollections,
   and distinctions between interpretation and fact. Never invent or remove a
   qualifying fact just to improve a sentence. Do not add dialogue or musical claims.
-- Preserve every segment, its ID, role, song order, and narrative structure.
+- Preserve every segment, its ID, role, song order, and narrative purpose.
   Sources, companions, song identities and rationales are locked. If a problem
   requires changing them, report an editorial_issue instead of repairing it here.
   Do not resolve, conceal or dismiss earlier open questions or review blockers.
+  These boundaries do not require preserving sentence or paragraph structure.
+  You may substantially rewrite a script, combine or split its sentences and
+  paragraphs, and remove redundant framing or repeated explanations. Retain
+  every distinct necessary fact, qualification and narrative connection, and
+  keep the locked companion accurate. Do not move facts between segments when
+  that would break their evidence or companion. If substantive restructuring
+  outside these boundaries is needed, report it instead of doing a cosmetic fix.
 - Keep the podcast welcome, theme and journey. In Spanish use "Bienvenidos",
   without doubling the greeting. Use "NeuralForsch" in spoken NeuralForge brand
   mentions, preserving the display spelling in locked metadata. Keep NeuralCast.
@@ -30,6 +41,9 @@ Finish the prose, then direct the performance. Consider the full supplied tag
 allowlist; do not default mechanically to a breath and short pause per passage.
 Use short/long pauses for actual thought boundaries. Consider sighs, exhales,
 "phew", restrained amusement or a quiet aside only when the moment warrants it.
+Restraint is not a reason to replace all expression with pauses. Keep useful
+existing cues or choose a more fitting allowed cue; a serious subject does not
+require uniform solemn delivery. Equally, a script need not use every cue type.
 Do not force variety or meet a count. Replace redundant cues rather than piling
 on more. Avoid theatrical reactions, gasps, throat-clearing, laughter, shouting,
 crying or other exaggerated sounds unless the approved tone or owner explicitly
@@ -39,14 +53,30 @@ not improvised transcript markup. Note uncertain cues, especially whispers whose
 scope/intensity should be checked in audio, in listening_notes. Do not claim to
 have heard or verified audio. Obey per-segment word/tag limits and timing policy.
 
+Before returning, do a separate editorial self-check of your finished version,
+not just a comparison with the original. Mentally speak several consecutive
+paragraphs and the handoffs after music. Look again for the article voice,
+repeated framing, uniform cadence, and interpretations that explain what the
+story already made clear. Rewrite those passages within the boundaries above.
+Check the complete tag selection against specific beats and the total budget.
+This is self-assessment, not an independent review or an actual audio test.
+If an important delivery problem remains beyond your permitted scope, report
+it in editorial_issues; an empty list must not conceal an unresolved limitation.
+
 Return Delivery JSON:
 - passages: exactly one entry for EVERY commentary segment, using its original
   segment_id, complete script and a concise explanation of the edits (or why it
-  was kept). No music entries, missing passages, new IDs or duplicates.
-- listening_notes: specific segment IDs and performance choices to check when
-  the owner hears a later render. These are review notes, not permission to render.
-- editorial_issues: segment IDs and content/structure/evidence problems you cannot
-  fix within this pass. These remain visible blockers for editorial/owner review.
+  was kept). Explain the specific oral improvement and any deliberate retention
+  of formal wording; avoid generic "made it more conversational" explanations.
+  No music entries, missing passages, new IDs or duplicates.
+- listening_notes: existing COMMENTARY segment IDs and specific performance
+  choices to check when the owner hears a later render. Attach a recording check
+  to its introducing commentary, never a music ID. These notes are not permission
+  to render. Explain any deliberate all-pause selection here in a relevant
+  commentary note, and flag uncertain cues without inventing a required tag count.
+- editorial_issues: existing COMMENTARY segment IDs and content, structure,
+  evidence or consequential delivery problems you cannot fix within this pass.
+  These remain visible blockers for editorial/owner review.
 
 Read-only commands to inspect context.json and schema.json are allowed. Do not
 browse the web, launch other agents, generate TTS, render, upload, publish, run

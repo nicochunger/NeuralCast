@@ -19,8 +19,12 @@ Work in this order:
    move or split, preserve IDs where sensible and keep the final sequence coherent.
 4. Read the entire revised episode in listening order, with all song breaks.
    Ensure the story and transitions make sense, including after long recordings.
-   Leave detailed speech rhythm, conversational polish and vocal-tag refinement
-   to Stage 4. Keep existing usable performance cues; do not add tags to meet a quota.
+   Resolve delivery issues identified by Stage 2 now, including recurring essay
+   framing and paragraph structure; do not defer those acceptance criteria to
+   Stage 4. Check that factual corrections have not reintroduced stiff attribution
+   or a lesson after every anecdote. Leave the final speech rhythm and vocal-tag
+   refinement to Stage 4. Keep existing usable performance cues; do not add tags
+   to meet a quota.
 5. Recheck song identity, approved scope, factual support, opening and closing,
    word limits, and timing policy. Use fewer approved candidates when warranted.
 

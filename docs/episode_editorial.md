@@ -63,6 +63,29 @@ only: IDs, roles, song order, source evidence, companions and other metadata are
 locked. New content problems become visible blockers, not unsupported rewrites.
 No additional automatic review loop follows the delivery pass.
 
+Conversational delivery is assessed throughout the workshop. The shared writing
+guide includes written/spoken examples and checks for repeated interpretation,
+formal framing and uniform paragraph rhythms. Stage 1 applies that standard
+before handing off its draft. Stage 2 must assess it with concrete excerpts;
+recurring presentation-like narration can be a major delivery issue even when
+facts and chronology are correct. Stage 3 resolves those issues before Stage 4.
+The delivery pass may substantially rewrite sentences and paragraphs within each
+commentary, preserving factual meaning, necessary qualifications, narrative
+purpose and locked metadata. It self-checks the finished listening sequence and
+explains meaningful choices in the saved passage explanations/listening notes.
+It considers expressive cues beyond pauses without a quota. That self-check is
+not an independent final review, and mechanical validation cannot certify that
+speech sounds natural. Owner manuscript review remains required.
+
+For inspection after completion, each run retains `inputs.json`, accepted
+`write.json`, `review.json`, `revise.json`, `delivery.json`, and the exact
+`delivery_report.md` before/after comparison. Each stage's attempt directory also
+retains its prompt, context, schema and raw JSON response when returned. Raw CLI
+terminal logs are temporary and discarded to protect authentication diagnostics;
+these artifacts are not a complete browsing or internal reasoning transcript.
+Guidance changes apply on the next explicitly requested run and create a new run
+hash; they do not rewrite existing manuscripts or historical stage artifacts.
+
 ## Input documents and first approval
 
 Use the existing project paths:

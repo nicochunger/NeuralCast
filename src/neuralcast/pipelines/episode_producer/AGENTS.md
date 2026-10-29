@@ -52,6 +52,15 @@ Repository-wide instructions still apply. Run commands from the repository root.
    runtime, and updates the active plan/Markdown together. Changed scripts require
    manuscript approval again. Delivery cannot clear existing editorial blockers
    or rewrite published episodes; content problems go back to editorial revision.
+   Apply the shared guide's spoken examples from Stage 1 onward. Stage 2 must
+   assess conversational delivery with concrete excerpts, and Stage 3 must resolve
+   the resulting issues rather than defer them. Stage 4 can rewrite sentences and
+   paragraphs within a script while retaining necessary facts, qualifications,
+   narrative purpose and locked metadata; it is not limited to copyediting.
+   Check repeated analytical framing and uniform cadence, then choose purposeful
+   vocal cues without quotas. Its final self-check is not an independent review;
+   structural validation alone does not establish natural speech. Guidance edits
+   do not authorize rerunning or changing an existing episode.
 4. Make the opening explicitly introduce a podcast: welcome listeners to a new
    episode of the configured brand's podcast, introduce the theme and its appeal,
    and briefly preview the journey before the first song. Address newcomers who
