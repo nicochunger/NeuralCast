@@ -23,6 +23,15 @@ allocate time; a subset and reordering are allowed within the approved brief.
 Then write the complete manuscript in listening order. Build connections and
 payoffs across songs. Make it sound like the configured host telling a story.
 
+Follow the supplied plan schema. Write exactly one continuous host passage per music gap:
+opening -> song -> bridge -> song -> ... -> closing. One passage may develop
+several ideas in natural paragraphs, but must have one script and one companion.
+Never output adjacent commentaries. Each bridge carries the previous song's
+thought forward into the story and next song without repeating an explanation.
+Keep companion chapter titles short (at most 40 characters). The renderer adds
+1.5 seconds of silence before each host passage; budget it in total duration,
+without writing an extra leading pause tag or a silence segment.
+
 Establish the conversational voice in this first draft; Stage 4 is refinement,
 not a rescue pass for an article written to be read. Apply the shared guide's
 spoken examples and mentally speak consecutive paragraphs. Lead with people
@@ -32,6 +41,14 @@ introductions. Preserve attribution without making every paragraph a summary
 of testimony. Leave room for pauses within the budget rather than filling it
 with commentary about what the listener should learn. Neither short sentences
 nor a few colloquial words are sufficient evidence of conversational delivery.
+
+Write prepared storytelling with room for personality, following the shared
+guide's examples: occasional small reactions, asides, brief departures and
+returns, or natural refinements. Let the host tell this to one interested
+listener. Some comments can simply be enjoyable or personal in attitude without
+proving a thesis. Do not distribute them mechanically. Use "mejor dicho" or an
+appropriate connective when a correction needs one; omit forced corrections.
+Keep factual confidence separate from tentative interpretation.
 
 Return a Draft JSON document matching the supplied schema:
 - plan: the complete production Plan, referencing proposal_hash from context.

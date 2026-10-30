@@ -26,6 +26,20 @@ unclear, qualify, omit, or flag them instead of filling gaps plausibly.
 
 ## Continuity across music
 
+The standard structure is opening, song, bridge, song, and so on,
+ending with one closing passage after the last song. Every uninterrupted stretch
+of speech is ONE commentary with ONE complete script, ONE companion and ONE TTS
+generation. Never split speech into adjacent commentary segments for separate
+topics, anecdotes, song analysis or a word-limit workaround. Paragraph breaks
+inside that script are fine; they are not independent sections or new openings.
+
+Compose each bridge as a continuous movement: finish or develop the thought
+prompted by the song just heard, carry the episode's story forward, and lead
+naturally into the next song. Do not force a recap or repeat the same explanation
+before and after the music. Read every paragraph against the immediately
+preceding paragraph; the listener hears them back to back in the same voice.
+Develop one narrative through the whole manuscript before dividing it at songs.
+
 Read the script as the listener hears it, with complete songs between passages.
 Carry forward a person, decision, question, or consequence. After a long song,
 give just enough orientation to resume the story without repeating its setup.
@@ -68,7 +82,45 @@ Use these examples to calibrate phrasing, not as evidence or reusable script:
 
 Adapt only when the supplied evidence supports the same meaning. Preserve
 necessary attribution and uncertainty; a conversational voice never permits
-invented dialogue, reactions, thoughts, or personal experiences.
+invented dialogue, reactions or thoughts attributed to people in the story, or
+personal experiences invented for the host.
+
+## Prepared storytelling with room for personality
+
+The host knows the material and tells it to one interested listener as an
+informal companion. Let the delivery feel partly prepared and partly improvised.
+Allow occasional small asides, reactions, brief departures and returns, or a
+thought refined while speaking. These moments can simply express personality;
+not every comment needs to advance the argument or end in a lesson.
+
+Original phrasing illustrations; use only when the episode's evidence and
+preceding context support their meaning:
+
+- Aside: "Y decidieron volver al estudio juntos. Que… bueno, después de cómo
+  había terminado la última grabación, tampoco era una decisión tan obvia."
+- Refinement: "Ahí encontraron el sonido del disco… mejor dicho, lo empezaron
+  a encontrar. Todavía faltaba bastante."
+- Departure and return: "En las entrevistas, cada uno se acuerda de una discusión
+  distinta. Es bastante de banda eso, ¿no? Preguntás cómo hicieron un disco y
+  terminás escuchando quién se peleó con quién. Pero entre esas discusiones
+  apareció esta canción."
+- Tentative interpretation: "No sé si llamarlo un disco más oscuro. Más incómodo,
+  capaz. Hay algo que no termina de descansar."
+- Small reaction: "La primera persona a la que llamaron fue al cantante que
+  acababan de echar. Sí. A él."
+
+Keep corrections natural and easy to follow. When reconsidering a description,
+use a connective such as "mejor dicho" or, where it fits the locale and voice,
+"bah". Do not interrupt a sentence merely to perform a correction, or make the
+first wording deliberately clumsy so it can be corrected. A clean sentence is
+better when the refinement has no natural reason to occur. Choose these moments
+for the passage, never as a recurring device or a quota.
+
+Interpretive uncertainty can sound exploratory when grounded in the supplied
+evidence. Do not pretend to forget a verified fact, discover research while
+recording, remember an invented experience, or hear an imaginary co-host's reply.
+Maintain clarity and necessary factual qualifications. Vary the placement and
+length of loose moments; they should not give every paragraph the same rhythm.
 
 Watch for repeated framing such as "podemos pensar", "esto nos permite entender",
 "guardá esa idea", "la pregunta pasa a ser", and "nos queda escuchar cómo".
@@ -82,9 +134,9 @@ they matter, rather than arrive as a recital before each song.
 Before submitting, mentally speak several consecutive paragraphs, including
 their song handoffs. Check whether you could say them comfortably to that person
 without sounding as if you were reading an article. Rewrite the remaining
-presentation-like lines. Do not manufacture spontaneity with filler quotas,
-forced slang, fake hesitations, or a question at every turn. Do not claim an
-actual read-aloud or listening test unless one was performed.
+presentation-like lines while retaining natural asides and reactions. Avoid
+filler quotas, forced slang, mechanical hesitations, or a question at every turn.
+Do not claim an actual read-aloud or listening test unless one was performed.
 
 Open as a standalone podcast: welcome newcomers to the configured brand's
 podcast, introduce the theme and appeal, and briefly preview the journey.
@@ -124,10 +176,19 @@ automatically remove useful expressive cues because the subject is serious.
 Tags cannot make explanatory prose conversational. Rewrite the prose first.
 The validator permits at most eight tags per commentary and fewer in short text.
 
-Write complete scripts and companion summaries for every commentary, each at
-most 300 spoken words (and within its max_words). Split a long story into adjacent
-commentaries if needed; the episode may have at most 40 segments. Begin with
-opening commentary, end with closing commentary, and include at least one song.
+Write complete scripts and companion summaries for every commentary. Allocate
+max_words to the complete passage (up to 3000, within the approved total narration
+budget). The capacity is not a target: write only what the story and timing
+budget support.
+Companion titles become app chapter titles: keep them descriptive and at most
+40 characters, preferably a few words. The episode may have at most 40 segments.
+Begin with opening commentary, end with closing commentary, and include at least
+one song, with exactly one bridge between consecutive songs.
+The renderer inserts 1.5 seconds of real silence before EVERY host
+passage, including opening and closing. This belongs to that passage's chapter,
+not a separate chapter. Include it in the episode duration, outside the spoken
+narration budget. Do not add a mandatory leading pause tag to duplicate it;
+internal pauses can still serve the prose.
 Respect timing_policy, measured song durations, the narration budget, and the
 approved target. Estimates are provisional until synthesis. Prioritize stories
 and reduce the song selection rather than squeezing shallow summaries between

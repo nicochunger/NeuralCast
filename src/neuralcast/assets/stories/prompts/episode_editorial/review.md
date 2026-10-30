@@ -10,6 +10,9 @@ Review these dimensions:
 1. Continuity: a developing central question; clear chronology and relationships;
    people introduced before they matter; causal transitions; purposeful callbacks;
    promises fulfilled; adequate orientation after songs without redundant recaps.
+   Every music gap must be one continuous host script: its paragraphs should
+   develop a thought rather than restart, recap or repeat it. Check that the
+   bridge connects the song just heard, the ongoing story and the next song.
 2. Depth: identify important stories reduced to an assertion or bland summary.
    Specify which supported circumstances, stakes, actions, and consequences would
    make them engaging. Flag invented scenery, dialogue, and unsupported motives.
@@ -27,6 +30,17 @@ Review these dimensions:
    instructions about what the listener should understand, abstract conclusions,
    formal comparisons of accounts, and uniform paragraph/handoff rhythms. Short
    sentences, voseo, and grammatical clarity do not by themselves pass this check.
+   Assess whether the prepared account leaves room for the host's personality:
+   small asides, reactions and occasional natural refinements. Preserve loose
+   moments that work, including comments without an explicit narrative lesson.
+   Flag mechanical hesitations, forced self-corrections or a repeated aside
+   formula. Corrections must be understandable on first hearing, with a natural
+   connective such as "mejor dicho" where needed. Do not require a count of any
+   device or reward fabricated uncertainty about researched facts.
+   Check for absence too: if the manuscript is consistently impersonal and
+   over-polished, identify specific opportunities for a fitting aside, reaction
+   or natural refinement. Give actionable delivery issues, not a request to
+   insert a fixed number of devices.
 5. Accuracy: check claims against the supplied evidence, verify important doubtful
    points online, and examine chronology, credits, relationships, and attributed
    recollections. Open relevant sources; do not rely on snippets. Distinguish
@@ -38,6 +52,10 @@ Review these dimensions:
    expressive cue was missed as well as whether one was overused; pauses are one
    option, not the default replacement for all expression. Do not request tags
    to disguise prose that needs rewriting.
+   The manuscript must alternate one host passage and one song, with short
+   chapter titles (at most 40 characters). Include the renderer's 1.5-second
+   silence before each host passage in total duration, not the speech budget.
+   Do not request adjacent commentary segments or a leading pause tag.
 
 Return Review JSON, not a rewritten manuscript:
 - strengths: specific successful passages or choices the reviser should preserve.

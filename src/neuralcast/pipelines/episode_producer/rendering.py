@@ -13,6 +13,7 @@ from neuralcast.audio.album_art import embed_local_cover_art
 from neuralcast.config import ASSETS_ROOT
 
 RATE = 44100
+HOST_LEAD_IN_SECONDS = 1.5
 
 
 def run_audio(arguments: list[str], *, timeout: int = 1800) -> None:
@@ -60,8 +61,24 @@ def render(
     elapsed = 0.0
     speech_seconds = 0.0
     paths = []
+    silence = None
     try:
         for index, part in enumerate(parts):
+            lead_in = 0.0
+            if part["kind"] == "commentary":
+                frames = round(HOST_LEAD_IN_SECONDS * RATE)
+                lead_in = frames / RATE
+                if silence is None:
+                    silence = directory / "host-lead-in.wav"
+                    # Register before writing so failed writes are cleaned too.
+                    paths.append(silence)
+                    with wave.open(str(silence), "wb") as audio:
+                        audio.setnchannels(2)
+                        audio.setsampwidth(2)
+                        audio.setframerate(RATE)
+                        audio.writeframes(b"\0" * frames * 4)
+                else:
+                    paths.append(silence)
             pcm = directory / f"part-{index:03d}.wav"
             paths.append(pcm)
             # Apply a common loudness target to samples, not just ReplayGain tags.
@@ -91,8 +108,10 @@ def render(
             if seconds <= 0:
                 raise ValueError("Empty episode segment")
             chapter = {key: value for key, value in part.items() if key != "path"}
-            chapters.append({**chapter, "start": elapsed, "end": elapsed + seconds})
-            elapsed += seconds
+            chapters.append(
+                {**chapter, "start": elapsed, "end": elapsed + lead_in + seconds}
+            )
+            elapsed += lead_in + seconds
             if part["kind"] == "commentary":
                 speech_seconds += seconds
         if speech_seconds > speech_budget:

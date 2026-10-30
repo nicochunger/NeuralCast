@@ -207,11 +207,16 @@ new episode of the configured brand's podcast, introduce the theme, and briefly
 preview the journey in the host language. Follow `episode_commentary.md` for
 writing guidance, including manually supplied scripts.
 
+The standard episode structure is one continuous host passage per
+music gap, alternating opening/song/bridge/song/closing. Keep host chapter titles
+at most 40 characters. Rendering adds 1.5 seconds of silence before each host
+passage; do not add a mandatory leading pause tag. Generated recordings,
+approvals and published snapshots are immutable production data.
+
 `prepare` renders and automatically uploads an unassigned AzuraCast file for
 review. `publish --hash <reviewed-render-hash>` publishes the permanent website
 podcast and Episode guide after explicit public-release approval. Respect
-approvals already given in the session. Production is podcast-only: the episode
-radio queue feature has been removed; do not queue or schedule these recordings
+approvals already given in the session. Production is podcast-only; do not queue or schedule these recordings
 through alternate tools as part of this workflow. Do not change live host cadence.
 
 Preserve runtime receipts, including historical queue records, and resolve
@@ -320,6 +325,14 @@ The fallback cover is `src/neuralcast/assets/images/Thumbnail_logo.png`. Keep th
 
 ## Coding and Review Conventions
 
+- Prefer the smallest change that meets the requirement using the existing
+  design. Add abstractions, modes, versioning, configuration, or compatibility
+  machinery only for a demonstrated need. Check whether the existing code
+  already handles the requested behavior before introducing a mechanism.
+- Describe only the current system in code, comments, prompts, and documentation.
+  Do not retain historical comparisons, superseded workflows, or alternate
+  behavior modes merely to explain a change. Preserve generated artifacts and
+  operational receipts as data without adding historical narratives to the code.
 - Use Black-compatible formatting, 4-space indentation, and type hints for new Python code.
 - Use snake_case for functions and PascalCase for classes/dataclasses.
 - Keep domain behavior in the authoritative package module rather than compatibility shims.

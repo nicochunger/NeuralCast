@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 Identifier = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")]
 Text = Annotated[str, Field(min_length=1, max_length=5000)]
+NarrationScript = Annotated[str, Field(min_length=1, max_length=30000)]
 EpisodeNumber = Annotated[int, Field(ge=1, strict=True)]
 
 
@@ -104,9 +105,9 @@ class Commentary(Document):
         "short_story", "album_spotlight", "era_snapshot", "deep_dive", "block_intro"
     ] = "short_story"
     brief: Text
-    max_words: int = Field(default=100, ge=15, le=300)
+    max_words: int = Field(default=100, ge=15, le=3000)
     sources: list[Source] = Field(default_factory=list, max_length=20)
-    script: Text | None = None
+    script: NarrationScript | None = None
     companion: Summary | None = None
 
     @model_validator(mode="after")

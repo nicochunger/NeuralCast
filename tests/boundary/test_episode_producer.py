@@ -582,3 +582,63 @@ def test_upload_resolves_server_normalized_path_without_resending(production):
     service.prepare(project, client)
     assert client.upload_media.call_count == 1
     client.send_telnet_command.assert_not_called()
+
+
+def test_render_identity_includes_audio_policy_and_reuses_receipt(production):
+    project, client, proposal_hash = production
+    approve(project, proposal_hash)
+    proposal, plan, channel, inputs, fingerprint = service.validated_inputs(project)
+    assert plan.version == 1
+    assert fingerprint == digest(
+        {
+            "proposal": proposal.model_dump(),
+            "plan": plan.model_dump(),
+            "recordings": inputs["recordings"],
+            "settings": inputs["settings"],
+            "rendering": {"host_lead_in_seconds": 1.5},
+            "target": {
+                "station": channel.azuracast_station,
+                "station_id": channel.azuracast_station_id,
+                "media_root": channel.liquidsoap_media_root,
+            },
+        }
+    )
+    first = service.prepare(project, client)
+    assert service.render.call_args.kwargs == {}
+    service.prepare_narration.reset_mock()
+    assert service.prepare(project, client) == first
+    service.prepare_narration.assert_not_called()
+    assert service.render.call_count == 1
+
+
+def test_new_production_has_one_tts_and_chapter_per_whole_host_passage(production):
+    project, client, proposal_hash = production
+    data = read_json(project.documents / "plan.json")
+    bridge = {
+        **data["segments"][0],
+        "id": "bridge",
+        "role": "bridge",
+        "script": "La canción deja una pregunta. Seguimos esa idea hasta la próxima historia.",
+    }
+    second_song = {**data["segments"][1], "id": "second-song"}
+    data["segments"][2:2] = [bridge, second_song]
+    write_json(project.documents / "plan.json", data)
+    approve(project, proposal_hash)
+    receipt = service.prepare(project, client)
+    assert service.prepare_narration.call_count == 3
+    assert [call.args[0].id for call in service.prepare_narration.call_args_list] == [
+        "intro",
+        "bridge",
+        "outro",
+    ]
+    assert (
+        service.prepare_narration.call_args_list[1].args[0].script == bridge["script"]
+    )
+    assert [part["id"] for part in receipt["chapters"]] == [
+        "intro",
+        "song",
+        "bridge",
+        "second-song",
+        "outro",
+    ]
+    assert service.render.call_args.kwargs == {}

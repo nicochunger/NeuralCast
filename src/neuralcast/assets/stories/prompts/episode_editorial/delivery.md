@@ -7,6 +7,13 @@ content-revised Stage 3 manuscript; in a standalone pass it is the current draft
 Read in listening order,
 with complete songs between passages. The owner reviews your result before TTS.
 
+Host passages are continuous speech between songs, each synthesized in
+one request. Treat the script's paragraphs as one connected reading: remove
+repeated setups, duplicated interpretations and local restarts. Keep the previous
+song, ongoing story and next-song handoff connected. The renderer adds 1.5 seconds
+of silence before every passage in the standard structure; do not add a leading pause tag merely
+to create that gap. Do not split passages or change locked short chapter titles.
+
 Your task is to make this sound like a person telling the story to an interested
 listener. Work on speech, not new research or content development:
 - Replace essay phrasing, abstract commentary, unnatural idioms and dense clauses
@@ -16,6 +23,18 @@ listener. Work on speech, not new research or content development:
   written prose and someone telling a story. Shorter sentences alone are not
   enough. Challenge repeated framing, explanations of what the listener should
   learn, tidy lessons after anecdotes, and formulaic handoffs across passages.
+- Actively shape prepared storytelling with occasional improvised moments:
+  a small aside, reaction, brief detour and return, or natural refinement of a
+  description. Use the shared guide's illustrations. A comment may express the
+  host's personality without advancing the argument. Keep corrections connected
+  and unforced; "mejor dicho" can make a refinement clear. Do not insert restarts,
+  fillers or corrections as a formula, or turn supported facts into uncertainty.
+  Let wording and punctuation carry these moments before adding performance tags.
+  Check for their absence as well as their quality. If the manuscript stays
+  uniformly polished, formal or impersonal, add fitting asides, reactions or
+  natural refinements using the supplied material. Do not merely preserve what
+  is already there. Choose opportunities across the episode, without requiring
+  a device in every passage or inventing facts, experiences or uncertainty.
 - Resolve unclear pronouns and awkward references using only the supplied text.
   Introduce people before referring to them. Smooth transitions and orientation
   after songs; remove repeated explanations without removing necessary context.
@@ -58,6 +77,10 @@ not just a comparison with the original. Mentally speak several consecutive
 paragraphs and the handoffs after music. Look again for the article voice,
 repeated framing, uniform cadence, and interpretations that explain what the
 story already made clear. Rewrite those passages within the boundaries above.
+Check whether the host actually sounds like someone telling this to an interested
+listener, with room to react and briefly go off script. Add missing moments where
+they fit, and remove any that feel forced or repetitive. Correct facts and short
+sentences alone are not grounds for leaving an impersonal script unchanged.
 Check the complete tag selection against specific beats and the total budget.
 This is self-assessment, not an independent review or an actual audio test.
 If an important delivery problem remains beyond your permitted scope, report
@@ -68,6 +91,7 @@ Return Delivery JSON:
   segment_id, complete script and a concise explanation of the edits (or why it
   was kept). Explain the specific oral improvement and any deliberate retention
   of formal wording; avoid generic "made it more conversational" explanations.
+  Identify conversational moments added, preserved or repaired where relevant.
   No music entries, missing passages, new IDs or duplicates.
 - listening_notes: existing COMMENTARY segment IDs and specific performance
   choices to check when the owner hears a later render. Attach a recording check

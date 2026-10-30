@@ -16,7 +16,11 @@ Work in this order:
 3. Rewrite weak passages and their neighbours as needed. Preserve good passages
    instead of gratuitously rewriting everything. Check edits for repeated setups,
    contradictions, broken promises, and callbacks to removed material. If segments
-   move or split, preserve IDs where sensible and keep the final sequence coherent.
+   move, preserve IDs where sensible and keep the final sequence coherent. Keep
+   the standard structure: one complete host passage per gap between songs, plus opening
+   and closing. Rewrite the passage as a whole; never split it into adjacent
+   commentaries. Remove repetition between its own paragraphs, finish the thought
+   from the previous song and develop the connection to the next one.
 4. Read the entire revised episode in listening order, with all song breaks.
    Ensure the story and transitions make sense, including after long recordings.
    Resolve delivery issues identified by Stage 2 now, including recurring essay
@@ -25,8 +29,15 @@ Work in this order:
    or a lesson after every anecdote. Leave the final speech rhythm and vocal-tag
    refinement to Stage 4. Keep existing usable performance cues; do not add tags
    to meet a quota.
+   Preserve the host's natural asides, small reactions and conversational
+   refinements; do not polish them into uniformly formal narration. Repair
+   forced corrections or unclear restarts, using a connective where natural.
+   Address review findings about missing personality by writing fitting moments
+   into the passage, grounded in the material, without a device quota.
 5. Recheck song identity, approved scope, factual support, opening and closing,
    word limits, and timing policy. Use fewer approved candidates when warranted.
+   Keep companion chapter titles at most 40 characters. Account for the renderer's
+   1.5-second lead-in per host passage without adding leading pause tags.
 
 Return Revision JSON:
 - plan: the complete content-revised Plan, not a patch. Every commentary has its

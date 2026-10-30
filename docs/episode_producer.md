@@ -30,7 +30,7 @@ All receive the [shared writing guide](../src/neuralcast/assets/stories/prompts/
 and resolved host instructions.
 
 Numbered projects live in `<station>/metadata/episodes/<NNN>-<episode-id>/`
-(for example `003-laberintos-humanos/`); unnumbered legacy folders remain readable.
+(for example `003-laberintos-humanos/`).
 `proposal.json` stores the positive, station-local `episode_number` alongside
 `episode_id`. This display-only field is explicitly excluded from normalized
 approval/render inputs, so assigning it preserves approvals and render caches.
@@ -48,8 +48,7 @@ NeuralCast and NeuralForge have independent sequences. The numbering command
 also updates an already published manifest's `episode_number` without changing
 its audio, artwork, publication date, revision, or URL. New publications copy the
 number from `proposal.json`; public list/detail responses expose it when present.
-Legacy publications without a number remain readable. Back up the published
-catalogue before numbering existing publications.
+Back up the published catalogue before assigning episode numbers.
 
 ### Standard working files
 
@@ -63,17 +62,16 @@ A completed episode has exactly these three working documents:
 
 The `editorial_brief` object contains the writing instructions, approved candidate
 songs, initial research, speaking-rate estimate, and duration tolerance. It is
-required for the automated editorial workshop. Complete legacy/manual episodes
-may omit it; do not invent an approval brief retrospectively. The controller hashes
-the base proposal and brief separately, so moving an unchanged legacy brief into
-the proposal preserves approvals. Editing its content still invalidates approval.
+required for the automated editorial workshop. Complete manual manuscripts use
+the manuscript approval gate. The controller hashes the base proposal and brief
+separately; edits to the brief invalidate concept approval.
 
 Before editorial runs, only `proposal.json` needs to exist. After editorial runs,
 all three files exist. If narration changes, update both `plan.json` and
 `manuscript.md`; editing the Markdown alone never changes the renderer input.
 Do not create separate `episode.json`, `brief.json`, `proposal.md`, `script.md`,
-or edition-suffixed draft files in the working folder. `brief.json` remains a
-read-only compatibility input; `init --brief PATH` imports it into `proposal.json`.
+or edition-suffixed draft files in the working folder. `init --brief PATH` imports
+a supplied brief into `proposal.json`.
 Keep previous editions, backups, approvals, production receipts, and editorial
 stage history under `runtime/episodes/`, outside the working document folder.
 Never delete historical runtime receipts or published catalogue/audio as cleanup.
@@ -128,10 +126,9 @@ new manuscript before rendering.
 
 `approve-manuscript` records the exact concept/plan hash after explicit owner
 approval. Any change invalidates it. `prepare` requires finished scripts and that
-approval before TTS; it no longer generates commentary through Gemini. It uses
-the existing host voice, speech validation, and synthesizer. Unchanged speech is
-cached by script and TTS settings. Existing complete manual plans remain usable
-through the same manuscript approval; old incomplete plans need scripts first.
+approval before TTS. It uses the configured host voice, speech validation, and
+synthesizer. Speech is cached by script and TTS settings. Manual plans require
+complete scripts and companions before manuscript approval.
 
 Approval is never inferred from a document's existence or an automated review.
 Respect approvals already explicitly given in the session. Preserve rendered
@@ -190,6 +187,16 @@ ffmpeg decodes each segment to 44.1-kHz stereo PCM and applies a common -18 LUFS
 loudness target with a -1.5-dB true-peak target. Complete songs and narration are
 concatenated without overlaps, then encoded once to 192-kbps MP3. Chapter offsets
 come from PCM sample counts and are checked against the final encoded duration.
+The standard manuscript structure alternates one continuous host passage and
+one song. Each bridge develops the previous song's thought and carries the story
+into the next recording, in one script and one TTS generation. Paragraphs within
+that script do not create separate segments or chapters. Host chapter titles are
+at most 40 characters. The renderer inserts 1.5 seconds of real silence before
+every host passage, including opening and closing, without requiring a leading
+pause tag. The silence belongs to that host chapter and counts toward total
+duration, outside the narration budget. Editorial estimates include it.
+Rendering consumes the ordered audio parts and applies the same lead-in rule to
+every host passage. Generated and published recordings are immutable artifacts.
 Narration must fit the approved seconds budget; total duration must fall between
 75% and 115% of the proposed target. Failure stops before upload. Scratch PCM is
 removed even on failure. Existing music files and playlist rows are never edited.
@@ -235,9 +242,7 @@ recording the evidence. A retry archives that attempt in `upload_history`. Never
 mark an uncertain attempt rejected while its original process or server-side
 processing might still be running. Unknown outcomes continue to require inspection.
 
-Historical queue receipts from the radio pilot are retained for audit only.
-Do not clear or replay them. Removing the queue feature does not alter existing
-published podcasts, recordings, or already-submitted live station requests.
+Retain operational receipts for audit. Do not clear or replay them.
 
 ## Episode guide
 
@@ -247,10 +252,10 @@ chapter boundaries. The on-demand player's position drives chapter highlighting
 and chapter timestamps seek through the recording. An episode does not need to
 have aired on radio to publish its guide.
 
-The original radio pilot's guide files under
-`runtime/episodes/published/<channel>/<media-id>.json` remain readable by the live
-Host recap API for compatibility. No new broadcast guides are written by the
-podcast producer. Preview uploads do not publish a guide or expose audio publicly.
+The live Host recap API reads guide files under
+`runtime/episodes/published/<channel>/<media-id>.json`. Podcast guides are served
+from the publication catalogue. Preview uploads do not publish a guide or expose
+audio publicly.
 
 ## Permanent website episodes and RSS
 
@@ -377,8 +382,8 @@ python -m pytest -m integration tests/integration/test_episode_render.py
 The second command is an opt-in, local ffmpeg/ffprobe test using synthetic tones;
 it uses no credentials, providers, station media, or uploads. Default tests mock
 external boundaries and cover approvals, recording validation, narration caching,
-render order/timing, upload recovery, publication boundaries, rejection of the
-removed queue command, and read-only compatibility with legacy broadcast guides.
+render order/timing, upload recovery, publication boundaries, podcast-only
+operations, and read-only live guide access.
 In `neuralcast-web`, run `npm run build` and `npm run check:host-companion`.
 
 No new secrets or cron jobs are required. Existing generation/TTS credentials and

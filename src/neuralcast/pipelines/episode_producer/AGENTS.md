@@ -28,6 +28,18 @@ Repository-wide instructions still apply. Run commands from the repository root.
 
 ## Operator workflow
 
+The standard structure for new manuscripts is opening → song
+→ bridge → song → … → closing. Each uninterrupted host passage is one commentary,
+one complete script, one companion, and one TTS generation. Never split a passage
+into adjacent commentaries; paragraphs must carry the previous song's thought
+forward through the story into the next song without repeated setups. Set a
+word budget for the whole passage (up to 3000 words, within the approved episode
+budget). Keep host companion/chapter titles at most 40 characters. The renderer
+inserts 1.5 seconds of real silence before every host passage, inside
+its chapter, so do not require a leading pause tag. Silence counts toward total
+duration, outside the speech budget. Use the editorial plan schema for manual
+plans. Generated and published recordings are immutable production artifacts.
+
 1. Read [docs/episode_editorial.md](../../../../docs/episode_editorial.md). Discuss
    initial research, topic, channel, narrative direction, language, timing, and
    candidate songs with the owner. Read the station playlist definitions, resolve
@@ -78,8 +90,7 @@ Repository-wide instructions still apply. Run commands from the repository root.
    `approve-manuscript --hash MANUSCRIPT_HASH`. Run `validate`, then `prepare`.
    Preparation synthesizes the exact approved scripts, renders one MP3, and
    **automatically uploads it to AzuraCast for private review without queueing
-   it**. There is no per-segment Gemini writing fallback. Complete existing manual
-   plans can be approved through the same manuscript gate. Give the owner the
+   it**. Complete manual plans use the same manuscript approval gate. Give the owner the
    media location and edition; changed manuscripts require renewed approval.
 6. After explicit approval of the finished recording for public on-demand
    release, run `publish --hash RENDER_SHA256 --description 'Listener-facing
@@ -94,8 +105,8 @@ an existing document or upload. Honor explicit approvals already given in the
 conversation; do not ask the owner to approve unchanged material again. Changed
 proposals or recordings need renewed approval for the applicable stage.
 
-This is a podcast-only workflow. The radio queue command and service operation
-have been removed. Do not queue episode audio through another tool, schedule it,
+This is a podcast-only workflow. Do not queue episode audio through another tool,
+schedule it,
 or add it to a live rotation playlist as part of episode production. RSS and
 cloud chapters read only the published catalogue. The existing live host
 orchestrator remains separate.
@@ -108,17 +119,16 @@ orchestrator remains separate.
   episode's document folder. Initialization needs only `proposal.json`; editorial
   production adds the plan and readable manuscript before owner approval.
 - Store `episode_number` and `editorial_brief` in `proposal.json`. The embedded
-  brief is required for the editorial workshop; complete legacy/manual episodes
-  may omit it. Do not invent retrospective concept approvals.
+  brief is required for the editorial workshop. Manual manuscripts use the
+  manuscript approval gate. Never infer approval.
 - `plan.json` is the authoritative renderer input. Keep `manuscript.md` in sync
   after every narration edit, including speech tags. Keep only the final produced
   edition in a published episode's working folder.
 - Do not add `episode.json`, `brief.json`, `proposal.md`, `script.md`, or
   edition-suffixed draft copies. Preserve old drafts in runtime backups and leave
   historical editorial/production receipts, approvals, and catalogue assets intact.
-- Legacy `brief.json` files remain readable; `init --brief PATH` imports their
-  contents into the proposal without creating another working file. Moving an
-  unchanged brief preserves approval hashes; editing it still changes the concept.
+- `init --brief PATH` imports a supplied brief into the proposal without creating
+  another working file. Editing the brief changes the concept hash.
 
 ### Package responsibilities
 
@@ -139,7 +149,7 @@ orchestrator remains separate.
   Show settings, titled covers, and short chapter-title overrides live under
   `assets/podcasts/`. Keep RSS titles at most 40 characters; do not rewrite
   publication manifests or audio to shorten display titles.
-- `presentation.py`: read-only support for the original radio pilot's guides.
+- `presentation.py`: read-only live episode guides.
 
 Reuse the existing host/provider tooling. Podcast writing guidance lives at
 `src/neuralcast/assets/stories/prompts/episode_commentary.md`. Published episodes
@@ -149,7 +159,6 @@ Do not add an episode-review page, scheduled production, or live-host changes.
 ## Operational boundaries
 
 - Local editorial documents live in `<station>/metadata/episodes/<NNN>-<episode-id>/`
-  (unnumbered legacy folders remain readable);
   generated assets, approvals, and receipts live under `runtime/episodes/`.
 - Station MP3s are authoritative live media. Read existing recordings directly;
   do not run sync, download replacements, or edit catalog rows for production.

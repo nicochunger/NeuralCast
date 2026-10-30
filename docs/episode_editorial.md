@@ -64,6 +64,11 @@ locked. New content problems become visible blockers, not unsupported rewrites.
 No additional automatic review loop follows the delivery pass.
 
 Conversational delivery is assessed throughout the workshop. The shared writing
+guide targets prepared storytelling with room for personality: occasional small
+asides, reactions, brief detours and natural refinements, as if addressing one
+interested listener. Corrections need a clear connection such as "mejor dicho"
+where appropriate; they must feel unforced. These devices have no quotas and
+must not introduce invented experiences or uncertainty about verified facts. The
 guide includes written/spoken examples and checks for repeated interpretation,
 formal framing and uniform paragraph rhythms. Stage 1 applies that standard
 before handing off its draft. Stage 2 must assess it with concrete excerpts;
@@ -76,6 +81,40 @@ explains meaningful choices in the saved passage explanations/listening notes.
 It considers expressive cues beyond pauses without a quota. That self-check is
 not an independent final review, and mechanical validation cannot certify that
 speech sounds natural. Owner manuscript review remains required.
+
+The review checks for missing conversational personality as well as forced or
+repetitive devices. Content revision addresses those findings. The delivery pass
+actively adds fitting asides, reactions or natural refinements when the prose
+remains uniformly polished or impersonal, while preserving facts and locked
+metadata. It checks the result again and explains relevant additions, retained
+moments and repairs in its passage notes. This applies to both the full workshop
+and a standalone delivery pass.
+
+### Continuous host passages
+
+The standard manuscript sequence alternates:
+opening → song → bridge → song → … → closing. Each gap between recordings has
+one complete host script and one companion, synthesized as a single passage.
+Do not create adjacent commentary segments for separate anecdotes, analysis of
+the song just heard, or the introduction to the next song. Write those thoughts
+as connected paragraphs in the same script. Each bridge finishes or develops the
+previous song's idea while carrying the story toward the next recording. Review
+for repetition both within each passage and across song breaks.
+
+`max_words` can be up to 3000, but
+the approved total narration budget still governs the episode; that capacity is
+not a writing target. Scripts and delivery output support up to 30,000 characters.
+Host companion titles must be at most 40 characters so chapters fit podcast apps.
+Canonical song titles are preserved; RSS still caps their displayed chapter titles.
+
+Rendering inserts **1.5 seconds of PCM silence before each host passage**,
+including opening and closing. Do not require an initial pause tag as well.
+Internal expressive pauses remain available. The silence belongs to the host
+chapter and counts toward total episode duration, outside the spoken narration
+budget. Estimates and the reading manuscript show the additional silence.
+
+Use the editorial plan schema for manual manuscripts. Generated recordings,
+publication snapshots and their chapter lists are immutable production data.
 
 For inspection after completion, each run retains `inputs.json`, accepted
 `write.json`, `review.json`, `revise.json`, `delivery.json`, and the exact
@@ -145,18 +184,16 @@ python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --epis
 **Use `concept_hash`, not `proposal_hash`, for the first approval when a brief
 exists.** It binds the proposal, candidate list, instructions, initial research,
 and timing policy. Changes invalidate approval. Plan documents continue to
-reference `proposal_hash`. Old proposal-only projects retain their existing
-proposal approval; adding a brief requires approval of the combined concept.
+reference `proposal_hash`. The combined concept must be approved before editorial
+production.
 Approval commands record an approval explicitly given by the owner, never one
 inferred from files or an automated agent's verdict.
 
 The standard completed folder contains only `proposal.json`, `plan.json`, and
 `manuscript.md`. See [the working-file contract](episode_producer.md#standard-working-files).
-Do not create an additional brief or numbered draft copies. For compatibility,
-an existing `brief.json` can still be read, and `init --brief PATH` imports a
-legacy file into the proposal. If embedded and legacy briefs disagree, loading
-fails rather than choosing one silently. Moving identical brief content preserves
-the concept/manuscript hashes; changes to the brief still require concept approval.
+Do not create an additional brief or numbered draft copies. `init --brief PATH`
+imports a supplied brief into the proposal. Conflicting supplied briefs are
+rejected. Changes to the brief require concept approval.
 
 ## Run the four stages
 
@@ -269,13 +306,11 @@ changing a reading summary alone need not regenerate speech. Publication still
 requires separate explicit approval of the finished render; neither editorial
 completion nor manuscript approval grants public-release approval.
 
-## Existing episodes
+## Manuscripts and production artifacts
 
-The Codex workshop is the main writing path. The per-segment Gemini text-writing
-fallback has been removed. Existing complete manual `plan.json` documents can be
-reviewed and approved with `approve-manuscript` without rerunning Codex. An old plan
-with briefs but no scripts must first become a complete manuscript. Previously
-rendered files, narration caches, receipts, historical queue records, published
-catalogues and guides are preserved. Existing public episodes are not rewritten
-or regenerated. Production revisions may change because writing/TTS inputs have
-changed; do not delete old receipts or media to force reuse.
+The Codex workshop is the main writing path. Complete manual `plan.json` documents
+can be reviewed and approved with `approve-manuscript`. Every commentary requires
+a complete script and companion before approval. Preserve rendered files,
+narration caches, receipts, published catalogues and guides. Published audio is
+immutable. Production revisions depend on the manuscript, recordings, TTS
+settings and rendering policy; never delete receipts or media to force reuse.

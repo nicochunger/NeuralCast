@@ -10,7 +10,13 @@ from neuralcast.pipelines.host_orchestrator.speech import (
 )
 
 from neuralcast.services import editorial_agent as codex
-from .editorial_models import Delivery, Draft, EditorialBrief, Review, Revision
+from .editorial_models import (
+    Delivery,
+    Draft,
+    EditorialBrief,
+    Review,
+    Revision,
+)
 from .delivery import (
     apply_delivery,
     delivery_blockers,
@@ -21,7 +27,7 @@ from .library import resolve_recording
 from .manuscript import manuscript_hash, validate_manuscript
 from .models import Commentary, Music, Plan, Proposal
 from .narration import writing_settings
-from .rendering import audio_duration
+from .rendering import HOST_LEAD_IN_SECONDS, audio_duration
 from .service import channel_for
 from .storage import Project, digest, read_json, write_json, write_text
 from .publication import episode_directory
@@ -55,7 +61,11 @@ def validate_plan(
         raise ValueError("Do not repeat a selected recording")
     music_seconds = sum(recordings[key]["duration_seconds"] for key in selected)
     speech_seconds = words * 60 / brief.narration_words_per_minute + tags * 0.5
-    estimate = music_seconds + speech_seconds
+    silence_seconds = (
+        sum(isinstance(part, Commentary) for part in plan.segments)
+        * HOST_LEAD_IN_SECONDS
+    )
+    estimate = music_seconds + speech_seconds + silence_seconds
     if speech_seconds > proposal.commentary_budget_seconds:
         raise ValueError("Estimated narration exceeds the approved commentary budget")
     if abs(estimate - proposal.target_seconds) > brief.duration_tolerance_seconds:
@@ -64,6 +74,7 @@ def validate_plan(
         "spoken_words": words,
         "music_seconds": music_seconds,
         "estimated_narration_seconds": speech_seconds,
+        "estimated_silence_seconds": silence_seconds,
         "estimated_total_seconds": estimate,
         "estimate_only": True,
     }
@@ -139,6 +150,11 @@ def reading_markdown(
         "Vocal tags are directions, not spoken words.",
         "",
     ]
+    lines += [
+        f"Each host passage is one TTS generation, preceded by {HOST_LEAD_IN_SECONDS:g}s of silence "
+        f"({timing['estimated_silence_seconds']:g}s total, included in the episode estimate).",
+        "",
+    ]
     for part in revision.plan.segments:
         if isinstance(part, Commentary):
             lines += [
@@ -205,6 +221,7 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
             "narration_words_per_minute": brief.narration_words_per_minute,
             "duration_tolerance_seconds": brief.duration_tolerance_seconds,
             "tag_allowance_seconds": 0.5,
+            "host_lead_in_seconds": HOST_LEAD_IN_SECONDS,
         },
         "owner_feedback": feedback,
     }

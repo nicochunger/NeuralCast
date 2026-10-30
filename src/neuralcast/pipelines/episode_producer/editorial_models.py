@@ -4,7 +4,15 @@ from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
-from .models import Document, Identifier, Music, Plan, Source, Text
+from .models import (
+    Document,
+    Identifier,
+    Music,
+    NarrationScript,
+    Plan,
+    Source,
+    Text,
+)
 
 SHA256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
@@ -85,7 +93,7 @@ class Revision(Draft):
 
 class DeliveryPassage(Document):
     segment_id: Identifier
-    script: Text
+    script: NarrationScript
     explanation: Text
 
 

@@ -31,8 +31,11 @@ def episode(tmp_path, monkeypatch):
     (station / "songs" / "Classic Metal" / "Artist - Song.mp3").write_bytes(
         b"library recording"
     )
+    (station / "songs" / "Classic Metal" / "Artist - Song Two.mp3").write_bytes(
+        b"second library recording"
+    )
     (station / "playlists" / "Classic Metal.csv").write_text(
-        "Artist,Title,Album,Year,Validated\nArtist,Song,Album,1984,True\n"
+        "Artist,Title,Album,Year,Validated\nArtist,Song,Album,1984,True\nArtist,Song Two,Album,1984,True\n"
     )
     (station / "playlist_descriptions.md").write_text("Classic metal and its stories.")
     project = Project(
@@ -59,10 +62,11 @@ def episode(tmp_path, monkeypatch):
         "title": "Song",
         "rationale": "Makes the consequence audible",
     }
+    second_candidate = {**candidate, "id": "song-two", "title": "Song Two"}
     brief = EditorialBrief(
         proposal_hash=digest(proposal.model_dump()),
         instructions="Develop the relationships. No spoken citations.",
-        candidate_songs=[candidate],
+        candidate_songs=[candidate, second_candidate],
         initial_research=[
             {"url": "https://example.com/history", "claim": "A member left."}
         ],
@@ -95,7 +99,8 @@ def episode(tmp_path, monkeypatch):
                 ],
             }
         )
-    parts.append(candidate)
+    parts.insert(1, candidate)
+    parts.append(second_candidate)
     parts.append(
         {
             "kind": "commentary",
@@ -130,7 +135,7 @@ def episode(tmp_path, monkeypatch):
         ],
     }
     revision = deepcopy(draft)
-    revision["plan"]["segments"][1][
+    revision["plan"]["segments"][2][
         "script"
     ] += " Después tuvieron que elegir un reemplazo."
     revision.update(
@@ -161,7 +166,7 @@ def episode(tmp_path, monkeypatch):
     )
     delivery["passages"][1]["explanation"] = "Use a reflective sigh at the consequence."
     outputs = [draft, review, revision, delivery]
-    monkeypatch.setattr(editorial, "audio_duration", lambda path: 500)
+    monkeypatch.setattr(editorial, "audio_duration", lambda path: 250)
     return project, outputs
 
 
@@ -410,7 +415,7 @@ def test_failure_resumes_completed_stages_and_preserves_attempts(episode):
     "mutation,match",
     [
         (
-            lambda outputs: outputs[0]["plan"]["segments"][2].update(
+            lambda outputs: outputs[0]["plan"]["segments"][1].update(
                 title="Unapproved"
             ),
             "Unapproved song",
@@ -422,13 +427,13 @@ def test_failure_resumes_completed_stages_and_preserves_attempts(episode):
             "Complete manuscript",
         ),
         (
-            lambda outputs: outputs[0]["plan"]["segments"][1].update(
+            lambda outputs: outputs[0]["plan"]["segments"][2].update(
                 script="Bad <invented> tag"
             ),
             "Unsupported",
         ),
         (
-            lambda outputs: outputs[0]["plan"]["segments"][1].update(sources=[]),
+            lambda outputs: outputs[0]["plan"]["segments"][2].update(sources=[]),
             "evidence required",
         ),
         (
@@ -788,3 +793,48 @@ def test_cli_delivery_uses_current_draft_without_audio_credentials(
     )
     assert len(calls) == 1 and calls[0]["search"] is False
     assert calls[0]["context"]["owner_feedback"] == "Keep the sigh subtle."
+
+
+def test_workshop_uses_continuous_plan_schema_and_accounts_for_silence(episode):
+    project, outputs = episode
+    calls = []
+    result = editorial.edit_episode(project, runner=runner_for(outputs, calls))
+    plan = Plan.model_validate(read_json(project.documents / "plan.json"))
+    assert [part.kind for part in plan.segments] == [
+        "commentary",
+        "music",
+        "commentary",
+        "music",
+        "commentary",
+    ]
+    assert result["timing"]["estimated_silence_seconds"] == 4.5
+    assert result["timing"]["estimated_total_seconds"] == (
+        result["timing"]["music_seconds"]
+        + result["timing"]["estimated_narration_seconds"]
+        + 4.5
+    )
+    assert "1.5s of silence" in (project.documents / "manuscript.md").read_text()
+    for call in (calls[0], calls[2]):
+        schema = call["schema"]
+        assert "Plan" in schema["$defs"]
+
+
+@pytest.mark.parametrize("stage", [0, 2])
+def test_workshop_never_accepts_adjacent_host_passages(episode, stage):
+    project, outputs = episode
+    plan = outputs[stage]["plan"]
+    plan["segments"].insert(3, {**plan["segments"][2], "id": "separate-thought"})
+    with pytest.raises(ValueError, match="one continuous host passage"):
+        editorial.edit_episode(project, runner=runner_for(outputs, []))
+    assert not (project.documents / "plan.json").exists()
+
+
+def test_delivery_rejects_fragmented_passages_before_calling_agent(episode):
+    project, outputs = episode
+    plan = deepcopy(outputs[0]["plan"])
+    plan["segments"][1], plan["segments"][2] = plan["segments"][2], plan["segments"][1]
+    write_json(project.documents / "plan.json", plan)
+    never = Mock()
+    with pytest.raises(ValueError, match="one continuous host passage"):
+        editorial.polish_delivery(project, runner=never)
+    never.assert_not_called()

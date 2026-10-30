@@ -4,20 +4,31 @@ import re
 
 from neuralcast.pipelines.host_orchestrator.speech import validate_speech_transcript
 
-from .models import Commentary, Plan
+from .models import Commentary, Music, Plan
 from .storage import Project, digest, read_json, write_json
 
 
 def validate_manuscript(plan: Plan) -> int:
     """Return spoken words, rejecting incomplete or unusable TTS scripts."""
     words = 0
-    for segment in plan.segments:
+    for index, segment in enumerate(plan.segments):
+        if index % 2:
+            if not isinstance(segment, Music):
+                raise ValueError(
+                    "Use one continuous host passage per music gap; alternate commentary and music"
+                )
+        elif not isinstance(segment, Commentary):
+            raise ValueError("Use one continuous host passage between songs")
         if not isinstance(segment, Commentary):
             continue
+        if 0 < index < len(plan.segments) - 1 and segment.role != "bridge":
+            raise ValueError("Interior host passages must be bridges")
         if not segment.script or not segment.companion:
             raise ValueError(
                 f"Complete manuscript required: {segment.id} has no script"
             )
+        if len(segment.companion.title) > 40:
+            raise ValueError("Host chapter titles must be at most 40 characters")
         speech = validate_speech_transcript(segment.script)
         count = len(speech.plain_text.split())
         if count > segment.max_words:

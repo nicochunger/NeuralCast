@@ -21,7 +21,7 @@ from .models import Music, Plan, Proposal
 from .storage import Project, digest, file_hash, read_json, write_json
 from .library import resolve_recording, extract_artwork
 from .narration import writing_settings, prepare_narration
-from .rendering import render
+from .rendering import HOST_LEAD_IN_SECONDS, render
 from .manuscript import require_manuscript_approval
 
 
@@ -56,7 +56,7 @@ def validated_inputs(
             "plan": plan.model_dump(),
             "recordings": recordings,
             "settings": settings,
-            "render_version": 1,
+            "rendering": {"host_lead_in_seconds": HOST_LEAD_IN_SECONDS},
             "target": {
                 "station": channel.azuracast_station,
                 "station_id": channel.azuracast_station_id,
@@ -96,8 +96,7 @@ def prepare(
                 "A finished render is missing or changed. Restore it or revise the plan; existing upload/queue receipts must not be reset."
             )
         return upload_render(project, channel, receipt, directory, client)
-    # A previously finished immutable receipt may be inspected/recovered without
-    # retroactive approval. Every new render requires the exact complete script.
+    # Require approval of the complete manuscript before synthesis.
     require_manuscript_approval(project, plan)
     directory.mkdir(parents=True, exist_ok=True)
     protected = tuple(
