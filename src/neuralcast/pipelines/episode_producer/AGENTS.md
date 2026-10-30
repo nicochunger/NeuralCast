@@ -96,8 +96,9 @@ proposals or recordings need renewed approval for the applicable stage.
 
 This is a podcast-only workflow. The radio queue command and service operation
 have been removed. Do not queue episode audio through another tool, schedule it,
-or add it to a live rotation playlist as part of episode production. RSS is
-outside this version. The existing live host orchestrator remains separate.
+or add it to a live rotation playlist as part of episode production. RSS and
+cloud chapters read only the published catalogue. The existing live host
+orchestrator remains separate.
 
 ## Ownership and reuse
 
@@ -134,6 +135,10 @@ outside this version. The existing live host orchestrator remains separate.
 - `rendering.py`: audio assembly, loudness handling, and measured chapter timings.
 - `service.py`: production and preview upload; no radio queue submission.
 - `publication.py`: permanent website catalogue, approved audio, and guide assets.
+- `rss.py`: station RSS and Podcasting 2.0 cloud chapters from published snapshots.
+  Show settings, titled covers, and short chapter-title overrides live under
+  `assets/podcasts/`. Keep RSS titles at most 40 characters; do not rewrite
+  publication manifests or audio to shorten display titles.
 - `presentation.py`: read-only support for the original radio pilot's guides.
 
 Reuse the existing host/provider tooling. Podcast writing guidance lives at

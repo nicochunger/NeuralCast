@@ -1,0 +1,21 @@
+{
+  "neuralforge": {
+    "bardos-heroes-y-sombras": {
+      "apertura": "Bardos, héroes y sombras",
+      "del-bardo-al-mundo": "Blind Guardian y Tolkien",
+      "el-mundo-se-vuelve-camino": "El viaje de Turisas",
+      "el-heroe-y-la-busqueda": "La saga de Rhapsody",
+      "el-monstruo-es-el-personaje": "El conflicto de Sonata Arctica",
+      "del-monstruo-al-drama": "Kamelot y Fausto",
+      "volver-a-la-imaginacion": "La imaginación de Nightwish",
+      "cierre": "Cierre: bardos, héroes y sombras"
+    },
+    "laberintos-humanos": {
+      "una-pregunta-con-compania": "Una inquietud, varias voces",
+      "de-la-influencia-a-la-decision": "De la influencia al mundo propio"
+    },
+    "before-the-big-four": {
+      "v2-community": "Una cinta, una disquería, un encuentro"
+    }
+  }
+}

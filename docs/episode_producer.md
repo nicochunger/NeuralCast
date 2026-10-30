@@ -14,8 +14,9 @@ been specified, and pass it explicitly rather than relying on the CLI default.
 See [station and language defaults](episode_editorial.md#station-and-language-defaults).
 
 This is an on-demand podcast workflow. It does not queue recordings to live
-radio, schedule production, or change live-host cadence. RSS and a separate review
-web page remain outside this version.
+radio, schedule production, or change live-host cadence. Published episodes are
+available through station RSS feeds and cloud chapters. A separate review web
+page remains outside this version.
 
 ## Editorial workshop and commands
 
@@ -251,7 +252,7 @@ The original radio pilot's guide files under
 Host recap API for compatibility. No new broadcast guides are written by the
 podcast producer. Preview uploads do not publish a guide or expose audio publicly.
 
-## Permanent website episodes (no RSS)
+## Permanent website episodes and RSS
 
 Website publication follows preview upload and review. After
 explicit approval to make a finished recording publicly available on demand:
@@ -303,7 +304,63 @@ playback position and chapter timestamps seek through the recording. The
 episode player lives at the root layout alongside the unchanged live-radio
 element. Navigation preserves playback, and explicitly starting live radio or
 an episode pauses the other. Resume position is stored locally per published
-revision; no account is required. RSS is intentionally outside this version.
+revision; no account is required.
+
+### Podcast RSS and Pocket Casts
+
+The same API serves two independent RSS 2.0 feeds, without a directory submission:
+
+- NeuralCast: `https://neuralcast.duckdns.org/admin-http/public/podcasts/neuralcast/feed.xml`
+- NeuralForge: `https://neuralcast.duckdns.org/admin-http/public/podcasts/neuralforge/feed.xml`
+
+Paste the complete feed URL into Pocket Casts' search field and follow the show.
+Feed retrieval alone does not register the show with Apple or Spotify. The feed,
+covers, and audio are publicly accessible; an unlisted feed is not access control.
+
+`publish` is still the visibility boundary. Feeds read the catalogue on request;
+no export command, cron job, second audio upload, or rendering is needed. Previews
+are excluded, as are missing/size-changed audio and episodes in another language.
+The initial shows are Spanish (`es-AR`). If another language is added, give it a
+separate feed rather than mixing languages into these shows.
+
+The API additionally exposes `GET`/`HEAD` routes:
+
+- `/public/podcasts/<station>/feed.xml` (`application/rss+xml`);
+- `/public/podcasts/<station>/cover.png` (square titled station artwork);
+- `/public/episodes/<station>/<episode-id>/chapters.json`
+  (`application/json+chapters`).
+
+Each RSS item references its chapters using the Podcasting 2.0 `podcast:chapters`
+tag. The JSON contains the existing exact chapter start times in seconds,
+concise titles, available song artwork, and links to the permanent Episode guide
+on `https://neuralcast.fm/episodes/<station>/<episode-id>`. It never changes MP3
+tags, published snapshots, production receipts, or guide titles. Pocket Casts'
+mobile apps support this format; web/desktop support is more limited.
+
+Show metadata and public URL defaults live in
+`src/neuralcast/assets/podcasts/shows.json`. Both shows initially use an explicit
+content advisory because recordings may include explicit lyrics. Adjust this
+setting to match the content. Covers live beside that file. Short editorial
+chapter titles for existing long headings live in `chapter_titles.json`, keyed
+by station, episode ID, and chapter ID. Other titles reuse the published heading;
+all are capped at 40 characters at a word boundary with an ellipsis. Artist names
+are appended to song titles only when the result fits that limit. Keep future
+chapter headings short during editorial planning. No generation occurs on feed
+requests.
+
+Optional deployment overrides:
+
+- `NEURALCAST_PODCAST_PUBLIC_BASE_URL`: public API origin **including** `/admin-http`;
+- `NEURALCAST_PODCAST_WEBSITE_BASE_URL`: website origin, without `/episodes`.
+
+These are non-secret URL settings. Absolute URLs are derived from configuration,
+never incoming Host/forwarded headers. Feed GUIDs depend only on station and
+episode ID and remain stable across renumbering, metadata edits, and domain
+changes. RSS and chapter responses support conditional ETags and HEAD requests
+with a 60-second cache lifetime. Podcast apps may apply their own polling cache.
+Keep audio and catalogue backups as described above. Restart the admin API after
+installing the new routes and verify `/healthz`, both feeds, chapters, artwork,
+and a ranged audio request through the public HTTPS proxy.
 
 Run `npm run check:episode-playback` in `neuralcast-web` after building. This
 optional browser check requires Playwright (or `EPISODE_PLAYWRIGHT_MODULE` pointing

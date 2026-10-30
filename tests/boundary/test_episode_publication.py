@@ -1,13 +1,16 @@
 """Publication isolation, stable metadata, and anonymous seekable delivery."""
 
 import shutil
+import json
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from neuralcast.admin_api.app import create_app
-from neuralcast.pipelines.episode_producer import publication
+from neuralcast.pipelines.episode_producer import publication, rss
 from neuralcast.pipelines.episode_producer.models import Proposal
 from neuralcast.pipelines.episode_producer.storage import (
     Project,
@@ -226,3 +229,256 @@ def test_public_http_audio_supports_head_range_and_artwork_without_admin_token(e
         assert client.get(prefix + "/art/intro").status_code == 404
         assert client.get("/public/episodes?station=unknown").status_code == 404
         assert client.get("/admin/options").status_code in (401, 503)
+
+
+@pytest.fixture
+def podcast_assets(tmp_path, monkeypatch):
+    assets = tmp_path / "podcasts"
+    shutil.copytree(rss.ASSET_DIRECTORY, assets)
+    monkeypatch.setattr(rss, "ASSET_DIRECTORY", assets)
+    monkeypatch.delenv("NEURALCAST_PODCAST_PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("NEURALCAST_PODCAST_WEBSITE_BASE_URL", raising=False)
+    return assets
+
+
+def test_rss_is_anonymous_published_only_and_uses_absolute_proxy_urls(
+    episode, podcast_assets
+):
+    project, receipt, _, remote = episode
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        path = "/public/podcasts/neuralforge/feed.xml"
+        empty = ET.fromstring(client.get(path).content)
+        assert empty.findall("./channel/item") == []
+        assert (
+            client.get("/public/episodes/neuralforge/journey/chapters.json").status_code
+            == 404
+        )
+        receipt["title"] = "Música & historias <nuevas>"
+        receipt["summary"] = 'Rock & metal: "historias"'
+        write_json(project.runtime / receipt["revision"] / "production.json", receipt)
+        publication.publish(project, receipt["render_hash"])
+        response = client.get(path, headers={"Host": "attacker.invalid"})
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/rss+xml; charset=utf-8"
+        channel = ET.fromstring(response.content).find("channel")
+        assert channel.findtext("title") == "NeuralForge Podcast"
+        assert channel.findtext("language") == "es-AR"
+        assert (
+            channel.findtext("link")
+            == "https://neuralcast.fm/episodes?station=neuralforge"
+        )
+        item = channel.find("item")
+        assert item.findtext("title") == receipt["title"]
+        assert item.findtext("description") == receipt["summary"]
+        assert (
+            item.findtext("link")
+            == "https://neuralcast.fm/episodes/neuralforge/journey"
+        )
+        assert (
+            parsedate_to_datetime(item.findtext("pubDate")).utcoffset().total_seconds()
+            == 0
+        )
+        enclosure = item.find("enclosure")
+        assert enclosure.attrib == {
+            "url": "https://neuralcast.duckdns.org/admin-http/public/episodes/neuralforge/journey/audio",
+            "length": str(remote.stat().st_size),
+            "type": "audio/mpeg",
+        }
+        chapters = item.find(f"{{{rss.PODCAST}}}chapters")
+        assert chapters.get("type") == "application/json+chapters"
+        assert chapters.get("url").endswith("/journey/chapters.json")
+        assert "attacker" not in response.text and "render_hash" not in response.text
+        assert (
+            ET.fromstring(
+                client.get("/public/podcasts/neuralcast/feed.xml").content
+            ).findall("./channel/item")
+            == []
+        )
+        assert client.get("/public/podcasts/unknown/feed.xml").status_code == 404
+        assert client.get("/admin/options").status_code in (401, 503)
+
+
+def test_rss_identity_survives_renumbering_metadata_and_origin_changes(
+    episode, podcast_assets, monkeypatch
+):
+    project, receipt, _, _ = episode
+    publication.publish(project, receipt["render_hash"])
+    before = ET.fromstring(rss.feed(project.station)).find("./channel/item")
+    write_proposal(project)
+    publication.set_episode_number(project, 7)
+    manifest = (
+        publication.episode_directory(project.station, project.id) / "manifest.json"
+    )
+    value = read_json(manifest)
+    value["title"] = "A different title"
+    write_json(manifest, value)
+    monkeypatch.setenv(
+        "NEURALCAST_PODCAST_PUBLIC_BASE_URL", "https://radio.example/prefix"
+    )
+    after = ET.fromstring(rss.feed(project.station)).find("./channel/item")
+    assert before.findtext("guid") == after.findtext("guid")
+    assert after.find("guid").get("isPermaLink") == "false"
+    assert before.findtext("pubDate") == after.findtext("pubDate")
+    assert after.findtext(f"{{{rss.ITUNES}}}episode") == "7"
+    assert (
+        after.find("enclosure").get("url").startswith("https://radio.example/prefix/")
+    )
+
+
+def test_rss_updates_etag_only_when_feed_changes_and_supports_head(
+    episode, podcast_assets
+):
+    project, receipt, _, _ = episode
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        path = "/public/podcasts/neuralforge/feed.xml"
+        before = client.get(path)
+        head = client.head(path)
+        assert not head.content
+        assert head.headers["content-length"] == str(len(before.content))
+        assert head.headers["etag"] == before.headers["etag"]
+        assert (
+            client.get(
+                path, headers={"If-None-Match": "W/" + before.headers["etag"]}
+            ).status_code
+            == 304
+        )
+        publication.publish(project, receipt["render_hash"])
+        after = client.get(path, headers={"If-None-Match": before.headers["etag"]})
+        assert after.status_code == 200
+        assert after.headers["etag"] != before.headers["etag"]
+        assert (
+            client.get(
+                path, headers={"If-None-Match": '"other", ' + after.headers["etag"]}
+            ).status_code
+            == 304
+        )
+        assert client.head(path, headers={"If-None-Match": "*"}).status_code == 304
+
+
+def test_cloud_chapters_reuse_exact_times_with_short_titles_art_and_guide_links(
+    episode, podcast_assets
+):
+    project, receipt, _, remote = episode
+    value = publication.publish(project, receipt["render_hash"])
+    manifest = (
+        publication.episode_directory(project.station, project.id) / "manifest.json"
+    )
+    before = manifest.read_bytes()
+    audio_before = remote.read_bytes()
+    overrides = {"neuralforge": {"journey": {"intro": "Una historia breve"}}}
+    (podcast_assets / "chapter_titles.json").write_text(json.dumps(overrides))
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        path = "/public/episodes/neuralforge/journey/chapters.json"
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/json+chapters"
+        chapters = response.json()
+        assert chapters["version"] == "1.2.0"
+        assert [c["startTime"] for c in chapters["chapters"]] == [
+            c["start"] for c in value["chapters"]
+        ]
+        assert [c["title"] for c in chapters["chapters"]] == [
+            "Una historia breve",
+            "Song — Artist",
+        ]
+        assert "img" not in chapters["chapters"][0]
+        assert (
+            chapters["chapters"][1]["img"]
+            == "https://neuralcast.duckdns.org/admin-http/public/episodes/neuralforge/journey/art/song"
+        )
+        assert (
+            chapters["chapters"][0]["url"]
+            == "https://neuralcast.fm/episodes/neuralforge/journey"
+        )
+        assert "transcript" not in response.text and "private" not in response.text
+        assert (
+            client.get(
+                path, headers={"If-None-Match": response.headers["etag"]}
+            ).status_code
+            == 304
+        )
+        assert client.head(path).headers["content-length"] == str(len(response.content))
+        assert not client.head(path).content
+        overrides["neuralforge"]["journey"]["intro"] = "Otro título"
+        (podcast_assets / "chapter_titles.json").write_text(json.dumps(overrides))
+        assert client.get(path).headers["etag"] != response.headers["etag"]
+        assert (
+            client.get("/public/episodes/neuralcast/journey/chapters.json").status_code
+            == 404
+        )
+    assert manifest.read_bytes() == before and remote.read_bytes() == audio_before
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "  Introducción   breve ",
+        "Una historia larga que necesita un título bastante más corto para el teléfono",
+        "x" * 80,
+        "The Haunting (Somewhere in Time)",
+    ],
+)
+def test_chapter_titles_fit_app(title):
+    result = rss.short_title(title)
+    assert 0 < len(result) <= 40
+    assert result == result.strip() and "  " not in result
+
+
+@pytest.mark.parametrize("start", [-0.1, float("nan"), float("inf"), 0, 100])
+def test_invalid_chapter_timing_is_not_served(episode, podcast_assets, start):
+    project, receipt, _, _ = episode
+    publication.publish(project, receipt["render_hash"])
+    manifest = (
+        publication.episode_directory(project.station, project.id) / "manifest.json"
+    )
+    value = read_json(manifest)
+    value["chapters"][1]["start"] = start
+    write_json(manifest, value)
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        assert (
+            client.get("/public/episodes/neuralforge/journey/chapters.json").status_code
+            == 404
+        )
+
+
+def test_rss_omits_unavailable_audio_and_other_languages(episode, podcast_assets):
+    project, receipt, _, remote = episode
+    publication.publish(project, receipt["render_hash"])
+    manifest = (
+        publication.episode_directory(project.station, project.id) / "manifest.json"
+    )
+    value = read_json(manifest)
+    value["language"] = "fr-FR"
+    write_json(manifest, value)
+    assert ET.fromstring(rss.feed(project.station)).findall("./channel/item") == []
+    value["language"] = "es-AR"
+    write_json(manifest, value)
+    assert len(ET.fromstring(rss.feed(project.station)).findall("./channel/item")) == 1
+    remote.write_bytes(b"changed")
+    assert ET.fromstring(rss.feed(project.station)).findall("./channel/item") == []
+    remote.unlink()
+    assert ET.fromstring(rss.feed(project.station)).findall("./channel/item") == []
+
+
+def test_show_covers_are_public_square_and_match_feed(episode, podcast_assets):
+    from io import BytesIO
+    from PIL import Image
+
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        for station in ("neuralcast", "neuralforge"):
+            feed = ET.fromstring(
+                client.get(f"/public/podcasts/{station}/feed.xml").content
+            )
+            url = feed.find(f"./channel/{{{rss.ITUNES}}}image").get("href")
+            path = url.removeprefix("https://neuralcast.duckdns.org/admin-http")
+            response = client.get(path)
+            assert (
+                response.status_code == 200
+                and response.headers["content-type"] == "image/png"
+            )
+            image = Image.open(BytesIO(response.content))
+            assert image.width == image.height and image.width >= 1000
+            assert client.head(path).headers["content-length"] == str(
+                len(response.content)
+            )
+        assert client.get("/public/podcasts/unknown/cover.png").status_code == 404

@@ -1,0 +1,20 @@
+{
+  "public_base_url": "https://neuralcast.duckdns.org/admin-http",
+  "website_base_url": "https://neuralcast.fm",
+  "shows": {
+    "neuralcast": {
+      "title": "NeuralCast Podcast",
+      "description": "Historias, canciones y nuevas formas de escuchar. El podcast de NeuralCast, en español.",
+      "author": "NeuralCast",
+      "language": "es-AR",
+      "explicit": true
+    },
+    "neuralforge": {
+      "title": "NeuralForge Podcast",
+      "description": "Historias detrás del rock y el metal: artistas, discos y canciones en el podcast de NeuralForge, en español.",
+      "author": "NeuralForge",
+      "language": "es-AR",
+      "explicit": true
+    }
+  }
+}

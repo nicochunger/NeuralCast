@@ -218,7 +218,8 @@ Preserve runtime receipts, including historical queue records, and resolve
 uncertain uploads before retrying. Preserve and back up the published catalogue
 and guide artwork under `runtime/episodes/catalogue/` with the referenced AzuraCast
 MP3s. Apply new writing guidance to future productions, not existing published
-audio. RSS and a separate review page are outside this version.
+audio. Station RSS feeds and cloud chapters are generated read-only from the
+published catalogue; a separate review page remains outside this version.
 
 ## Host Orchestrator, Scheduler, and Admin API
 
