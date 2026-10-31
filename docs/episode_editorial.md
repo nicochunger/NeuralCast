@@ -166,7 +166,10 @@ Each workshop keeps the following under
 
 Delivery requests use the same layout under `delivery/<run-hash>/` with one edit
 job. Receipts include each attempt's elapsed time, provider/model, and available
-usage. Unknown usage is null, not zero. Gemini records returned input/output and
+usage. Unknown usage is null, not zero. Gemini attempts also retain
+`validation_schema.json`: array-size bounds are enforced locally, while the
+provider schema omits them to keep its constrained-output grammar manageable.
+Gemini records returned input/output and
 thinking counts; Codex records reported turn-completion usage. Raw CLI logs are
 temporary and discarded; authentication diagnostics can contain secrets. These
 artifacts are not internal reasoning transcripts or complete browsing logs.

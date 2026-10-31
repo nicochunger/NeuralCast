@@ -12,6 +12,23 @@ from .editorial_agent import write_json
 MODEL = "gemini-4-argon"
 
 
+def response_schema(schema: dict) -> dict:
+    """Keep the provider grammar small; Pydantic enforces array counts locally."""
+
+    def convert(value):
+        if isinstance(value, dict):
+            return {
+                key: convert(item)
+                for key, item in value.items()
+                if key not in {"minItems", "maxItems"}
+            }
+        if isinstance(value, list):
+            return [convert(item) for item in value]
+        return value
+
+    return convert(schema)
+
+
 def run_stage(
     prompt: str,
     context: dict,
@@ -26,6 +43,8 @@ def run_stage(
     attempt.mkdir(parents=True, exist_ok=False)
     (attempt / "prompt.md").write_text(prompt, encoding="utf-8")
     write_json(attempt / "context.json", context)
+    write_json(attempt / "validation_schema.json", schema)
+    schema = response_schema(schema)
     write_json(attempt / "schema.json", schema)
     started = monotonic()
     metrics = {

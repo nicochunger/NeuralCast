@@ -103,3 +103,47 @@ def test_provider_error_does_not_expose_credentials(tmp_path, monkeypatch):
     assert (
         json.loads((tmp_path / "attempt" / "metrics.json").read_text())["usage"] is None
     )
+
+
+def test_edit_schema_avoids_nested_array_grammar_limits_but_preserves_local_bounds(
+    tmp_path, monkeypatch
+):
+    from neuralcast.pipelines.episode_producer.editorial_models import Edit
+    from neuralcast.services.editorial_agent import output_schema
+
+    schema = output_schema(Edit)
+    client = Mock()
+    client.models.generate_content.return_value = response(
+        text='{"passages":[],"resolutions":[],"open_questions":[],"production_notes":[],"listening_notes":[]}'
+    )
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    result = gemini.run_stage("Edit", {}, schema, tmp_path / "attempt")
+    sent = client.models.generate_content.call_args.kwargs[
+        "config"
+    ].response_json_schema
+
+    def check(value):
+        if isinstance(value, dict):
+            assert "maxItems" not in value and "minItems" not in value
+            for item in value.values():
+                check(item)
+        elif isinstance(value, list):
+            for item in value:
+                check(item)
+
+    check(sent)
+    assert sent["required"] == schema["required"]
+    assert sent["$defs"]["Resolution"]["properties"]["status"]["enum"] == [
+        "resolved",
+        "dismissed",
+        "unresolved",
+    ]
+    assert schema["properties"]["passages"]["minItems"] == 1
+    assert schema["properties"]["passages"]["maxItems"] == 40
+    assert json.loads((tmp_path / "attempt" / "schema.json").read_text()) == sent
+    assert (
+        json.loads((tmp_path / "attempt" / "validation_schema.json").read_text())
+        == schema
+    )
+    with pytest.raises(ValueError, match="at least 1"):
+        Edit.model_validate(result)
