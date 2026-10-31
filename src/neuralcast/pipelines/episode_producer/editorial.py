@@ -1,6 +1,9 @@
-"""Persisted editorial stages and an independent spoken-delivery pass; no TTS."""
+"""Research, parallel focused reviews and one final edit; stop before audio."""
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from time import monotonic
+import re
 from typing import Callable
 
 from neuralcast.config import ASSETS_ROOT
@@ -8,38 +11,53 @@ from neuralcast.pipelines.host_orchestrator.speech import (
     INLINE_VOCAL_TAGS,
     validate_speech_transcript,
 )
-
-from neuralcast.services import editorial_agent as codex
-from .editorial_models import (
-    Delivery,
-    Draft,
-    EditorialBrief,
-    Review,
-    Revision,
-)
-from .delivery import (
-    apply_delivery,
-    delivery_blockers,
-    delivery_report,
-    delivery_summary,
-)
+from neuralcast.services import editorial_agent as codex, editorial_text as gemini
+from .editorial_models import Draft, Edit, EditorialBrief, Review
+from .delivery import apply_edit, edit_blockers, edit_report
 from .library import resolve_recording
 from .manuscript import manuscript_hash, validate_manuscript
 from .models import Commentary, Music, Plan, Proposal
-from .narration import writing_settings
 from .rendering import HOST_LEAD_IN_SECONDS, audio_duration
 from .service import channel_for
 from .storage import Project, digest, read_json, write_json, write_text
 from .publication import episode_directory
-from .reviews import examples, specialist_tasks, validate_findings
+from .reviews import ROLES, examples, finding_ledger
 
 PROMPTS = ASSETS_ROOT / "stories" / "prompts" / "episode_editorial"
-STAGES = (
-    ("write", Draft),
-    ("review", Review),
-    ("revise", Revision),
-    ("delivery", Delivery),
-)
+
+
+def job_settings() -> dict:
+    return {
+        "write": {
+            "provider": "codex",
+            "model": codex.MODEL,
+            "reasoning_effort": "high",
+            "timeout_seconds": 900,
+        },
+        "factual_support": {
+            "provider": "codex",
+            "model": codex.MODEL,
+            "reasoning_effort": "medium",
+            "timeout_seconds": 600,
+        },
+        **{
+            role: {
+                "provider": "gemini",
+                "model": gemini.MODEL,
+                "thinking_level": "low",
+                "max_output_tokens": 8192,
+                "timeout_seconds": 300,
+            }
+            for role in ("narrative_continuity", "conversational_voice")
+        },
+        "edit": {
+            "provider": "gemini",
+            "model": gemini.MODEL,
+            "thinking_level": "medium",
+            "max_output_tokens": 32768,
+            "timeout_seconds": 900,
+        },
+    }
 
 
 def validate_plan(
@@ -81,39 +99,10 @@ def validate_plan(
     }
 
 
-def validate_review(review: Review, draft: Draft) -> None:
-    ids = {part.id for part in draft.plan.segments}
-    validate_findings(review.specialist_reviews, ids)
-    if any(set(issue.segment_ids) - ids for issue in review.issues):
-        raise ValueError("Review refers to unknown manuscript segment IDs")
-    for specialist in review.specialist_reviews:
-        for finding in specialist.findings:
-            if finding.disposition != "dismissed" and not any(
-                set(finding.segment_ids) <= set(issue.segment_ids)
-                for issue in review.issues
-            ):
-                raise ValueError(
-                    "Accepted specialist findings must be forwarded as review issues"
-                )
-
-
-def revision_blockers(revision: Revision, review: Review) -> list[str]:
-    ids = [resolution.issue_id for resolution in revision.resolutions]
-    if len(set(ids)) != len(ids) or set(ids) != {issue.id for issue in review.issues}:
-        raise ValueError("Revision must account for every review issue exactly once")
-    return [
-        *revision.open_questions,
-        *[
-            f"{resolution.issue_id}: {resolution.explanation}"
-            for resolution in revision.resolutions
-            if resolution.status == "unresolved"
-        ],
-    ]
-
-
 def reading_markdown(
     proposal: Proposal,
-    revision: Revision,
+    plan: Plan,
+    edit: Edit,
     timing: dict,
     approval_hash: str,
     blockers: list[str],
@@ -149,7 +138,7 @@ def reading_markdown(
         "| Order | Artist | Song |",
         "| --- | --- | --- |",
     ]
-    songs = [part for part in revision.plan.segments if isinstance(part, Music)]
+    songs = [part for part in plan.segments if isinstance(part, Music)]
     for index, song in enumerate(songs, 1):
         artist = escape(song.artist).replace("|", "\\|")
         title = escape(song.title).replace("|", "\\|")
@@ -166,7 +155,7 @@ def reading_markdown(
         f"({timing['estimated_silence_seconds']:g}s total, included in the episode estimate).",
         "",
     ]
-    for part in revision.plan.segments:
+    for part in plan.segments:
         if isinstance(part, Commentary):
             lines += [
                 f"### Voice — {escape(part.companion.title)}",
@@ -182,7 +171,15 @@ def reading_markdown(
                 "",
             ]
     lines += ["## Editorial changes", ""]
-    lines.extend(f"- {escape(change)}" for change in revision.changes)
+    lines.extend(f"- {escape(passage.explanation)}" for passage in edit.passages)
+    lines += ["", "## Production checks", ""]
+    lines.extend(f"- {escape(note)}" for note in edit.production_notes)
+    if not edit.production_notes:
+        lines.append("None reported.")
+    lines += ["", "## Listening notes", ""]
+    lines.extend(
+        f"- {note.segment_id}: {escape(note.note)}" for note in edit.listening_notes
+    )
     lines += ["", "## Unresolved issues", ""]
     lines.extend(f"- {escape(item)}" for item in blockers)
     if not blockers:
@@ -197,7 +194,6 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
         )
     proposal, _ = project.approved_proposal()
     brief = project.editorial_brief()
-    concept_hash = project.concept_hash()
     channel = channel_for(project, proposal)
     recordings = {}
     for song in brief.candidate_songs:
@@ -206,40 +202,165 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
             **{key: value for key, value in resolved.items() if key != "path"},
             "duration_seconds": audio_duration(Path(resolved["path"])),
         }
-    settings = writing_settings(channel)
-    references = {
-        "writing_guide.md": (PROMPTS / "writing_guide.md").read_text(encoding="utf-8"),
-        "voice_examples": examples(
-            "natural-aside", "connected-refinement", "concrete-collaboration"
-        ),
-        "episode_commentary.md": settings["template"],
-        "host_system_instructions": settings["system"],
-        "host_tts_instructions": settings["tts"],
-        "station_playlist_descriptions": (
-            project.station_root / "playlist_descriptions.md"
-        ).read_text(encoding="utf-8"),
-    }
-    common = {
-        "proposal": proposal.model_dump(),
-        "proposal_hash": brief.proposal_hash,
-        "approved_brief": brief.model_dump(),
-        "concept_hash": concept_hash,
-        "host": {"brand": channel.brand.key, "locale": channel.locale.tag},
-        "recordings": recordings,
-        "writing_references": references,
-        "reference_scope": "Use references for style; this stage's prompt/schema controls its task and output format.",
-        "allowed_inline_tags": sorted(INLINE_VOCAL_TAGS),
-        "timing_policy": {
-            "target_seconds": proposal.target_seconds,
-            "commentary_budget_seconds": proposal.commentary_budget_seconds,
-            "narration_words_per_minute": brief.narration_words_per_minute,
-            "duration_tolerance_seconds": brief.duration_tolerance_seconds,
-            "tag_allowance_seconds": 0.5,
-            "host_lead_in_seconds": HOST_LEAD_IN_SECONDS,
+    return (
+        proposal,
+        brief,
+        {
+            "proposal": proposal.model_dump(),
+            "proposal_hash": brief.proposal_hash,
+            "approved_brief": brief.model_dump(),
+            "concept_hash": project.concept_hash(),
+            "host": {
+                "brand": channel.brand.key,
+                "locale": channel.locale.tag,
+                "personality": channel.script_style_override
+                or channel.brand.script_style,
+                "language_guidance": channel.locale.script_guidance,
+            },
+            "recordings": recordings,
+            "writing_references": {
+                "writing_guide.md": (PROMPTS / "writing_guide.md").read_text(
+                    encoding="utf-8"
+                ),
+                "voice_examples": examples(
+                    "natural-aside", "connected-refinement", "detour-and-return"
+                ),
+            },
+            "allowed_inline_tags": sorted(INLINE_VOCAL_TAGS),
+            "timing_policy": {
+                "target_seconds": proposal.target_seconds,
+                "commentary_budget_seconds": proposal.commentary_budget_seconds,
+                "narration_words_per_minute": brief.narration_words_per_minute,
+                "narration_max_words": int(
+                    proposal.commentary_budget_seconds
+                    * brief.narration_words_per_minute
+                    / 60
+                ),
+                "duration_tolerance_seconds": brief.duration_tolerance_seconds,
+                "tag_allowance_seconds": 0.5,
+                "host_lead_in_seconds": HOST_LEAD_IN_SECONDS,
+            },
+            "owner_feedback": feedback,
         },
-        "owner_feedback": feedback,
-    }
-    return proposal, brief, common
+    )
+
+
+def _check_text(value) -> None:
+    if isinstance(value, dict):
+        for item in value.values():
+            _check_text(item)
+    elif isinstance(value, list):
+        for item in value:
+            _check_text(item)
+    elif isinstance(value, str) and re.search(r"\b(\w+)(?:\s+\1){11,}\b", value, re.I):
+        raise ValueError("Response contains a repeated-token corruption")
+
+
+def _job(
+    directory: Path,
+    name: str,
+    context: dict,
+    model,
+    settings: dict,
+    prompt: str,
+    runner: Callable,
+    validate: Callable,
+    progress: Callable,
+) -> Draft | Review | Edit:
+    result_path = directory / f"{name}.json"
+    if result_path.exists():
+        saved = read_json(result_path)
+        if (
+            not isinstance(saved.get("output"), dict)
+            or saved.get("input_hash") != digest(context)
+            or saved.get("output_hash") != digest(saved["output"])
+        ):
+            raise ValueError(f"Stored {name} stage changed")
+        _check_text(saved["output"])
+        result = model.model_validate(saved["output"])
+        validate(result)
+        progress(f"Reusing editorial job: {name}")
+        return result
+    attempts = directory / name
+    attempts.mkdir(exist_ok=True)
+    request = context
+    for retry in range(2):
+        attempt = attempts / f"attempt-{len(list(attempts.iterdir())) + 1:03d}"
+        raw = None
+        started = monotonic()
+        progress(
+            f"Running editorial job: {name}" + (" (targeted retry)" if retry else "")
+        )
+        try:
+            raw = runner(
+                prompt,
+                request,
+                codex.output_schema(model),
+                attempt,
+                **{
+                    key: value
+                    for key, value in settings.items()
+                    if key not in {"provider", "model"}
+                },
+            )
+            _check_text(raw)
+            result = model.model_validate(raw)
+            validate(result)
+        except (ValueError, RuntimeError, OSError) as exc:
+            failure = attempt / "failure.json"
+            if not failure.exists():
+                write_json(
+                    failure,
+                    {
+                        "category": (
+                            "validation" if isinstance(exc, ValueError) else "execution"
+                        ),
+                        "status": "failed",
+                    },
+                )
+            category = read_json(failure).get("category")
+            if retry or category in {
+                "authentication",
+                "configuration",
+                "model_access",
+                "schema",
+                "incomplete",
+            }:
+                raise
+            request = {
+                **context,
+                "retry_feedback": {
+                    "validation_error": (
+                        str(exc)[:1000]
+                        if isinstance(exc, ValueError)
+                        else "The previous request failed. Return a complete result."
+                    ),
+                    "previous_response": raw,
+                },
+            }
+            continue
+        finally:
+            if not (attempt / "metrics.json").exists():
+                write_json(
+                    attempt / "metrics.json",
+                    {
+                        "provider": settings["provider"],
+                        "model": settings["model"],
+                        "elapsed_seconds": round(monotonic() - started, 3),
+                        "usage": None,
+                    },
+                )
+        write_json(
+            result_path,
+            {
+                "input_hash": digest(context),
+                "output_hash": digest(raw),
+                "output": raw,
+                "attempt": str(attempt),
+            },
+        )
+        progress(f"Completed editorial job: {name}")
+        return result
 
 
 def _snapshot(project: Project, directory: Path, inputs: dict) -> None:
@@ -280,30 +401,30 @@ def _snapshot(project: Project, directory: Path, inputs: dict) -> None:
 def _install(
     project: Project,
     proposal: Proposal,
-    concept_hash: str,
-    revision: Revision,
+    common: dict,
+    plan: Plan,
+    edit: Edit,
     timing: dict,
     blockers: list[str],
     directory: Path,
     source: Plan,
-    delivery: Delivery,
+    findings: list[dict],
 ) -> dict:
-    if project.concept_hash() != concept_hash:
+    if project.concept_hash() != common["concept_hash"]:
         raise ValueError("Approved concept changed during editorial production")
     project.approved_proposal()
     current = project.documents / "plan.json"
     starting = read_json(directory / "starting_plan.json")
-    final_plan = revision.plan.model_dump()
+    final_plan = plan.model_dump()
     current_hash = digest(read_json(current)) if current.exists() else None
     if current_hash not in {starting["hash"], digest(final_plan)}:
         raise ValueError(
             "Plan changed during editorial production; existing edits were preserved"
         )
-    approval_hash = manuscript_hash(project, revision.plan)
+    approval_hash = manuscript_hash(project, plan)
     markdown = reading_markdown(
-        proposal, revision, timing, approval_hash, blockers, project.episode_number
+        proposal, plan, edit, timing, approval_hash, blockers, project.episode_number
     )
-    markdown += "\n" + delivery_summary(source, revision.plan, delivery)
     manuscript = project.documents / "manuscript.md"
     current_markdown_hash = (
         digest(manuscript.read_text(encoding="utf-8")) if manuscript.exists() else None
@@ -314,29 +435,110 @@ def _install(
         )
     receipt = {
         "run_hash": directory.name,
-        "concept_hash": concept_hash,
+        "concept_hash": common["concept_hash"],
         "manuscript_hash": approval_hash,
         "status": "blocked" if blockers else "awaiting_manuscript_approval",
         "blockers": blockers,
         "timing": timing,
-        "manuscript": str(project.documents / "manuscript.md"),
+        "manuscript": str(manuscript),
         "artifacts": str(directory),
-        "delivery_report": str(directory / "delivery_report.md"),
-        "listening_notes": [note.model_dump() for note in delivery.listening_notes],
+        "report": str(directory / "edit_report.md"),
+        "listening_notes": [note.model_dump() for note in edit.listening_notes],
+        "production_notes": edit.production_notes,
         "installed_plan_hash": digest(final_plan),
         "mode": "delivery" if directory.parent.name == "delivery" else "editorial",
+        "jobs": {
+            str(path.relative_to(directory).parent): read_json(path)
+            for path in sorted(directory.glob("*/attempt-*/metrics.json"))
+        },
     }
-    write_text(
-        directory / "delivery_report.md",
-        delivery_report(source, revision.plan, delivery),
-    )
+    write_text(directory / "edit_report.md", edit_report(source, plan, edit, findings))
     write_json(directory / "final_plan.json", final_plan)
     write_text(directory / "manuscript.md", markdown)
     write_json(directory / "receipt.json", receipt)
     write_json(current, final_plan)
-    write_text(project.documents / "manuscript.md", markdown)
+    write_text(manuscript, markdown)
     write_json(project.runtime / "editorial_latest.json", receipt)
     return receipt
+
+
+def _edit_context(
+    common: dict,
+    source: Plan,
+    timing: dict,
+    findings: list[dict],
+    evidence: list[dict],
+    strengths: dict,
+    production_notes: list[str],
+    *,
+    script_only: bool = False,
+) -> dict:
+    return {
+        **common,
+        "source_plan": source.model_dump(),
+        "estimated_duration": timing,
+        "findings": findings,
+        "additional_sources": evidence,
+        "strengths": strengths,
+        "production_notes": production_notes,
+        "locked_metadata": script_only,
+    }
+
+
+def _final_edit(
+    project: Project,
+    common: dict,
+    proposal: Proposal,
+    brief: EditorialBrief,
+    directory: Path,
+    context: dict,
+    prompt: str,
+    settings: dict,
+    runner: Callable,
+    progress: Callable,
+) -> dict:
+    source = Plan.model_validate(context["source_plan"])
+
+    def validate(edit):
+        edit_blockers(edit, context["findings"])
+        plan = apply_edit(
+            source,
+            edit,
+            script_only=context["locked_metadata"],
+            evidence=[
+                *brief.model_dump()["initial_research"],
+                *context["additional_sources"],
+            ],
+        )
+        validate_plan(plan, proposal, brief, common["recordings"])
+
+    edit = _job(
+        directory, "edit", context, Edit, settings, prompt, runner, validate, progress
+    )
+    edit.production_notes = list(
+        dict.fromkeys([*context["production_notes"], *edit.production_notes])
+    )
+    plan = apply_edit(
+        source,
+        edit,
+        script_only=context["locked_metadata"],
+        evidence=[
+            *brief.model_dump()["initial_research"],
+            *context["additional_sources"],
+        ],
+    )
+    return _install(
+        project,
+        proposal,
+        common,
+        plan,
+        edit,
+        validate_plan(plan, proposal, brief, common["recordings"]),
+        edit_blockers(edit, context["findings"]),
+        directory,
+        source,
+        context["findings"],
+    )
 
 
 def edit_episode(
@@ -344,134 +546,116 @@ def edit_episode(
     *,
     feedback: str = "",
     runner: Callable = codex.run_stage,
+    text_runner: Callable = gemini.run_stage,
     progress: Callable[[str], None] = lambda _: None,
 ) -> dict:
-    """Caller holds project.lock(). Resume valid stages; never synthesize audio."""
+    """Caller holds project.lock(); accepted jobs survive independent failures."""
     proposal, brief, common = _context(project, feedback)
-    concept_hash = common["concept_hash"]
-    recordings = common["recordings"]
+    jobs = job_settings()
     prompts = {
-        stage: (PROMPTS / f"{stage}.md").read_text(encoding="utf-8")
-        for stage, _ in STAGES
+        name: (PROMPTS / f"{name}.md").read_text(encoding="utf-8") for name in jobs
     }
-    schemas = {name: codex.output_schema(model) for name, model in STAGES}
-    specialists = {name: specialist_tasks(name) for name in ("review", "delivery")}
+    models = {"write": Draft, **{role: Review for role in ROLES}, "edit": Edit}
     inputs = {
-        "version": 1,
         "context": common,
         "prompts": prompts,
-        "schemas": schemas,
-        "specialists": specialists,
-        "model": codex.MODEL,
-        "reasoning_effort": codex.REASONING_EFFORT,
+        "jobs": jobs,
+        "schemas": {name: codex.output_schema(model) for name, model in models.items()},
     }
-    run_hash = digest(inputs)
-    directory = project.runtime / "editorial" / run_hash
+    directory = project.runtime / "editorial" / digest(inputs)
     _snapshot(project, directory, inputs)
-    outputs = {}
-    timing = {}
-    for stage, model in STAGES:
-        result_path = directory / f"{stage}.json"
-        context = {**common, **outputs}
-        if stage != "write":
-            context["estimated_duration"] = timing
-        if stage == "delivery":
-            revised = Revision.model_validate(outputs["revise"])
-            context = {
-                **common,
-                "source_plan": revised.plan.model_dump(),
-                "editorial_blockers": revision_blockers(
-                    revised, Review.model_validate(outputs["review"])
-                ),
-                "estimated_duration": timing,
-            }
-        if stage in specialists:
-            context["specialist_tasks"] = specialists[stage]
-        cached = result_path.exists()
-        progress(f"{'Reusing' if cached else 'Running'} editorial stage: {stage}")
-        if cached:
-            saved = read_json(result_path)
-            raw = saved["output"]
-            if saved.get("output_hash") != digest(raw) or saved.get(
-                "input_hash"
-            ) != digest(context):
-                raise ValueError(f"Stored {stage} stage changed")
-        else:
-            attempts = directory / stage
-            attempts.mkdir(exist_ok=True)
-            attempt = attempts / f"attempt-{len(list(attempts.iterdir())) + 1:03d}"
-            try:
-                if stage == "delivery":
-                    raw = runner(
-                        prompts[stage],
-                        context,
-                        schemas[stage],
-                        attempt,
-                        search=False,
-                        subagent_count=2,
-                    )
-                elif stage == "review":
-                    raw = runner(
-                        prompts[stage],
-                        context,
-                        schemas[stage],
-                        attempt,
-                        subagent_count=3,
-                    )
-                else:
-                    raw = runner(prompts[stage], context, schemas[stage], attempt)
-            except Exception:
-                write_json(
-                    attempt / "failure.json", {"stage": stage, "status": "failed"}
-                )
-                raise
-        result = model.model_validate(raw)
-        if stage == "review":
-            validate_review(result, Draft.model_validate(outputs["draft"]))
-        elif stage == "delivery":
-            source = Revision.model_validate(outputs["revise"]).plan
-            polished = apply_delivery(source, result)
-            timing = validate_plan(polished, proposal, brief, recordings)
-        else:
-            timing = validate_plan(result.plan, proposal, brief, recordings)
-        if stage == "revise":
-            revision_blockers(result, Review.model_validate(outputs["review"]))
-        if stage in specialists:
-            write_json(
-                directory / f"{stage}_specialists.json",
-                {
-                    "reviews": [
-                        item.model_dump() for item in result.specialist_reviews
-                    ],
-                },
-            )
-        if not cached:
-            write_json(
-                result_path,
-                {
-                    "input_hash": digest(context),
-                    "output_hash": digest(raw),
-                    "output": raw,
-                },
-            )
-        outputs["draft" if stage == "write" else stage] = result.model_dump()
-
-    revision = Revision.model_validate(outputs["revise"])
-    review = Review.model_validate(outputs["review"])
-    delivery = Delivery.model_validate(outputs["delivery"])
-    blockers = revision_blockers(revision, review) + delivery_blockers(delivery)
-    source = revision.plan
-    revision.plan = apply_delivery(source, delivery)
-    return _install(
-        project,
-        proposal,
-        concept_hash,
-        revision,
-        timing,
-        blockers,
+    if text_runner is gemini.run_stage and any(
+        not (directory / f"{name}.json").exists()
+        for name in ("narrative_continuity", "conversational_voice", "edit")
+    ):
+        gemini.get_gemini_client()
+    draft = _job(
         directory,
-        source,
-        delivery,
+        "write",
+        common,
+        Draft,
+        jobs["write"],
+        prompts["write"],
+        runner,
+        lambda result: validate_plan(
+            result.plan, proposal, brief, common["recordings"]
+        ),
+        progress,
+    )
+    timing = validate_plan(draft.plan, proposal, brief, common["recordings"])
+    review_context = {
+        **common,
+        "source_plan": draft.plan.model_dump(),
+        "research_notes": draft.research_notes,
+        "open_questions": draft.open_questions,
+        "estimated_duration": timing,
+    }
+    reports = {}
+    errors = []
+
+    def review(role):
+        context = {**review_context, "assignment": role}
+        if role == "factual_support":
+            context.pop("writing_references")
+
+        def validate(result):
+            ids = {part.id for part in draft.plan.segments}
+            if any(set(finding.segment_ids) - ids for finding in result.findings):
+                raise ValueError("Review refers to unknown manuscript segment IDs")
+            if role != "factual_support" and result.additional_sources:
+                raise ValueError("Text-only reviewers cannot add research sources")
+
+        return _job(
+            directory,
+            role,
+            context,
+            Review,
+            jobs[role],
+            prompts[role],
+            runner if role == "factual_support" else text_runner,
+            validate,
+            progress,
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {pool.submit(review, role): role for role in ROLES}
+        for future in as_completed(futures):
+            role = futures[future]
+            try:
+                reports[role] = future.result()
+            except (ValueError, RuntimeError, OSError) as exc:
+                errors.append((role, exc))
+    if errors:
+        role, error = errors[0]
+        raise RuntimeError(
+            f"Review {role} failed; completed jobs were retained: {error}"
+        ) from None
+    findings = finding_ledger(draft, reports)
+    write_json(directory / "findings.json", {"findings": findings})
+    context = _edit_context(
+        common,
+        draft.plan,
+        timing,
+        findings,
+        [
+            source.model_dump()
+            for role in ROLES
+            for source in reports[role].additional_sources
+        ],
+        {role: reports[role].strengths for role in ROLES},
+        draft.production_notes,
+    )
+    return _final_edit(
+        project,
+        common,
+        proposal,
+        brief,
+        directory,
+        context,
+        prompts["edit"],
+        jobs["edit"],
+        text_runner,
+        progress,
     )
 
 
@@ -479,117 +663,61 @@ def polish_delivery(
     project: Project,
     *,
     feedback: str = "",
-    runner: Callable = codex.run_stage,
+    runner: Callable = gemini.run_stage,
     progress: Callable[[str], None] = lambda _: None,
 ) -> dict:
-    """Caller holds project.lock(); polish the current plan with search disabled."""
+    """Caller holds project.lock(); reuse evidence for one tool-free narration edit."""
     proposal, brief, common = _context(project, feedback)
-    latest = project.runtime / "editorial_latest.json"
-    if latest.exists() and read_json(latest).get("blockers"):
+    latest_path = project.runtime / "editorial_latest.json"
+    latest = read_json(latest_path) if latest_path.exists() else {}
+    if latest.get("blockers"):
         raise ValueError(
             "Resolve existing editorial blockers before a delivery-only pass"
         )
     source = Plan.model_validate(read_json(project.documents / "plan.json"))
-    prompt = (PROMPTS / "delivery.md").read_text(encoding="utf-8")
-    schema = codex.output_schema(Delivery)
-    identity = {
-        "version": 1,
-        "prompt": prompt,
-        "schema": schema,
-        "model": codex.MODEL,
-        "reasoning_effort": codex.REASONING_EFFORT,
-        "search": False,
-        "specialists": specialist_tasks("delivery"),
-    }
-    pointer = project.runtime / "delivery_latest.json"
-    previous = read_json(pointer) if pointer.exists() else None
-    if latest.exists() and read_json(latest).get("mode") == "delivery":
-        previous = read_json(latest)
-    if previous is not None:
-        key = previous["run_hash"]
-        if len(key) != 64 or any(char not in "0123456789abcdef" for char in key):
+    prompt = (PROMPTS / "edit.md").read_text(encoding="utf-8")
+    settings = job_settings()["edit"]
+    identity = {"prompt": prompt, "job": settings, "schema": codex.output_schema(Edit)}
+    production_notes = latest.get("production_notes", [])
+    if latest.get("mode") == "delivery" and latest.get("installed_plan_hash") == digest(
+        source.model_dump()
+    ):
+        if not re.fullmatch(r"[a-f0-9]{64}", latest.get("run_hash", "")):
             raise ValueError("Invalid stored delivery run")
-        saved = read_json(project.runtime / "delivery" / key / "inputs.json")
-        if digest(saved) != key:
+        saved_path = project.runtime / "delivery" / latest["run_hash"] / "inputs.json"
+        saved = read_json(saved_path)
+        if digest(saved) != latest["run_hash"]:
             raise ValueError("Stored delivery inputs changed")
-        base = {
-            k: v
-            for k, v in saved["context"].items()
-            if k not in {"source_plan", "estimated_duration", "specialist_tasks"}
-        }
-        if (
-            previous.get("installed_plan_hash")
-            == digest(read_json(project.documents / "plan.json"))
-            and {k: v for k, v in saved.items() if k != "context"} == identity
-            and base == common
-        ):
-            # A retry after installation must reuse its original input, rather
-            # than treating the newly polished output as another revision.
+        if {k: v for k, v in saved.items() if k != "context"} == identity and {
+            k: saved["context"].get(k) for k in common
+        } == common:
             source = Plan.model_validate(saved["context"]["source_plan"])
+            production_notes = saved["context"]["production_notes"]
     timing = validate_plan(source, proposal, brief, common["recordings"])
-    context = {
-        **common,
-        "source_plan": source.model_dump(),
-        "estimated_duration": timing,
-        "specialist_tasks": identity["specialists"],
-    }
+    context = _edit_context(
+        common,
+        source,
+        timing,
+        [],
+        [],
+        {},
+        production_notes,
+        script_only=True,
+    )
     inputs = {**identity, "context": context}
     directory = project.runtime / "delivery" / digest(inputs)
     _snapshot(project, directory, inputs)
-    result_path = directory / "delivery.json"
-    progress(f"{'Reusing' if result_path.exists() else 'Running'} delivery-only pass")
-    if result_path.exists():
-        saved = read_json(result_path)
-        raw = saved["output"]
-        if saved.get("input_hash") != digest(context) or saved.get(
-            "output_hash"
-        ) != digest(raw):
-            raise ValueError("Stored delivery stage changed")
-    else:
-        attempts = directory / "delivery"
-        attempts.mkdir(exist_ok=True)
-        attempt = attempts / f"attempt-{len(list(attempts.iterdir())) + 1:03d}"
-        try:
-            raw = runner(
-                prompt, context, schema, attempt, search=False, subagent_count=2
-            )
-        except Exception:
-            write_json(
-                attempt / "failure.json", {"stage": "delivery", "status": "failed"}
-            )
-            raise
-    delivery = Delivery.model_validate(raw)
-    polished = apply_delivery(source, delivery)
-    timing = validate_plan(polished, proposal, brief, common["recordings"])
-    write_json(
-        directory / "delivery_specialists.json",
-        {
-            "reviews": [item.model_dump() for item in delivery.specialist_reviews],
-        },
-    )
-    if not result_path.exists():
-        write_json(
-            result_path,
-            {"input_hash": digest(context), "output_hash": digest(raw), "output": raw},
-        )
-    revision = Revision(
-        plan=polished,
-        research_notes="Delivery-only pass; source evidence and content-review history preserved in prior snapshots.",
-        changes=[
-            "Polished spoken phrasing and delivery without changing song order or source metadata."
-        ],
-        resolutions=[],
-    )
-    receipt = _install(
+    receipt = _final_edit(
         project,
+        common,
         proposal,
-        common["concept_hash"],
-        revision,
-        timing,
-        delivery_blockers(delivery),
+        brief,
         directory,
-        source,
-        delivery,
+        context,
+        prompt,
+        settings,
+        runner,
+        progress,
     )
-    write_json(pointer, receipt)
+    write_json(project.runtime / "delivery_latest.json", receipt)
     return receipt

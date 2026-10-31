@@ -2,8 +2,8 @@
 
 The main workflow has two editorial owner approvals. First, discuss the research,
 concept, narrative direction, candidate songs, host language, and timing with the
-owner. Approve that package, run four automated headless Codex stages (research
-and write, review, content revision, speech/delivery), then return the final Markdown manuscript for the
+owner. Approve that package, run Codex research/write, three parallel focused
+reviews and one direct Gemini content/delivery edit, then return the final Markdown manuscript for the
 owner's approval. Only then synthesize and render the approved scripts for private
 preview. Publication requires separate explicit approval of the finished audio.
 
@@ -22,12 +22,13 @@ page remains outside this version.
 
 Read [the editorial workflow](episode_editorial.md) for input schemas, prompts,
 research/review responsibilities, recovery, and approval rules. The exact prompts
-are [write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md),
-[review](../src/neuralcast/assets/stories/prompts/episode_editorial/review.md), and
-[revise](../src/neuralcast/assets/stories/prompts/episode_editorial/revise.md), and
-[speech/delivery](../src/neuralcast/assets/stories/prompts/episode_editorial/delivery.md).
-All receive the [shared writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
-and resolved host instructions.
+are [research/write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md),
+[factual support](../src/neuralcast/assets/stories/prompts/episode_editorial/factual_support.md),
+[narrative continuity](../src/neuralcast/assets/stories/prompts/episode_editorial/narrative_continuity.md),
+[conversational voice](../src/neuralcast/assets/stories/prompts/episode_editorial/conversational_voice.md),
+and [final editing](../src/neuralcast/assets/stories/prompts/episode_editorial/edit.md).
+Writing and editing use the single [podcast writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md),
+selected examples and the configured host identity, personality and language.
 
 Numbered projects live in `<station>/metadata/episodes/<NNN>-<episode-id>/`
 (for example `003-laberintos-humanos/`).
@@ -96,7 +97,7 @@ python -m neuralcast.cli.episode_producer prepare -s neuralforge --episode EPISO
 
 `approve-proposal` uses the combined `concept_hash` from inspect when a brief
 exists. `editorial` writes a complete `plan.json` and `manuscript.md`, saving all
-four prompts, contexts, stage results, source evidence, and prior plans under
+job prompts, contexts, results, source evidence, and prior plans under
 `runtime/episodes/<station>/<episode-id>/editorial/<run-hash>/`. It ends at manuscript
 review. Unresolved editorial issues are visible and prevent approval. Unchanged
 reruns resume accepted stages; no unbounded review loop is launched.
@@ -109,8 +110,7 @@ python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPIS
 ```
 
 It requires the approved concept/editorial brief and a complete current plan.
-One search-disabled Codex coordinator uses spoken-delivery and meaning-preservation
-subagents, then returns exactly one script per commentary.
+One tool-free Gemini request uses the workshop's final editor and returns exactly one script per commentary.
 The controller locks segment IDs/order, songs, sources, summaries and other plan
 metadata, validates speech tags/word budgets/timing, and writes `plan.json` plus
 `manuscript.md` together. Factual meaning and attribution within rewritten speech
@@ -387,7 +387,8 @@ render order/timing, upload recovery, publication boundaries, podcast-only
 operations, and read-only live guide access.
 In `neuralcast-web`, run `npm run build` and `npm run check:host-companion`.
 
-No new secrets or cron jobs are required. Existing generation/TTS credentials and
+The workshop requires authenticated Codex access and the existing `GEMINI_API_KEY`
+for direct `gemini-4-argon` reviews and editing. No cron jobs are required.
 AzuraCast credentials are used only for explicit preparation/publication commands.
 Episode uploads allow a longer timeout than short host snippets. Restart the admin
 API for its extended companion/artwork endpoints and verify `/healthz`; deploy

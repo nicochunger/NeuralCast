@@ -1,4 +1,4 @@
-"""Contracts for the approved concept and manuscript editorial stages."""
+"""Approved concepts, focused findings and final manuscript edits."""
 
 from typing import Annotated, Literal
 
@@ -11,10 +11,12 @@ from .models import (
     NarrationScript,
     Plan,
     Source,
+    Summary,
     Text,
 )
 
 SHA256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+ReviewText = Annotated[str, Field(min_length=1, max_length=1500)]
 
 
 class EditorialBrief(Document):
@@ -52,111 +54,46 @@ class EditorialBrief(Document):
 class Draft(Document):
     plan: Plan
     research_notes: Text
-    open_questions: list[Text] = Field(default_factory=list, max_length=30)
+    open_questions: list[ReviewText] = Field(default_factory=list, max_length=20)
+    production_notes: list[ReviewText] = Field(default_factory=list, max_length=20)
 
 
-class EditorialIssue(Document):
-    id: Identifier
+class Finding(Document):
     segment_ids: list[Identifier] = Field(min_length=1, max_length=40)
+    quote: ReviewText
     severity: Literal["major", "minor"]
-    category: Literal[
-        "continuity", "depth", "song_placement", "delivery", "accuracy", "pacing"
-    ]
-    problem: Text
-    correction: Text
-    acceptance: Text
-
-
-class SpecialistFinding(Document):
-    segment_ids: list[Identifier] = Field(min_length=1, max_length=10)
-    quote: Text
-    severity: Literal["major", "minor"]
-    problem: Text
-    correction: Text
-    disposition: Literal["accepted", "dismissed", "blocked"]
-    response: Text
-
-
-class SpecialistReview(Document):
-    reviewer: Literal[
-        "factual_support",
-        "narrative_continuity",
-        "conversational_voice",
-        "spoken_delivery",
-        "meaning_preservation",
-    ]
-    agent_id: Annotated[str, Field(min_length=1, max_length=200)]
-    status: Literal["completed"]
-    strengths: list[Text] = Field(default_factory=list, max_length=3)
-    findings: list[SpecialistFinding] = Field(default_factory=list, max_length=6)
-
-
-def require_specialists(reviews: list[SpecialistReview], expected: set[str]) -> None:
-    roles = [review.reviewer for review in reviews]
-    if len(roles) != len(expected) or set(roles) != expected:
-        raise ValueError("Complete exactly one report per requested specialist")
-    if len({review.agent_id for review in reviews}) != len(reviews):
-        raise ValueError("Each specialist must have a distinct subagent ID")
+    problem: ReviewText
+    correction: ReviewText
 
 
 class Review(Document):
-    specialist_reviews: list[SpecialistReview] = Field(min_length=3, max_length=3)
-    strengths: list[Text] = Field(min_length=1, max_length=20)
-    issues: list[EditorialIssue] = Field(default_factory=list, max_length=40)
-    additional_sources: list[Source] = Field(default_factory=list, max_length=100)
-
-    @model_validator(mode="after")
-    def unique_issues(self) -> "Review":
-        require_specialists(
-            self.specialist_reviews,
-            {"factual_support", "narrative_continuity", "conversational_voice"},
-        )
-        ids = [issue.id for issue in self.issues]
-        if len(set(ids)) != len(ids):
-            raise ValueError("Review issue IDs must be unique")
-        return self
+    strengths: list[ReviewText] = Field(default_factory=list, max_length=3)
+    findings: list[Finding] = Field(default_factory=list, max_length=6)
+    additional_sources: list[Source] = Field(default_factory=list, max_length=20)
 
 
 class Resolution(Document):
-    issue_id: Identifier
-    status: Literal["resolved", "unresolved"]
-    explanation: Text
-
-
-class Revision(Draft):
-    changes: list[Text] = Field(default_factory=list, max_length=40)
-    resolutions: list[Resolution] = Field(default_factory=list, max_length=40)
+    finding_id: Identifier
+    status: Literal["resolved", "dismissed", "unresolved"]
+    explanation: ReviewText
 
 
 class DeliveryPassage(Document):
     segment_id: Identifier
     script: NarrationScript
-    explanation: Text
+    explanation: ReviewText
+    companion: Summary | None = None
+    sources: list[Source] | None = Field(default=None, max_length=20)
 
 
 class DeliveryNote(Document):
     segment_id: Identifier
-    note: Text
+    note: ReviewText
 
 
-class Delivery(Document):
-    specialist_reviews: list[SpecialistReview] = Field(min_length=2, max_length=2)
+class Edit(Document):
     passages: list[DeliveryPassage] = Field(min_length=1, max_length=40)
-    listening_notes: list[DeliveryNote] = Field(default_factory=list, max_length=40)
-    editorial_issues: list[DeliveryNote] = Field(default_factory=list, max_length=40)
-
-    @model_validator(mode="after")
-    def complete_specialist_reviews(self) -> "Delivery":
-        require_specialists(
-            self.specialist_reviews, {"spoken_delivery", "meaning_preservation"}
-        )
-        blocked = {
-            segment_id
-            for review in self.specialist_reviews
-            for finding in review.findings
-            if finding.disposition == "blocked"
-            for segment_id in finding.segment_ids
-        }
-        if blocked - {note.segment_id for note in self.editorial_issues}:
-            raise ValueError("Blocked specialist findings must remain editorial issues")
-        return self
+    resolutions: list[Resolution] = Field(default_factory=list, max_length=40)
+    open_questions: list[ReviewText] = Field(default_factory=list, max_length=20)
+    production_notes: list[ReviewText] = Field(default_factory=list, max_length=20)
+    listening_notes: list[DeliveryNote] = Field(default_factory=list, max_length=20)

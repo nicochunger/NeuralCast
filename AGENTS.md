@@ -191,8 +191,9 @@ For podcast requests, read [docs/episode_producer.md](docs/episode_producer.md) 
 Use `python -m neuralcast.cli.episode_producer`; domain code lives in
 `pipelines/episode_producer/`. The main writing path is documented in
 [docs/episode_editorial.md](docs/episode_editorial.md): discuss and approve the
-concept and candidate-song brief, run `editorial` for four headless Codex stages
-(research/write, review, content revision, speech/delivery), then obtain explicit owner approval of the
+concept and candidate-song brief, run `editorial` for Codex research/write, three
+parallel focused reviews (Codex facts; Gemini narrative and voice), and one direct
+Gemini content/delivery edit. Then obtain explicit owner approval of the
 final Markdown manuscript with `approve-manuscript --hash MANUSCRIPT_HASH` before
 `prepare`. Complete existing manual scripts use the same manuscript approval;
 preparation no longer generates missing scripts. For a delivery-only revision of
@@ -204,7 +205,8 @@ NeuralForge or NeuralCast during concept building; ask if unspecified, resolve
 its current Spanish channel, and pass the station explicitly to commands rather
 than relying on the CLI default or a previous episode. Its opening must welcome newcomers to a
 new episode of the configured brand's podcast, introduce the theme, and briefly
-preview the journey in the host language. Follow `episode_commentary.md` for
+preview the journey in the host language. Follow the podcast guide at
+`src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md` for
 writing guidance, including manually supplied scripts.
 
 The standard episode structure is one continuous host passage per

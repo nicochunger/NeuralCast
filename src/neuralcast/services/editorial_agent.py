@@ -7,6 +7,7 @@ import re
 import signal
 import subprocess
 import tempfile
+from time import monotonic
 
 from pydantic import BaseModel
 
@@ -122,7 +123,7 @@ def run_stage(
     *,
     search: bool = True,
     reasoning_effort: str = REASONING_EFFORT,
-    subagent_count: int = 0,
+    timeout_seconds: int = TIMEOUT_SECONDS,
 ) -> dict:
     """Return a document; the controller alone can mutate project files.
 
@@ -133,8 +134,8 @@ def run_stage(
     attempt.mkdir(parents=True, exist_ok=False)
     if reasoning_effort not in {"low", "medium", "high", "xhigh"}:
         raise ValueError("Unsupported editorial reasoning effort")
-    if type(subagent_count) is not int or not 0 <= subagent_count <= 3:
-        raise ValueError("Editorial stages support zero to three subagents")
+    if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= TIMEOUT_SECONDS:
+        raise ValueError("Invalid editorial timeout")
     executable = os.getenv("NC_CODEX_EXECUTABLE", "codex").strip() or "codex"
     (attempt / "prompt.md").write_text(prompt, encoding="utf-8")
     write_json(attempt / "context.json", context)
@@ -148,6 +149,7 @@ def run_stage(
             "exec",
             "--ignore-user-config",
             "--ephemeral",
+            "--json",
             "--model",
             MODEL,
             "-c",
@@ -155,9 +157,7 @@ def run_stage(
             "-c",
             'web_search="live"' if search else 'web_search="disabled"',
             "-c",
-            f"agents.enabled={str(bool(subagent_count)).lower()}",
-            "-c",
-            f"agents.max_concurrent_threads_per_session={max(1, subagent_count)}",
+            "agents.enabled=false",
             "--sandbox",
             "read-only",
             "--skip-git-repo-check",
@@ -189,6 +189,7 @@ def run_stage(
             "NODE_EXTRA_CA_CERTS",
         }
         environment = {k: v for k, v in os.environ.items() if k in allowed}
+        started = monotonic()
         with (root / "process.log").open("w") as log:
             try:
                 process = subprocess.Popen(
@@ -209,7 +210,7 @@ def run_stage(
                     None,
                 ) from None
             try:
-                process.communicate(prompt, timeout=TIMEOUT_SECONDS)
+                process.communicate(prompt, timeout=timeout_seconds)
             except (subprocess.TimeoutExpired, KeyboardInterrupt):
                 os.killpg(process.pid, signal.SIGKILL)
                 process.communicate()
@@ -220,6 +221,38 @@ def run_stage(
                     "Codex was interrupted or timed out.",
                     None,
                 ) from None
+            finally:
+                log.flush()
+                usage = None
+                for line in (
+                    (root / "process.log")
+                    .read_text(encoding="utf-8", errors="replace")
+                    .splitlines()
+                ):
+                    try:
+                        event = json.loads(line)
+                    except ValueError:
+                        continue
+                    if (
+                        isinstance(event, dict)
+                        and event.get("type") == "turn.completed"
+                        and isinstance(event.get("usage"), dict)
+                    ):
+                        usage = {
+                            key: value
+                            for key, value in event["usage"].items()
+                            if type(value) is int and value >= 0
+                        }
+                write_json(
+                    attempt / "metrics.json",
+                    {
+                        "provider": "codex",
+                        "model": MODEL,
+                        "reasoning_effort": reasoning_effort,
+                        "elapsed_seconds": round(monotonic() - started, 3),
+                        "usage": usage,
+                    },
+                )
         if process.returncode:
             category, message = failure_diagnostic(
                 (root / "process.log").read_text(encoding="utf-8", errors="replace")

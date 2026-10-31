@@ -28,7 +28,8 @@ in every prompt. Reserve different owner-rated passages for evaluation: examples
 shown during writing or review are not unseen test cases. Evaluate the ability to
 preserve successful passages as well as the ability to improve weak ones.
 
-The controller supplies three selected voice examples in every stage context.
-Each specialist assignment also includes up to three relevant examples. Only
-the calibration fields and preference labels enter the snapshot; operational
-source paths remain in this library. Selection is explicit in `reviews.py`.
+The controller supplies three selected voice examples to writing, narrative and
+voice review, and final editing. Factual verification receives evidence without
+style examples. Only calibration fields and preference labels enter the snapshot;
+operational source paths remain in this library. Selection is explicit in
+`editorial.py` and extraction in `reviews.py`.

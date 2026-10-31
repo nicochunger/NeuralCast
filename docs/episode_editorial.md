@@ -1,367 +1,181 @@
 # Automated manuscript workshop
 
-Episode production starts with a conversation: research the idea with the owner,
-agree on its angle, candidate recordings, host language, duration, and narrative
-direction. The owner approves that concept package. Four sequential headless
-Codex calls then research/write, review, revise the content, and polish speech/delivery.
-The result stops at a Markdown manuscript for a second owner approval. This
-command never synthesizes, renders, uploads, publishes, or changes station media.
+Discuss and approve the concept, candidate recordings, host language, narrative
+angle and timing with the owner. The workshop researches and writes a complete
+manuscript, runs three independent reviews in parallel, then makes one final
+content and delivery edit. It stops for owner manuscript approval before audio.
+It never renders, uploads, publishes, schedules or changes station media.
 
 ## Station and language defaults
 
-The usual episode language is **Argentinian Spanish (`es-AR`)**, including natural
-voseo and restrained Rioplatense phrasing. Apply this default during concept
-building unless the owner requests another language; it need not be asked again
-for every episode. Preserve artist, song, and album names as supplied.
+Use Argentinian Spanish (`es-AR`), natural voseo and restrained Rioplatense phrasing
+unless the owner requests another language. The owner chooses NeuralForge or
+NeuralCast during concept building. Ask if unspecified, resolve its current
+Spanish channel, record that channel in the proposal and pass the station explicitly.
+Currently these are `neuralforge-es` and `neuralcast-es`.
 
-Spanish openings use **"Bienvenidos"**, without "Bienvenidas y bienvenidos".
-NeuralForge spoken scripts use **"NeuralForsch"** as a TTS pronunciation aid;
-titles, companion summaries, metadata, and other display text retain
-**"NeuralForge"**. NeuralCast keeps its usual spelling. Introduce each band on
-its own merits in the opening; save relevant, verified influence relationships
-for the later song explanation instead of using them to justify inclusion.
+Welcome newcomers with "Bienvenidos" and introduce the configured brand's podcast,
+theme and journey. Spoken NeuralForge mentions use "NeuralForsch" for TTS; titles,
+summaries and metadata keep "NeuralForge". NeuralCast keeps its spelling. Do not
+invent a presenter, episode number, date or schedule. Introduce bands on their own
+merits, develop the bridges without restarting the show, and thank the listener
+in the closing.
 
-The owner chooses **NeuralForge or NeuralCast** in the concept conversation.
-Use that station's catalog, brand, host style, and media destination. If the
-station is missing, ask during concept building rather than relying on the CLI's
-NeuralForge default or the station used for a previous episode.
+## Five jobs, three phases
 
-Resolve the station's Spanish channel from the current channel registry. The
-current mapping is `neuralforge` → `neuralforge-es` and `neuralcast` →
-`neuralcast-es`; both use `es-AR`. Set the proposal's `channel` accordingly and
-pass the matching `--station` explicitly to commands. The approved proposal then
-carries this choice through every editorial call and synthesis. Language and
-station selection belong in the concept instructions and channel configuration;
-the reusable stage prompts continue to follow the supplied host locale and brand.
+| Job | Provider | Responsibility | Thinking/effort | Per-attempt deadline |
+| --- | --- | --- | --- | --- |
+| Research and draft | Codex, `gpt-6.1-sol` | Open sources, develop the whole story and attach evidence | high | 15 minutes |
+| Factual support | Codex, `gpt-6.1-sol` | Independently verify claims, chronology and attribution | medium | 10 minutes |
+| Narrative continuity | Gemini, `gemini-4-argon` | Assess development, depth, repetition and song purpose | low | 5 minutes |
+| Conversational voice | Gemini, `gemini-4-argon` | Assess oral phrasing, personality and unforced asides | low | 5 minutes |
+| Final edit | Gemini, `gemini-4-argon` | Reconcile findings and edit content, speech and performance | medium | 15 minutes |
 
-## Main prompts
+The three reviews run in parallel after the draft is validated. Python starts the
+jobs, retains each report and assigns stable finding IDs. The final editor sees
+those findings directly and returns one resolution per ID: resolved, dismissed
+with a reason, or unresolved. Unresolved findings and new consequential questions
+prevent manuscript approval. Writer questions enter the same finding ledger.
 
-These files are the exact main prompts sent to the four fresh Codex sessions:
+Codex jobs use fresh, ephemeral, read-only sessions with web research enabled and
+subagents disabled. Gemini jobs are direct structured API requests with no tools,
+web search, file access or delegation. Review requests have an 8192-token output
+limit; final edits have a 32768-token limit. Thinking consumes part of those
+limits. SDK retries are disabled; the controller allows one targeted retry of a
+failed job, while preserving accepted work. Authentication/configuration errors
+and incomplete/token-limited responses stop for inspection instead of automatic
+repetition. Manual retries resume accepted jobs. A normal successful workshop has
+five model jobs; automatic retries can add at most one attempt per job.
 
-1. [Research and write](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md)
-2. [Review](../src/neuralcast/assets/stories/prompts/episode_editorial/review.md)
-3. [Revise](../src/neuralcast/assets/stories/prompts/episode_editorial/revise.md)
-4. [Speech and delivery](../src/neuralcast/assets/stories/prompts/episode_editorial/delivery.md)
+All three independent reviews must complete before editing. A failed review does
+not discard the completed reviews. Structural validation cannot establish natural
+speech, historical truth or factual meaning; owner review remains required.
 
-All four also receive the full [writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md),
-[passage guidelines](../src/neuralcast/assets/stories/prompts/episode_commentary.md),
-resolved host system/TTS instructions, the station playlist descriptions, approved
-brief, candidate durations, and allowed vocal tags. The references are included
-as text in the snapshot; agents do not have to discover repository files. The
-stage prompt/schema determines the task/output, while references supply style.
+## Prompts and supplied context
 
-The controller also supplies three selected voice examples from the
-[example library](../src/neuralcast/assets/stories/episode_examples/library.json).
-Each specialist receives up to three examples relevant to its assignment.
-Preference labels are preserved: owner-approved tone illustrations, discussion
-examples, owner-requested revisions and unrated comparisons serve different
-calibration purposes. Example facts are not evidence for the episode.
+- [Research and draft](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md)
+- [Factual support](../src/neuralcast/assets/stories/prompts/episode_editorial/factual_support.md)
+- [Narrative continuity](../src/neuralcast/assets/stories/prompts/episode_editorial/narrative_continuity.md)
+- [Conversational voice](../src/neuralcast/assets/stories/prompts/episode_editorial/conversational_voice.md)
+- [Final edit](../src/neuralcast/assets/stories/prompts/episode_editorial/edit.md)
 
-Stage 1 performs additional online research, opens supporting sources, develops
-the story, and supplies every script, companion summary, and claim/source map.
-Stage 2 reads the whole manuscript with music breaks and reports specific issues
-with segment IDs, severity, corrections, and acceptance criteria. It checks
-continuity, depth, song placement, spoken delivery, evidence, and pacing, and
-names strong material to preserve. Stage 3 addresses the issues, does targeted
-research, checks the complete revised narrative, and accounts for every issue.
-Stage 4 then focuses exclusively on spoken phrasing, listening continuity and
-purposeful vocal cues, with web search disabled. It can replace commentary scripts
-only: IDs, roles, song order, source evidence, companions and other metadata are
-locked. New content problems become visible blockers, not unsupported rewrites.
-No additional automatic review loop follows the delivery pass.
+The single [podcast writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
+and three selected, labeled [voice examples](../src/neuralcast/assets/stories/episode_examples/library.json)
+calibrate writing, narrative review, voice review and editing. Factual verification
+receives the manuscript and evidence without style references. Every job receives
+relevant approved scope, host identity/language, measured recording durations and
+timing policy. The final editor also receives reviewer strengths to preserve and
+verified additional sources. Operational source paths stay out of example context.
 
-### Focused specialist reviews
+Write prepared storytelling with room for personality: occasional reactions,
+asides, short detours and natural refinements, as if speaking to one interested
+listener. Corrections must connect naturally, with "mejor dicho" where helpful.
+There are no device or tag quotas. Preserve factual confidence, necessary
+attribution and uncertainty; never invent experiences or dialogue. Avoid essay
+framing, repeated lessons after anecdotes and uniform handoffs.
 
-Stage 2's coordinator spawns three independent subagents in parallel:
+The final editor returns complete scripts by commentary ID. It can update sources
+and companions when an evidenced content correction requires it. Source URLs must
+already be in the supplied plan, initial research or verified review evidence.
+Song order, identities, passage IDs, roles and word budgets remain fixed. Missing
+evidence becomes an unresolved finding; the text-only editor cannot browse to
+invent a repair. Companions must still describe the resulting narration accurately.
 
-- `factual_support`: claims, chronology, source support, attribution and uncertainty;
-- `narrative_continuity`: repetition, causal development, depth and song placement;
-- `conversational_voice`: natural speech, personality, asides and unforced corrections.
+## Continuous passages and recording checks
 
-Each reads the complete manuscript but reports only within its assignment.
-Reports include the actual subagent ID, completion status, strengths and at most
-six findings with passage IDs, exact quotes, severity and suggested corrections.
-The coordinator consolidates the reports for Stage 3, recording an accepted,
-dismissed or blocked disposition and a response for every finding. Accepted and
-blocked findings must be represented in the consolidated review issues.
+Alternate opening → song → bridge → song → … → closing. Every music gap has one
+complete host passage, companion and TTS generation. Connect paragraphs rather
+than split anecdotes or analysis into adjacent commentaries. Host chapter titles
+must be at most 40 characters. Scripts allow up to 30000 characters and a passage
+budget up to 3000 words, within the approved episode narration budget.
 
-Stage 4 first drafts its complete delivery rewrite, then spawns two independent
-subagents in parallel. `spoken_delivery` assesses how the proposed rewrite reads
-aloud, including missing personality and forced devices. `meaning_preservation`
-compares that candidate with the supplied source plan and evidence for factual
-drift, lost qualifications, attribution changes and broken connections. Neither
-researches online. Both receive the same candidate and the complete source plan.
-The coordinator considers their findings and makes one final revision. Blocked
-findings remain visible editorial issues and prevent manuscript approval.
+The renderer adds 1.5 seconds of PCM silence before every host passage, inside
+its chapter. Count this in total duration, outside the speech budget; do not
+require a leading pause tag. Estimates include measured music, speech, tags and
+lead-ins. Actual duration is measured after synthesis.
 
-Each coordinator waits for all assigned reviewers. Specialists do not delegate,
-edit files or independently rewrite chapters. There is one specialist review
-round per coordinator call. Stages 1 and 3 do not delegate. All calls retain the
-read-only sandbox and the configured model and reasoning effort; Stage 4 and its
-subagents have web search disabled. The per-run concurrency cap is three for
-Stage 2 and two for Stage 4. Missing, duplicate, failed or misassigned reports,
-duplicate agent IDs and invalid passage references prevent stage acceptance.
-These checks validate the report contract; they cannot mechanically establish
-that a review's editorial judgment is correct.
+Resolve recording identity and edition questions when selecting media. Routine
+provenance/listening checks belong in production notes for the owner to complete
+before audio preparation. A suspected incompatible recording that changes the
+story remains a consequential editorial question. Neither published credits nor
+a file's tags prove its edition, and manuscript rewriting cannot perform a
+listening check. Preserve each outstanding production note once.
 
-`review_specialists.json` and `delivery_specialists.json` save the specialist
-findings with coordinator dispositions. They also remain in the hashed stage
-outputs; delivery's before/after report includes its specialist findings.
+## Input documents and approval
 
-Conversational delivery is assessed throughout the workshop. The shared writing
-guide targets prepared storytelling with room for personality: occasional small
-asides, reactions, brief detours and natural refinements, as if addressing one
-interested listener. Corrections need a clear connection such as "mejor dicho"
-where appropriate; they must feel unforced. These devices have no quotas and
-must not introduce invented experiences or uncertainty about verified facts. The
-guide includes written/spoken examples and checks for repeated interpretation,
-formal framing and uniform paragraph rhythms. Stage 1 applies that standard
-before handing off its draft. Stage 2 must assess it with concrete excerpts;
-recurring presentation-like narration can be a major delivery issue even when
-facts and chronology are correct. Stage 3 resolves those issues before Stage 4.
-The delivery pass may substantially rewrite sentences and paragraphs within each
-commentary, preserving factual meaning, necessary qualifications, narrative
-purpose and locked metadata. It self-checks the finished listening sequence and
-explains meaningful choices in the saved passage explanations/listening notes.
-It considers expressive cues beyond pauses without a quota. That self-check is
-not an independent final review, and mechanical validation cannot certify that
-speech sounds natural. Owner manuscript review remains required.
-
-The review checks for missing conversational personality as well as forced or
-repetitive devices. Content revision addresses those findings. The delivery pass
-actively adds fitting asides, reactions or natural refinements when the prose
-remains uniformly polished or impersonal, while preserving facts and locked
-metadata. It checks the result again and explains relevant additions, retained
-moments and repairs in its passage notes. This applies to both the full workshop
-and a standalone delivery pass.
-
-### Continuous host passages
-
-The standard manuscript sequence alternates:
-opening → song → bridge → song → … → closing. Each gap between recordings has
-one complete host script and one companion, synthesized as a single passage.
-Do not create adjacent commentary segments for separate anecdotes, analysis of
-the song just heard, or the introduction to the next song. Write those thoughts
-as connected paragraphs in the same script. Each bridge finishes or develops the
-previous song's idea while carrying the story toward the next recording. Review
-for repetition both within each passage and across song breaks.
-
-`max_words` can be up to 3000, but
-the approved total narration budget still governs the episode; that capacity is
-not a writing target. Scripts and delivery output support up to 30,000 characters.
-Host companion titles must be at most 40 characters so chapters fit podcast apps.
-Canonical song titles are preserved; RSS still caps their displayed chapter titles.
-
-Rendering inserts **1.5 seconds of PCM silence before each host passage**,
-including opening and closing. Do not require an initial pause tag as well.
-Internal expressive pauses remain available. The silence belongs to the host
-chapter and counts toward total episode duration, outside the spoken narration
-budget. Estimates and the reading manuscript show the additional silence.
-
-Use the editorial plan schema for manual manuscripts. Generated recordings,
-publication snapshots and their chapter lists are immutable production data.
-
-For inspection after completion, each run retains `inputs.json`, accepted
-`write.json`, `review.json`, `revise.json`, `delivery.json`, and the exact
-`delivery_report.md` before/after comparison. Each stage's attempt directory also
-retains its prompt, context, schema and raw JSON response when returned. Raw CLI
-terminal logs are temporary and discarded to protect authentication diagnostics;
-these artifacts are not a complete browsing or internal reasoning transcript.
-Guidance changes apply on the next explicitly requested run and create a new run
-hash; they do not rewrite existing manuscripts or historical stage artifacts.
-
-## Input documents and first approval
-
-Use the existing project paths:
+Use the project CLI and the standard working files:
 
 ```text
 <station>/metadata/episodes/<NNN>-<episode-id>/
-  proposal.json       # episode_number, premise, channel, duration, budget, outline
-                      # includes editorial_brief: instructions, songs, research, timing
+  proposal.json       # concept and embedded editorial_brief
+  plan.json           # complete, authoritative renderer input
+  manuscript.md       # derived song list and exact tagged narration
 ```
 
-The `editorial_brief` property inside `proposal.json` uses this shape:
-
-```json
-{
-  "version": 1,
-  "proposal_hash": "SHA256_OF_NORMALIZED_PROPOSAL_FROM_INSPECT",
-  "instructions": "Explore the relationships and consequences. Conversational storytelling; no spoken source references.",
-  "candidate_songs": [
-    {
-      "kind": "music",
-      "id": "candidate-one",
-      "playlist": "Classic Metal",
-      "artist": "Canonical Artist",
-      "title": "Canonical Title",
-      "rationale": "Its potential role in the approved story"
-    }
-  ],
-  "initial_research": [
-    {"url": "https://example.com/original-interview", "claim": "A specific supported fact or attributed recollection."}
-  ],
-  "narration_words_per_minute": 165,
-  "duration_tolerance_seconds": 120
-}
-```
-
-The artist/title pair and playlist must resolve to an existing exact recording.
-Candidates have unique IDs and artist/title identities. Codex may select a subset
-and reorder candidates; it cannot add or substitute recordings. The speaking rate
-and tolerance are explicit estimates approved with the concept. The writer sees
-measured music durations and must leave enough room for narration. Exact speech
-and total duration are measured again by the audio renderer.
-
-Initialize with `init --proposal PATH` using a proposal containing the embedded
-brief. Alternatively initialize the base proposal first, obtain `proposal_hash`
-with inspect, then add the `editorial_brief` object to `proposal.json` before
-requesting concept approval. That object's `proposal_hash` refers to the normalized
-base proposal, excluding `episode_number` and `editorial_brief` itself:
+The proposal's `editorial_brief` contains `proposal_hash`, instructions,
+`candidate_songs`, `initial_research`, `narration_words_per_minute` and
+`duration_tolerance_seconds`. Candidate IDs and artist/title pairs must be unique
+and resolve to exact library recordings. Selection/reordering follows the approved
+instructions; no substitution or unapproved recording is allowed. The brief's
+proposal hash references the normalized proposal without its brief or display
+number. Concept approval binds both proposal and brief. Do not infer approval.
 
 ```bash
-python -m neuralcast.cli.episode_producer init -s neuralforge --episode EPISODE_ID --proposal /tmp/proposal.json
+python -m neuralcast.cli.episode_producer init -s neuralforge --episode EPISODE_ID --proposal /tmp/proposal.json --episode-number NUMBER
 python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode EPISODE_ID
-# Add editorial_brief to proposal.json using that proposal_hash; discuss the package.
-python -m neuralcast.cli.episode_producer inspect -s neuralforge --episode EPISODE_ID
+# After explicit owner approval of the concept and candidate songs:
 python -m neuralcast.cli.episode_producer approve-proposal -s neuralforge --episode EPISODE_ID --hash CONCEPT_HASH
-```
-
-**Use `concept_hash`, not `proposal_hash`, for the first approval when a brief
-exists.** It binds the proposal, candidate list, instructions, initial research,
-and timing policy. Changes invalidate approval. Plan documents continue to
-reference `proposal_hash`. The combined concept must be approved before editorial
-production.
-Approval commands record an approval explicitly given by the owner, never one
-inferred from files or an automated agent's verdict.
-
-The standard completed folder contains only `proposal.json`, `plan.json`, and
-`manuscript.md`. See [the working-file contract](episode_producer.md#standard-working-files).
-Do not create an additional brief or numbered draft copies. `init --brief PATH`
-imports a supplied brief into the proposal. Conflicting supplied briefs are
-rejected. Changes to the brief require concept approval.
-
-## Run the four stages
-
-```bash
 python -m neuralcast.cli.episode_producer editorial -s neuralforge --episode EPISODE_ID
-```
-
-The controller uses `codex exec --ephemeral`, `gpt-6.1-sol` at high reasoning
-effort, live web research in stages 1–3, a read-only sandbox, and JSON-schema output.
-Stage 4 explicitly disables web search. It needs
-an installed/authenticated Codex CLI with access to that model, plus ffprobe for
-music-duration measurement. It does not need Gemini or AzuraCast credentials.
-Each coordinator call has a 30-minute timeout, including its specialist work.
-A successful full run has four coordinator calls and five specialist calls.
-Timeouts/interruption terminate the child process group. Fresh sessions see
-only their supplied snapshots and preceding stage documents, not a resumed chat.
-Station/provider secrets are excluded from the subprocess environment. Raw CLI
-logs are temporary because authentication diagnostics may be sensitive.
-
-The controller validates each result before accepting it. Checks include schema,
-complete scripts and companions, candidate identity, unique IDs, factual sources
-on bridges, supported TTS tags, no spoken URLs, word limits, duration estimates,
-review references, specialist report completeness, and exactly one resolution
-per review issue. These mechanical checks do not prove historical accuracy or
-editorial quality; the agent review
-and owner's manuscript review remain essential.
-
-Successful output:
-
-```text
-<station>/metadata/episodes/<NNN>-<episode-id>/
-  plan.json           # final complete manuscript; renderer input
-  manuscript.md       # song list, full tagged transcript, estimates, changes/gaps
-
-runtime/episodes/<station>/<episode-id>/
-  editorial_latest.json
-  editorial/<run-hash>/
-    inputs.json       # approved context, exact prompts, schemas, model/effort
-    starting_plan.json
-    previous_plan.json  # if a plan existed before installation
-    write.json
-    review.json
-    review_specialists.json
-    revise.json
-    delivery.json
-    delivery_specialists.json
-    delivery_report.md  # exact before/after text and listening-review notes
-    final_plan.json
-    manuscript.md
-    receipt.json
-    <stage>/attempt-NNN/  # prompt, context, schema, raw response/failure if any
-```
-
-All editorial outputs are Git-ignored project/runtime data. Completed stages are
-hashed and reused on an unchanged rerun. A failed stage leaves prior results
-intact; rerunning executes only stages without an accepted result. Failed or
-invalid outputs never replace the active plan. Concurrent manual plan edits stop
-installation rather than being overwritten. Every replaced active plan is backed
-up inside that run. A prompt, host guidance, concept, recording, or feedback change
-creates a new run rather than rewriting the preceding run's stage history.
-
-For owner feedback, use `editorial --feedback 'Specific requested changes'`.
-This starts a fresh four-stage pass against the approved concept and the supplied
-feedback; it does not implicitly resume a model conversation. If feedback relies
-on exact previous wording, include that wording in the instructions. A change to
-concept or candidate recordings belongs in the brief and needs concept approval.
-
-For speech-only edits on the current complete draft, use the independent pass:
-
-```bash
-python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPISODE_ID --feedback 'Natural spoken phrasing; varied but restrained speech cues.'
-```
-
-This is one search-disabled coordinator call with the two delivery specialists,
-with no research/content stages, TTS or upload.
-It requires the approved concept/brief, preserves exact song order and all non-script
-plan fields, and validates speech tags, word limits and estimated timing. It saves
-`previous_plan.json`, `previous_manuscript.md`, the previous approval when present,
-`delivery.json`, `delivery_specialists.json`, `delivery_report.md`, `final_plan.json`,
-`manuscript.md`, and a receipt
-under `runtime/episodes/<station>/<id>/delivery/<hash>/`. No new working-folder
-filenames are introduced. Active plan and manuscript are installed together after
-validation; concurrent manual edits are preserved. Unchanged retries reuse the
-accepted result. New source text, feedback, or guidance creates a new run.
-
-The Markdown includes listening notes for uncertain performance choices. The
-full before/after report is referenced by the CLI receipt. Inline directions use
-only the supplied allowlist, with no tag quotas or automatic laughter/theatrics.
-Meaning and attribution within rewritten text still need owner review; locking
-sources and structure cannot mechanically prove semantic equivalence.
-Existing editorial blockers must be addressed by content revision. Newly flagged
-content issues block approval. Published episodes cannot be rewritten by either
-command. Changed narration requires approval of the new manuscript hash before TTS.
-
-## Second approval and rendering
-
-Read `manuscript.md`. It displays estimated duration, exact tagged narration,
-music order, changes, unresolved issues, and the manuscript hash. Research sources
-remain in the JSON dossier outside spoken text. Unresolved issues/open questions
-are exported visibly with status `blocked` and prevent manuscript approval.
-Resolve them through another editorial pass or explicitly reviewed manual edits.
-
-After the owner approves the actual final manuscript:
-
-```bash
+# After explicit owner approval of the exact resulting manuscript:
 python -m neuralcast.cli.episode_producer approve-manuscript -s neuralforge --episode EPISODE_ID --hash MANUSCRIPT_HASH
-python -m neuralcast.cli.episode_producer validate -s neuralforge --episode EPISODE_ID
-python -m neuralcast.cli.episode_producer prepare -s neuralforge --episode EPISODE_ID
 ```
 
-Approval binds the normalized full plan and concept, including scripts, song
-order, rationales, and evidence. Any change invalidates it. `prepare` checks before
-TTS and again before delivery. It synthesizes the exact supplied scripts and
-never writes replacements. TTS caches depend on spoken text and voice settings;
-changing a reading summary alone need not regenerate speech. Publication still
-requires separate explicit approval of the finished render; neither editorial
-completion nor manuscript approval grants public-release approval.
+The installed/authenticated Codex CLI must have access to `gpt-6.1-sol`; direct
+text jobs require the existing `GEMINI_API_KEY` with access to `gemini-4-argon`.
+Music durations require ffprobe. The workshop does not need AzuraCast credentials.
+Provider/model/effort settings, prompts, schemas, approved context and reference
+examples contribute to the run hash. Changing them creates a new explicitly
+requested run without modifying existing manuscripts, receipts or publications.
 
-## Manuscripts and production artifacts
+`--feedback '...'` gives owner direction for an explicitly requested workshop
+revision. For style experiments on an unpublished complete manuscript, reuse its
+evidence with the delivery command:
 
-The Codex workshop is the main writing path. Complete manual `plan.json` documents
-can be reviewed and approved with `approve-manuscript`. Every commentary requires
-a complete script and companion before approval. Preserve rendered files,
-narration caches, receipts, published catalogues and guides. Published audio is
-immutable. Production revisions depend on the manuscript, recordings, TTS
-settings and rendering policy; never delete receipts or media to force reuse.
+```bash
+python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPISODE_ID --feedback 'Keep the stories; make the narration more conversational.'
+```
+
+This uses the same Gemini final editor for one direct request, without research
+or reviews. Only scripts may change; companions, sources and song/segment metadata
+are locked. It requires the approved concept and no existing editorial blockers.
+It snapshots the prior plan, manuscript and approval, writes an exact comparison,
+and stops for renewed manuscript approval when text changes. Identical retries
+reuse their original input and accepted output rather than polishing repeatedly.
+
+## Receipts, limits and recovery
+
+Each workshop keeps the following under
+`runtime/episodes/<station>/<episode-id>/editorial/<run-hash>/`:
+
+- `inputs.json` and previous plan, manuscript, editorial receipt and approval;
+- accepted `write.json`, `factual_support.json`, `narrative_continuity.json`,
+  `conversational_voice.json` and `edit.json`;
+- `findings.json`, `final_plan.json`, `manuscript.md`, `edit_report.md`, `receipt.json`;
+- per-job attempt directories with prompt, context, schema, returned response,
+  safe failure diagnostics and `metrics.json`.
+
+Delivery requests use the same layout under `delivery/<run-hash>/` with one edit
+job. Receipts include each attempt's elapsed time, provider/model, and available
+usage. Unknown usage is null, not zero. Gemini records returned input/output and
+thinking counts; Codex records reported turn-completion usage. Raw CLI logs are
+temporary and discarded; authentication diagnostics can contain secrets. These
+artifacts are not internal reasoning transcripts or complete browsing logs.
+
+A job is cached only after schema and semantic validation. Missing/duplicate
+passages or finding resolutions, unknown IDs, unsupported tags, word/duration
+violations, sources outside supplied evidence and repeated-token corruption fail
+validation. A failed job can receive its validation error and prior response in
+one repair request. Successful jobs are not regenerated. Stored hash mismatches
+stop execution. Installation checks concept approval and concurrent plan/Markdown
+changes before replacing working documents. Rendering, uploads and publication
+retain their independent approval and recovery boundaries.

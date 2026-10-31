@@ -1,97 +1,102 @@
-"""Apply speech-only edits and produce an exact owner-readable change report."""
+"""Apply final narration edits within their evidence and structural boundaries."""
 
-from .editorial_models import Delivery
+from collections.abc import Sequence
+
+from .editorial_models import Edit
 from .models import Commentary, Plan
-from .reviews import validate_findings
 
 
-def _escape(text: str) -> str:
-    return text.replace("<", "\\<").replace(">", "\\>")
-
-
-def apply_delivery(plan: Plan, delivery: Delivery) -> Plan:
-    """Only scripts are writable; all other approved plan fields stay frozen.
-
-    This enforces the structural boundary. Preserving factual meaning inside
-    rewritten speech still requires editorial and owner judgment.
-    """
-    ids = [part.segment_id for part in delivery.passages]
-    commentaries = {part.id for part in plan.segments if isinstance(part, Commentary)}
-    validate_findings(delivery.specialist_reviews, commentaries)
-    if len(ids) != len(set(ids)) or set(ids) != commentaries:
-        raise ValueError("Delivery must cover exactly the existing commentary IDs")
-    for note in [*delivery.listening_notes, *delivery.editorial_issues]:
-        if note.segment_id not in commentaries:
-            raise ValueError("Delivery note refers to an unknown commentary ID")
+def apply_edit(
+    plan: Plan, edit: Edit, *, script_only: bool = False, evidence: Sequence[dict] = ()
+) -> Plan:
+    commentaries = {
+        part.id: part for part in plan.segments if isinstance(part, Commentary)
+    }
+    ids = [part.segment_id for part in edit.passages]
+    if len(ids) != len(set(ids)) or set(ids) != set(commentaries):
+        raise ValueError("Final edit must cover exactly the existing commentary IDs")
+    if any(note.segment_id not in commentaries for note in edit.listening_notes):
+        raise ValueError("Listening note refers to an unknown commentary ID")
+    allowed_urls = {
+        source.url for part in commentaries.values() for source in part.sources
+    } | {source["url"] for source in evidence}
     result = plan.model_copy(deep=True)
-    scripts = {part.segment_id: part.script for part in delivery.passages}
+    passages = {part.segment_id: part for part in edit.passages}
     for part in result.segments:
-        if isinstance(part, Commentary):
-            part.script = scripts[part.id]
+        if not isinstance(part, Commentary):
+            continue
+        change = passages[part.id]
+        if script_only and (
+            (change.companion is not None and change.companion != part.companion)
+            or (change.sources is not None and change.sources != part.sources)
+        ):
+            raise ValueError("Delivery cannot change companions or sources")
+        if change.sources is not None:
+            if {source.url for source in change.sources} - allowed_urls:
+                raise ValueError(
+                    "Final edit introduced a source outside the supplied evidence"
+                )
+            part.sources = change.sources
+        if change.companion is not None:
+            part.companion = change.companion
+        part.script = change.script
     return Plan.model_validate(result.model_dump())
 
 
-def delivery_blockers(delivery: Delivery) -> list[str]:
-    return [f"{note.segment_id}: {note.note}" for note in delivery.editorial_issues]
+def edit_blockers(edit: Edit, findings: list[dict]) -> list[str]:
+    ids = [item.finding_id for item in edit.resolutions]
+    if len(set(ids)) != len(ids) or set(ids) != {item["id"] for item in findings}:
+        raise ValueError("Final edit must account for every finding exactly once")
+    return list(
+        dict.fromkeys(
+            [
+                *edit.open_questions,
+                *[
+                    f"{item.finding_id}: {item.explanation}"
+                    for item in edit.resolutions
+                    if item.status == "unresolved"
+                ],
+            ]
+        )
+    )
 
 
-def delivery_summary(before: Plan, after: Plan, delivery: Delivery) -> str:
-    """Summaries appear in the reading copy; the full before/after stays in runtime."""
+def edit_report(before: Plan, after: Plan, edit: Edit, findings: list[dict]) -> str:
     original = {part.id: part for part in before.segments}
-    explanations = {part.segment_id: part.explanation for part in delivery.passages}
-    lines = ["## Speech and delivery changes", ""]
+    explanations = {part.segment_id: part.explanation for part in edit.passages}
+    lines = ["# Manuscript edit — before and after", ""]
     for part in after.segments:
-        if isinstance(part, Commentary) and part.script != original[part.id].script:
-            lines.append(f"- {part.id}: {_escape(explanations[part.id])}")
-    if len(lines) == 2:
-        lines.append("No narration changes.")
-    lines += ["", "## Listening review notes", ""]
-    lines += [
-        f"- {note.segment_id}: {_escape(note.note)}"
-        for note in delivery.listening_notes
-    ]
-    if not delivery.listening_notes:
-        lines.append("None reported. No audio was generated by this pass.")
-    return "\n".join(lines) + "\n"
-
-
-def delivery_report(before: Plan, after: Plan, delivery: Delivery) -> str:
-    original = {part.id: part for part in before.segments}
-    explanations = {part.segment_id: part.explanation for part in delivery.passages}
-    lines = ["# Speech and delivery — before and after", ""]
-    for part in after.segments:
-        if not isinstance(part, Commentary) or part.script == original[part.id].script:
-            continue
+        if isinstance(part, Commentary) and part != original[part.id]:
+            lines += [
+                f"## {part.id} — {part.companion.title}",
+                "",
+                explanations[part.id],
+                "",
+                "Before:",
+                "",
+                "```text",
+                original[part.id].script,
+                "```",
+                "",
+                "After:",
+                "",
+                "```text",
+                part.script,
+                "```",
+                "",
+            ]
+    lines += ["## Review findings", ""]
+    resolutions = {item.finding_id: item for item in edit.resolutions}
+    for finding in findings:
+        resolution = resolutions[finding["id"]]
         lines += [
-            f"## {part.id} — {part.companion.title}",
+            f"### {finding['id']} — {resolution.status}",
             "",
-            _escape(explanations[part.id]),
+            finding["problem"],
             "",
-            "Before:",
+            f"Quote: {finding['quote']}",
             "",
-            "```text",
-            original[part.id].script,
-            "```",
-            "",
-            "After:",
-            "",
-            "```text",
-            part.script,
-            "```",
+            resolution.explanation,
             "",
         ]
-    lines += [delivery_summary(before, after, delivery)]
-    lines += ["", "## Specialist reviews", ""]
-    for review in delivery.specialist_reviews:
-        lines += [f"### {review.reviewer}", "", f"Subagent: {review.agent_id}", ""]
-        lines.extend(
-            f"- Preserve: {_escape(strength)}" for strength in review.strengths
-        )
-        for finding in review.findings:
-            lines += [
-                f"- {', '.join(finding.segment_ids)} — {finding.severity}, {finding.disposition}: {_escape(finding.problem)}",
-                f"  Quote: {_escape(finding.quote)}",
-                f"  Suggested correction: {_escape(finding.correction)}",
-                f"  Coordinator response: {_escape(finding.response)}",
-            ]
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"

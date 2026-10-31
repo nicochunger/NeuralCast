@@ -16,7 +16,7 @@ Repository-wide instructions still apply. Run commands from the repository root.
 - Resolve the selected station's Spanish channel through the current channel
   registry (`host_channels.json`); currently `neuralforge-es` and `neuralcast-es`.
   Record the resolved channel in `proposal.json` before concept approval. All
-  four editorial stages and TTS inherit that channel's language and host style.
+  editorial jobs and TTS inherit that channel's language and host style.
 - Assign the station-local publication number with `init --episode-number N`
   or `number --episode-number N`. Display metadata lives in `proposal.json`;
   document folders use zero-padded numbers such as `003-laberintos-humanos`.
@@ -49,37 +49,31 @@ plans. Generated and published recordings are immutable production artifacts.
    `approve-proposal --hash CONCEPT_HASH`. This binds the proposal, embedded brief,
    and candidates;
    `proposal_hash` remains the plan's proposal reference, not the concept approval.
-3. Run `editorial`: four sequential headless Codex coordinator calls research/write, review,
-   revise the content, and polish speech/delivery. The last pass has web search
-   disabled and can change only narration scripts, preserving the segment/song
-   order, sources, companions and other plan metadata. All stage prompts and a shared writing
-   guide live under `assets/stories/prompts/episode_editorial/`. Each receives the
-   approved context, resolved host guidance, and preceding stage outputs. Return
-   `manuscript.md` with its song list and exact tagged transcript to the owner.
-   Stop for manuscript approval; this step must never generate audio. Preserve
-   stage snapshots and review reports. Do not silently ignore unresolved issues.
-   Use `delivery --feedback '...'` to run just the speech pass on an unpublished
-   complete plan with an approved concept/brief. It saves the previous plan,
-   manuscript and approval receipt, generates an exact before/after report under
-   runtime, and updates the active plan/Markdown together. Changed scripts require
-   manuscript approval again. Delivery cannot clear existing editorial blockers
-   or rewrite published episodes; content problems go back to editorial revision.
-   Apply the shared guide's spoken examples from Stage 1 onward. Stage 2 must
-   assess conversational delivery with concrete excerpts, and Stage 3 must resolve
-   the resulting issues rather than defer them. Stage 4 can rewrite sentences and
-   paragraphs within a script while retaining necessary facts, qualifications,
-   narrative purpose and locked metadata; it is not limited to copyediting.
-   Check repeated analytical framing and uniform cadence, then choose purposeful
-   vocal cues without quotas. Stage 2 delegates factual support, narrative
-   continuity and conversational voice to three specialists. Stage 4 delegates
-   review of its proposed rewrite to spoken-delivery and meaning-preservation
-   specialists before making one final revision. All specialist reports are
-   required and saved with coordinator dispositions; blocked findings prevent
-   approval. Each specialist has one assignment and must not delegate. Use the
-   selected labeled examples from `assets/stories/episode_examples/library.json`.
-   A final self-check is not an independent review;
-   structural validation alone does not establish natural speech. Guidance edits
-   do not authorize rerunning or changing an existing episode.
+3. Run `editorial`: Codex researches and writes; Python runs Codex factual review,
+   Gemini narrative review and Gemini voice review in parallel; one direct Gemini
+   edit resolves findings and finishes content, speech and performance. There are
+   five jobs in a normal successful run. Gemini uses `gemini-4-argon`, structured
+   requests and no tools. Codex research jobs use `gpt-6.1-sol` with subagents
+   disabled. The controller saves original reviewer findings with assigned IDs;
+   the editor resolves, dismisses with a reason or leaves each unresolved.
+   Unresolved findings block approval. All three reviews must complete.
+   Use the single podcast writing guide and selected labeled examples. Host locale
+   and personality belong in context; do not supply unrelated radio operation
+   instructions or complete playlist definitions after concept approval.
+   Return `manuscript.md` with exact tagged narration to the owner. This workflow
+   must stop before audio and preserve all job snapshots and findings. Mechanical
+   checks do not establish historical truth or natural speech.
+   Each failed job gets at most one automatic targeted retry; accepted jobs are
+   retained. Save elapsed time and available usage, with unknown usage as null.
+   Do not retry an entire workshop to repair one report.
+   Use `delivery --feedback '...'` for one direct Gemini narration edit of an
+   unpublished complete manuscript with an approved concept and no editorial
+   blockers. It reuses research, locks non-script metadata, saves before/after
+   snapshots and uses the same final editor. Changed scripts need renewed owner
+   manuscript approval. Routine recording checks stay in production notes for
+   completion before audio preparation; suspected recording incompatibilities
+   affecting the story remain consequential editorial questions.
+   Guidance changes do not authorize rewriting or regenerating an episode.
 4. Make the opening explicitly introduce a podcast: welcome listeners to a new
    episode of the configured brand's podcast, introduce the theme and its appeal,
    and briefly preview the journey before the first song. Address newcomers who
@@ -140,12 +134,13 @@ orchestrator remains separate.
 ### Package responsibilities
 
 - `models.py`: strict proposal, plan, recording, evidence, and commentary schemas.
-- `editorial_models.py`: approved concept/song brief and four stage contracts.
-- `editorial.py`: persisted sequential editing, validation, and Markdown export.
-- `delivery.py`: script-only patch validation and owner-readable before/after reports.
-- `reviews.py`: specialist assignments, curated examples and finding validation.
+- `editorial_models.py`: approved concepts, focused findings and final edits.
+- `editorial.py`: persisted jobs, parallel review, validation and Markdown export.
+- `delivery.py`: final-edit boundaries and owner-readable before/after reports.
+- `reviews.py`: review roles, curated examples and the single finding ledger.
 - `services/editorial_agent.py`: shared read-only headless Codex boundary with web
-  research and strict JSON; episode editorial uses its default research-enabled mode.
+  research, strict JSON, deadlines and usage capture.
+- `services/editorial_text.py`: bounded, tool-free Gemini structured requests.
 - `manuscript.py`: complete-script checks and exact owner approval before TTS.
 - `storage.py`: project paths, hashes, atomic receipts, approvals, and locks.
 - `library.py`: read-only resolution of exact catalog recordings and artwork.
@@ -160,7 +155,7 @@ orchestrator remains separate.
 - `presentation.py`: read-only live episode guides.
 
 Reuse the existing host/provider tooling. Podcast writing guidance lives at
-`src/neuralcast/assets/stories/prompts/episode_commentary.md`. Published episodes
+`src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md`. Published episodes
 use permanent Episode guide pages in the sister `neuralcast-web` project.
 Do not add an episode-review page, scheduled production, or live-host changes.
 

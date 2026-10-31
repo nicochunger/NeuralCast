@@ -10,11 +10,11 @@ from neuralcast.services import editorial_agent as codex
 from neuralcast.pipelines.episode_producer.editorial_models import (
     Draft,
     Review,
-    Revision,
+    Edit,
 )
 
 
-@pytest.mark.parametrize("model", [Draft, Review, Revision])
+@pytest.mark.parametrize("model", [Draft, Review, Edit])
 def test_output_schema_is_strict_and_uses_supported_union_form(model):
     schema = codex.output_schema(model)
 
@@ -194,31 +194,38 @@ def test_failure_categories_never_echo_arbitrary_raw_output(raw, category):
     assert "private" not in message
 
 
-@pytest.mark.parametrize("count", [0, 2, 3])
-def test_subagents_are_explicitly_configured_per_run(tmp_path, monkeypatch, count):
-    captured = []
+def test_codex_jobs_have_no_subagents_and_respect_deadline(tmp_path, monkeypatch):
+    captured = {}
 
     class Process:
         returncode = 0
 
         def __init__(self, command, **kwargs):
-            captured.extend(command)
+            captured["command"] = command
             self.root = Path(command[command.index("--cd") + 1])
+            kwargs["stdout"].write(
+                '\n{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":30,"private":"secret"}}\n'
+            )
 
-        def communicate(self, *args, **kwargs):
+        def communicate(self, prompt, timeout):
+            captured["timeout"] = timeout
             (self.root / "result.json").write_text("{}")
 
     monkeypatch.setattr(codex.subprocess, "Popen", Process)
-    codex.run_stage(
-        "Review", {}, {}, tmp_path / "attempt", search=False, subagent_count=count
-    )
-    assert f"agents.enabled={str(bool(count)).lower()}" in captured
-    assert f"agents.max_concurrent_threads_per_session={max(1, count)}" in captured
-    assert 'web_search="disabled"' in captured
-    assert "--ignore-user-config" in captured and "read-only" in captured
+    codex.run_stage("Check facts", {}, {}, tmp_path / "attempt", timeout_seconds=600)
+    assert "agents.enabled=false" in captured["command"]
+    assert "--json" in captured["command"]
+    assert captured["timeout"] == 600
+    metrics = json.loads((tmp_path / "attempt" / "metrics.json").read_text())
+    assert metrics["usage"] == {
+        "input_tokens": 100,
+        "cached_input_tokens": 20,
+        "output_tokens": 30,
+    }
+    assert "secret" not in json.dumps(metrics)
 
 
-@pytest.mark.parametrize("count", [-1, 4, True, 1.5])
-def test_unbounded_or_invalid_subagent_counts_are_rejected(tmp_path, count):
-    with pytest.raises(ValueError, match="zero to three"):
-        codex.run_stage("Review", {}, {}, tmp_path / "attempt", subagent_count=count)
+@pytest.mark.parametrize("timeout", [-1, 0, True, 2000])
+def test_invalid_deadline_rejected(tmp_path, timeout):
+    with pytest.raises(ValueError, match="timeout"):
+        codex.run_stage("Review", {}, {}, tmp_path / "attempt", timeout_seconds=timeout)
