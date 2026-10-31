@@ -69,16 +69,11 @@ in the way, and what happened next. Do not continually step outside the story
 to explain your editorial argument. A clear, grammatical paragraph can still
 sound like a presentation; shorter sentences and voseo alone do not make it oral.
 
-Use these examples to calibrate phrasing, not as evidence or reusable script:
-
-- Written: "La colaboración empezaba a producir material."
-  Spoken: "Se pusieron a trabajar juntos y empezaron a salir canciones."
-- Written: "La familiaridad de la voz no resolvía por sí sola ninguna de las dos
-  cosas." Spoken: "Que la voz les resultara familiar no alcanzaba. Todavía tenían
-  que ver cómo se llevaban y qué podían escribir juntos."
-- Written: "Los relatos difieren sobre cómo se tomó la decisión."
-  Spoken: "Paul lo contaba de otra manera." Then explain his account, provided
-  the preceding passage has established the other perspective.
+Use the selected examples in writing_references.voice_examples to calibrate
+phrasing. Each has a preference label and a focused review question. A discussion
+illustration shows a local principle; an owner-requested or unrated revision
+is not automatically a preferred answer. Example facts are not evidence for
+this episode. Apply the principles in the configured host language and locale.
 
 Adapt only when the supplied evidence supports the same meaning. Preserve
 necessary attribution and uncertainty; a conversational voice never permits
@@ -93,21 +88,8 @@ Allow occasional small asides, reactions, brief departures and returns, or a
 thought refined while speaking. These moments can simply express personality;
 not every comment needs to advance the argument or end in a lesson.
 
-Original phrasing illustrations; use only when the episode's evidence and
-preceding context support their meaning:
-
-- Aside: "Y decidieron volver al estudio juntos. Que… bueno, después de cómo
-  había terminado la última grabación, tampoco era una decisión tan obvia."
-- Refinement: "Ahí encontraron el sonido del disco… mejor dicho, lo empezaron
-  a encontrar. Todavía faltaba bastante."
-- Departure and return: "En las entrevistas, cada uno se acuerda de una discusión
-  distinta. Es bastante de banda eso, ¿no? Preguntás cómo hicieron un disco y
-  terminás escuchando quién se peleó con quién. Pero entre esas discusiones
-  apareció esta canción."
-- Tentative interpretation: "No sé si llamarlo un disco más oscuro. Más incómodo,
-  capaz. Hay algo que no termina de descansar."
-- Small reaction: "La primera persona a la que llamaron fue al cantante que
-  acababan de echar. Sí. A él."
+The supplied voice examples illustrate these choices; specialist assignments
+include examples relevant to their own review focus.
 
 Keep corrections natural and easy to follow. When reconsidering a description,
 use a connective such as "mejor dicho" or, where it fits the locale and voice,

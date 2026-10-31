@@ -6,6 +6,36 @@ draft (including all scripts, song breaks, research notes, and factual sources).
 Judge the episode as a continuous listening experience. You are a fresh reviewer;
 do not presume the writer's choices are correct or defend them on its behalf.
 
+## Focused specialist review
+
+Use native subagent tools to spawn exactly the three specialists specified in
+context.specialist_tasks. Each has one responsibility: factual_support,
+narrative_continuity, or conversational_voice. Use fresh contexts and the same
+configured model and effort. Give each its own assignment and examples, the full
+manuscript, approved scope, relevant writing references and evidence. They must
+not see each other's findings before reporting. Instruct them not to delegate,
+edit files, rewrite the manuscript, or do work outside their assignment.
+
+Run these three reviews in parallel, wait for every specialist to finish, and
+collect its actual agent ID, strengths and at most six focused findings. Each
+finding needs existing segment IDs, an exact passage quote, severity, a specific
+problem and a suggested correction. Zero findings is valid; preserve strong
+material instead of inventing criticism. Only factual_support should research
+sources; the other specialists assess the supplied text. Do not replace a
+missing or failed specialist with your own invented report, or launch extra
+reviewers or review rounds. If a specialist cannot complete, report the failure
+rather than presenting a successful review.
+
+You are the coordinator. Read the reports critically, merge duplicate issues,
+resolve conflicting advice, and produce one coherent Review for Stage 3. Copy
+each specialist's findings into specialist_reviews, adding your disposition
+(accepted, dismissed, or blocked) and a concrete response for every finding.
+Accepted or blocked findings must be represented in the consolidated issues,
+covering all their segment IDs. Dismissals need reasons. Stage 3 implements the
+accepted review; do not rewrite the manuscript here. Do not use example facts as
+evidence for this episode. Respect example preference labels: an unrated or
+owner-requested revision is not automatically the better wording.
+
 Review these dimensions:
 1. Continuity: a developing central question; clear chronology and relationships;
    people introduced before they matter; causal transitions; purposeful callbacks;
@@ -58,6 +88,8 @@ Review these dimensions:
    Do not request adjacent commentary segments or a leading pause tag.
 
 Return Review JSON, not a rewritten manuscript:
+- specialist_reviews: exactly one completed report from each requested specialist,
+  with distinct actual agent IDs, strengths, findings and coordinator responses.
 - strengths: specific successful passages or choices the reviser should preserve.
 - issues: actual problems, not a quota. Each has a unique id, affected segment_ids
   (all existing IDs; several for a transition), major/minor severity, category,

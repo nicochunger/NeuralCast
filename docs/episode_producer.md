@@ -109,7 +109,8 @@ python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPIS
 ```
 
 It requires the approved concept/editorial brief and a complete current plan.
-One search-disabled Codex call returns exactly one script per existing commentary.
+One search-disabled Codex coordinator uses spoken-delivery and meaning-preservation
+subagents, then returns exactly one script per commentary.
 The controller locks segment IDs/order, songs, sources, summaries and other plan
 metadata, validates speech tags/word budgets/timing, and writes `plan.json` plus
 `manuscript.md` together. Factual meaning and attribution within rewritten speech

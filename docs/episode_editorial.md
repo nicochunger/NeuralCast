@@ -50,6 +50,13 @@ brief, candidate durations, and allowed vocal tags. The references are included
 as text in the snapshot; agents do not have to discover repository files. The
 stage prompt/schema determines the task/output, while references supply style.
 
+The controller also supplies three selected voice examples from the
+[example library](../src/neuralcast/assets/stories/episode_examples/library.json).
+Each specialist receives up to three examples relevant to its assignment.
+Preference labels are preserved: owner-approved tone illustrations, discussion
+examples, owner-requested revisions and unrated comparisons serve different
+calibration purposes. Example facts are not evidence for the episode.
+
 Stage 1 performs additional online research, opens supporting sources, develops
 the story, and supplies every script, companion summary, and claim/source map.
 Stage 2 reads the whole manuscript with music breaks and reports specific issues
@@ -62,6 +69,44 @@ purposeful vocal cues, with web search disabled. It can replace commentary scrip
 only: IDs, roles, song order, source evidence, companions and other metadata are
 locked. New content problems become visible blockers, not unsupported rewrites.
 No additional automatic review loop follows the delivery pass.
+
+### Focused specialist reviews
+
+Stage 2's coordinator spawns three independent subagents in parallel:
+
+- `factual_support`: claims, chronology, source support, attribution and uncertainty;
+- `narrative_continuity`: repetition, causal development, depth and song placement;
+- `conversational_voice`: natural speech, personality, asides and unforced corrections.
+
+Each reads the complete manuscript but reports only within its assignment.
+Reports include the actual subagent ID, completion status, strengths and at most
+six findings with passage IDs, exact quotes, severity and suggested corrections.
+The coordinator consolidates the reports for Stage 3, recording an accepted,
+dismissed or blocked disposition and a response for every finding. Accepted and
+blocked findings must be represented in the consolidated review issues.
+
+Stage 4 first drafts its complete delivery rewrite, then spawns two independent
+subagents in parallel. `spoken_delivery` assesses how the proposed rewrite reads
+aloud, including missing personality and forced devices. `meaning_preservation`
+compares that candidate with the supplied source plan and evidence for factual
+drift, lost qualifications, attribution changes and broken connections. Neither
+researches online. Both receive the same candidate and the complete source plan.
+The coordinator considers their findings and makes one final revision. Blocked
+findings remain visible editorial issues and prevent manuscript approval.
+
+Each coordinator waits for all assigned reviewers. Specialists do not delegate,
+edit files or independently rewrite chapters. There is one specialist review
+round per coordinator call. Stages 1 and 3 do not delegate. All calls retain the
+read-only sandbox and the configured model and reasoning effort; Stage 4 and its
+subagents have web search disabled. The per-run concurrency cap is three for
+Stage 2 and two for Stage 4. Missing, duplicate, failed or misassigned reports,
+duplicate agent IDs and invalid passage references prevent stage acceptance.
+These checks validate the report contract; they cannot mechanically establish
+that a review's editorial judgment is correct.
+
+`review_specialists.json` and `delivery_specialists.json` save the specialist
+findings with coordinator dispositions. They also remain in the hashed stage
+outputs; delivery's before/after report includes its specialist findings.
 
 Conversational delivery is assessed throughout the workshop. The shared writing
 guide targets prepared storytelling with room for personality: occasional small
@@ -206,8 +251,9 @@ effort, live web research in stages 1–3, a read-only sandbox, and JSON-schema 
 Stage 4 explicitly disables web search. It needs
 an installed/authenticated Codex CLI with access to that model, plus ffprobe for
 music-duration measurement. It does not need Gemini or AzuraCast credentials.
-Each call has a 30-minute timeout; there are four calls maximum per successful
-run. Timeouts/interruption terminate the child process group. Fresh sessions see
+Each coordinator call has a 30-minute timeout, including its specialist work.
+A successful full run has four coordinator calls and five specialist calls.
+Timeouts/interruption terminate the child process group. Fresh sessions see
 only their supplied snapshots and preceding stage documents, not a resumed chat.
 Station/provider secrets are excluded from the subprocess environment. Raw CLI
 logs are temporary because authentication diagnostics may be sensitive.
@@ -215,8 +261,9 @@ logs are temporary because authentication diagnostics may be sensitive.
 The controller validates each result before accepting it. Checks include schema,
 complete scripts and companions, candidate identity, unique IDs, factual sources
 on bridges, supported TTS tags, no spoken URLs, word limits, duration estimates,
-review references, and exactly one resolution per review issue. These mechanical
-checks do not prove historical accuracy or editorial quality; the agent review
+review references, specialist report completeness, and exactly one resolution
+per review issue. These mechanical checks do not prove historical accuracy or
+editorial quality; the agent review
 and owner's manuscript review remain essential.
 
 Successful output:
@@ -234,8 +281,10 @@ runtime/episodes/<station>/<episode-id>/
     previous_plan.json  # if a plan existed before installation
     write.json
     review.json
+    review_specialists.json
     revise.json
     delivery.json
+    delivery_specialists.json
     delivery_report.md  # exact before/after text and listening-review notes
     final_plan.json
     manuscript.md
@@ -263,11 +312,13 @@ For speech-only edits on the current complete draft, use the independent pass:
 python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPISODE_ID --feedback 'Natural spoken phrasing; varied but restrained speech cues.'
 ```
 
-This is one search-disabled call, with no research/content stages, TTS or upload.
+This is one search-disabled coordinator call with the two delivery specialists,
+with no research/content stages, TTS or upload.
 It requires the approved concept/brief, preserves exact song order and all non-script
 plan fields, and validates speech tags, word limits and estimated timing. It saves
 `previous_plan.json`, `previous_manuscript.md`, the previous approval when present,
-`delivery.json`, `delivery_report.md`, `final_plan.json`, `manuscript.md`, and a receipt
+`delivery.json`, `delivery_specialists.json`, `delivery_report.md`, `final_plan.json`,
+`manuscript.md`, and a receipt
 under `runtime/episodes/<station>/<id>/delivery/<hash>/`. No new working-folder
 filenames are introduced. Active plan and manuscript are installed together after
 validation; concurrent manual edits are preserved. Unchanged retries reuse the

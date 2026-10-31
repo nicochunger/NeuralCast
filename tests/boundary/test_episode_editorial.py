@@ -23,6 +23,19 @@ from neuralcast.pipelines.episode_producer.storage import (
 )
 
 
+def specialist_reviews(*roles):
+    return [
+        {
+            "reviewer": role,
+            "agent_id": f"/root/{role}",
+            "status": "completed",
+            "strengths": ["Preserve the supported story."],
+            "findings": [],
+        }
+        for role in roles
+    ]
+
+
 @pytest.fixture
 def episode(tmp_path, monkeypatch):
     station = tmp_path / "station"
@@ -118,6 +131,9 @@ def episode(tmp_path, monkeypatch):
         "open_questions": [],
     }
     review = {
+        "specialist_reviews": specialist_reviews(
+            "factual_support", "narrative_continuity", "conversational_voice"
+        ),
         "strengths": ["The opening establishes the relationships."],
         "issues": [
             {
@@ -149,6 +165,9 @@ def episode(tmp_path, monkeypatch):
         ],
     )
     delivery = {
+        "specialist_reviews": specialist_reviews(
+            "spoken_delivery", "meaning_preservation"
+        ),
         "passages": [
             {
                 "segment_id": part["id"],
@@ -195,16 +214,23 @@ def test_four_calls_have_full_handoffs_and_stop_before_audio(episode, monkeypatc
     assert calls[3]["context"]["editorial_blockers"] == []
     assert not {"draft", "review", "revise"} & calls[3]["context"].keys()
     assert calls[3]["search"] is False
+    assert calls[1]["subagent_count"] == 3 and calls[3]["subagent_count"] == 2
+    assert "subagent_count" not in calls[0] and "subagent_count" not in calls[2]
+    assert len(calls[1]["context"]["specialist_tasks"]) == 3
+    assert len(calls[3]["context"]["specialist_tasks"]) == 2
     assert all("search" not in call for call in calls[:3])
     for call in calls:
         context = call["context"]
         assert context["host"]["locale"] == "es-AR"
         assert "writing_guide.md" in context["writing_references"]
+        assert len(context["writing_references"]["voice_examples"]) == 3
         assert "host_tts_instructions" in context["writing_references"]
         assert "duration_seconds" in context["recordings"]["song"]
         assert "path" not in context["recordings"]["song"]
         assert call["schema"]["additionalProperties"] is False
     assert result["status"] == "awaiting_manuscript_approval"
+    assert (Path(result["artifacts"]) / "review_specialists.json").exists()
+    assert (Path(result["artifacts"]) / "delivery_specialists.json").exists()
     markdown = (project.documents / "manuscript.md").read_text()
     assert "Artist | Song" in markdown and "\\<sigh\\>" in markdown
     report = Path(result["delivery_report"]).read_text()
@@ -394,7 +420,7 @@ def test_failure_resumes_completed_stages_and_preserves_attempts(episode):
     project, outputs = episode
     count = 0
 
-    def fail_review(prompt, context, schema, attempt):
+    def fail_review(prompt, context, schema, attempt, **kwargs):
         nonlocal count
         count += 1
         if count == 2:
@@ -708,6 +734,9 @@ def test_new_feedback_and_manual_plan_edits_create_new_delivery_runs(episode):
     def current_draft(prompt, context, schema, attempt, **kwargs):
         calls.append(deepcopy(context))
         return {
+            "specialist_reviews": specialist_reviews(
+                "spoken_delivery", "meaning_preservation"
+            ),
             "passages": [
                 {
                     "segment_id": part["id"],
@@ -838,3 +867,147 @@ def test_delivery_rejects_fragmented_passages_before_calling_agent(episode):
     with pytest.raises(ValueError, match="one continuous host passage"):
         editorial.polish_delivery(project, runner=never)
     never.assert_not_called()
+
+
+def specialist_finding(**overrides):
+    return {
+        "segment_ids": ["decision"],
+        "quote": "Una decisión cambió el grupo.",
+        "severity": "minor",
+        "problem": "The transition is impersonal.",
+        "correction": "Make the supported consequence concrete.",
+        "disposition": "accepted",
+        "response": "Addressed in the final passage.",
+        **overrides,
+    }
+
+
+@pytest.mark.parametrize("stage", [1, 3])
+@pytest.mark.parametrize(
+    "mutation",
+    ["missing", "duplicate-role", "duplicate-agent", "failed", "unknown-segment"],
+)
+def test_incomplete_specialist_reviews_never_install_a_manuscript(
+    episode, stage, mutation
+):
+    project, outputs = episode
+    reports = outputs[stage]["specialist_reviews"]
+    if mutation == "missing":
+        reports.pop()
+    elif mutation == "duplicate-role":
+        reports[-1]["reviewer"] = reports[0]["reviewer"]
+    elif mutation == "duplicate-agent":
+        reports[-1]["agent_id"] = reports[0]["agent_id"]
+    elif mutation == "failed":
+        reports[0]["status"] = "failed"
+    else:
+        reports[0]["findings"] = [specialist_finding(segment_ids=["missing"])]
+    with pytest.raises(ValueError):
+        editorial.edit_episode(project, runner=runner_for(outputs, []))
+    assert not (project.documents / "plan.json").exists()
+    assert not (project.documents / "manuscript.md").exists()
+
+
+def test_review_cannot_drop_an_accepted_specialist_finding(episode):
+    project, outputs = episode
+    outputs[1]["specialist_reviews"][0]["findings"] = [
+        specialist_finding(segment_ids=["intro"])
+    ]
+    with pytest.raises(ValueError, match="forwarded as review issues"):
+        editorial.edit_episode(project, runner=runner_for(outputs, []))
+    assert not (project.documents / "plan.json").exists()
+
+
+def test_dismissed_findings_keep_coordinator_reason_and_specialist_artifacts(episode):
+    project, outputs = episode
+    outputs[1]["specialist_reviews"][0]["findings"] = [
+        specialist_finding(
+            segment_ids=["intro"],
+            disposition="dismissed",
+            response="The opening already introduces the participants clearly.",
+        )
+    ]
+    result = editorial.edit_episode(project, runner=runner_for(outputs, []))
+    reports = read_json(Path(result["artifacts"]) / "review_specialists.json")[
+        "reviews"
+    ]
+    finding = reports[0]["findings"][0]
+    assert finding["disposition"] == "dismissed"
+    assert "introduces the participants" in finding["response"]
+
+
+def test_blocked_specialist_finding_requires_visible_editorial_issue(episode):
+    project, outputs = episode
+    outputs[3]["specialist_reviews"][1]["findings"] = [
+        specialist_finding(
+            disposition="blocked",
+            response="Needs source research outside delivery scope.",
+        )
+    ]
+    with pytest.raises(ValueError, match="remain editorial issues"):
+        editorial.edit_episode(project, runner=runner_for(outputs, []))
+    outputs[3]["editorial_issues"] = [
+        {"segment_id": "decision", "note": "Needs source research."}
+    ]
+    result = editorial.edit_episode(project, runner=runner_for([outputs[3]], []))
+    assert result["status"] == "blocked"
+    with pytest.raises(ValueError, match="blockers"):
+        approve_manuscript(project, result["manuscript_hash"])
+    assert "meaning_preservation" in Path(result["delivery_report"]).read_text()
+
+
+def test_delivery_only_has_both_specialists_and_missing_report_preserves_source(
+    episode,
+):
+    project, outputs = episode
+    initial = editorial.edit_episode(project, runner=runner_for(outputs, []))
+    before = (project.documents / "plan.json").read_bytes()
+    bad = delivery_edit(outputs)
+    bad["specialist_reviews"].pop()
+    with pytest.raises(ValueError):
+        editorial.polish_delivery(project, runner=runner_for([bad], []))
+    assert (project.documents / "plan.json").read_bytes() == before
+    calls = []
+    result = editorial.polish_delivery(
+        project, runner=runner_for([delivery_edit(outputs)], calls)
+    )
+    assert calls[0]["subagent_count"] == 2 and calls[0]["search"] is False
+    assert len(calls[0]["context"]["specialist_tasks"]) == 2
+    assert (Path(result["artifacts"]) / "delivery_specialists.json").exists()
+
+
+def test_curated_examples_keep_labels_and_exclude_operational_paths(episode):
+    project, outputs = episode
+    calls = []
+    editorial.edit_episode(project, runner=runner_for(outputs, calls))
+    selected = calls[0]["context"]["writing_references"]["voice_examples"]
+    assert {e["status"] for e in selected} == {
+        "owner_approved_example",
+        "discussion_illustration",
+    }
+    assert "mejor dicho" in next(
+        e["after"] for e in selected if e["id"] == "connected-refinement"
+    )
+    tasks = calls[3]["context"]["specialist_tasks"]
+    assert len(tasks) == 2
+    meaning = next(task for task in tasks if task["reviewer"] == "meaning_preservation")
+    assert any(e["status"] == "unrated_revision" for e in meaning["examples"])
+    assert "before_file" not in json.dumps(selected + [meaning])
+    assert all(len(task["examples"]) <= 3 for task in tasks)
+
+
+def test_changed_specialist_assignment_invalidates_cached_editorial_run(
+    episode, monkeypatch
+):
+    project, outputs = episode
+    original = editorial.specialist_tasks
+    first = editorial.edit_episode(project, runner=runner_for(outputs, []))
+
+    def changed(stage):
+        tasks = original(stage)
+        tasks[0]["instructions"] += " Check narrative qualifications explicitly."
+        return tasks
+
+    monkeypatch.setattr(editorial, "specialist_tasks", changed)
+    second = editorial.edit_episode(project, runner=runner_for(outputs, []))
+    assert first["run_hash"] != second["run_hash"]

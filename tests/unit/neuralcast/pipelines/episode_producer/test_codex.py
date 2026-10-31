@@ -192,3 +192,33 @@ def test_failure_categories_never_echo_arbitrary_raw_output(raw, category):
     actual, message = codex.failure_diagnostic(raw)
     assert actual == category
     assert "private" not in message
+
+
+@pytest.mark.parametrize("count", [0, 2, 3])
+def test_subagents_are_explicitly_configured_per_run(tmp_path, monkeypatch, count):
+    captured = []
+
+    class Process:
+        returncode = 0
+
+        def __init__(self, command, **kwargs):
+            captured.extend(command)
+            self.root = Path(command[command.index("--cd") + 1])
+
+        def communicate(self, *args, **kwargs):
+            (self.root / "result.json").write_text("{}")
+
+    monkeypatch.setattr(codex.subprocess, "Popen", Process)
+    codex.run_stage(
+        "Review", {}, {}, tmp_path / "attempt", search=False, subagent_count=count
+    )
+    assert f"agents.enabled={str(bool(count)).lower()}" in captured
+    assert f"agents.max_concurrent_threads_per_session={max(1, count)}" in captured
+    assert 'web_search="disabled"' in captured
+    assert "--ignore-user-config" in captured and "read-only" in captured
+
+
+@pytest.mark.parametrize("count", [-1, 4, True, 1.5])
+def test_unbounded_or_invalid_subagent_counts_are_rejected(tmp_path, count):
+    with pytest.raises(ValueError, match="zero to three"):
+        codex.run_stage("Review", {}, {}, tmp_path / "attempt", subagent_count=count)

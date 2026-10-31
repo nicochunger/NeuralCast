@@ -122,6 +122,7 @@ def run_stage(
     *,
     search: bool = True,
     reasoning_effort: str = REASONING_EFFORT,
+    subagent_count: int = 0,
 ) -> dict:
     """Return a document; the controller alone can mutate project files.
 
@@ -132,6 +133,8 @@ def run_stage(
     attempt.mkdir(parents=True, exist_ok=False)
     if reasoning_effort not in {"low", "medium", "high", "xhigh"}:
         raise ValueError("Unsupported editorial reasoning effort")
+    if type(subagent_count) is not int or not 0 <= subagent_count <= 3:
+        raise ValueError("Editorial stages support zero to three subagents")
     executable = os.getenv("NC_CODEX_EXECUTABLE", "codex").strip() or "codex"
     (attempt / "prompt.md").write_text(prompt, encoding="utf-8")
     write_json(attempt / "context.json", context)
@@ -151,6 +154,10 @@ def run_stage(
             f'model_reasoning_effort="{reasoning_effort}"',
             "-c",
             'web_search="live"' if search else 'web_search="disabled"',
+            "-c",
+            f"agents.enabled={str(bool(subagent_count)).lower()}",
+            "-c",
+            f"agents.max_concurrent_threads_per_session={max(1, subagent_count)}",
             "--sandbox",
             "read-only",
             "--skip-git-repo-check",

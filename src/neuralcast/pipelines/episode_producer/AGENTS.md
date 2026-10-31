@@ -49,7 +49,7 @@ plans. Generated and published recordings are immutable production artifacts.
    `approve-proposal --hash CONCEPT_HASH`. This binds the proposal, embedded brief,
    and candidates;
    `proposal_hash` remains the plan's proposal reference, not the concept approval.
-3. Run `editorial`: four sequential headless Codex calls research/write, review,
+3. Run `editorial`: four sequential headless Codex coordinator calls research/write, review,
    revise the content, and polish speech/delivery. The last pass has web search
    disabled and can change only narration scripts, preserving the segment/song
    order, sources, companions and other plan metadata. All stage prompts and a shared writing
@@ -70,7 +70,14 @@ plans. Generated and published recordings are immutable production artifacts.
    paragraphs within a script while retaining necessary facts, qualifications,
    narrative purpose and locked metadata; it is not limited to copyediting.
    Check repeated analytical framing and uniform cadence, then choose purposeful
-   vocal cues without quotas. Its final self-check is not an independent review;
+   vocal cues without quotas. Stage 2 delegates factual support, narrative
+   continuity and conversational voice to three specialists. Stage 4 delegates
+   review of its proposed rewrite to spoken-delivery and meaning-preservation
+   specialists before making one final revision. All specialist reports are
+   required and saved with coordinator dispositions; blocked findings prevent
+   approval. Each specialist has one assignment and must not delegate. Use the
+   selected labeled examples from `assets/stories/episode_examples/library.json`.
+   A final self-check is not an independent review;
    structural validation alone does not establish natural speech. Guidance edits
    do not authorize rerunning or changing an existing episode.
 4. Make the opening explicitly introduce a podcast: welcome listeners to a new
@@ -136,6 +143,7 @@ orchestrator remains separate.
 - `editorial_models.py`: approved concept/song brief and four stage contracts.
 - `editorial.py`: persisted sequential editing, validation, and Markdown export.
 - `delivery.py`: script-only patch validation and owner-readable before/after reports.
+- `reviews.py`: specialist assignments, curated examples and finding validation.
 - `services/editorial_agent.py`: shared read-only headless Codex boundary with web
   research and strict JSON; episode editorial uses its default research-enabled mode.
 - `manuscript.py`: complete-script checks and exact owner approval before TTS.

@@ -2,6 +2,7 @@
 
 from .editorial_models import Delivery
 from .models import Commentary, Plan
+from .reviews import validate_findings
 
 
 def _escape(text: str) -> str:
@@ -16,6 +17,7 @@ def apply_delivery(plan: Plan, delivery: Delivery) -> Plan:
     """
     ids = [part.segment_id for part in delivery.passages]
     commentaries = {part.id for part in plan.segments if isinstance(part, Commentary)}
+    validate_findings(delivery.specialist_reviews, commentaries)
     if len(ids) != len(set(ids)) or set(ids) != commentaries:
         raise ValueError("Delivery must cover exactly the existing commentary IDs")
     for note in [*delivery.listening_notes, *delivery.editorial_issues]:
@@ -79,4 +81,17 @@ def delivery_report(before: Plan, after: Plan, delivery: Delivery) -> str:
             "",
         ]
     lines += [delivery_summary(before, after, delivery)]
+    lines += ["", "## Specialist reviews", ""]
+    for review in delivery.specialist_reviews:
+        lines += [f"### {review.reviewer}", "", f"Subagent: {review.agent_id}", ""]
+        lines.extend(
+            f"- Preserve: {_escape(strength)}" for strength in review.strengths
+        )
+        for finding in review.findings:
+            lines += [
+                f"- {', '.join(finding.segment_ids)} — {finding.severity}, {finding.disposition}: {_escape(finding.problem)}",
+                f"  Quote: {_escape(finding.quote)}",
+                f"  Suggested correction: {_escape(finding.correction)}",
+                f"  Coordinator response: {_escape(finding.response)}",
+            ]
     return "\n".join(lines)

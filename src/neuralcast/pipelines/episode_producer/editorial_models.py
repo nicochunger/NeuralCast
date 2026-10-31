@@ -67,13 +67,50 @@ class EditorialIssue(Document):
     acceptance: Text
 
 
+class SpecialistFinding(Document):
+    segment_ids: list[Identifier] = Field(min_length=1, max_length=10)
+    quote: Text
+    severity: Literal["major", "minor"]
+    problem: Text
+    correction: Text
+    disposition: Literal["accepted", "dismissed", "blocked"]
+    response: Text
+
+
+class SpecialistReview(Document):
+    reviewer: Literal[
+        "factual_support",
+        "narrative_continuity",
+        "conversational_voice",
+        "spoken_delivery",
+        "meaning_preservation",
+    ]
+    agent_id: Annotated[str, Field(min_length=1, max_length=200)]
+    status: Literal["completed"]
+    strengths: list[Text] = Field(default_factory=list, max_length=3)
+    findings: list[SpecialistFinding] = Field(default_factory=list, max_length=6)
+
+
+def require_specialists(reviews: list[SpecialistReview], expected: set[str]) -> None:
+    roles = [review.reviewer for review in reviews]
+    if len(roles) != len(expected) or set(roles) != expected:
+        raise ValueError("Complete exactly one report per requested specialist")
+    if len({review.agent_id for review in reviews}) != len(reviews):
+        raise ValueError("Each specialist must have a distinct subagent ID")
+
+
 class Review(Document):
+    specialist_reviews: list[SpecialistReview] = Field(min_length=3, max_length=3)
     strengths: list[Text] = Field(min_length=1, max_length=20)
     issues: list[EditorialIssue] = Field(default_factory=list, max_length=40)
     additional_sources: list[Source] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
     def unique_issues(self) -> "Review":
+        require_specialists(
+            self.specialist_reviews,
+            {"factual_support", "narrative_continuity", "conversational_voice"},
+        )
         ids = [issue.id for issue in self.issues]
         if len(set(ids)) != len(ids):
             raise ValueError("Review issue IDs must be unique")
@@ -103,6 +140,23 @@ class DeliveryNote(Document):
 
 
 class Delivery(Document):
+    specialist_reviews: list[SpecialistReview] = Field(min_length=2, max_length=2)
     passages: list[DeliveryPassage] = Field(min_length=1, max_length=40)
     listening_notes: list[DeliveryNote] = Field(default_factory=list, max_length=40)
     editorial_issues: list[DeliveryNote] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def complete_specialist_reviews(self) -> "Delivery":
+        require_specialists(
+            self.specialist_reviews, {"spoken_delivery", "meaning_preservation"}
+        )
+        blocked = {
+            segment_id
+            for review in self.specialist_reviews
+            for finding in review.findings
+            if finding.disposition == "blocked"
+            for segment_id in finding.segment_ids
+        }
+        if blocked - {note.segment_id for note in self.editorial_issues}:
+            raise ValueError("Blocked specialist findings must remain editorial issues")
+        return self

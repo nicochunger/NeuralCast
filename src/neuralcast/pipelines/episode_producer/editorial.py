@@ -31,6 +31,7 @@ from .rendering import HOST_LEAD_IN_SECONDS, audio_duration
 from .service import channel_for
 from .storage import Project, digest, read_json, write_json, write_text
 from .publication import episode_directory
+from .reviews import examples, specialist_tasks, validate_findings
 
 PROMPTS = ASSETS_ROOT / "stories" / "prompts" / "episode_editorial"
 STAGES = (
@@ -82,8 +83,18 @@ def validate_plan(
 
 def validate_review(review: Review, draft: Draft) -> None:
     ids = {part.id for part in draft.plan.segments}
+    validate_findings(review.specialist_reviews, ids)
     if any(set(issue.segment_ids) - ids for issue in review.issues):
         raise ValueError("Review refers to unknown manuscript segment IDs")
+    for specialist in review.specialist_reviews:
+        for finding in specialist.findings:
+            if finding.disposition != "dismissed" and not any(
+                set(finding.segment_ids) <= set(issue.segment_ids)
+                for issue in review.issues
+            ):
+                raise ValueError(
+                    "Accepted specialist findings must be forwarded as review issues"
+                )
 
 
 def revision_blockers(revision: Revision, review: Review) -> list[str]:
@@ -198,6 +209,9 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
     settings = writing_settings(channel)
     references = {
         "writing_guide.md": (PROMPTS / "writing_guide.md").read_text(encoding="utf-8"),
+        "voice_examples": examples(
+            "natural-aside", "connected-refinement", "concrete-collaboration"
+        ),
         "episode_commentary.md": settings["template"],
         "host_system_instructions": settings["system"],
         "host_tts_instructions": settings["tts"],
@@ -341,11 +355,13 @@ def edit_episode(
         for stage, _ in STAGES
     }
     schemas = {name: codex.output_schema(model) for name, model in STAGES}
+    specialists = {name: specialist_tasks(name) for name in ("review", "delivery")}
     inputs = {
         "version": 1,
         "context": common,
         "prompts": prompts,
         "schemas": schemas,
+        "specialists": specialists,
         "model": codex.MODEL,
         "reasoning_effort": codex.REASONING_EFFORT,
     }
@@ -369,6 +385,8 @@ def edit_episode(
                 ),
                 "estimated_duration": timing,
             }
+        if stage in specialists:
+            context["specialist_tasks"] = specialists[stage]
         cached = result_path.exists()
         progress(f"{'Reusing' if cached else 'Running'} editorial stage: {stage}")
         if cached:
@@ -385,7 +403,20 @@ def edit_episode(
             try:
                 if stage == "delivery":
                     raw = runner(
-                        prompts[stage], context, schemas[stage], attempt, search=False
+                        prompts[stage],
+                        context,
+                        schemas[stage],
+                        attempt,
+                        search=False,
+                        subagent_count=2,
+                    )
+                elif stage == "review":
+                    raw = runner(
+                        prompts[stage],
+                        context,
+                        schemas[stage],
+                        attempt,
+                        subagent_count=3,
                     )
                 else:
                     raw = runner(prompts[stage], context, schemas[stage], attempt)
@@ -405,6 +436,15 @@ def edit_episode(
             timing = validate_plan(result.plan, proposal, brief, recordings)
         if stage == "revise":
             revision_blockers(result, Review.model_validate(outputs["review"]))
+        if stage in specialists:
+            write_json(
+                directory / f"{stage}_specialists.json",
+                {
+                    "reviews": [
+                        item.model_dump() for item in result.specialist_reviews
+                    ],
+                },
+            )
         if not cached:
             write_json(
                 result_path,
@@ -459,6 +499,7 @@ def polish_delivery(
         "model": codex.MODEL,
         "reasoning_effort": codex.REASONING_EFFORT,
         "search": False,
+        "specialists": specialist_tasks("delivery"),
     }
     pointer = project.runtime / "delivery_latest.json"
     previous = read_json(pointer) if pointer.exists() else None
@@ -474,7 +515,7 @@ def polish_delivery(
         base = {
             k: v
             for k, v in saved["context"].items()
-            if k not in {"source_plan", "estimated_duration"}
+            if k not in {"source_plan", "estimated_duration", "specialist_tasks"}
         }
         if (
             previous.get("installed_plan_hash")
@@ -490,6 +531,7 @@ def polish_delivery(
         **common,
         "source_plan": source.model_dump(),
         "estimated_duration": timing,
+        "specialist_tasks": identity["specialists"],
     }
     inputs = {**identity, "context": context}
     directory = project.runtime / "delivery" / digest(inputs)
@@ -508,7 +550,9 @@ def polish_delivery(
         attempts.mkdir(exist_ok=True)
         attempt = attempts / f"attempt-{len(list(attempts.iterdir())) + 1:03d}"
         try:
-            raw = runner(prompt, context, schema, attempt, search=False)
+            raw = runner(
+                prompt, context, schema, attempt, search=False, subagent_count=2
+            )
         except Exception:
             write_json(
                 attempt / "failure.json", {"stage": "delivery", "status": "failed"}
@@ -517,6 +561,12 @@ def polish_delivery(
     delivery = Delivery.model_validate(raw)
     polished = apply_delivery(source, delivery)
     timing = validate_plan(polished, proposal, brief, common["recordings"])
+    write_json(
+        directory / "delivery_specialists.json",
+        {
+            "reviews": [item.model_dump() for item in delivery.specialist_reviews],
+        },
+    )
     if not result_path.exists():
         write_json(
             result_path,

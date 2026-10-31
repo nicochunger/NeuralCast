@@ -1,0 +1,253 @@
+{
+  "purpose": "Calibration examples for single-host episode writing, review and delivery.",
+  "language": "es-AR",
+  "usage": [
+    "Use a small relevant selection alongside the whole passage and its story context; do not copy examples into unrelated episodes.",
+    "Only owner_approved_example entries have explicit approval of the illustrated tone. Their fictional situations require independent evidence in a real script.",
+    "discussion_illustration entries demonstrate a local phrasing principle; they are not complete voice targets.",
+    "owner_requested_revision records the provenance of an edit, not a human preference label for each sentence.",
+    "unrated_revision entries are comparison candidates. Do not treat after as automatically better.",
+    "before=null means a positive illustration, not an A/B comparison. Never fabricate a before passage.",
+    "Examples shown to writers/reviewers cannot simultaneously serve as unseen evaluation cases.",
+    "Source excerpts are copied from saved snapshots. Do not modify production documents, receipts, audio or publications to maintain this library."
+  ],
+  "examples": [
+    {
+      "id": "natural-aside",
+      "category": "personality",
+      "status": "owner_approved_example",
+      "before": null,
+      "after": "Y decidieron volver al estudio juntos. Que… bueno, después de cómo había terminado la última grabación, tampoco era una decisión tan obvia.",
+      "reason": "The host reacts briefly to the situation rather than supplying another analytical conclusion.",
+      "check": "Does the aside fit established circumstances and the tone, without becoming a device repeated in every passage?",
+      "source": {
+        "kind": "owner_conversation",
+        "topic": "Prepared storytelling with occasional improvised moments",
+        "context": "Owner approved these illustrations and requested an explicit natural connective for the correction example. Illustrations do not establish facts about a real band."
+      }
+    },
+    {
+      "id": "connected-refinement",
+      "category": "natural_correction",
+      "status": "owner_approved_example",
+      "before": "Ahí encontraron el sonido del disco. Encontraron… lo empezaron a encontrar. Todavía faltaba bastante.",
+      "after": "Ahí encontraron el sonido del disco… mejor dicho, lo empezaron a encontrar. Todavía faltaba bastante.",
+      "reason": "Mejor dicho connects the refinement. The owner found the unconnected correction forced.",
+      "check": "Is the correction easy to follow on first hearing, and does reconsidering the wording have a natural reason?",
+      "source": {
+        "kind": "owner_conversation",
+        "topic": "Prepared storytelling with occasional improvised moments",
+        "context": "Owner approved these illustrations and requested an explicit natural connective for the correction example. Illustrations do not establish facts about a real band."
+      }
+    },
+    {
+      "id": "detour-and-return",
+      "category": "personality",
+      "status": "owner_approved_example",
+      "before": null,
+      "after": "En las entrevistas, cada uno se acuerda de una discusión distinta. Es bastante de banda eso, ¿no? Preguntás cómo hicieron un disco y terminás escuchando quién se peleó con quién. Pero entre esas discusiones apareció esta canción.",
+      "reason": "A short personal observation leaves the main thread and returns to a concrete event.",
+      "check": "Does the return maintain the story without inventing evidence or making every anecdote a joke?",
+      "source": {
+        "kind": "owner_conversation",
+        "topic": "Prepared storytelling with occasional improvised moments",
+        "context": "Owner approved these illustrations and requested an explicit natural connective for the correction example. Illustrations do not establish facts about a real band."
+      }
+    },
+    {
+      "id": "tentative-description",
+      "category": "interpretation",
+      "status": "owner_approved_example",
+      "before": null,
+      "after": "No sé si llamarlo un disco más oscuro. Más incómodo, capaz. Hay algo que no termina de descansar.",
+      "reason": "Exploratory wording belongs to a supported interpretation, rather than uncertainty manufactured around a verified fact.",
+      "check": "Is there supplied musical evidence for the observation, and is the uncertainty clearly interpretive?",
+      "source": {
+        "kind": "owner_conversation",
+        "topic": "Prepared storytelling with occasional improvised moments",
+        "context": "Owner approved these illustrations and requested an explicit natural connective for the correction example. Illustrations do not establish facts about a real band."
+      }
+    },
+    {
+      "id": "brief-reaction",
+      "category": "personality",
+      "status": "owner_approved_example",
+      "before": null,
+      "after": "La primera persona a la que llamaron fue al cantante que acababan de echar. Sí. A él.",
+      "reason": "The host can give an odd detail a small reaction and continue without explaining the reaction.",
+      "check": "Does the evidence establish this sequence and the word primera? Does the reaction fit the tone?",
+      "source": {
+        "kind": "owner_conversation",
+        "topic": "Prepared storytelling with occasional improvised moments",
+        "context": "Owner approved these illustrations and requested an explicit natural connective for the correction example. Illustrations do not establish facts about a real band."
+      }
+    },
+    {
+      "id": "concrete-collaboration",
+      "category": "concrete_language",
+      "status": "discussion_illustration",
+      "before": "La colaboración empezaba a producir material.",
+      "after": "Se pusieron a trabajar juntos y empezaron a salir canciones.",
+      "reason": "Replace an abstract nominal construction with people doing something.",
+      "check": "Does the wording retain what the evidence establishes about who worked together and what resulted?",
+      "source": {
+        "kind": "conversation_illustration",
+        "context": "Original phrasing examples discussed in the writing conversation. They illustrate individual improvements, not a complete example of the desired loose delivery."
+      }
+    },
+    {
+      "id": "explain-the-problem",
+      "category": "concrete_language",
+      "status": "discussion_illustration",
+      "before": "La familiaridad de la voz no resolvía por sí sola ninguna de las dos cosas.",
+      "after": "Que la voz les resultara familiar no alcanzaba. Todavía tenían que ver cómo se llevaban y qué podían escribir juntos.",
+      "reason": "State the unresolved practical questions, with the relevant context already established.",
+      "check": "Are both practical questions supported by the surrounding story rather than newly invented?",
+      "source": {
+        "kind": "conversation_illustration",
+        "context": "Original phrasing examples discussed in the writing conversation. They illustrate individual improvements, not a complete example of the desired loose delivery."
+      }
+    },
+    {
+      "id": "attribution-in-speech",
+      "category": "attribution",
+      "status": "discussion_illustration",
+      "before": "Los relatos difieren sobre cómo se tomó la decisión.",
+      "after": "Paul lo contaba de otra manera.",
+      "reason": "Let an introduced participant carry the attributed account rather than discussing the evidence in report language.",
+      "check": "Has Paul been introduced, and does the following text explain the disagreement fairly?",
+      "source": {
+        "kind": "conversation_illustration",
+        "context": "Original phrasing examples discussed in the writing conversation. They illustrate individual improvements, not a complete example of the desired loose delivery."
+      }
+    },
+    {
+      "id": "lab-discipline",
+      "category": "concrete_language",
+      "status": "owner_requested_revision",
+      "before": "DeGarmo recordaba que armar aquel disco los obligó a aprender una disciplina nueva. Una canción podía funcionar por separado y, aun así, no cumplir el papel que necesitaba el relato. Hubo momentos en que pensaron en abandonar el concepto y quedarse con las canciones.",
+      "after": "DeGarmo recordaba que, para armar aquel disco, tuvieron que aprender a trabajar de otra manera. Una canción podía funcionar sola y, aun así, no servir para lo que necesitaban contar. Hubo momentos en que pensaron en abandonar el concepto y quedarse con las canciones.",
+      "reason": "A documented owner-requested delivery revision expresses the composing problem through ordinary actions.",
+      "check": "Judge the improvement in phrasing; an owner request for revision does not establish preference for every resulting sentence.",
+      "source": {
+        "kind": "episode_revision",
+        "station": "neuralforge",
+        "episode_id": "laberintos-humanos",
+        "segment_id": "nikki-y-la-disciplina",
+        "before_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/previous_plan.json",
+        "after_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/final_plan.json",
+        "receipt_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/receipt.json",
+        "recorded_changes": [
+          "Delivery pass requested by the owner: simplified written/analytical phrasing into conversational es-AR, with shorter clauses and natural transitions across songs.",
+          "Added supported pauses, breaths and one restrained exhale at specific story beats; retained the small chuckle in the Metropolis passage.",
+          "Preserved the five recordings, sequence, factual evidence, companion summaries, Bienvenidos opening and NeuralForsch spoken brand spelling."
+        ]
+      }
+    },
+    {
+      "id": "lab-writing-together",
+      "category": "concrete_language",
+      "status": "owner_requested_revision",
+      "before": "Esa experiencia pasó a Dream Theater. Para Scenes from a Memory, la escritura del argumento y la de la música avanzaron juntas. Petrucci desarrollaba la historia; las letras se repartían entre varios integrantes. Una escena podía crecer al mismo tiempo que encontraba su forma de canción.",
+      "after": "Y se llevaron esa forma de trabajar a Dream Theater. En Scenes from a Memory, iban armando la historia y la música al mismo tiempo. Petrucci desarrollaba la historia; las letras se repartían entre varios integrantes. Mientras decidían qué pasaba en una escena, también podían ir encontrándole la música.",
+      "reason": "A description of simultaneous music/story writing becomes an unfolding process.",
+      "check": "Does the after passage preserve the division of writing responsibilities and avoid introducing a new claim?",
+      "source": {
+        "kind": "episode_revision",
+        "station": "neuralforge",
+        "episode_id": "laberintos-humanos",
+        "segment_id": "cambiar-el-metodo",
+        "before_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/previous_plan.json",
+        "after_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/final_plan.json",
+        "receipt_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/receipt.json",
+        "recorded_changes": [
+          "Delivery pass requested by the owner: simplified written/analytical phrasing into conversational es-AR, with shorter clauses and natural transitions across songs.",
+          "Added supported pauses, breaths and one restrained exhale at specific story beats; retained the small chuckle in the Metropolis passage.",
+          "Preserved the five recordings, sequence, factual evidence, companion summaries, Bienvenidos opening and NeuralForsch spoken brand spelling."
+        ]
+      }
+    },
+    {
+      "id": "lab-chorus",
+      "category": "interpretation",
+      "status": "owner_requested_revision",
+      "before": "Hay algo hermoso en esa elección. La pregunta del personaje, tan privada, encuentra una forma de canto compartido. Esa es una lectura que podemos hacer del arreglo: una inquietud individual adquiere compañía.",
+      "after": "<short pause> Hay algo hermoso en esa elección. Nicholas venía haciéndose una pregunta muy íntima. Y de pronto hay otras voces acompañándolo. Podemos sentirlo así: ya no está tan solo con lo que le pasa.",
+      "reason": "The interpretation follows a character and the arrival of other voices, rather than naming an abstract principle.",
+      "check": "Does the language retain interpretation as interpretation? Decide separately whether its closing explanation is still needed.",
+      "source": {
+        "kind": "episode_revision",
+        "station": "neuralforge",
+        "episode_id": "laberintos-humanos",
+        "segment_id": "una-pregunta-con-compania",
+        "before_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/previous_plan.json",
+        "after_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/final_plan.json",
+        "receipt_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/e5ddf09625a67b3c13fb53ab70d1df071d8b149dd80e11b4253710fa7fb9542a/receipt.json",
+        "recorded_changes": [
+          "Delivery pass requested by the owner: simplified written/analytical phrasing into conversational es-AR, with shorter clauses and natural transitions across songs.",
+          "Added supported pauses, breaths and one restrained exhale at specific story beats; retained the small chuckle in the Metropolis passage.",
+          "Preserved the five recordings, sequence, factual evidence, companion summaries, Bienvenidos opening and NeuralForsch spoken brand spelling."
+        ]
+      }
+    },
+    {
+      "id": "lab-name-before-pronoun",
+      "category": "reference_clarity",
+      "status": "owner_requested_revision",
+      "before": "Seventh Wonder también se cruzaba con otras bandas fuera de los discos. En dos mil ocho, Seventh Wonder se preparaba para tocar con ellos en Italia. Blomqvist hablaba de sus amigos noruegos y de las ganas de encontrarse con ese público. Entre esos amigos estaban los noruegos de Circus Maximus.",
+      "after": "Seventh Wonder también se cruzaba con otras bandas fuera de los discos. En dos mil ocho se preparaban para tocar en Italia con Circus Maximus. Blomqvist hablaba con cariño de sus amigos noruegos y de las ganas de encontrarse con el público italiano.",
+      "reason": "The revision identifies Circus Maximus before relying on an ambiguous ellos and removes nearby repeated band names.",
+      "check": "Does a listener who hears this once know who is playing with whom?",
+      "source": {
+        "kind": "episode_revision",
+        "station": "neuralforge",
+        "episode_id": "laberintos-humanos",
+        "segment_id": "amigos-y-limites-reales",
+        "before_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/8f4aaceab15e659b2f96d14412718d9ab2c900c1c8db3b77ab1cbff80240df80/previous_plan.json",
+        "after_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/8f4aaceab15e659b2f96d14412718d9ab2c900c1c8db3b77ab1cbff80240df80/final_plan.json",
+        "receipt_file": "runtime/episodes/neuralforge/laberintos-humanos/manual_edits/8f4aaceab15e659b2f96d14412718d9ab2c900c1c8db3b77ab1cbff80240df80/receipt.json",
+        "recorded_changes": [
+          "Final listening-order cleanup: introduce Circus Maximus before referring to them, clarify the closing sentence, and remove repeated nearby wording."
+        ]
+      }
+    },
+    {
+      "id": "voice-attributed-disagreement",
+      "category": "attribution",
+      "status": "unrated_revision",
+      "before": "Los relatos difieren sobre cómo se tomó la decisión. Sí muestran que la relación ya no funcionaba igual para todos. Si explicamos todo por el consumo, perdemos de vista el desacuerdo musical. Si hablamos solamente de gustos, dejamos afuera los problemas que ellos mismos reconocieron.",
+      "after": "Harris hablaba de un despido. Paul, de una separación conversada. En lo que contaban había problemas con el consumo y también un desacuerdo con la música que estaban haciendo.",
+      "reason": "A saved delivery revision replaces meta-explanation with the two participants’ attributed accounts.",
+      "check": "Check that both accounts and the consumption/musical-disagreement distinction remain intact. This is a candidate comparison, not an owner-rated winner.",
+      "source": {
+        "kind": "episode_revision",
+        "station": "neuralforge",
+        "episode_id": "la-voz-que-cambio-todo",
+        "segment_id": "maiden-departure",
+        "before_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/previous_plan.json",
+        "after_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/final_plan.json",
+        "receipt_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/receipt.json",
+        "recorded_changes": []
+      }
+    },
+    {
+      "id": "voice-rainbow-clarification",
+      "category": "listener_orientation",
+      "status": "unrated_revision",
+      "before": "Después, ya en Los Ángeles, se encontraron en el Rainbow, el bar. Dio cuenta que de ahí salió una invitación a tocar en la casa donde trabajaban los músicos de Sabbath.",
+      "after": "El encuentro llegó después, en Los Ángeles, en el Rainbow. Esta vez hablamos del bar, no de la banda de Dio. Ronnie cuenta que de ahí salió la invitación a tocar en la casa donde trabajaban los músicos de Sabbath.",
+      "reason": "A small conversational clarification distinguishes the Rainbow venue from the band without a formal explanatory aside.",
+      "check": "Does this feel helpful and natural in its surrounding passage, or does the clarification over-explain?",
+      "source": {
+        "kind": "episode_revision",
+        "station": "neuralforge",
+        "episode_id": "la-voz-que-cambio-todo",
+        "segment_id": "sabbath-meeting",
+        "before_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/previous_plan.json",
+        "after_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/final_plan.json",
+        "receipt_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/receipt.json",
+        "recorded_changes": []
+      }
+    }
+  ]
+}
