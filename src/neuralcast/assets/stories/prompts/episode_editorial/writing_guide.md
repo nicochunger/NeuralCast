@@ -58,7 +58,16 @@ interview or book references aloud. Companions must match the scripts and add no
 facts. A supported paraphrase is preferable to a fabricated vivid detail.
 
 Welcome newcomers to a new episode of the configured brand's podcast, introduce
-the theme and briefly preview the journey. In Spanish begin with "Bienvenidos".
+the theme and briefly preview the journey. After the welcome, establish the broad
+topic, human question or situation and why it matters to the listener. Narrow
+gradually to the selected bands and explain why their stories belong in this
+episode, then enter the first story and song. Give each step a natural connection;
+avoid opening with a roster of bands, singers, dates or album details before the
+listener has a reason to care. Keep the overview concrete and conversational,
+within the opening's budget, without a generic essay or an extra summary of the
+whole episode. Review and final editing should preserve this progression and
+repair openings that jump straight to specifics.
+In Spanish begin with "Bienvenidos".
 Use "NeuralForsch" for spoken NeuralForge mentions; metadata keeps "NeuralForge".
 NeuralCast keeps its spelling. No invented presenter, number, date or schedule.
 Introduce bands on their own merits. Close the central question as far as the

@@ -18,6 +18,8 @@ from neuralcast.pipelines.episode_producer.models import (
 from neuralcast.pipelines.episode_producer.manuscript import validate_manuscript
 from neuralcast.pipelines.episode_producer.storage import Project, digest, write_json
 from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
+from neuralcast.pipelines.host_orchestrator.models import Archetype, StationPersonality
+from neuralcast.pipelines.host_orchestrator.prompts import build_tts_instructions
 
 
 @pytest.fixture
@@ -92,6 +94,31 @@ def test_plan_rejects_duplicate_ids_and_requires_opening_and_closing():
         Source(url="javascript:alert(1)", claim="Fact")
 
 
+@pytest.mark.parametrize("channel_id", ["neuralcast-es", "neuralforge-es"])
+def test_episode_delivery_uses_its_own_style_and_keeps_channel_voice(channel_id):
+    channel = get_channel_registry().channels[channel_id]
+    base = narration.TTS_INSTRUCTIONS.read_text(encoding="utf-8").strip()
+    for archetype, cue in (
+        (Archetype.BLOCK_INTRO, "welcoming, confident delivery"),
+        (Archetype.DEEP_DIVE, "reflective, unhurried delivery"),
+        (Archetype.SHORT_STORY, "engaged, storytelling delivery"),
+    ):
+        settings = narration.writing_settings(channel, archetype)
+        assert settings["tts"] == f"{base.rstrip('.; ')}; {cue}"
+        assert settings["voice"] == channel.tts_voice
+
+    live = build_tts_instructions(
+        StationPersonality(
+            script_profile=channel.script_style_override or channel.brand.script_style,
+            tts_profile=channel.brand.tts_style,
+        ),
+        locale=channel.locale,
+        override_path=channel.tts_instructions_override_path,
+        archetype=Archetype.SHORT_STORY,
+    )
+    assert not live.startswith(base.rstrip(".; "))
+
+
 def test_approved_script_channel_voice_and_companion_are_reused(
     tmp_path, monkeypatch, proposal
 ):
@@ -121,6 +148,7 @@ def test_approved_script_channel_voice_and_companion_are_reused(
     assert output["transcript"] == "Une histoire."
     assert output["companion"] == metadata
     assert tts.call_args.kwargs["gemini_voice"] == channel.tts_voice
+    assert tts.call_args.kwargs["instructions"] == settings["tts"]
     assert "<COMPANION>" not in tts.call_args.kwargs["text"]
     assert not hasattr(narration, "gemini_generate_text")
     assert (
@@ -153,6 +181,38 @@ def test_approved_script_channel_voice_and_companion_are_reused(
         == alternative
     )
     assert tts.call_count == 2
+
+
+def test_delivery_instruction_change_invalidates_narration_cache(tmp_path, monkeypatch):
+    channel = get_channel_registry().channels["neuralforge-es"]
+    segment = Commentary(
+        kind="commentary",
+        id="intro",
+        role="opening",
+        archetype="block_intro",
+        brief="Introduce the theme",
+        script="Bienvenidos a una historia.",
+        companion={"title": "Una historia", "summary": "El comienzo del episodio."},
+    )
+    instructions = tmp_path / "episode_tts.md"
+    instructions.write_text("Warm storytelling.")
+    monkeypatch.setattr(narration, "TTS_INSTRUCTIONS", instructions)
+
+    def synthesize(**kwargs):
+        Path(kwargs["outfile"]).write_bytes(b"narration")
+
+    tts = Mock(side_effect=synthesize)
+    monkeypatch.setattr(narration, "synthesize_speech", tts)
+    settings = narration.writing_settings(channel, Archetype.BLOCK_INTRO)
+    first = narration.prepare_narration(segment, channel, settings, tmp_path, ())
+    instructions.write_text("Warm, slightly slower storytelling.")
+    second = narration.prepare_narration(segment, channel, settings, tmp_path, ())
+    assert tts.call_count == 2
+    assert first["path"] != second["path"]
+    assert tts.call_args.kwargs["instructions"].startswith(
+        "Warm, slightly slower storytelling;"
+    )
+    assert Path(first["path"]).read_bytes() == b"narration"
 
 
 def test_explicit_tts_model_requires_a_supported_gemini_backend(monkeypatch, proposal):

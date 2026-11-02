@@ -1,0 +1,1 @@
+Directo, cálido y conversacional, como quien le cuenta una historia a una persona cercana; energía firme pero controlada; ritmo moderado, apenas pausado y sin apuro. Dejá respirar las ideas y terminar las frases, manteniendo una entonación viva y natural.

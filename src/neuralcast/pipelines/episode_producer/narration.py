@@ -21,6 +21,7 @@ from .models import Commentary
 from .storage import digest, read_json, write_json, file_hash
 
 TEMPLATE = ASSETS_ROOT / "stories" / "prompts" / "episode_commentary.md"
+TTS_INSTRUCTIONS = ASSETS_ROOT / "stories" / "prompts" / "episode_tts_instructions.md"
 SUPPORTED_TTS_MODELS = ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts")
 
 
@@ -51,7 +52,7 @@ def writing_settings(
         "tts": build_tts_instructions(
             personality,
             locale=channel.locale,
-            override_path=channel.tts_instructions_override_path,
+            override_path=TTS_INSTRUCTIONS,
             archetype=archetype,
         ),
         "template": TEMPLATE.read_text(encoding="utf-8"),

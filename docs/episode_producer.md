@@ -163,6 +163,12 @@ same duration. Expression tags support the writing and cannot replace it.
 
 ## Audio preparation and private preview
 
+Episode narration uses the dedicated delivery style in
+`src/neuralcast/assets/stories/prompts/episode_tts_instructions.md`: warm,
+conversational storytelling at a moderately relaxed pace. The selected channel
+supplies its voice and locale; each passage adds its short archetype delivery cue.
+The complete instructions contribute to the narration cache key.
+
 Choose the speech model per render with `--tts-model` on `prepare` (and optionally
 `validate` with the same flag):
 
