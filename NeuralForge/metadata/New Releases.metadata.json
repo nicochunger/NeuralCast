@@ -80,6 +80,14 @@
       "TrackID": "4081572201",
       "Validated": true
     },
+    "amon amarth|kvasir's blood|the allfather awakens|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 556557,
+      "ReleaseDate": "2026-10-02T00:00:00+00:00",
+      "TrackID": "4072346601",
+      "Validated": false
+    },
     "amon amarth|upphaf|upphaf|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -174,7 +182,7 @@
       "Rank": 613497,
       "ReleaseDate": "2026-10-22T00:00:00+00:00",
       "TrackID": "4328694952",
-      "Validated": false
+      "Validated": true
     },
     "brymir|how much is the fish|what we leave behind|2026": {
       "AlbumType": "single",
@@ -191,6 +199,14 @@
       "ReleaseDate": "2026-08-27T00:00:00+00:00",
       "TrackID": "4060449431",
       "Validated": true
+    },
+    "brymir|true darkness|what we leave behind|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 292431,
+      "ReleaseDate": "2026-10-02T00:00:00+00:00",
+      "TrackID": "4060525011",
+      "Validated": false
     },
     "brymir|what we leave behind|what we leave behind|2026": {
       "AlbumType": "single",
@@ -352,6 +368,14 @@
       "TrackID": "4112759931",
       "Validated": true
     },
+    "dreamtale|fairy dance|aetherbound|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 95821,
+      "ReleaseDate": "2026-07-31T00:00:00+00:00",
+      "TrackID": "4112759911",
+      "Validated": false
+    },
     "dreamtale|tale of dreams|tale of dreams|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -408,13 +432,13 @@
       "TrackID": "4335881842",
       "Validated": true
     },
-    "dynazty|the mission|the mission|2026": {
+    "dynazty|the mission|dark arts|2026": {
       "AlbumType": "single",
       "IsSingle": true,
       "Rank": 482158,
       "ReleaseDate": "2026-10-27T00:00:00+00:00",
       "TrackID": "4307594492",
-      "Validated": false
+      "Validated": true
     },
     "eleine|ich sehe dich|ich sehe dich|2026": {
       "AlbumType": "single",
@@ -447,6 +471,14 @@
       "ReleaseDate": "2026-06-26T00:00:00+00:00",
       "TrackID": "3977714161",
       "Validated": true
+    },
+    "empress|whole night|whole night|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 2478,
+      "ReleaseDate": "2026-09-16T00:00:00+00:00",
+      "TrackID": "4249163411",
+      "Validated": false
     },
     "euphoreon|gravity|gravity|2026": {
       "AlbumType": "single",
@@ -536,6 +568,14 @@
       "TrackID": "4233373052",
       "Validated": true
     },
+    "frozen crown|iris|iris|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 153179,
+      "ReleaseDate": "2026-10-01T00:00:00+00:00",
+      "TrackID": "4038624971",
+      "Validated": false
+    },
     "frozen crown|reborn|reborn|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -559,6 +599,14 @@
       "ReleaseDate": "2026-08-26T00:00:00+00:00",
       "TrackID": "4038625571",
       "Validated": true
+    },
+    "galneryus|break the silence!|a cry from the sky above|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 176847,
+      "ReleaseDate": "2026-07-15T00:00:00+00:00",
+      "TrackID": "4093020731",
+      "Validated": false
     },
     "galneryus|echoes of fate|a cry from the sky above|2026": {
       "AlbumType": "album",
@@ -638,7 +686,7 @@
       "Rank": 159728,
       "ReleaseDate": "2026-08-08T00:00:00+00:00",
       "TrackID": "4092065121",
-      "Validated": false
+      "Validated": true
     },
     "hibria|undying|undying|2026": {
       "AlbumType": "single",
@@ -727,6 +775,14 @@
       "ReleaseDate": "2026-10-16T00:00:00+00:00",
       "TrackID": "4143296421",
       "Validated": true
+    },
+    "iron mask|no greener lands|no greener lands|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 3016,
+      "ReleaseDate": "2026-11-02T00:00:00+00:00",
+      "TrackID": "4386771491",
+      "Validated": false
     },
     "iron savior|back from the fires of hell|back from the fires of hell|2026": {
       "AlbumType": "single",
@@ -960,6 +1016,14 @@
       "TrackID": "4235675312",
       "Validated": true
     },
+    "myrath|still the dawn will come|still the dawn will come|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-11-06T00:00:00+00:00",
+      "TrackID": "4245327301",
+      "Validated": false
+    },
     "myrath|through the seasons|through the seasons|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -998,7 +1062,7 @@
       "Rank": 71413,
       "ReleaseDate": "2026-08-21T00:00:00+00:00",
       "TrackID": "4021390401",
-      "Validated": false
+      "Validated": true
     },
     "noveria|the viper's nest|the viper's nest|2026": {
       "AlbumType": "single",
@@ -1102,7 +1166,7 @@
       "Rank": 682152,
       "ReleaseDate": "2026-10-23T00:00:00+00:00",
       "TrackID": "4296195922",
-      "Validated": false
+      "Validated": true
     },
     "polyphia|power in the blood|power in the blood|2026": {
       "AlbumType": "single",
@@ -1126,7 +1190,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-10-31T00:00:00+00:00",
       "TrackID": "4315260672",
-      "Validated": false
+      "Validated": true
     },
     "ratt|reach for the sky 1982|reach for the sky 1982|2026": {
       "AlbumType": "single",
@@ -1160,6 +1224,14 @@
       "TrackID": "4192950692",
       "Validated": true
     },
+    "sabaton|berserker|berserker|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 135802,
+      "ReleaseDate": "2026-11-06T00:00:00+00:00",
+      "TrackID": "4352979182",
+      "Validated": false
+    },
     "saltatio mortis|reckless sailor (black flag rises)|reckless sailor (black flag rises)|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -1175,6 +1247,14 @@
       "ReleaseDate": "2026-09-25T00:00:00+00:00",
       "TrackID": "4247426211",
       "Validated": true
+    },
+    "saor|aura mmxxvi|caledonia|2026": {
+      "AlbumType": "album",
+      "IsSingle": false,
+      "Rank": 100000,
+      "ReleaseDate": "2026-11-06T00:00:00+00:00",
+      "TrackID": "4199116782",
+      "Validated": false
     },
     "saor|carved in stone mmxxvi|carved in stone mmxxvi|2026": {
       "AlbumType": "single",
@@ -1198,7 +1278,7 @@
       "Rank": 604760,
       "ReleaseDate": "2026-10-27T00:00:00+00:00",
       "TrackID": "4371828271",
-      "Validated": false
+      "Validated": true
     },
     "scardust|symphony (feat. mia asano)|symphony (feat. mia asano)|2026": {
       "AlbumType": "single",
@@ -1294,7 +1374,7 @@
       "Rank": 100000,
       "ReleaseDate": "2026-10-27T00:00:00+00:00",
       "TrackID": "4368548751",
-      "Validated": false
+      "Validated": true
     },
     "starkill|death on display|death on display|2026": {
       "AlbumType": "single",
@@ -1342,7 +1422,7 @@
       "Rank": 304951,
       "ReleaseDate": "2026-10-16T00:00:00+00:00",
       "TrackID": "4058877361",
-      "Validated": false
+      "Validated": true
     },
     "temperance|the tower: lean into fear|arcani|2026": {
       "AlbumType": "single",
@@ -1464,6 +1544,14 @@
       "TrackID": "4174446772",
       "Validated": true
     },
+    "the rumjacks|down to nothing|down to nothing|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 100000,
+      "ReleaseDate": "2026-11-06T00:00:00+00:00",
+      "TrackID": "4332628752",
+      "Validated": false
+    },
     "their dogs were astronauts|the painter|the painter|2026": {
       "AlbumType": "single",
       "IsSingle": true,
@@ -1544,6 +1632,22 @@
       "TrackID": "4014439601",
       "Validated": true
     },
+    "tyr|cycle of misery|cycle of misery|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 123195,
+      "ReleaseDate": "2026-09-29T00:00:00+00:00",
+      "TrackID": "4271252832",
+      "Validated": false
+    },
+    "tyr|the guardian lie|the guardian lie|2026": {
+      "AlbumType": "single",
+      "IsSingle": true,
+      "Rank": 322698,
+      "ReleaseDate": "2026-10-20T00:00:00+00:00",
+      "TrackID": "4302063002",
+      "Validated": false
+    },
     "venom|kicked outta hell|into oblivion|2026": {
       "AlbumType": "album",
       "IsSingle": false,
@@ -1558,7 +1662,7 @@
       "Rank": 404834,
       "ReleaseDate": "2026-10-27T00:00:00+00:00",
       "TrackID": "4323558622",
-      "Validated": false
+      "Validated": true
     },
     "waylander|hy brasil (isle of mists)|hy brasil (isle of mists)|2026": {
       "AlbumType": "single",
@@ -1598,7 +1702,7 @@
       "Rank": 198733,
       "ReleaseDate": "2026-09-11T00:00:00+00:00",
       "TrackID": "4136302211",
-      "Validated": false
+      "Validated": true
     },
     "whispered|heavensbane|honorbound|2026": {
       "AlbumType": "album",
@@ -1646,7 +1750,7 @@
       "Rank": 387361,
       "ReleaseDate": "2026-08-07T00:00:00+00:00",
       "TrackID": "4033795291",
-      "Validated": false
+      "Validated": true
     },
     "yngwie malmsteen|beyond zeta reticuli|beyond zeta reticuli|2026": {
       "AlbumType": "single",

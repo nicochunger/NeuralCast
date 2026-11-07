@@ -1,7 +1,12 @@
 Artist,Title,Album,Year,Validated
 Fir Bolg,Vae Victis,Vae Victis - Single,2026,True
 Parius,Unbecoming of a Gentleman,Alchestronomy,2026,True
+Sabaton,Berserker,,2026,True
 Trollfest,Day Drinking,Trollywood,2026,True
+Myrath,Still the Dawn Will Come,Still the Dawn Will Come,2026,True
+Saor,Aura MMXXVI,Caledonia,2026,True
+The Rumjacks,Down To Nothing,Down To Nothing,2026,True
+Iron Mask,No Greener Lands,Crimson Prophecy,2026,True
 Pomegranate Tiger,Blind Giants,Blind Giants,2026,True
 Saxon,Medusa,Medusa,2026,True
 Dynazty,The Mission,Dark Arts,2026,True
@@ -16,6 +21,7 @@ Soilwork,Night Whispers & Shining Lights,Night Whispers & Shining Lights,2026,Tr
 Waylander,Mallachtaí,Mallachtaí,2026,True
 Machine Head,Sutures,Sutures,2026,True
 Delain,We Are Fire,We Are Fire,2026,True
+Tyr,The Guardian Lie,The Guardian Lie,2026,True
 Lars Eric Mattsson,I Can See in Infrared,I Can See in Infrared,2026,True
 Insomnium,"The Hour Grows Late (feat. Tomi Joutsen, Tomi Koivusaari & Santeri Kallio)",Netherworlds,2026,True
 Temperance,The Magician: Into the Fire,Arcani,2026,True
@@ -35,13 +41,17 @@ The Foreshadowing,Ozymandias,Ozymandias,2026,True
 TesseracT,Prelude,Rising Light,2026,True
 Wizardthrone,Death Cycles,Death Cycles,2026,True
 Celtian,El Solsticio De Dríade (En Directo - La Riviera),El Solsticio De Dríade (En Directo - La Riviera),2026,True
+Amon Amarth,Kvasir's Blood,The Allfather Awakens,2026,True
 Judas Priest,Tyrant (Original 1976 Masters),Sad Wings of Destiny (Original 1976 Masters),2026,True
 Judas Priest,Victim of Changes (Original 1976 Masters),Sad Wings of Destiny (Original 1976 Masters),2026,True
+Brymir,True Darkness,What We Leave Behind,2026,True
 Feuerschwanz,Carpe Noctem,Carpe Noctem,2026,True
 Judas Priest,Prelude (Original 1976 Masters),Sad Wings of Destiny (Original 1976 Masters),2026,True
+Frozen Crown,Iris,Iris,2026,True
 Seven Kingdoms,Sono Sola,Sono Sola,2026,True
 Yngwie Malmsteen,Beyond Zeta Reticuli,Beyond Zeta Reticuli,2026,True
 Waylander,Hy Brasil (Isle of Mists),Hy Brasil (Isle of Mists),2026,True
+Tyr,Cycle of Misery,Cycle of Misery,2026,True
 Brymir,How Much Is The Fish,What We Leave Behind,2026,True
 The Great Kat,Greek Kalanta Of The New Year,Greek Kalanta Of The New Year,2026,True
 Europe,Come This Madness,Come This Madness,2026,True
@@ -64,6 +74,7 @@ The Ocean,Milk Of My Dreams,Milk Of My Dreams,2026,True
 Tom Petty and the Heartbreakers,Parade Of Loons,Origins 1971-1978,2026,True
 The Great Kat,Devil's Dream Guitar,Devil's Dream Guitar,2026,True
 The Great Kat,Swallowtail Jig,Swallowtail Jig,2026,True
+Empress,Whole Night,Whole Night,2026,True
 Def Leppard,Revolution (Abandoned TV Ad),Revolution (Abandoned TV Ad),2026,True
 Aether Realm,The Blood Is Calling,The Blood Is Calling,2026,True
 Myrath,Shape of My Heart,Shape of My Heart,2026,True
@@ -134,6 +145,7 @@ Finsterforst,Herbstwanderung,Still,2026,True
 Dreamtale,Battleheart,Aetherbound,2026,True
 Finsterforst,Stille Nacht,Still,2026,True
 Dreamtale,Thunderpath,Aetherbound,2026,True
+Dreamtale,Fairy Dance,Aetherbound,2026,True
 Teramaze,SLEEPING MAN (Special Edition),SLEEPING MAN - Single,2026,True
 Airbourne,Here She Comes,Here She Comes,2026,True
 Kamelot,Godlike Alchemy,Godlike Alchemy,2026,True
@@ -158,6 +170,7 @@ Cloven Hoof,Iron Mask,Iron Mask,2026,True
 Gloryhammer,Ultimate Sacrifice,Ultimate Sacrifice,2026,True
 Galneryus,ECHOES OF FATE,A CRY FROM THE SKY ABOVE,2026,True
 Galneryus,LET NO TIME DECAY,A CRY FROM THE SKY ABOVE,2026,True
+Galneryus,BREAK THE SILENCE!,A CRY FROM THE SKY ABOVE,2026,True
 Celtian,Maleficio de Sangre (En Directo - La Riviera),Maleficio de Sangre (En Directo - La Riviera),2026,True
 The Ocean,"Belligerence, Pt. II",Belligerence,2026,True
 Schandmaul,An beiden Enden,An beiden Enden,2026,True
