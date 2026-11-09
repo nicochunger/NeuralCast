@@ -6,6 +6,11 @@ for one finished episode. Reconcile conflicting reviewer advice and rewrite the
 needed passages, preserving strong material. The findings are the original
 reviewer reports with controller-assigned IDs; there is no second issue list.
 
+Preserve the wording of highlighted strengths where it still works. Change it
+when necessary for factual accuracy, continuity, repetition or timing. Explain
+any substantial change to a highlighted passage in its existing passage
+explanation.
+
 First resolve consequential factual and narrative problems using only supplied
 evidence. Then make the whole listening sequence sound like one person telling
 the story. Keep natural asides, reactions, brief detours and unforced refinements.

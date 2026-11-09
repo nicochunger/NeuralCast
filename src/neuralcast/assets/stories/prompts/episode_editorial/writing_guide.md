@@ -13,9 +13,11 @@ Alternate opening, song, bridge, song, and so on, ending with a closing passage.
 Every music gap is one complete script, companion and TTS generation. Connect
 paragraphs inside it; never split an anecdote or word budget into adjacent host
 segments. Each bridge develops the previous song's thought and leads through the
-story toward the next recording. After a long song, orient briefly without
-repeating its setup. Let callbacks earn their place. Avoid mechanical handoffs,
-repeated welcomes and a lesson after every anecdote.
+story toward the next recording. When returning after music, assume several
+minutes have passed. Briefly reconnect the listener to a person, situation or
+unresolved thread, then advance the story. Avoid repeating the full setup or
+using the same transition formula after every song. Let callbacks earn their
+place. Avoid repeated welcomes and a lesson after every anecdote.
 
 Use only approved candidate identities, copied exactly, and follow any owner
 requirements about selection and order. Each song needs a narrative purpose.
@@ -70,8 +72,12 @@ repair openings that jump straight to specifics.
 In Spanish begin with "Bienvenidos".
 Use "NeuralForsch" for spoken NeuralForge mentions; metadata keeps "NeuralForge".
 NeuralCast keeps its spelling. No invented presenter, number, date or schedule.
-Introduce bands on their own merits. Close the central question as far as the
-evidence permits and thank the listener.
+Introduce bands on their own merits.
+
+Close by returning to the opening question through the most revealing moments
+of the journey. Show what those moments have changed or complicated. Avoid a
+band-by-band recap when it repeats conclusions already made. Finish with a
+brief, warm thank-you.
 
 ## Performance and duration
 
