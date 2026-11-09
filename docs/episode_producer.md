@@ -14,9 +14,10 @@ been specified, and pass it explicitly rather than relying on the CLI default.
 See [station and language defaults](episode_editorial.md#station-and-language-defaults).
 
 This is an on-demand podcast workflow. It does not queue recordings to live
-radio, schedule production, or change live-host cadence. Published episodes are
-available through station RSS feeds and cloud chapters. A separate review web
-page remains outside this version.
+radio or change live-host cadence. Published episodes are
+available through station RSS feeds and cloud chapters. The private
+[Episodes admin workspace](episode_admin.md) supports topic planning, saved feedback,
+manuscript approval, audio review and publication.
 
 ## Editorial workshop and commands
 
@@ -394,7 +395,8 @@ operations, and read-only live guide access.
 In `neuralcast-web`, run `npm run build` and `npm run check:host-companion`.
 
 The workshop requires authenticated Codex access and the existing `GEMINI_API_KEY`
-for direct `gemini-4-argon` reviews and editing. No cron jobs are required.
+for direct `gemini-4-argon` reviews and editing. Optional weekly admin preparation
+is described in [episode administration](episode_admin.md).
 AzuraCast credentials are used only for explicit preparation/publication commands.
 Episode uploads allow a longer timeout than short host snippets. Restart the admin
 API for its extended companion/artwork endpoints and verify `/healthz`; deploy

@@ -157,7 +157,11 @@ orchestrator remains separate.
 Reuse the existing host/provider tooling. Podcast writing guidance lives at
 `src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md`. Published episodes
 use permanent Episode guide pages in the sister `neuralcast-web` project.
-Do not add an episode-review page, scheduled production, or live-host changes.
+The private Episodes admin workspace supports planning, saved manuscript feedback,
+approval-bound rendering, audio review and publication. See
+[docs/episode_admin.md](../../../../docs/episode_admin.md). Weekly preparation
+uses explicitly approved queued briefs; audio and publication remain owner-triggered.
+Do not change live-host behavior as part of episode work.
 
 ## Operational boundaries
 

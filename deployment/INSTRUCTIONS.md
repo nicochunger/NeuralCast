@@ -6,6 +6,10 @@ For private weekly music auditions and the web admin Discovery tab, see
 [music discovery](../docs/music_discovery.md). Its dedicated cron template is
 `deployment/cron/neuralcast-music-discovery`; feedback processing remains manual.
 
+For the Episodes admin tab and its optional approved-brief weekly preparation, see
+[episode administration](../docs/episode_admin.md). Its schedule is
+`deployment/cron/neuralcast-episode-workspace`.
+
 ## Prerequisites
 
 - The `/root/projects/NeuralCast` checkout on this VPS

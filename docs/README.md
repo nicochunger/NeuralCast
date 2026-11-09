@@ -14,6 +14,8 @@
   accepted-only catalog promotion, and weekly/manual generation.
 - [Manual podcast episodes](episode_producer.md): podcast introductions, proposal
   approvals, production, preview uploads, website publication, and Episode guides.
+- [Episode administration](episode_admin.md): topic planning, manuscript feedback,
+  private audio review, publication and weekly preparation.
 - [Listener host companion](host_companion.md): summary cards, generation,
   publication timing, and web integration.
 - [Release editorial retention](release_editorial.md): automatic Codex review of

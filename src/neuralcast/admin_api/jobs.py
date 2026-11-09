@@ -44,7 +44,9 @@ JOB_OPERATION_FORCE_ARCHETYPE = "force_archetype"
 JOB_OPERATION_SCHEDULE_GENERATOR = "schedule_generator"
 JOB_OPERATION_DISCOVERY_GENERATE = "discovery_generate"
 JOB_OPERATION_DISCOVERY_PROCESS = "discovery_process"
+JOB_OPERATION_EPISODE = "episode_workspace"
 SUPPORTED_JOB_OPERATIONS = (
+    JOB_OPERATION_EPISODE,
     JOB_OPERATION_FORCE_ARCHETYPE,
     JOB_OPERATION_SCHEDULE_GENERATOR,
     JOB_OPERATION_DISCOVERY_GENERATE,
@@ -108,6 +110,7 @@ class JobRecord:
     orchestrator_pid: int | None = None
     command: list[str] | None = None
     discovery_options: dict[str, object] | None = None
+    episode_options: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -132,6 +135,7 @@ class JobRecord:
             orchestrator_pid=_optional_int(payload.get("orchestrator_pid")),
             command=_optional_str_list(payload.get("command")),
             discovery_options=_optional_mapping(payload.get("discovery_options")),
+            episode_options=_optional_mapping(payload.get("episode_options")),
         )
 
 
@@ -262,6 +266,32 @@ def build_job_command(
     project_root: Path = PROJECT_ROOT,
 ) -> tuple[list[str], dict[str, str], Path]:
     """Return the argv, environment, and cwd for one persisted admin job."""
+
+    if job.operation == JOB_OPERATION_EPISODE:
+        from pydantic import TypeAdapter
+        from neuralcast.pipelines.episode_producer.models import Identifier
+
+        if job.station not in SUPPORTED_STATIONS or job.dry_run:
+            raise ValueError("Invalid episode job target")
+        request_id = TypeAdapter(Identifier).validate_python(
+            (job.episode_options or {}).get("request_id")
+        )
+        python = project_root / ".venv" / "bin" / "python"
+        argv = [
+            str(python if python.exists() else Path(sys.executable)),
+            "-m",
+            "neuralcast.cli.episode_workspace",
+            "execute",
+            "-s",
+            job.station,
+            "--request-id",
+            request_id,
+        ]
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(project_root / "src") + (
+            ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+        )
+        return argv, env, project_root
 
     if job.operation in {
         JOB_OPERATION_DISCOVERY_GENERATE,
@@ -593,6 +623,35 @@ class JobManager:
             discovery_options={"batch_id": batch_id} if batch_id else None,
         )
 
+    def enqueue_episode(self, *, station: str, request_id: str) -> JobRecord:
+        from pydantic import TypeAdapter
+        from neuralcast.pipelines.episode_producer.models import Identifier
+
+        if station not in SUPPORTED_STATIONS:
+            raise ValueError("Unknown station")
+        request_id = TypeAdapter(Identifier).validate_python(request_id)
+        return self._enqueue_job(
+            operation=JOB_OPERATION_EPISODE,
+            station=station,
+            label="episode",
+            archetype=None,
+            track_focus=None,
+            dry_run=False,
+            episode_options={"request_id": request_id},
+        )
+
+    def latest_episode_job(self, station: str) -> dict[str, object] | None:
+        matching = [load_job_record(p) for p in self.jobs_dir.glob("*.json")]
+        matching = [
+            j
+            for j in matching
+            if j.station == station and j.operation == JOB_OPERATION_EPISODE
+        ]
+        if not matching:
+            return None
+        latest = max(matching, key=lambda j: j.accepted_at)
+        return self.job_status_payload(latest.job_id)
+
     def _enqueue_job(
         self,
         *,
@@ -604,6 +663,7 @@ class JobManager:
         dry_run: bool,
         schedule_options: dict[str, object] | None = None,
         discovery_options: dict[str, object] | None = None,
+        episode_options: dict[str, object] | None = None,
     ) -> JobRecord:
         """Create and launch one background admin job."""
 
@@ -630,6 +690,7 @@ class JobManager:
                 schedule_options=schedule_options,
                 log_path=str(self.log_path(job_id)),
                 discovery_options=discovery_options,
+                episode_options=episode_options,
             )
             job_path = self.job_path(job_id)
             save_job_record(job_path, job)
@@ -686,6 +747,7 @@ class JobManager:
             "track_focus": job.track_focus,
             "dry_run": job.dry_run,
             "schedule_options": job.schedule_options,
+            "episode_options": job.episode_options,
             "status": job.status,
             "accepted_at": job.accepted_at,
             "started_at": job.started_at,

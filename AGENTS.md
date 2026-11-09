@@ -226,7 +226,8 @@ uncertain uploads before retrying. Preserve and back up the published catalogue
 and guide artwork under `runtime/episodes/catalogue/` with the referenced AzuraCast
 MP3s. Apply new writing guidance to future productions, not existing published
 audio. Station RSS feeds and cloud chapters are generated read-only from the
-published catalogue; a separate review page remains outside this version.
+published catalogue. The private Episodes admin workspace and optional weekly
+preparation from approved briefs are documented in [docs/episode_admin.md](docs/episode_admin.md).
 
 ## Host Orchestrator, Scheduler, and Admin API
 

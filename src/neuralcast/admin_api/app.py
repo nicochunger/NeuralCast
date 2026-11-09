@@ -60,6 +60,8 @@ from .jobs import (
 )
 from .favorites import FavoriteStore
 from .discovery import discovery_router
+from .episodes import episodes_router
+from neuralcast.pipelines.episode_producer.workspace import Workspace
 from .podcasts import podcast_router
 from neuralcast.pipelines.music_discovery.service import DiscoveryService
 from .stations import AdminStationService, StationServiceConfigError
@@ -408,6 +410,7 @@ def create_app(
     favorite_store: FavoriteStore | None = None,
     companion_loader: Callable[[str, float], dict[str, Any] | None] = current_companion,
     discovery_factory: Callable[[str], DiscoveryService] = DiscoveryService,
+    episodes_factory: Callable[[str], Workspace] = Workspace,
 ) -> FastAPI:
     """Create the FastAPI application for the admin HTTP service."""
 
@@ -418,6 +421,8 @@ def create_app(
     app.state.favorite_store = favorite_store or FavoriteStore()
 
     app.state.companion_loader = companion_loader
+    app.state.episodes_factory = episodes_factory
+    app.include_router(episodes_router(require_admin_token))
     app.state.discovery_factory = discovery_factory
     app.include_router(discovery_router(require_admin_token))
     app.include_router(podcast_router())

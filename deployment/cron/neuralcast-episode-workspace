@@ -1,0 +1,8 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=Europe/Zurich
+
+# Each station's Episodes admin toggle controls weekly preparation.
+# Only owner-approved briefs enter manuscript production; audio and publication are manual.
+0 13 * * 0 root cd /root/projects/NeuralCast && .venv/bin/python -m neuralcast.cli.episode_workspace weekly -s neuralforge >> runtime/logs/episode-workspace-neuralforge.log 2>&1
+15 13 * * 0 root cd /root/projects/NeuralCast && .venv/bin/python -m neuralcast.cli.episode_workspace weekly -s neuralcast >> runtime/logs/episode-workspace-neuralcast.log 2>&1
