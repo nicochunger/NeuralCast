@@ -288,6 +288,7 @@ def build_job_command(
             request_id,
         ]
         env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
         env["PYTHONPATH"] = str(project_root / "src") + (
             ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
         )

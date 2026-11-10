@@ -644,7 +644,9 @@ class Workspace:
 
                     settings = load_azuracast_settings(station=self.station)
                     response = prepare(
-                        p, AzuraCastClient(settings.base_url, settings.api_key)
+                        p,
+                        AzuraCastClient(settings.base_url, settings.api_key),
+                        progress=print,
                     )
                 elif action == "publish":
                     if p.episode_number is None:

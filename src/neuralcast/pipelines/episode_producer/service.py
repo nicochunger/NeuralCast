@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from neuralcast.pipelines.host_orchestrator.channels import (
     get_channel_registry,
@@ -78,6 +78,7 @@ def prepare(
     client: AzuraCastClient,
     *,
     tts_model: str | None = None,
+    progress: Callable[[str], None] = lambda _: None,
 ) -> dict[str, Any]:
     """The caller holds project.lock(); no queue submission occurs here."""
     proposal, plan, channel, inputs, revision = validated_inputs(
@@ -95,6 +96,7 @@ def prepare(
             raise ValueError(
                 "A finished render is missing or changed. Restore it or revise the plan; existing upload/queue receipts must not be reset."
             )
+        progress("Episode production: upload")
         return upload_render(project, channel, receipt, directory, client)
     # Require approval of the complete manuscript before synthesis.
     require_manuscript_approval(project, plan)
@@ -105,6 +107,7 @@ def prepare(
         for value in (recording["artist"], recording["title"], recording["album"])
     )
     parts = []
+    progress("Episode production: narration")
     for part in plan.segments:
         if isinstance(part, Music):
             recording = inputs["recordings"][part.id]
@@ -147,6 +150,7 @@ def prepare(
         channel.locale.tag.split("-")[0], "edition"
     )
     broadcast_title = f"{proposal.title} ({edition_label} {editions[revision]})"
+    progress("Episode production: mix")
     output, chapters, duration = render(
         parts,
         directory,
@@ -190,6 +194,7 @@ def prepare(
         "uploaded": None,
     }
     write_json(receipt_path, receipt)
+    progress("Episode production: upload")
     return upload_render(project, channel, receipt, directory, client)
 
 

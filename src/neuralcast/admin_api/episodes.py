@@ -8,6 +8,7 @@ from neuralcast.pipelines.episode_producer.models import Document, Identifier
 from neuralcast.pipelines.episode_producer.workspace import Workspace, ConflictError
 from neuralcast.pipelines.episode_producer.workspace_models import Feedback
 from .jobs import JobConflictError
+from .episode_activity import episode_activity
 
 
 class Action(Document):
@@ -76,6 +77,9 @@ def episodes_router(auth: Callable) -> APIRouter:
                         result["job"]["result"] = {
                             k: saved[k] for k in ("episode_id", "status") if k in saved
                         }
+                    result["job"]["progress"] = episode_activity(
+                        workspace(request, station), result["job"]
+                    )
             return result
         except (ValueError, OSError, RuntimeError) as exc:
             raise error(exc) from exc

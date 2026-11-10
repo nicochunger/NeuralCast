@@ -333,10 +333,14 @@ def test_api_auth_saved_feedback_and_safe_job_command(rig, tmp_path, monkeypatch
     )
     assert result.status_code == 202
     job = manager.get_job(result.json()["job_id"])
-    argv, _, _ = build_job_command(job, project_root=Path("/project"))
+    argv, env, _ = build_job_command(job, project_root=Path("/project"))
+    assert env["PYTHONUNBUFFERED"] == "1"
     assert argv[-2:] == ["--request-id", result.json()["request_id"]]
     assert "neuralcast.cli.episode_workspace" in argv
-    assert http.get(url, headers=headers).json()["job"]["job_id"] == job.job_id
+    active = http.get(url, headers=headers).json()["job"]
+    assert active["job_id"] == job.job_id
+    assert active["progress"]["action"] == "revise"
+    assert active["progress"]["episode_id"] == p.id
     assert (
         http.post(
             url + "/actions",
@@ -480,7 +484,7 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
 def test_render_and_publish_use_owner_reviewed_hashes(rig, monkeypatch):
     w, p, plan = written(rig)
 
-    def render(project, client):
+    def render(project, client, *, progress):
         assert read_json(project.runtime / "manuscript_approval.json")[
             "manuscript_hash"
         ] == manuscript_hash(project, plan)
@@ -567,3 +571,89 @@ def test_saved_manuscript_history_supports_timestamped_snapshots(
     )
     assert response.status_code == 200
     assert response.json()["segments"] == plan.model_dump()["segments"]
+
+
+def test_live_activity_reads_buffered_stage_files_without_mutating_the_job(rig):
+    from neuralcast.admin_api.episode_activity import episode_activity
+
+    w, p, _ = rig
+    request = w.submit("write", episode_id=p.id, revision=w.revision(p))
+    request_path = w.root / "requests" / request / "request.json"
+    original = request_path.read_bytes()
+    directory = p.runtime / "editorial" / "active-run"
+    write_json(
+        directory / "inputs.json", {"context": {"concept_hash": p.concept_hash()}}
+    )
+    write_json(directory / "write.json", {"output": {}})
+    write_json(directory / "narrative_continuity.json", {"output": {}})
+    write_json(directory / "factual_support" / "attempt-001" / "context.json", {})
+    write_json(directory / "conversational_voice" / "attempt-001" / "context.json", {})
+    job = {
+        "status": "running",
+        "episode_options": {"request_id": request},
+        "log_tail": "Episode workspace: write",
+    }
+    progress = episode_activity(w, job)
+    assert progress["action"] == "write" and progress["episode_id"] == p.id
+    steps = {s["id"]: s["status"] for s in progress["steps"]}
+    assert steps == {
+        "write": "succeeded",
+        "factual_support": "running",
+        "narrative_continuity": "succeeded",
+        "conversational_voice": "running",
+        "edit": "pending",
+    }
+    assert request_path.read_bytes() == original and job["status"] == "running"
+    job.update(
+        status="failed",
+        log_tail="Episode workspace failed: Review factual_support failed; completed jobs were retained.",
+    )
+    progress = episode_activity(w, job)
+    assert "Fact review" in progress["current"] and "retained" in progress["error"]
+    assert (
+        next(s for s in progress["steps"] if s["id"] == "write")["status"]
+        == "succeeded"
+    )
+
+
+@pytest.mark.parametrize(
+    "action",
+    ["ideas", "develop", "queue", "write", "revise", "render", "publish", "weekly"],
+)
+def test_activity_describes_each_background_action(rig, action):
+    from neuralcast.admin_api.episode_activity import episode_activity
+
+    w, p, _ = rig
+    request = "fixture-operation"
+    directory = w.root / "requests" / request
+    write_json(
+        directory / "request.json",
+        {
+            "action": action,
+            "episode_id": p.id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "concept_hash": p.concept_hash(),
+            "feedback": {"research": True},
+        },
+    )
+    job = {
+        "status": "running",
+        "episode_options": {"request_id": request},
+        "log_tail": (
+            "Episode production: narration\nEpisode production: mix"
+            if action == "render"
+            else ""
+        ),
+    }
+    progress = episode_activity(w, job)
+    assert progress["steps"] and progress["episode_id"] == p.id
+    if action == "develop":
+        assert progress["action"] == "refine_brief"
+    if action == "render":
+        assert [s["status"] for s in progress["steps"]] == [
+            "succeeded",
+            "running",
+            "pending",
+        ]
+    job["status"] = "succeeded"
+    assert all(s["status"] == "succeeded" for s in episode_activity(w, job)["steps"])

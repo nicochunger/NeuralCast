@@ -268,12 +268,20 @@ def test_prepare_requires_proposal_approval_and_uploads_without_queue(production
         service.prepare(project, client)
     client.upload_media.assert_not_called()
     approve(project, proposal_hash)
-    receipt = service.prepare(project, client)
+    progress = []
+    receipt = service.prepare(project, client, progress=progress.append)
+    assert progress == [
+        "Episode production: narration",
+        "Episode production: mix",
+        "Episode production: upload",
+    ]
     assert receipt["uploaded"]["media_id"] == "42"
     assert receipt.get("queue") is None
     client.send_telnet_command.assert_not_called()
     assert not presentation.published_root().exists()
-    assert service.prepare(project, client) == receipt
+    progress.clear()
+    assert service.prepare(project, client, progress=progress.append) == receipt
+    assert progress == ["Episode production: upload"]
     assert service.render.call_count == 1
     assert client.upload_media.call_count == 1
 

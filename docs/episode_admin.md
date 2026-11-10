@@ -45,6 +45,15 @@ review before applying approval. Saved feedback uses optimistic revisions; stale
 browser sessions cannot overwrite newer comments. Feedback edits never imply
 manuscript or publication approval.
 
+Every background action shows progress beside its controls and in a compact
+sticky summary. The view includes elapsed time, observed stages, completion links
+and failures with retry. Detailed logs expand inside the same progress card.
+Stage state reads the frozen request, job output and saved editorial receipts;
+the three focused manuscript reviews appear independently because they run in
+parallel. Reloading the page reconnects to the current job without submitting
+work. Episode workers stream output without buffering. Rendering reports voice
+generation, audio assembly and private upload separately.
+
 Private preview GET/HEAD routes require admin authentication and provide byte
 ranges with `private, no-store`. Browser calls use the existing server-side token
 proxy; credentials never enter the browser. Each preview is bound to a saved
