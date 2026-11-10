@@ -13,7 +13,8 @@ projects. The authoritative documents remain `proposal.json`, `plan.json` and
    Enter your own topic or use a suggestion, then **Develop my idea**. Development
    researches a brief and resolves the selected existing recordings and duration.
 2. Review the central question, outline, complete recording list, writing brief
-   and research. Refine the brief using the direction field, **Approve brief &
+   and research. Enter changes in **Feedback on this brief** below the brief and
+   click **Apply feedback** to revise the same episode. Choose **Approve brief &
    queue** for weekly preparation, or **Approve brief & generate manuscript** now.
 3. Read continuous host passages in listening order with full songs between them.
    Save overall and passage-specific comments. **Apply feedback** revises the
