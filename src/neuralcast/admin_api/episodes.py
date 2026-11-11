@@ -31,6 +31,14 @@ class Retry(Document):
     request_id: Identifier
 
 
+class ReviewChange(Document):
+    revision: str = Field(pattern=r"^[a-f0-9]{64}$")
+    segment_id: Identifier | None = None
+    script: str = Field(default="", max_length=30000)
+    archived: bool = False
+    delivery: str | None = Field(default=None, max_length=5000)
+
+
 def episodes_router(auth: Callable) -> APIRouter:
     router = APIRouter(prefix="/admin/episodes", dependencies=[Depends(auth)])
 
@@ -47,6 +55,13 @@ def episodes_router(auth: Callable) -> APIRouter:
             else 404 if isinstance(exc, FileNotFoundError) else 422
         )
         return HTTPException(status, str(exc))
+
+    @router.get("/{station}/cover")
+    def cover(request: Request, station: str):
+        workspace(request, station)
+        from neuralcast.pipelines.episode_producer.rss import cover_path
+
+        return FileResponse(cover_path(station), media_type="image/png")
 
     @router.get("/{station}")
     def view(
@@ -103,6 +118,9 @@ def episodes_router(auth: Callable) -> APIRouter:
             from neuralcast.pipelines.episode_producer.storage import read_json
 
             read_json(service.root / "requests" / payload.request_id / "request.json")
+            (service.root / "requests" / payload.request_id / "stop.json").unlink(
+                missing_ok=True
+            )
             job = request.app.state.job_manager.enqueue_episode(
                 station=station, request_id=payload.request_id
             )
@@ -127,6 +145,93 @@ def episodes_router(auth: Callable) -> APIRouter:
             return workspace(request, station).save_feedback(episode_id, payload)
         except (ValueError, OSError, RuntimeError) as exc:
             raise error(exc) from exc
+
+    @router.put("/{station}/{episode_id}/review")
+    def review_change(
+        request: Request, station: str, episode_id: Identifier, payload: ReviewChange
+    ):
+        try:
+            service = workspace(request, station)
+            if payload.segment_id:
+                from .episode_review import edit_passage
+
+                return edit_passage(
+                    service,
+                    episode_id,
+                    payload.revision,
+                    payload.segment_id,
+                    payload.script,
+                )
+            p = service.project(episode_id)
+            with p.lock():
+                service.check(p, payload.revision)
+                if service.detail(p)["status"] == "published":
+                    raise ValueError("Published episodes cannot be archived")
+                from neuralcast.pipelines.episode_producer.storage import write_json
+
+                if payload.delivery is not None:
+                    write_json(
+                        p.runtime / "voice_directions.json",
+                        {"instructions": payload.delivery},
+                    )
+                    return service.detail(p)
+                marker = p.runtime / "archived.json"
+                if payload.archived:
+                    write_json(marker, {"archived": True})
+                else:
+                    marker.unlink(missing_ok=True)
+            return service.detail(p)
+        except (ValueError, OSError, RuntimeError) as exc:
+            raise error(exc) from exc
+
+    @router.post("/{station}/stop")
+    def stop(request: Request, station: str, payload: Retry):
+        try:
+            from neuralcast.pipelines.episode_producer.storage import (
+                read_json,
+                write_json,
+            )
+
+            service = workspace(request, station)
+            directory = service.root / "requests" / payload.request_id
+            operation = read_json(directory / "request.json")
+            if operation["action"] not in {
+                "ideas",
+                "develop",
+                "write",
+                "revise",
+                "render",
+            }:
+                raise ValueError(
+                    "This operation must finish to preserve its upload/publication receipt"
+                )
+            write_json(directory / "stop.json", {"requested": True})
+            return {"status": "Stopping at the next stage boundary"}
+        except (ValueError, OSError, RuntimeError) as exc:
+            raise error(exc) from exc
+
+    @router.get("/{station}/{episode_id}/recording/{segment_id}")
+    def recording(
+        request: Request, station: str, episode_id: Identifier, segment_id: Identifier
+    ):
+        try:
+            from neuralcast.pipelines.episode_producer.library import resolve_recording
+            from pathlib import Path
+
+            service = workspace(request, station)
+            song = next(
+                s
+                for s in service.project(episode_id).editorial_brief().candidate_songs
+                if s.id == segment_id
+            )
+            resolved = resolve_recording(service.station_root, song)
+            return FileResponse(
+                Path(resolved["path"]),
+                media_type="audio/mpeg",
+                headers={"Cache-Control": "private, no-store"},
+            )
+        except (ValueError, OSError, RuntimeError, StopIteration) as exc:
+            raise error(ValueError("Recording unavailable")) from exc
 
     @router.get("/{station}/{episode_id}/audio/{revision}")
     @router.head("/{station}/{episode_id}/audio/{revision}", include_in_schema=False)

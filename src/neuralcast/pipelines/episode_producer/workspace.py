@@ -106,6 +106,7 @@ class Workspace:
             "editorial": project.runtime / "editorial_latest.json",
             "audio": project.runtime / "latest.json",
             "approval": project.runtime / "proposal_approval.json",
+            "voice": project.runtime / "voice_directions.json",
         }
         return digest(
             {k: read_json(path) if path.exists() else None for k, path in paths.items()}
@@ -158,6 +159,12 @@ class Workspace:
                 == editorial.validate_speech_transcript(s.script).plain_text
                 for s in plan.segments
                 if s.kind == "commentary"
+            )
+            directions = project.runtime / "voice_directions.json"
+            matching = matching and production.get("voice_directions", "") == (
+                read_json(directions).get("instructions", "")
+                if directions.exists()
+                else ""
             )
             audio["current"] = matching and bool(
                 (project.runtime / "manuscript_approval.json").exists()
@@ -241,6 +248,21 @@ class Workspace:
             "timing": report.get("timing"),
             "audio": audio,
             "feedback": feedback,
+            "production_notes": report.get("production_notes", []),
+            "listening_notes": report.get("listening_notes", []),
+            "archived": (project.runtime / "archived.json").exists(),
+            "voice_directions": (
+                read_json(project.runtime / "voice_directions.json").get(
+                    "instructions", ""
+                )
+                if (project.runtime / "voice_directions.json").exists()
+                else ""
+            ),
+            "applied_feedback": (
+                read_json(project.runtime / "applied_feedback.json")
+                if (project.runtime / "applied_feedback.json").exists()
+                else {}
+            ),
             "history": sorted(history, key=lambda x: x["created_at"], reverse=True)[
                 :20
             ],
@@ -252,7 +274,10 @@ class Workspace:
         for p in self.projects():
             d = self.detail(p)
             episodes.append(
-                {k: d[k] for k in ("id", "status", "episode_number", "revision")}
+                {
+                    k: d[k]
+                    for k in ("id", "status", "episode_number", "revision", "archived")
+                }
                 | {
                     "title": d["proposal"]["title"],
                     "managed": p.id in state.get("managed_episodes", []),
@@ -356,6 +381,13 @@ class Workspace:
                     or any(v.strip() for v in d["feedback"]["sections"].values())
                 ):
                     raise ValueError("Add feedback before requesting a revision")
+                if action in {"render", "publish"} and (
+                    d["feedback"]["overall"].strip()
+                    or any(v.strip() for v in d["feedback"]["sections"].values())
+                ):
+                    raise ValueError(
+                        "Apply or discard pending feedback before approval"
+                    )
                 if action == "render" and d["blockers"]:
                     raise ValueError(
                         "Resolve the listed editorial questions before rendering"
@@ -466,7 +498,15 @@ class Workspace:
         if (directory / "result.json").exists():
             return read_json(directory / "result.json")
         action = request["action"]
-        print(f"Episode workspace: {action}", flush=True)
+
+        def progress(message):
+            print(message, flush=True)
+            if (directory / "stop.json").exists():
+                raise RuntimeError(
+                    "Stopped at a stage boundary; completed work is retained"
+                )
+
+        progress(f"Episode workspace: {action}")
         if action == "weekly":
             response = self.weekly()
         elif action in {"ideas", "develop"}:
@@ -525,7 +565,7 @@ class Workspace:
                 prompt,
                 gemini.run_stage if action == "ideas" else codex.run_stage,
                 validate,
-                print,
+                progress,
             )
             with self.lock():
                 if action == "ideas":
@@ -622,7 +662,7 @@ class Workspace:
                     response = (
                         {"queued": True}
                         if action == "queue"
-                        else editorial.edit_episode(p, progress=print)
+                        else editorial.edit_episode(p, progress=progress)
                     )
                 elif action == "revise":
                     response = revise_manuscript(
@@ -630,7 +670,12 @@ class Workspace:
                         request["feedback"],
                         source_plan=request["source_plan"],
                         source_editorial=request["source_editorial"],
-                        progress=print,
+                        progress=progress,
+                    )
+                    write_json(p.runtime / "applied_feedback.json", request["feedback"])
+                    write_json(
+                        p.runtime / "review.json",
+                        {"overall": "", "sections": {}, "research": False},
                     )
                 elif action == "render":
                     plan = Plan.model_validate(read_json(p.documents / "plan.json"))
@@ -646,7 +691,7 @@ class Workspace:
                     response = prepare(
                         p,
                         AzuraCastClient(settings.base_url, settings.api_key),
-                        progress=print,
+                        progress=progress,
                     )
                 elif action == "publish":
                     if p.episode_number is None:
@@ -701,6 +746,7 @@ class Workspace:
             self.detail(p)
             for p in self.projects()
             if p.id in state.get("managed_episodes", [])
+            and not (p.runtime / "archived.json").exists()
         ]
         if any(d["status"] in {"manuscript_review", "audio_review"} for d in pending):
             return {"skipped": "An episode awaits owner review"}

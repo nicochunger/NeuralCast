@@ -50,6 +50,12 @@ def validated_inputs(
         if isinstance(part, Music)
     }
     settings = writing_settings(channel, tts_model=tts_model)
+    directions = project.runtime / "voice_directions.json"
+    instructions = (
+        read_json(directions).get("instructions", "") if directions.exists() else ""
+    )
+    if instructions:
+        settings["delivery"] = instructions
     fingerprint = digest(
         {
             "proposal": proposal.model_dump(),
@@ -185,6 +191,7 @@ def prepare(
         "broadcast_title": broadcast_title,
         "summary": proposal.premise,
         "duration": duration,
+        "voice_directions": inputs["settings"].get("delivery", ""),
         "tts": {
             "model": inputs["settings"]["tts_model"],
             "provider": inputs["settings"]["provider"],

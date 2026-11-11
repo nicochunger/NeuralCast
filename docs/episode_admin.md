@@ -111,3 +111,41 @@ In `neuralcast-web`, run `npm run build`, `npm run check:episode-admin` and,
 with Playwright available, `npm run check:episode-admin-browser`. The browser
 journey uses isolated authentication, synthetic episode data and generated test
 audio; it makes no model calls or production mutations.
+
+## Review workspace
+
+The selected episode appears before creation controls. Its workflow indicator
+shows brief, manuscript, audio and publication review. Creation and weekly
+settings are collapsible; weekly duration is independent of a new idea's duration.
+The approved brief, source links, recording auditions and production/listening
+checks remain available during manuscript review.
+
+Topic drafts, brief comments, manuscript feedback and publication descriptions
+are saved on the current browser. The saved indicator identifies that scope.
+Submitting feedback freezes it in the server request. Successful revision records
+applied feedback and clears the pending review form. Rendering/publication reject
+pending feedback; discarding comments is an explicit owner action.
+
+Passage corrections use the authenticated review endpoint, validate the full
+plan and timing, snapshot the previous plan, and update the Markdown manuscript.
+Changed narration requires renewed render approval. Voice directions are saved
+separately and affect episode narration without rewriting the manuscript. Voice
+changes mark a previous recording as awaiting a new render.
+
+Archiving preserves documents, receipts and recordings, hides the draft from the
+normal list and excludes it from weekly preparation. Restore returns it to the
+list. Published episodes cannot be archived through this interface.
+
+Stop requests finish at the next observed stage boundary. Completed provider
+outputs and narration caches remain available. An upload already in progress
+finishes through the existing receipt handling. Public publication completes its
+atomic operation. Retrying a stopped request clears its stop marker and reuses
+accepted work.
+
+Additional authenticated routes:
+
+- `PUT /admin/episodes/{station}/{episode}/review`: passage correction, archive or
+  restore, or episode voice directions, with the displayed episode revision.
+- `GET /admin/episodes/{station}/{episode}/recording/{segment}`: audition an exact
+  recording from the approved candidate list.
+- `POST /admin/episodes/{station}/stop`: request a stage-boundary stop by request ID.

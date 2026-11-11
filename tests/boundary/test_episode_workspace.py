@@ -657,3 +657,71 @@ def test_activity_describes_each_background_action(rig, action):
         ]
     job["status"] = "succeeded"
     assert all(s["status"] == "succeeded" for s in episode_activity(w, job)["steps"])
+
+
+def test_owner_review_edit_and_archive_preserve_sources(rig):
+    from neuralcast.admin_api.episode_review import edit_passage
+
+    w, p, plan = written(rig)
+    before = plan.model_dump()
+    script = plan.segments[0].script.replace("Una historia", "Esta historia", 1)
+    result = edit_passage(w, p.id, w.revision(p), "opening", script)
+    assert result["segments"][0]["script"] == script
+    assert result["segments"][1] == before["segments"][1]
+    assert list((p.runtime / "revisions").glob("*/previous_plan.json"))
+
+
+def test_pending_feedback_blocks_render_and_publish(rig):
+    w, p, _ = written(rig)
+    w.save_feedback(
+        p.id, Feedback(revision=w.revision(p), overall="Change the opening")
+    )
+    for action in ("render", "publish"):
+        with pytest.raises(ValueError, match="pending feedback"):
+            w.submit(action, episode_id=p.id, revision=w.revision(p))
+
+
+def test_owner_can_archive_restore_and_request_stage_stop(rig, tmp_path, monkeypatch):
+    w, p, _ = written(rig)
+    http, _ = client(rig, tmp_path, monkeypatch)
+    headers = {"Authorization": "Bearer test-token"}
+    url = f"/admin/episodes/{w.station}/{p.id}/review"
+    response = http.put(
+        url, headers=headers, json={"revision": w.revision(p), "archived": True}
+    )
+    assert response.status_code == 200 and response.json()["archived"]
+    response = http.put(
+        url, headers=headers, json={"revision": w.revision(p), "archived": False}
+    )
+    assert response.status_code == 200 and not response.json()["archived"]
+    request = w.submit("ideas", revision=digest(w.state()))
+    response = http.post(
+        f"/admin/episodes/{w.station}/stop",
+        headers=headers,
+        json={"request_id": request},
+    )
+    assert response.status_code == 200
+    monkeypatch.setattr(
+        workspace.gemini,
+        "run_stage",
+        Mock(side_effect=AssertionError("Must not call provider")),
+    )
+    with pytest.raises(RuntimeError, match="Stopped at a stage boundary"):
+        w.execute(request)
+
+
+def test_voice_directions_preserve_manuscript_and_change_revision(
+    rig, tmp_path, monkeypatch
+):
+    w, p, _ = written(rig)
+    before = (p.documents / "plan.json").read_bytes()
+    revision = w.revision(p)
+    http, _ = client(rig, tmp_path, monkeypatch)
+    response = http.put(
+        f"/admin/episodes/{w.station}/{p.id}/review",
+        headers={"Authorization": "Bearer test-token"},
+        json={"revision": revision, "delivery": "Speak a little slower."},
+    )
+    assert response.status_code == 200 and w.revision(p) != revision
+    assert (p.documents / "plan.json").read_bytes() == before
+    assert response.json()["voice_directions"] == "Speak a little slower."

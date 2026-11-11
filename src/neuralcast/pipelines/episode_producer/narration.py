@@ -71,7 +71,8 @@ def prepare_narration(
 ) -> dict[str, Any]:
     settings = {
         **settings,
-        "tts": writing_settings(channel, Archetype(segment.archetype))["tts"],
+        "tts": writing_settings(channel, Archetype(segment.archetype))["tts"]
+        + (("\n" + settings["delivery"]) if settings.get("delivery") else ""),
     }
     if not segment.script or not segment.companion:
         raise ValueError(f"Commentary {segment.id} needs an approved complete script")
