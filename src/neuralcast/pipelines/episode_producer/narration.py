@@ -18,7 +18,6 @@ from neuralcast.pipelines.host_orchestrator.speech import validate_speech_transc
 from neuralcast.pipelines.host_orchestrator.utils import run_with_retries
 from neuralcast.config import ASSETS_ROOT
 from .models import Commentary
-from .timing import budget_with_tolerance
 from .storage import digest, read_json, write_json, file_hash
 
 TEMPLATE = ASSETS_ROOT / "stories" / "prompts" / "episode_commentary.md"
@@ -78,10 +77,6 @@ def prepare_narration(
     if not segment.script or not segment.companion:
         raise ValueError(f"Commentary {segment.id} needs an approved complete script")
     speech = validate_speech_transcript(segment.script, protected_texts=protected)
-    if len(speech.plain_text.split()) > int(budget_with_tolerance(segment.max_words)):
-        raise ValueError(
-            f"Commentary {segment.id} exceeds its word budget including 15% tolerance"
-        )
     metadata = {
         "script": speech.tts_text,
         "transcript": speech.plain_text,

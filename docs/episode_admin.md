@@ -194,3 +194,11 @@ Additional actions are `compare` and `compare_render`; the latter requires
 Authenticated comparison views are available at
 `GET /admin/episodes/{station}/{episode}/comparisons/{comparison}` and local audio
 at `GET`/`HEAD /admin/episodes/{station}/{episode}/comparisons/{comparison}/{variant}/audio/{revision}`.
+
+Episode target duration, narration budgets and passage word counts are advisory
+starting estimates. Drafting, editing and rendering report actual/estimated length
+without rejecting it for a timing difference. Gemini editorial stages use a
+65536-token ceiling that includes thinking and output. Saved comparison inputs
+retain their original prompts and provider settings; generate a new comparison
+from the same brief to use updated settings. Existing attempts and receipts remain
+available for inspection.

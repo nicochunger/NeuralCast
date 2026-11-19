@@ -55,8 +55,6 @@ def test_real_short_episode_render(tmp_path, kinds):
         tmp_path / "render",
         "Offline episode test",
         "es-AR",
-        round(expected),
-        speech_count,
     )
     assert output.exists()
     assert abs(audio_duration(output) - expected) < 0.15

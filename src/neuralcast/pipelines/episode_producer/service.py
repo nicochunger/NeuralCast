@@ -171,8 +171,6 @@ def prepare(
         directory,
         broadcast_title,
         channel.locale.tag,
-        proposal.target_seconds,
-        proposal.commentary_budget_seconds,
     )
     # Do not upload a mix assembled while the live library changed underneath us.
     for recording in inputs["recordings"].values():

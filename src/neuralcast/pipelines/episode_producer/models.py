@@ -30,7 +30,7 @@ class Proposal(Document):
     title: Annotated[str, Field(min_length=1, max_length=160)]
     premise: Text
     target_seconds: int = Field(default=2400, ge=300, le=7200)
-    commentary_budget_seconds: int = Field(default=240, ge=30, le=1200)
+    commentary_budget_seconds: int = Field(default=240, ge=1)
     outline: list[Text] = Field(min_length=1, max_length=20)
 
     @field_validator("editorial_brief")
@@ -43,12 +43,6 @@ class Proposal(Document):
         from .editorial_models import EditorialBrief
 
         return EditorialBrief.model_validate(value).model_dump()
-
-    @model_validator(mode="after")
-    def budget_fits(self) -> Proposal:
-        if self.commentary_budget_seconds >= self.target_seconds:
-            raise ValueError("Commentary budget must be shorter than the episode")
-        return self
 
 
 class Source(Document):
@@ -105,7 +99,9 @@ class Commentary(Document):
         "short_story", "album_spotlight", "era_snapshot", "deep_dive", "block_intro"
     ] = "short_story"
     brief: Text
-    max_words: int = Field(default=100, ge=15, le=3000)
+    max_words: int = Field(
+        default=100, ge=1, description="Advisory spoken-word estimate"
+    )
     sources: list[Source] = Field(default_factory=list, max_length=20)
     script: NarrationScript | None = None
     companion: Summary | None = None

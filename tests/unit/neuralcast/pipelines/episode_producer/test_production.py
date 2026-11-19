@@ -242,9 +242,7 @@ def test_missing_script_stops_production_before_tts(tmp_path, monkeypatch, propo
     tts.assert_not_called()
 
 
-def test_render_has_exact_chapter_order_budget_and_cleans_scratch(
-    tmp_path, monkeypatch
-):
+def test_render_has_exact_chapter_order_and_cleans_scratch(tmp_path, monkeypatch):
     commands = []
 
     def process(arguments):
@@ -272,9 +270,7 @@ def test_render_has_exact_chapter_order_budget_and_cleans_scratch(
         }
         for index, kind in enumerate(["commentary", "music", "commentary"])
     ]
-    output, chapters, seconds = rendering.render(
-        parts, tmp_path, "Episode", "fr-CH", 6, 2
-    )
+    output, chapters, seconds = rendering.render(parts, tmp_path, "Episode", "fr-CH")
     assert seconds == 6
     assert [(chapter["start"], chapter["end"]) for chapter in chapters] == [
         (0, 2.5),
@@ -291,8 +287,6 @@ def test_render_has_exact_chapter_order_budget_and_cleans_scratch(
     assert output.read_bytes() == b"episode"
     for command in commands[:3]:
         assert "loudnorm=I=-18:TP=-1.5:LRA=11" in command
-    with pytest.raises(ValueError, match="budget"):
-        rendering.render(parts, tmp_path, "Episode", "fr-CH", 6, 1)
     assert not list(tmp_path.glob("*.wav"))
 
 
@@ -365,19 +359,15 @@ def test_host_chapter_titles_are_short():
     assert validate_manuscript(Plan(proposal_hash="a" * 64, segments=parts)) > 0
 
 
-@pytest.mark.parametrize("words", [100, 115, 116])
-def test_passage_word_estimate_allows_fifteen_percent_growth(words):
+@pytest.mark.parametrize("words", [10, 100, 116, 600])
+def test_passage_word_estimate_is_advisory(words):
     parts = continuous_parts()
     parts[0].update(max_words=100, script=" ".join(["historia"] * words))
     plan = Plan(proposal_hash="a" * 64, segments=parts)
-    if words > 115:
-        with pytest.raises(ValueError, match="maximum 115 including 15% tolerance"):
-            validate_manuscript(plan)
-    else:
-        assert validate_manuscript(plan) >= words
+    assert validate_manuscript(plan) >= words
 
 
-@pytest.mark.parametrize("max_words", [800, 1000])
+@pytest.mark.parametrize("max_words", [15, 800, 1000])
 def test_long_host_passage_is_one_tts_call_and_one_cache_entry(
     tmp_path, monkeypatch, proposal, max_words
 ):
@@ -416,10 +406,7 @@ def test_long_host_passage_is_one_tts_call_and_one_cache_entry(
     assert tts.call_count == 1
 
 
-@pytest.mark.parametrize("speech_budget", [3, 2.7, 2.6])
-def test_render_host_silence_has_no_extra_chapters_and_is_outside_speech_budget(
-    tmp_path, monkeypatch, speech_budget
-):
+def test_render_host_silence_has_no_extra_chapters(tmp_path, monkeypatch):
     captured = {}
 
     def process(arguments):
@@ -442,17 +429,11 @@ def test_render_host_silence_has_no_extra_chapters_and_is_outside_speech_budget(
     monkeypatch.setattr(rendering, "embed_local_cover_art", lambda *args: None)
     monkeypatch.setattr(rendering, "audio_duration", lambda path: 9.5)
     parts = [{**p, "path": f"/source/{p['id']}.mp3"} for p in continuous_parts()]
-    if speech_budget == 2.6:
-        with pytest.raises(ValueError, match="including 15% tolerance"):
-            rendering.render(parts, tmp_path, "Episode", "es-AR", 10, speech_budget)
-        return
     output, chapters, duration = rendering.render(
         parts,
         tmp_path,
         "Episode",
         "es-AR",
-        10,
-        speech_budget,
     )
     assert duration == 9.5 and output.exists()
     assert len(chapters) == 5
@@ -476,8 +457,6 @@ def test_render_host_silence_has_no_extra_chapters_and_is_outside_speech_budget(
     assert captured["silence_frames"] == 66150
     assert not any(captured["silence_samples"])
     assert not list(tmp_path.glob("*.wav"))
-    with pytest.raises(ValueError, match="budget"):
-        rendering.render(parts, tmp_path, "Episode", "es-AR", 10, 2)
     assert not list(tmp_path.glob("*.wav"))
 
 
@@ -493,7 +472,5 @@ def test_render_failure_cleans_host_silence_and_pcm(tmp_path, monkeypatch):
             tmp_path,
             "Episode",
             "es-AR",
-            300,
-            100,
         )
     assert not list(tmp_path.iterdir())

@@ -16,11 +16,12 @@ attribution rather than reciting a bibliography.
 
 Return Draft JSON with the complete plan, concise research_notes, open_questions
 for consequential gaps and production_notes for routine recording checks. Every
-commentary needs a full script, companion, evidence and whole-passage word budget.
+commentary needs a full script, companion, evidence and whole-passage word estimate.
 Use proposal_hash exactly. Copy selected song identities exactly. Follow the
 owner's selection/order requirements. Alternate opening/song/bridge/song/closing;
 never produce adjacent commentaries. Chapter titles must fit 40 characters.
-Allocate enough room for the final editor within the supplied narration budget.
+Treat the target duration and narration budget as advisory starting estimates.
+Let the story find its natural length without padding or cutting to meet a limit.
 Use measured song lengths, timing_policy and 1.5-second host lead-ins. An unresolved
 edition question is not evidence that the file matches a published recording;
 never claim to have listened. Flag consequential incompatibilities for the owner.

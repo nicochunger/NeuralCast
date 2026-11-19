@@ -22,7 +22,6 @@ from .service import channel_for
 from .storage import Project, digest, read_json, write_json, write_text
 from .publication import episode_directory
 from .reviews import ROLES, examples, finding_ledger
-from .timing import GROWTH_PERCENT, budget_with_tolerance
 
 PROMPTS = ASSETS_ROOT / "stories" / "prompts" / "episode_editorial"
 
@@ -123,19 +122,6 @@ def validate_plan(
         * HOST_LEAD_IN_SECONDS
     )
     estimate = music_seconds + speech_seconds + silence_seconds
-    if speech_seconds > budget_with_tolerance(proposal.commentary_budget_seconds):
-        raise ValueError(
-            "Estimated narration exceeds the commentary budget including 15% tolerance"
-        )
-    if (
-        estimate < proposal.target_seconds - brief.duration_tolerance_seconds
-        or estimate
-        > max(
-            proposal.target_seconds + brief.duration_tolerance_seconds,
-            budget_with_tolerance(proposal.target_seconds),
-        )
-    ):
-        raise ValueError("Estimated episode duration exceeds the approved tolerance")
     return {
         "spoken_words": words,
         "music_seconds": music_seconds,
@@ -275,16 +261,15 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
             },
             "allowed_inline_tags": sorted(INLINE_VOCAL_TAGS),
             "timing_policy": {
-                "growth_tolerance_percent": GROWTH_PERCENT,
+                "estimate_only": True,
                 "target_seconds": proposal.target_seconds,
                 "commentary_budget_seconds": proposal.commentary_budget_seconds,
                 "narration_words_per_minute": brief.narration_words_per_minute,
-                "narration_max_words": int(
+                "narration_estimated_words": int(
                     proposal.commentary_budget_seconds
                     * brief.narration_words_per_minute
                     / 60
                 ),
-                "duration_tolerance_seconds": brief.duration_tolerance_seconds,
                 "tag_allowance_seconds": 0.5,
                 "host_lead_in_seconds": HOST_LEAD_IN_SECONDS,
             },

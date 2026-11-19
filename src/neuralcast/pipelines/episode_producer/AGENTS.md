@@ -33,8 +33,8 @@ The standard structure for new manuscripts is opening → song
 one complete script, one companion, and one TTS generation. Never split a passage
 into adjacent commentaries; paragraphs must carry the previous song's thought
 forward through the story into the next song without repeated setups. Set a
-word budget for the whole passage (up to 3000 words, within the approved episode
-budget). Keep host companion/chapter titles at most 40 characters. The renderer
+word estimate for the whole passage. Duration, narration and word estimates are
+advisory; let the story find its natural length. Keep host companion/chapter titles at most 40 characters. The renderer
 inserts 1.5 seconds of real silence before every host passage, inside
 its chapter, so do not require a leading pause tag. Silence counts toward total
 duration, outside the speech budget. Use the editorial plan schema for manual

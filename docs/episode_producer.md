@@ -113,7 +113,7 @@ python -m neuralcast.cli.episode_producer delivery -s neuralforge --episode EPIS
 It requires the approved concept/editorial brief and a complete current plan.
 One tool-free Gemini request uses the workshop's final editor and returns exactly one script per commentary.
 The controller locks segment IDs/order, songs, sources, summaries and other plan
-metadata, validates speech tags/word budgets/timing, and writes `plan.json` plus
+metadata, validates speech tags and reports word counts/timing estimates, and writes `plan.json` plus
 `manuscript.md` together. Factual meaning and attribution within rewritten speech
 still need owner judgment; structural constraints alone cannot prove them.
 
@@ -205,10 +205,9 @@ pause tag. The silence belongs to that host chapter and counts toward total
 duration, outside the narration budget. Editorial estimates include it.
 Rendering consumes the ordered audio parts and applies the same lead-in rule to
 every host passage. Generated and published recordings are immutable artifacts.
-Narration may exceed its initial seconds budget by up to 15%; total duration must
-fall between
-75% and 115% of the proposed target. Failure stops before upload. Scratch PCM is
-removed even on failure. Existing music files and playlist rows are never edited.
+Target duration, narration budgets and passage word counts are advisory starting
+estimates. Neither estimated nor measured duration rejects an episode. Scratch
+PCM is removed even on failure. Existing music files and playlist rows are never edited.
 
 Episodes larger than 8 MiB use the same chunked multipart upload protocol as
 AzuraCast Media Manager, in 512-KiB chunks, rather than a single base64 JSON body.

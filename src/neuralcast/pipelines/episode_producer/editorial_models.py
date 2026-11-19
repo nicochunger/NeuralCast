@@ -26,7 +26,12 @@ class EditorialBrief(Document):
     candidate_songs: list[Music] = Field(min_length=1, max_length=30)
     initial_research: list[Source] = Field(default_factory=list, max_length=100)
     narration_words_per_minute: int = Field(default=165, ge=100, le=220)
-    duration_tolerance_seconds: int = Field(default=120, ge=15, le=600)
+    duration_tolerance_seconds: int = Field(
+        default=120,
+        ge=15,
+        le=600,
+        description="Advisory duration guidance; not a validation limit",
+    )
 
     @model_validator(mode="after")
     def unique_candidates(self) -> "EditorialBrief":

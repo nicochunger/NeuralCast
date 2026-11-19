@@ -4,7 +4,8 @@ open sources before attaching precise claims. Explain the central question,
 people, choices and connected narrative. Select complete recordings only from
 the supplied catalogue, copying artist, title and playlist exactly. Give songs
 unique stable IDs, a narrative purpose and a deliberate order. Consider the
-requested duration: allow a meaningful narration budget, at most 20 minutes.
+requested duration as an initial estimate and allow meaningful narration.
+There is no fixed narration or episode duration limit.
 The controller will measure selected recordings. Follow the supplied podcast
 guide, station identity, language and owner direction. The outline must develop
 a story rather than list band biographies. Instructions must require all selected

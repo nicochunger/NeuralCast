@@ -583,15 +583,14 @@ class Workspace:
                     for song in result.candidate_songs:
                         recording = resolve_recording(self.station_root, song)
                         measured.append(audio_duration(Path(recording["path"])))
-                    budget = round(
-                        context["target_seconds"]
-                        - sum(measured)
-                        - (len(measured) + 1) * HOST_LEAD_IN_SECONDS
+                    budget = max(
+                        30,
+                        round(
+                            context["target_seconds"]
+                            - sum(measured)
+                            - (len(measured) + 1) * HOST_LEAD_IN_SECONDS
+                        ),
                     )
-                    if not 60 <= budget <= 1200:
-                        raise ValueError(
-                            f"Selected music totals {sum(measured):.0f}s; target {context['target_seconds']}s requires 60-1200s narration. Adjust song selection."
-                        )
                     generated[:] = [budget]
 
             result = editorial._job(

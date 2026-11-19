@@ -332,14 +332,14 @@ def test_new_blocker_report_prevents_using_existing_approval(episode):
         service.prepare(project, Mock())
 
 
-def test_timing_policy_is_enforced_before_installing_the_manuscript(
-    episode, monkeypatch
-):
+def test_timing_estimates_do_not_block_manuscript_installation(episode, monkeypatch):
     project, outputs = episode
     monkeypatch.setattr(editorial, "audio_duration", lambda path: 900)
-    with pytest.raises(ValueError, match="duration exceeds"):
-        run_episode(project, outputs)
-    assert not (project.documents / "plan.json").exists()
+    result = run_episode(project, outputs)
+    assert (
+        result["timing"]["estimated_total_seconds"] > project.proposal().target_seconds
+    )
+    assert (project.documents / "plan.json").exists()
 
 
 def test_inspect_and_approval_cli_use_exact_concept_and_manuscript_hashes(
@@ -464,51 +464,26 @@ def test_only_failed_review_retries_and_completed_reviews_survive_resume(episode
     assert len(list((directory / "conversational_voice").glob("attempt-*"))) == 3
 
 
-def test_estimated_timing_allows_modest_story_growth(episode):
+@pytest.mark.parametrize("factor", [0.1, 0.85, 2, 10])
+def test_timing_estimates_are_advisory(episode, factor):
     project, outputs = episode
     proposal, brief, common = editorial._context(project, "")
     plan = Plan.model_validate(outputs["write"]["plan"])
     initial = editorial.validate_plan(plan, proposal, brief, common["recordings"])
-    # Both estimates exceed the initial budgets but remain inside 15% growth.
-    proposal.commentary_budget_seconds = initial["estimated_narration_seconds"] / 1.1
-    proposal.target_seconds = initial["estimated_total_seconds"] / 1.1
-    brief.duration_tolerance_seconds = 1
-    assert editorial.validate_plan(plan, proposal, brief, common["recordings"])
-    proposal.commentary_budget_seconds = initial["estimated_narration_seconds"] / 1.16
-    with pytest.raises(ValueError, match="commentary budget including 15% tolerance"):
-        editorial.validate_plan(plan, proposal, brief, common["recordings"])
+    proposal.commentary_budget_seconds = initial["estimated_narration_seconds"] * factor
+    proposal.target_seconds = initial["estimated_total_seconds"] * factor
+    assert (
+        editorial.validate_plan(plan, proposal, brief, common["recordings"]) == initial
+    )
 
 
-def test_word_budget_retry_receives_count_limit_and_required_reduction(episode):
+def test_edit_can_exceed_word_estimates_without_a_retry(episode):
     project, outputs = episode
     calls = []
-    ordinary = runner_for(outputs, calls)
-    failed = False
-
-    def once(prompt, context, schema, attempt, **kwargs):
-        nonlocal failed
-        result = ordinary(prompt, context, schema, attempt, **kwargs)
-        if attempt.parent.name == "edit" and not failed:
-            failed = True
-            limit = context["source_plan"]["segments"][0]["max_words"]
-            result["passages"][0]["script"] = "Una historia conecta canciones. " * (
-                (limit * 115 // 100) // 4 + 1
-            )
-            closing = context["source_plan"]["segments"][-1]
-            result["passages"][-1]["script"] = (
-                "Gracias por escuchar estas historias. "
-                * ((closing["max_words"] * 115 // 100) // 5 + 1)
-            )
-        return result
-
-    editorial.edit_episode(project, runner=once, text_runner=once)
-    repair = calls[-1]["context"]["retry_feedback"]
-    error = repair["validation_error"]
-    assert "including 15% tolerance" in error
-    assert "remove at least" in error
-    assert "Commentary intro" in error
-    assert "Commentary outro" in error
-    assert len(calls) == 6
+    for passage in outputs["edit"]["passages"]:
+        passage["script"] += " Una historia conecta canciones." * 70
+    run_episode(project, outputs, calls)
+    assert len(calls) == 5
 
 
 def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
@@ -599,13 +574,6 @@ def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
             "edit",
             lambda r: r["passages"][0].update(segment_id="song"),
             "exactly the existing",
-        ),
-        (
-            "edit",
-            lambda r: r["passages"][0].update(
-                script="Una decisión cambió el grupo. " * 100
-            ),
-            "word budget",
         ),
         (
             "edit",

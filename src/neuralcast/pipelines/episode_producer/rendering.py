@@ -11,7 +11,6 @@ from typing import Any
 from neuralcast.pipelines.host_orchestrator.assets import tag_story_audio
 from neuralcast.audio.album_art import embed_local_cover_art
 from neuralcast.config import ASSETS_ROOT
-from .timing import budget_with_tolerance
 
 RATE = 44100
 HOST_LEAD_IN_SECONDS = 1.5
@@ -54,13 +53,10 @@ def render(
     directory: Path,
     title: str,
     language: str,
-    target_seconds: int,
-    speech_budget: int,
 ) -> tuple[Path, list[dict[str, Any]], float]:
     directory.mkdir(parents=True, exist_ok=True)
     chapters = []
     elapsed = 0.0
-    speech_seconds = 0.0
     paths = []
     silence = None
     try:
@@ -113,19 +109,6 @@ def render(
                 {**chapter, "start": elapsed, "end": elapsed + lead_in + seconds}
             )
             elapsed += lead_in + seconds
-            if part["kind"] == "commentary":
-                speech_seconds += seconds
-        if speech_seconds > budget_with_tolerance(speech_budget):
-            raise ValueError(
-                f"Narration is {speech_seconds:.0f}s, exceeding the {speech_budget}s budget estimate including 15% tolerance"
-            )
-        if (
-            elapsed > budget_with_tolerance(target_seconds)
-            or elapsed < target_seconds * 0.75
-        ):
-            raise ValueError(
-                f"Episode is {elapsed:.0f}s; adjust the approved target or song selection ({target_seconds}s target, allowed -25%/+15%)"
-            )
         listing = directory / "concat.txt"
         # Generated basenames only; source paths never enter concat-file syntax.
         listing.write_text(

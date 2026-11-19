@@ -78,8 +78,8 @@ The final editor returns complete scripts by commentary ID. It can update source
 and companions when an evidenced content correction requires it. Source URLs must
 already be in the supplied plan, initial research or verified review evidence.
 Song order, identities, passage IDs, roles and word-budget estimates remain fixed.
-Passage word counts and total narration time allow up to 15% growth for the story;
-estimated total duration allows at least 15% above the episode target. Missing
+Passage word counts, narration budgets and total duration are advisory starting
+estimates. They do not reject drafts, edits, approvals or renders. Missing
 evidence becomes an unresolved finding; the text-only editor cannot browse to
 invent a repair. Companions must still describe the resulting narration accurately.
 
@@ -88,8 +88,8 @@ invent a repair. Companions must still describe the resulting narration accurate
 Alternate opening → song → bridge → song → … → closing. Every music gap has one
 complete host passage, companion and TTS generation. Connect paragraphs rather
 than split anecdotes or analysis into adjacent commentaries. Host chapter titles
-must be at most 40 characters. Scripts allow up to 30000 characters and a passage
-budget up to 3000 words, within the approved episode narration budget.
+must be at most 40 characters. Scripts allow up to 30000 characters; each
+passage carries an advisory word estimate.
 
 The renderer adds 1.5 seconds of PCM silence before every host passage, inside
 its chapter. Count this in total duration, outside the speech budget; do not
@@ -115,8 +115,7 @@ Use the project CLI and the standard working files:
 ```
 
 The proposal's `editorial_brief` contains `proposal_hash`, instructions,
-`candidate_songs`, `initial_research`, `narration_words_per_minute` and
-`duration_tolerance_seconds`. Candidate IDs and artist/title pairs must be unique
+`candidate_songs`, `initial_research`, `narration_words_per_minute` and an optional, non-enforcing `duration_tolerance_seconds` value. Candidate IDs and artist/title pairs must be unique
 and resolve to exact library recordings. Selection/reordering follows the approved
 instructions; no substitution or unapproved recording is allowed. The brief's
 proposal hash references the normalized proposal without its brief or display
@@ -177,8 +176,7 @@ temporary and discarded; authentication diagnostics can contain secrets. These
 artifacts are not internal reasoning transcripts or complete browsing logs.
 
 A job is cached only after schema and semantic validation. Missing/duplicate
-passages or finding resolutions, unknown IDs, unsupported tags, word/duration
-violations, sources outside supplied evidence and repeated-token corruption fail
+passages or finding resolutions, unknown IDs, unsupported tags, sources outside supplied evidence and repeated-token corruption fail
 validation. A failed job can receive its validation error and prior response in
 one repair request. Successful jobs are not regenerated. Stored hash mismatches
 stop execution. Installation checks concept approval and concurrent plan/Markdown
