@@ -33,7 +33,7 @@ _GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 _GEMINI_CLIENT = None
 _HOST_INSTRUCTIONS_PATH = ASSETS_ROOT / "host_instructions_prompt.txt"
 _DEFAULT_TTS_PROVIDER = os.getenv("TTS_PROVIDER", "gemini").strip().lower()
-DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-3.8-flash")
+DEFAULT_GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-4-neon")
 # Keep the private name for callers that imported it before the public constant
 # was introduced.
 _DEFAULT_GEMINI_TEXT_MODEL = DEFAULT_GEMINI_TEXT_MODEL
@@ -318,7 +318,7 @@ def make_fun_fact(artist: str, title: str) -> str:
         f"In one short, upbeat radio-host sentence (≤25 words), share a fun fact about the song '{title}' by {artist}."
         " Write it in argentinian spanish. "
     )
-    return openai_text_completion(prompt).strip('"\n ')
+    return gemini_text_completion(prompt).strip('"\n ')
 
 
 def tts(text: str, outfile: str):

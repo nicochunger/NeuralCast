@@ -6,10 +6,10 @@ from time import monotonic
 
 from google.genai import types
 
-from .ai_client import get_gemini_client
+from .ai_client import DEFAULT_GEMINI_TEXT_MODEL, get_gemini_client
 from .editorial_agent import write_json
 
-MODEL = "gemini-4-argon"
+MODEL = DEFAULT_GEMINI_TEXT_MODEL
 
 
 def response_schema(schema: dict) -> dict:

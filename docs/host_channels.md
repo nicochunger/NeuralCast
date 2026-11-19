@@ -10,6 +10,11 @@ in `src/neuralcast/assets/stories/host_channels.json`:
 - a **channel** selects the AzuraCast target station and combines one brand with
   one locale.
 
+Host scripts, schedule presentation, song fun facts, and Gemini episode reviews
+and editing share the `gemini-4-neon` text default from `services/ai_client.py`.
+`GEMINI_TEXT_MODEL` overrides it globally; `SCHEDULE_PRESENTATION_MODEL` can
+override schedule presentation separately.
+
 All channels use the shared Gemini speech-model default,
 `gemini-3.8-flash-lite-tts`, from `services/ai_client.py`. Episode narration,
 direct speech synthesis, and the voice-creation CLI inherit the same default.

@@ -52,7 +52,7 @@ plans. Generated and published recordings are immutable production artifacts.
 3. Run `editorial`: Codex researches and writes; Python runs Codex factual review,
    Gemini narrative review and Gemini voice review in parallel; one direct Gemini
    edit resolves findings and finishes content, speech and performance. There are
-   five jobs in a normal successful run. Gemini uses `gemini-4-argon`, structured
+   five jobs in a normal successful run. Gemini uses `gemini-4-neon`, structured
    requests and no tools. Codex research jobs use `gpt-6.1-sol` with subagents
    disabled. The controller saves original reviewer findings with assigned IDs;
    the editor resolves, dismisses with a reason or leaves each unresolved.

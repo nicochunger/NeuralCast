@@ -42,7 +42,7 @@ def test_gemini_request_is_direct_bounded_and_keeps_usage(tmp_path, monkeypatch)
         timeout_seconds=300,
     )
     kwargs = client.models.generate_content.call_args.kwargs
-    assert kwargs["model"] == "gemini-4-argon"
+    assert kwargs["model"] == "gemini-4-neon"
     assert json.loads(kwargs["contents"]) == {"source_plan": {"segments": []}}
     config = kwargs["config"]
     assert config.system_instruction == "Assess the voice"

@@ -395,7 +395,7 @@ operations, and read-only live guide access.
 In `neuralcast-web`, run `npm run build` and `npm run check:host-companion`.
 
 The workshop requires authenticated Codex access and the existing `GEMINI_API_KEY`
-for direct `gemini-4-argon` reviews and editing. Optional weekly admin preparation
+for direct `gemini-4-neon` reviews and editing. Optional weekly admin preparation
 is described in [episode administration](episode_admin.md).
 AzuraCast credentials are used only for explicit preparation/publication commands.
 Episode uploads allow a longer timeout than short host snippets. Restart the admin

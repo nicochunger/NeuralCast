@@ -26,7 +26,7 @@ from neuralcast.services.ai_client import (  # noqa: E402
 
 class AIClientDefaultsTest(unittest.TestCase):
     def test_default_gemini_text_model_matches_expected_model_id(self) -> None:
-        self.assertEqual(DEFAULT_GEMINI_TEXT_MODEL, "gemini-3.8-flash")
+        self.assertEqual(DEFAULT_GEMINI_TEXT_MODEL, "gemini-4-neon")
 
     def test_default_gemini_tts_model_matches_expected_model_id(self) -> None:
         self.assertEqual(DEFAULT_GEMINI_TTS_MODEL, "gemini-3.8-flash-lite-tts")
@@ -236,3 +236,13 @@ def test_gemini_text_completion_disables_unneeded_afc_but_keeps_search(monkeypat
     config = calls[0]["config"]
     assert config.tools[0].google_search is not None
     assert config.automatic_function_calling.disable is True
+
+
+def test_fun_fact_uses_gemini(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        ai_client, "gemini_text_completion",
+        lambda prompt: calls.append(prompt) or '"A song fact"',
+    )
+    assert ai_client.make_fun_fact("Artist", "Title") == "A song fact"
+    assert "Artist" in calls[0] and "Title" in calls[0]

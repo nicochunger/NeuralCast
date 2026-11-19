@@ -27,9 +27,9 @@ in the closing.
 | --- | --- | --- | --- | --- |
 | Research and draft | Codex, `gpt-6.1-sol` | Open sources, develop the whole story and attach evidence | high | 15 minutes |
 | Factual support | Codex, `gpt-6.1-sol` | Independently verify claims, chronology and attribution | medium | 10 minutes |
-| Narrative continuity | Gemini, `gemini-4-argon` | Assess development, depth, repetition and song purpose | low | 5 minutes |
-| Conversational voice | Gemini, `gemini-4-argon` | Assess oral phrasing, personality and unforced asides | low | 5 minutes |
-| Final edit | Gemini, `gemini-4-argon` | Reconcile findings and edit content, speech and performance | medium | 15 minutes |
+| Narrative continuity | Gemini, `gemini-4-neon` | Assess development, depth, repetition and song purpose | low | 5 minutes |
+| Conversational voice | Gemini, `gemini-4-neon` | Assess oral phrasing, personality and unforced asides | low | 5 minutes |
+| Final edit | Gemini, `gemini-4-neon` | Reconcile findings and edit content, speech and performance | medium | 15 minutes |
 
 The three reviews run in parallel after the draft is validated. Python starts the
 jobs, retains each report and assigns stable finding IDs. The final editor sees
@@ -131,7 +131,7 @@ python -m neuralcast.cli.episode_producer approve-manuscript -s neuralforge --ep
 ```
 
 The installed/authenticated Codex CLI must have access to `gpt-6.1-sol`; direct
-text jobs require the existing `GEMINI_API_KEY` with access to `gemini-4-argon`.
+text jobs require the existing `GEMINI_API_KEY` with access to `gemini-4-neon`.
 Music durations require ffprobe. The workshop does not need AzuraCast credentials.
 Provider/model/effort settings, prompts, schemas, approved context and reference
 examples contribute to the run hash. Changing them creates a new explicitly

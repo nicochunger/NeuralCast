@@ -35,7 +35,7 @@ def gemini_generate_text(
             disable=True
         ),
     }
-    if not model.removeprefix("models/").startswith("gemini-3.8-"):
+    if not model.removeprefix("models/").startswith(("gemini-3.8-", "gemini-4-")):
         config_kwargs["temperature"] = temperature
         config_kwargs["top_p"] = top_p
     if with_search:
