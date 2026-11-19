@@ -10,6 +10,7 @@ from .ai_client import DEFAULT_GEMINI_TEXT_MODEL, get_gemini_client
 from .editorial_agent import write_json
 
 MODEL = DEFAULT_GEMINI_TEXT_MODEL
+DEFAULT_MAX_OUTPUT_TOKENS = 65536
 
 
 def response_schema(schema: dict) -> dict:
@@ -37,7 +38,7 @@ def run_stage(
     *,
     search: bool = False,
     thinking_level: str = "medium",
-    max_output_tokens: int = 32768,
+    max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
     timeout_seconds: int = 900,
 ) -> dict:
     """Return structured output, optionally researching with server-side tools."""
@@ -138,7 +139,7 @@ def run_stage(
                 {"category": "incomplete", "status": "failed", "finish_reason": reason},
             )
             raise RuntimeError(
-                "Gemini editorial response did not finish; inspect its output limit or safety status before retrying."
+                f"Gemini editorial response did not finish ({reason}; max_output_tokens={max_output_tokens}); inspect its output limit or safety status before retrying."
             )
         result = json.loads(raw)
         if not isinstance(result, dict):

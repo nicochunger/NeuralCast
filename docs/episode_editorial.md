@@ -39,9 +39,9 @@ prevent manuscript approval. Writer questions enter the same finding ledger.
 
 Codex jobs use fresh, ephemeral, read-only sessions with web research enabled and
 subagents disabled. Gemini jobs are direct structured API requests with no tools,
-web search, file access or delegation. Review requests have an 8192-token output
-limit; final edits have a 32768-token limit. Thinking consumes part of those
-limits. SDK retries are disabled; the controller allows one targeted retry of a
+web search, file access or delegation. Gemini editorial requests have a 65536-token output limit, including
+research/drafting and factual review in comparison runs. Thinking consumes part
+of that limit. SDK retries are disabled; the controller allows one targeted retry of a
 failed job, while preserving accepted work. Authentication/configuration errors
 and incomplete/token-limited responses stop for inspection instead of automatic
 repetition. Manual retries resume accepted jobs. A normal successful workshop has

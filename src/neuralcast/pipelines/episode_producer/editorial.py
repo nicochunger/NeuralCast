@@ -48,7 +48,7 @@ def job_settings(pipeline: str = "hybrid") -> dict:
                 "provider": "gemini",
                 "model": gemini.MODEL,
                 "thinking_level": "low",
-                "max_output_tokens": 8192,
+                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
                 "timeout_seconds": 300,
             }
             for role in ("narrative_continuity", "conversational_voice")
@@ -57,7 +57,7 @@ def job_settings(pipeline: str = "hybrid") -> dict:
             "provider": "gemini",
             "model": gemini.MODEL,
             "thinking_level": "medium",
-            "max_output_tokens": 32768,
+            "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
             "timeout_seconds": 900,
         },
     }
@@ -69,7 +69,7 @@ def job_settings(pipeline: str = "hybrid") -> dict:
                 "model": gemini.MODEL,
                 "thinking_level": level,
                 "search": True,
-                "max_output_tokens": 32768 if name == "write" else 8192,
+                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
                 "timeout_seconds": jobs[name]["timeout_seconds"],
             }
     return jobs

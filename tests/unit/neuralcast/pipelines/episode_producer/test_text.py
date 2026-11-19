@@ -167,3 +167,28 @@ def test_research_enables_search_url_context_and_saves_grounding(tmp_path, monke
     assert json.loads((tmp_path / "attempt" / "grounding.json").read_text())[
         "candidates"
     ][0]["grounding_metadata"]["web_search_queries"] == ["band interview"]
+
+
+def test_editorial_jobs_reserve_full_neon_output_headroom(tmp_path, monkeypatch):
+    from neuralcast.pipelines.episode_producer.editorial import job_settings
+
+    client = Mock()
+    client.models.generate_content.return_value = response()
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    for pipeline in ("hybrid", "gemini"):
+        for name, settings in job_settings(pipeline).items():
+            if settings["provider"] != "gemini":
+                continue
+            gemini.run_stage(
+                name,
+                {},
+                {},
+                tmp_path / f"{pipeline}-{name}",
+                **{k: v for k, v in settings.items() if k not in {"provider", "model"}},
+            )
+            assert (
+                client.models.generate_content.call_args.kwargs[
+                    "config"
+                ].max_output_tokens
+                == 65536
+            )
