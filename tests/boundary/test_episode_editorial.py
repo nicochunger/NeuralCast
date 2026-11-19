@@ -920,3 +920,106 @@ def test_stored_delivery_identity_is_validated_before_reading_paths(episode):
     write_json(project.runtime / "editorial_latest.json", receipt)
     with pytest.raises(ValueError, match="Invalid stored delivery run"):
         editorial.polish_delivery(project, runner=Mock())
+
+
+def test_paired_comparison_isolates_documents_and_resumes_both_arms(
+    episode, monkeypatch
+):
+    from neuralcast.pipelines.episode_producer import comparison
+
+    project, outputs = episode
+    before = read_json(project.documents / "proposal.json")
+    calls = []
+    actual = editorial.edit_episode
+    fake = runner_for(outputs, calls)
+    monkeypatch.setattr(
+        editorial,
+        "edit_episode",
+        lambda p, **kwargs: actual(p, runner=fake, text_runner=fake, **kwargs),
+    )
+    snapshot = comparison.freeze(project)
+    assert snapshot["inputs"]["a"]["context"] == snapshot["inputs"]["b"]["context"]
+    assert {v["jobs"]["write"]["provider"] for v in snapshot["inputs"].values()} == {
+        "codex",
+        "gemini",
+    }
+    assert any(v["jobs"]["write"].get("search") for v in snapshot["inputs"].values())
+    # A later prompt-file change cannot leak into either saved arm.
+    monkeypatch.setattr(editorial, "PROMPTS", project.runtime / "unavailable-prompts")
+    result = comparison.run(project, "paired-test", snapshot)
+    assert result["status"] == "comparison_review"
+    assert len(calls) == 10
+    comparison.run(project, "paired-test", snapshot)
+    assert len(calls) == 10
+    assert read_json(project.documents / "proposal.json") == before
+    assert not (project.documents / "plan.json").exists()
+    assert not (project.runtime / "manuscript_approval.json").exists()
+    view = comparison.view(project, "paired-test")
+    assert len(view["versions"]) == 2
+    assert all(
+        v["segments"] and v["draft_segments"] and not v["audio"]
+        for v in view["versions"]
+    )
+    a = comparison.variant_project(project, "paired-test", "a")
+    b = comparison.variant_project(project, "paired-test", "b")
+    assert a.runtime != b.runtime
+    assert a.documents.is_relative_to(project.runtime)
+    with pytest.raises(ValueError, match="manuscript changed"):
+        comparison.render(project, "paired-test", "a", "0" * 64)
+    assert not (a.runtime / "manuscript_approval.json").exists()
+    assert not (b.runtime / "manuscript_approval.json").exists()
+    monkeypatch.setattr(
+        comparison.service, "prepare", Mock(return_value={"render_hash": "f" * 64})
+    )
+    comparison.render(
+        project, "paired-test", "a", view["versions"][0]["manuscript_hash"]
+    )
+    assert (a.runtime / "manuscript_approval.json").exists()
+    assert not (b.runtime / "manuscript_approval.json").exists()
+    assert comparison.service.prepare.call_args.kwargs["local_only"] is True
+    assert comparison.service.prepare.call_args.args[1] is None
+    # Source mutation cannot silently change the music in an approved comparison.
+    (
+        project.station_root / "songs" / "Classic Metal" / "Artist - Song.mp3"
+    ).write_bytes(b"replacement")
+    with pytest.raises(ValueError, match="recording changed"):
+        comparison.render(
+            project, "paired-test", "b", view["versions"][1]["manuscript_hash"]
+        )
+    changed = read_json(b.documents / "plan.json")
+    changed["segments"][0]["script"] += " Changed."
+    write_json(b.documents / "plan.json", changed)
+    with pytest.raises(ValueError, match="Saved comparison manuscript changed"):
+        comparison.variant_project(project, "paired-test", "b")
+
+
+def test_comparison_keeps_successful_arm_when_other_provider_fails(
+    episode, monkeypatch
+):
+    from neuralcast.pipelines.episode_producer import comparison
+
+    project, outputs = episode
+    calls = []
+    actual = editorial.edit_episode
+    fake = runner_for(outputs, calls)
+
+    def execute(p, **kwargs):
+        if p.runtime.name == "a":
+            raise RuntimeError("research unavailable")
+        return actual(p, runner=fake, text_runner=fake, **kwargs)
+
+    monkeypatch.setattr(editorial, "edit_episode", execute)
+    snapshot = comparison.freeze(project)
+    with pytest.raises(RuntimeError, match="retry resumes"):
+        comparison.run(project, "partial-test", snapshot)
+    view = comparison.view(project, "partial-test")
+    assert view["versions"][0]["status"] == "failed"
+    assert view["versions"][1]["segments"]
+    with pytest.raises(ValueError, match="Unknown comparison version"):
+        comparison.variant_project(project, "partial-test", "c")
+    root = comparison.directory(project, "partial-test")
+    write_json(
+        root / "experiment.json", {"snapshot": snapshot, "snapshot_hash": "0" * 64}
+    )
+    with pytest.raises(ValueError, match="snapshot changed"):
+        comparison.view(project, "partial-test")

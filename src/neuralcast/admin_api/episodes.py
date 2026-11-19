@@ -1,5 +1,7 @@
 """Authenticated episode planning, review, approvals and private previews."""
 
+import json
+
 from typing import Annotated, Callable, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
@@ -12,13 +14,28 @@ from .episode_activity import episode_activity
 
 
 class Action(Document):
-    action: Literal["ideas", "develop", "queue", "write", "revise", "render", "publish"]
+    action: Literal[
+        "ideas",
+        "develop",
+        "queue",
+        "write",
+        "revise",
+        "render",
+        "publish",
+        "compare",
+        "compare_render",
+    ]
     episode_id: Identifier | None = None
     revision: str = Field(pattern=r"^[a-f0-9]{64}$")
     topic: str = Field(default="", max_length=5000)
     target_minutes: int = Field(default=45, ge=10, le=120, strict=True)
     render_hash: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     description: str = Field(default="", max_length=5000)
+    comparison_id: Identifier | None = None
+    variant: Literal["a", "b"] | None = None
+    comparison_manuscript_hash: str | None = Field(
+        default=None, pattern=r"^[a-f0-9]{64}$"
+    )
 
 
 class Schedule(Document):
@@ -201,6 +218,8 @@ def episodes_router(auth: Callable) -> APIRouter:
                 "write",
                 "revise",
                 "render",
+                "compare",
+                "compare_render",
             }:
                 raise ValueError(
                     "This operation must finish to preserve its upload/publication receipt"
@@ -249,6 +268,62 @@ def episodes_router(auth: Callable) -> APIRouter:
                 "X-Content-Type-Options": "nosniff",
             },
         )
+
+    @router.get("/{station}/{episode_id}/comparisons/{comparison_id}")
+    def comparison_view(
+        request: Request,
+        station: str,
+        episode_id: Identifier,
+        comparison_id: Identifier,
+    ):
+        from neuralcast.pipelines.episode_producer import comparison
+
+        try:
+            result = comparison.view(
+                workspace(request, station).project(episode_id), comparison_id
+            )
+            return Response(
+                content=json.dumps(result),
+                media_type="application/json",
+                headers={"Cache-Control": "private, no-store"},
+            )
+        except (ValueError, OSError, RuntimeError) as exc:
+            raise error(exc) from exc
+
+    @router.get(
+        "/{station}/{episode_id}/comparisons/{comparison_id}/{variant}/audio/{revision}"
+    )
+    @router.head(
+        "/{station}/{episode_id}/comparisons/{comparison_id}/{variant}/audio/{revision}",
+        include_in_schema=False,
+    )
+    def comparison_audio(
+        request: Request,
+        station: str,
+        episode_id: Identifier,
+        comparison_id: Identifier,
+        variant: Literal["a", "b"],
+        revision: str,
+    ):
+        from neuralcast.pipelines.episode_producer import comparison
+
+        try:
+            path = comparison.audio(
+                workspace(request, station).project(episode_id),
+                comparison_id,
+                variant,
+                revision,
+            )
+            return FileResponse(
+                path,
+                media_type="audio/mpeg",
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        except (ValueError, OSError, RuntimeError) as exc:
+            raise error(exc) from exc
 
     @router.get("/{station}/{episode_id}/history/{kind}/{run_id}")
     def history(

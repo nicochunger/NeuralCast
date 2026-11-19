@@ -149,3 +149,48 @@ Additional authenticated routes:
 - `GET /admin/episodes/{station}/{episode}/recording/{segment}`: audition an exact
   recording from the approved candidate list.
 - `POST /admin/episodes/{station}/stop`: request a stage-boundary stop by request ID.
+
+## Pipeline comparison
+
+Open an unpublished episode and use **Approve brief & generate both comparison
+versions** (or **Generate both comparison versions** for an approved brief).
+This starts an isolated experiment from one frozen proposal, embedded brief,
+candidate-recording inventory, writing guidance, host context and voice settings.
+For a closer writing comparison, specify the selected songs and order in the
+approved brief. Otherwise both writers independently follow its selection rules.
+
+One arm uses Codex research/drafting and factual review with Gemini narrative,
+voice and final editing. The other uses Gemini Neon throughout; only its research
+and factual-review calls enable Google Search and URL Context. Python validates
+and persists structured responses from both providers. Version A/B identities
+are randomly assigned per experiment; reveal them after reviewing the prose.
+
+Each version exposes the initial draft, final manuscript, attached evidence,
+findings, editorial changes, unresolved questions, timing estimates and attempt
+metrics. Provider usage is available after revealing identities; Codex subscription
+usage is not converted to an invented API price. Sum of model attempt durations
+includes parallel reviews and differs from wall-clock job duration. A single
+paired run is exploratory rather than evidence for changing the default.
+
+**Approve version … manuscript & generate audio** binds approval to that version's
+exact manuscript hash. The other version remains unapproved. The existing speech
+and mixing pipeline produces a local chaptered listening copy with the same
+speech configuration and original recordings. It does not upload, publish or queue
+comparison audio. Changed source recordings or speech configuration stop generation
+rather than silently changing the experiment. Comparison audio uses authenticated,
+byte-range-capable streaming through the existing admin proxy.
+
+Experiments are stored under
+`runtime/episodes/<station>/<episode>/comparisons/<request-id>/`. Each arm has
+its own documents, editorial history, approvals, narration cache and production
+receipts. Working episode documents and existing production receipts are preserved.
+The default workflow and weekly preparation continue to use the hybrid pipeline.
+A failed arm does not discard the other arm; retry resumes the saved experiment
+and accepted jobs. Stop requests retain completed work at stage boundaries.
+Published episodes cannot start comparison generation or approve new audio.
+
+Additional actions are `compare` and `compare_render`; the latter requires
+`comparison_id`, `variant` (`a` or `b`) and `comparison_manuscript_hash`.
+Authenticated comparison views are available at
+`GET /admin/episodes/{station}/{episode}/comparisons/{comparison}` and local audio
+at `GET`/`HEAD /admin/episodes/{station}/{episode}/comparisons/{comparison}/{variant}/audio/{revision}`.

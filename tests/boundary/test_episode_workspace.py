@@ -725,3 +725,68 @@ def test_voice_directions_preserve_manuscript_and_change_revision(
     assert response.status_code == 200 and w.revision(p) != revision
     assert (p.documents / "plan.json").read_bytes() == before
     assert response.json()["voice_directions"] == "Speak a little slower."
+
+
+def test_comparison_submission_freezes_inputs_and_does_not_start_models(
+    rig, monkeypatch
+):
+    from neuralcast.pipelines.episode_producer import comparison
+
+    w, p, _ = rig
+    never = Mock(side_effect=AssertionError("Provider must run in background"))
+    monkeypatch.setattr(comparison, "run", never)
+    request = w.submit("compare", episode_id=p.id, revision=w.revision(p))
+    saved = read_json(w.root / "requests" / request / "request.json")
+    assert saved["comparison_id"] == request
+    assert saved["comparison_snapshot"]["concept_hash"] == p.concept_hash()
+    assert any(
+        v["jobs"]["write"].get("search")
+        for v in saved["comparison_snapshot"]["inputs"].values()
+    )
+    assert not (p.runtime / "manuscript_approval.json").exists()
+    assert not (p.documents / "plan.json").exists()
+    never.assert_not_called()
+    result = Mock(return_value={"episode_id": p.id, "status": "comparison_review"})
+    monkeypatch.setattr(comparison, "run", result)
+    w.execute(request)
+    assert result.call_count == 1
+    w.execute(request)
+    assert result.call_count == 1
+
+
+def test_comparison_routes_auth_ranges_and_approval_schema(rig, tmp_path, monkeypatch):
+    from neuralcast.pipelines.episode_producer import comparison
+
+    w, p, _ = rig
+    http, manager = client(rig, tmp_path, monkeypatch)
+    base = f"/admin/episodes/neuralforge/{p.id}/comparisons/saved"
+    assert http.get(base).status_code == 401
+    headers = {"Authorization": "Bearer test-token"}
+    monkeypatch.setattr(comparison, "view", lambda *args: {"versions": []})
+    response = http.get(base, headers=headers)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+    preview = tmp_path / "comparison.mp3"
+    preview.write_bytes(b"local comparison audio")
+    monkeypatch.setattr(comparison, "audio", lambda *args: preview)
+    url = base + "/a/audio/" + "a" * 64
+    response = http.get(url, headers={**headers, "Range": "bytes=0-4"})
+    assert response.status_code == 206 and response.content == b"local"
+    assert response.headers["cache-control"] == "private, no-store"
+    assert http.head(url, headers=headers).status_code == 200
+    assert http.get(base + "/c/audio/" + "a" * 64, headers=headers).status_code == 422
+    assert (
+        http.post(
+            "/admin/episodes/neuralforge/actions",
+            headers=headers,
+            json={
+                "action": "compare_render",
+                "episode_id": p.id,
+                "revision": w.revision(p),
+                "comparison_id": "saved",
+                "variant": "c",
+                "comparison_manuscript_hash": "a" * 64,
+            },
+        ).status_code
+        == 422
+    )

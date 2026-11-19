@@ -33,6 +33,21 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
             ("conversational_voice", "Voice review"),
             ("edit", "Final edit"),
         ],
+        "compare": [
+            (f"{version}_{stage}", f"Version {version.upper()}: {label}")
+            for version in ("a", "b")
+            for stage, label in (
+                ("write", "Research and draft"),
+                ("factual_support", "Fact review"),
+                ("narrative_continuity", "Story review"),
+                ("conversational_voice", "Voice review"),
+                ("edit", "Final edit"),
+            )
+        ],
+        "compare_render": [
+            ("narration", "Generating approved comparison voice"),
+            ("mix", "Assembling local listening copy"),
+        ],
         "revise": [
             *(
                 [("feedback_research", "Focused factual research")]
@@ -60,7 +75,17 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
     ):
         if name in statuses:
             statuses[name]["status"] = "running" if event == "Running" else "succeeded"
-    if action == "render":
+    if action == "compare":
+        for version, event, name in re.findall(
+            r"Comparison version ([ab]): (Running|Completed|Reusing) editorial job: (\w+)",
+            log,
+        ):
+            key = f"{version}_{name}"
+            if key in statuses:
+                statuses[key]["status"] = (
+                    "running" if event == "Running" else "succeeded"
+                )
+    if action in {"render", "compare_render"}:
         events = re.findall(r"Episode production: (narration|mix|upload)", log)
         if events:
             current = [s["id"] for s in steps].index(events[-1])
@@ -96,17 +121,31 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
             else None
         )
     for step in steps:
-        if directory and (directory / f"{step['id']}.json").exists():
+        step_directory = directory
+        stage_id = step["id"]
+        if action == "compare" and episode_id:
+            from neuralcast.pipelines.episode_producer.storage import digest
+
+            version, stage_id = step["id"].split("_", 1)
+            step_directory = (
+                workspace.project(episode_id).runtime
+                / "comparisons"
+                / request["comparison_id"]
+                / version
+                / "editorial"
+                / digest(request["comparison_snapshot"]["inputs"][version])
+            )
+        if step_directory and (step_directory / f"{stage_id}.json").exists():
             step["status"] = "succeeded"
-        elif directory and list(
-            (directory / step["id"]).glob("attempt-*/context.json")
+        elif step_directory and list(
+            (step_directory / stage_id).glob("attempt-*/context.json")
         ):
             step["status"] = "running"
         if (
             job["status"] == "failed"
             and step["status"] != "succeeded"
-            and directory
-            and list((directory / step["id"]).glob("attempt-*/failure.json"))
+            and step_directory
+            and list((step_directory / stage_id).glob("attempt-*/failure.json"))
         ):
             step["status"] = "failed"
     if job["status"] == "succeeded":

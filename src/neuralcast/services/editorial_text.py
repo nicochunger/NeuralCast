@@ -1,4 +1,4 @@
-"""Bounded, tool-free Gemini requests for manuscript reviews and final editing."""
+"""Bounded Gemini editorial requests with opt-in server-side research tools."""
 
 import json
 from pathlib import Path
@@ -35,11 +35,12 @@ def run_stage(
     schema: dict,
     attempt: Path,
     *,
+    search: bool = False,
     thinking_level: str = "medium",
     max_output_tokens: int = 32768,
     timeout_seconds: int = 900,
 ) -> dict:
-    """Send the supplied snapshot directly; no tools, agents or file access."""
+    """Return structured output, optionally researching with server-side tools."""
     attempt.mkdir(parents=True, exist_ok=False)
     (attempt / "prompt.md").write_text(prompt, encoding="utf-8")
     write_json(attempt / "context.json", context)
@@ -52,6 +53,7 @@ def run_stage(
         "model": MODEL,
         "thinking_level": thinking_level,
         "max_output_tokens": max_output_tokens,
+        "search": search,
         "usage": None,
     }
     try:
@@ -67,7 +69,14 @@ def run_stage(
                         thinking_level=thinking_level.upper()
                     ),
                     max_output_tokens=max_output_tokens,
-                    tools=[],
+                    tools=(
+                        [
+                            types.Tool(google_search=types.GoogleSearch()),
+                            types.Tool(url_context=types.UrlContext()),
+                        ]
+                        if search
+                        else []
+                    ),
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
                     ),
@@ -96,6 +105,17 @@ def run_stage(
             raise RuntimeError(
                 f"Gemini editorial request failed ({category}); inspect provider setup or retry the failed job."
             ) from None
+        if search:
+            evidence = []
+            for candidate in response.candidates or []:
+                evidence.append(
+                    {
+                        key: value.model_dump(mode="json", exclude_none=True)
+                        for key in ("grounding_metadata", "url_context_metadata")
+                        if (value := getattr(candidate, key, None)) is not None
+                    }
+                )
+            write_json(attempt / "grounding.json", {"candidates": evidence})
         if response.usage_metadata:
             metrics["usage"] = {
                 key: value

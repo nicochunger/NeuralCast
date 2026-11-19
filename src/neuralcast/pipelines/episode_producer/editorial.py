@@ -27,8 +27,10 @@ from .timing import GROWTH_PERCENT, budget_with_tolerance
 PROMPTS = ASSETS_ROOT / "stories" / "prompts" / "episode_editorial"
 
 
-def job_settings() -> dict:
-    return {
+def job_settings(pipeline: str = "hybrid") -> dict:
+    if pipeline not in {"hybrid", "gemini"}:
+        raise ValueError("Unknown editorial pipeline")
+    jobs = {
         "write": {
             "provider": "codex",
             "model": codex.MODEL,
@@ -58,6 +60,41 @@ def job_settings() -> dict:
             "max_output_tokens": 32768,
             "timeout_seconds": 900,
         },
+    }
+
+    if pipeline == "gemini":
+        for name, level in (("write", "high"), ("factual_support", "medium")):
+            jobs[name] = {
+                "provider": "gemini",
+                "model": gemini.MODEL,
+                "thinking_level": level,
+                "search": True,
+                "max_output_tokens": 32768 if name == "write" else 8192,
+                "timeout_seconds": jobs[name]["timeout_seconds"],
+            }
+    return jobs
+
+
+def workshop_inputs(
+    project: Project, pipeline: str = "hybrid", *, common: dict | None = None
+) -> dict:
+    if common is None:
+        _, _, common = _context(project, "")
+    jobs = job_settings(pipeline)
+    prompts = {
+        name: (PROMPTS / f"{name}.md").read_text(encoding="utf-8") for name in jobs
+    }
+    if pipeline == "gemini":
+        for name in ("write", "factual_support"):
+            prompts[name] = prompts[name].replace(
+                "Read context.json", "Read the supplied context"
+            )
+    models = {"write": Draft, **{role: Review for role in ROLES}, "edit": Edit}
+    return {
+        "context": common,
+        "prompts": prompts,
+        "jobs": jobs,
+        "schemas": {name: codex.output_schema(model) for name, model in models.items()},
     }
 
 
@@ -277,6 +314,7 @@ def _job(
     runner: Callable,
     validate: Callable,
     progress: Callable,
+    schema: dict | None = None,
 ) -> Draft | Review | Edit:
     result_path = directory / f"{name}.json"
     if result_path.exists():
@@ -306,7 +344,7 @@ def _job(
             raw = runner(
                 prompt,
                 request,
-                codex.output_schema(model),
+                schema or codex.output_schema(model),
                 attempt,
                 **{
                     key: value
@@ -507,6 +545,7 @@ def _final_edit(
     settings: dict,
     runner: Callable,
     progress: Callable,
+    schema: dict | None = None,
 ) -> dict:
     source = Plan.model_validate(context["source_plan"])
 
@@ -524,7 +563,16 @@ def _final_edit(
         validate_plan(plan, proposal, brief, common["recordings"])
 
     edit = _job(
-        directory, "edit", context, Edit, settings, prompt, runner, validate, progress
+        directory,
+        "edit",
+        context,
+        Edit,
+        settings,
+        prompt,
+        runner,
+        validate,
+        progress,
+        schema=schema,
     )
     edit.production_notes = list(
         dict.fromkeys([*context["production_notes"], *edit.production_notes])
@@ -559,20 +607,21 @@ def edit_episode(
     runner: Callable = codex.run_stage,
     text_runner: Callable = gemini.run_stage,
     progress: Callable[[str], None] = lambda _: None,
+    frozen_inputs: dict | None = None,
 ) -> dict:
     """Caller holds project.lock(); accepted jobs survive independent failures."""
-    proposal, brief, common = _context(project, feedback)
-    jobs = job_settings()
-    prompts = {
-        name: (PROMPTS / f"{name}.md").read_text(encoding="utf-8") for name in jobs
-    }
-    models = {"write": Draft, **{role: Review for role in ROLES}, "edit": Edit}
-    inputs = {
-        "context": common,
-        "prompts": prompts,
-        "jobs": jobs,
-        "schemas": {name: codex.output_schema(model) for name, model in models.items()},
-    }
+    if frozen_inputs is None:
+        proposal, brief, common = _context(project, feedback)
+    else:
+        proposal, _ = project.approved_proposal()
+        brief = project.editorial_brief()
+        common = frozen_inputs["context"]
+    inputs = frozen_inputs or workshop_inputs(project, common=common)
+    common = inputs["context"]
+    if common["concept_hash"] != project.concept_hash():
+        raise ValueError("Frozen editorial concept changed")
+    jobs, prompts = inputs["jobs"], inputs["prompts"]
+    research_runner = text_runner if jobs["write"]["provider"] == "gemini" else runner
     directory = project.runtime / "editorial" / digest(inputs)
     _snapshot(project, directory, inputs)
     if text_runner is gemini.run_stage and any(
@@ -587,11 +636,12 @@ def edit_episode(
         Draft,
         jobs["write"],
         prompts["write"],
-        runner,
+        research_runner,
         lambda result: validate_plan(
             result.plan, proposal, brief, common["recordings"]
         ),
         progress,
+        schema=inputs["schemas"]["write"],
     )
     timing = validate_plan(draft.plan, proposal, brief, common["recordings"])
     review_context = {
@@ -623,9 +673,10 @@ def edit_episode(
             Review,
             jobs[role],
             prompts[role],
-            runner if role == "factual_support" else text_runner,
+            research_runner if role == "factual_support" else text_runner,
             validate,
             progress,
+            schema=inputs["schemas"][role],
         )
 
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -667,6 +718,7 @@ def edit_episode(
         jobs["edit"],
         text_runner,
         progress,
+        schema=inputs["schemas"]["edit"],
     )
 
 

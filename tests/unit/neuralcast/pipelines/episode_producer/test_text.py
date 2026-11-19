@@ -147,3 +147,23 @@ def test_edit_schema_avoids_nested_array_grammar_limits_but_preserves_local_boun
     )
     with pytest.raises(ValueError, match="at least 1"):
         Edit.model_validate(result)
+
+
+def test_research_enables_search_url_context_and_saves_grounding(tmp_path, monkeypatch):
+    client = Mock()
+    result = response()
+    result.candidates[0].grounding_metadata = SimpleNamespace(
+        model_dump=lambda **kwargs: {"web_search_queries": ["band interview"]}
+    )
+    client.models.generate_content.return_value = result
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    gemini.run_stage(
+        "Research", {}, {}, tmp_path / "attempt", search=True, thinking_level="high"
+    )
+    config = client.models.generate_content.call_args.kwargs["config"]
+    assert config.tools[0].google_search is not None
+    assert config.tools[1].url_context is not None
+    assert config.response_mime_type == "application/json"
+    assert json.loads((tmp_path / "attempt" / "grounding.json").read_text())[
+        "candidates"
+    ][0]["grounding_metadata"]["web_search_queries"] == ["band interview"]

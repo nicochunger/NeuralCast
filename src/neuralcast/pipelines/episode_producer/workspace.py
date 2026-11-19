@@ -13,7 +13,7 @@ from pydantic import TypeAdapter
 from neuralcast.config import RUNTIME_ROOT, ALLOWED_STATION_SLUGS, station_dir_from_slug
 from neuralcast.playlists.catalog import StationPlaylistCatalog
 from neuralcast.services import editorial_agent as codex, editorial_text as gemini
-from . import editorial
+from . import editorial, comparison
 from .editorial_models import EditorialBrief
 from .workspace_models import Topics, Concept, Feedback
 from .models import Proposal, Plan, Identifier
@@ -263,6 +263,7 @@ class Workspace:
                 if (project.runtime / "applied_feedback.json").exists()
                 else {}
             ),
+            "comparisons": comparison.list_comparisons(project),
             "history": sorted(history, key=lambda x: x["created_at"], reverse=True)[
                 :20
             ],
@@ -333,6 +334,9 @@ class Workspace:
         target_minutes: int = 45,
         render_hash: str | None = None,
         description: str = "",
+        comparison_id: str | None = None,
+        variant: str | None = None,
+        comparison_manuscript_hash: str | None = None,
     ) -> str:
         if action not in {
             "ideas",
@@ -342,6 +346,8 @@ class Workspace:
             "revise",
             "render",
             "publish",
+            "compare",
+            "compare_render",
         }:
             raise ValueError("Unknown episode action")
         with self.lock():
@@ -400,6 +406,25 @@ class Workspace:
                     raise ValueError(
                         "Publication must approve the current reviewed audio"
                     )
+            if action in {"compare", "compare_render"}:
+                if d["feedback"]["overall"].strip() or any(
+                    v.strip() for v in d["feedback"]["sections"].values()
+                ):
+                    raise ValueError(
+                        "Apply or discard pending feedback before comparison approval"
+                    )
+                if action == "compare_render":
+                    vp = comparison.variant_project(
+                        p, comparison_id or "", variant or ""
+                    )
+                    plan = Plan.model_validate(read_json(vp.documents / "plan.json"))
+                    if manuscript_hash(vp, plan) != comparison_manuscript_hash:
+                        raise ConflictError(
+                            "Comparison manuscript changed; review it before rendering"
+                        )
+                    from .manuscript import require_no_blockers
+
+                    require_no_blockers(vp, comparison_manuscript_hash)
             request_id = uuid.uuid4().hex
             request = {
                 "id": request_id,
@@ -420,6 +445,19 @@ class Workspace:
                     request["manuscript_hash"] = manuscript_hash(
                         project, Plan.model_validate(request["source_plan"])
                     )
+            if action == "compare":
+                with p.lock():
+                    self.check(p, request["revision"])
+                    p.approve_proposal(request["concept_hash"])
+                    request["comparison_snapshot"] = comparison.freeze(p)
+                    request["revision"] = self.revision(p)
+                request["comparison_id"] = request_id
+            if action == "compare_render":
+                request.update(
+                    comparison_id=comparison_id,
+                    variant=variant,
+                    comparison_manuscript_hash=comparison_manuscript_hash,
+                )
             if action == "revise":
                 request["feedback"] = self.detail(self.project(episode_id))["feedback"]
                 report_path = self.project(episode_id).runtime / "editorial_latest.json"
@@ -635,7 +673,10 @@ class Workspace:
         else:
             p = self.project(request["episode_id"])
             with p.lock():
-                if p.concept_hash() != request["concept_hash"]:
+                if (
+                    action not in {"compare", "compare_render"}
+                    and p.concept_hash() != request["concept_hash"]
+                ):
                     raise ConflictError(
                         "The approved concept changed; submit a new request"
                     )
@@ -652,7 +693,9 @@ class Workspace:
                 # Completed owner approvals may survive a failed long-running job.
                 marker = directory / "started.json"
                 if not marker.exists():
-                    self.check(p, request["revision"])
+                    # Comparison approvals bind their isolated frozen documents.
+                    if action not in {"compare", "compare_render"}:
+                        self.check(p, request["revision"])
                     write_json(marker, {"started_at": now()})
                 if (episode_directory(p.station, p.id) / "manifest.json").exists():
                     if action != "publish":
@@ -663,6 +706,21 @@ class Workspace:
                         {"queued": True}
                         if action == "queue"
                         else editorial.edit_episode(p, progress=progress)
+                    )
+                elif action == "compare":
+                    response = comparison.run(
+                        p,
+                        request["comparison_id"],
+                        request["comparison_snapshot"],
+                        progress=progress,
+                    )
+                elif action == "compare_render":
+                    response = comparison.render(
+                        p,
+                        request["comparison_id"],
+                        request["variant"],
+                        request["comparison_manuscript_hash"],
+                        progress=progress,
                     )
                 elif action == "revise":
                     response = revise_manuscript(

@@ -81,12 +81,15 @@ def validated_inputs(
 
 def prepare(
     project: Project,
-    client: AzuraCastClient,
+    client: AzuraCastClient | None,
     *,
+    local_only: bool = False,
     tts_model: str | None = None,
     progress: Callable[[str], None] = lambda _: None,
 ) -> dict[str, Any]:
     """The caller holds project.lock(); no queue submission occurs here."""
+    if not local_only and client is None:
+        raise ValueError("An upload client is required")
     proposal, plan, channel, inputs, revision = validated_inputs(
         project, tts_model=tts_model
     )
@@ -102,6 +105,12 @@ def prepare(
             raise ValueError(
                 "A finished render is missing or changed. Restore it or revise the plan; existing upload/queue receipts must not be reset."
             )
+        if local_only:
+            write_json(
+                project.runtime / "latest.json",
+                {"revision": revision, "render_hash": receipt["render_hash"]},
+            )
+            return receipt
         progress("Episode production: upload")
         return upload_render(project, channel, receipt, directory, client)
     # Require approval of the complete manuscript before synthesis.
@@ -201,6 +210,12 @@ def prepare(
         "uploaded": None,
     }
     write_json(receipt_path, receipt)
+    if local_only:
+        write_json(
+            project.runtime / "latest.json",
+            {"revision": revision, "render_hash": receipt["render_hash"]},
+        )
+        return receipt
     progress("Episode production: upload")
     return upload_render(project, channel, receipt, directory, client)
 

@@ -140,7 +140,10 @@ orchestrator remains separate.
 - `reviews.py`: review roles, curated examples and the single finding ledger.
 - `services/editorial_agent.py`: shared read-only headless Codex boundary with web
   research, strict JSON, deadlines and usage capture.
-- `services/editorial_text.py`: bounded, tool-free Gemini structured requests.
+- `services/editorial_text.py`: bounded Gemini structured requests; comparison
+  research stages opt into server-side search and URL Context.
+- `comparison.py`: frozen paired editorial experiments, isolated approvals and
+  local-only listening copies exposed through the Episodes admin workspace.
 - `manuscript.py`: complete-script checks and exact owner approval before TTS.
 - `storage.py`: project paths, hashes, atomic receipts, approvals, and locks.
 - `library.py`: read-only resolution of exact catalog recordings and artwork.
