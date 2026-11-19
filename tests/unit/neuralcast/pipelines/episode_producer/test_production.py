@@ -365,8 +365,21 @@ def test_host_chapter_titles_are_short():
     assert validate_manuscript(Plan(proposal_hash="a" * 64, segments=parts)) > 0
 
 
+@pytest.mark.parametrize("words", [100, 115, 116])
+def test_passage_word_estimate_allows_fifteen_percent_growth(words):
+    parts = continuous_parts()
+    parts[0].update(max_words=100, script=" ".join(["historia"] * words))
+    plan = Plan(proposal_hash="a" * 64, segments=parts)
+    if words > 115:
+        with pytest.raises(ValueError, match="maximum 115 including 15% tolerance"):
+            validate_manuscript(plan)
+    else:
+        assert validate_manuscript(plan) >= words
+
+
+@pytest.mark.parametrize("max_words", [800, 1000])
 def test_long_host_passage_is_one_tts_call_and_one_cache_entry(
-    tmp_path, monkeypatch, proposal
+    tmp_path, monkeypatch, proposal, max_words
 ):
     from neuralcast.pipelines.episode_producer.editorial_models import DeliveryPassage
     from neuralcast.pipelines.episode_producer.manuscript import validate_manuscript
@@ -378,7 +391,7 @@ def test_long_host_passage_is_one_tts_call_and_one_cache_entry(
         if part["kind"] == "commentary":
             part.update(
                 script=script,
-                max_words=1000,
+                max_words=max_words,
                 companion={"title": "Una decisión", "summary": "A continuous story"},
             )
     plan = Plan(proposal_hash="a" * 64, segments=parts)
@@ -403,8 +416,9 @@ def test_long_host_passage_is_one_tts_call_and_one_cache_entry(
     assert tts.call_count == 1
 
 
+@pytest.mark.parametrize("speech_budget", [3, 2.7, 2.6])
 def test_render_host_silence_has_no_extra_chapters_and_is_outside_speech_budget(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, speech_budget
 ):
     captured = {}
 
@@ -428,13 +442,17 @@ def test_render_host_silence_has_no_extra_chapters_and_is_outside_speech_budget(
     monkeypatch.setattr(rendering, "embed_local_cover_art", lambda *args: None)
     monkeypatch.setattr(rendering, "audio_duration", lambda path: 9.5)
     parts = [{**p, "path": f"/source/{p['id']}.mp3"} for p in continuous_parts()]
+    if speech_budget == 2.6:
+        with pytest.raises(ValueError, match="including 15% tolerance"):
+            rendering.render(parts, tmp_path, "Episode", "es-AR", 10, speech_budget)
+        return
     output, chapters, duration = rendering.render(
         parts,
         tmp_path,
         "Episode",
         "es-AR",
         10,
-        3,
+        speech_budget,
     )
     assert duration == 9.5 and output.exists()
     assert len(chapters) == 5

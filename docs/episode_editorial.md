@@ -77,7 +77,9 @@ framing, repeated lessons after anecdotes and uniform handoffs.
 The final editor returns complete scripts by commentary ID. It can update sources
 and companions when an evidenced content correction requires it. Source URLs must
 already be in the supplied plan, initial research or verified review evidence.
-Song order, identities, passage IDs, roles and word budgets remain fixed. Missing
+Song order, identities, passage IDs, roles and word-budget estimates remain fixed.
+Passage word counts and total narration time allow up to 15% growth for the story;
+estimated total duration allows at least 15% above the episode target. Missing
 evidence becomes an unresolved finding; the text-only editor cannot browse to
 invent a repair. Companions must still describe the resulting narration accurately.
 

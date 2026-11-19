@@ -6,11 +6,13 @@ from neuralcast.pipelines.host_orchestrator.speech import validate_speech_transc
 
 from .models import Commentary, Music, Plan
 from .storage import Project, digest, read_json, write_json
+from .timing import budget_with_tolerance
 
 
 def validate_manuscript(plan: Plan) -> int:
     """Return spoken words, rejecting incomplete or unusable TTS scripts."""
     words = 0
+    budget_errors = []
     for index, segment in enumerate(plan.segments):
         if index % 2:
             if not isinstance(segment, Music):
@@ -31,11 +33,19 @@ def validate_manuscript(plan: Plan) -> int:
             raise ValueError("Host chapter titles must be at most 40 characters")
         speech = validate_speech_transcript(segment.script)
         count = len(speech.plain_text.split())
-        if count > segment.max_words:
-            raise ValueError(f"Commentary {segment.id} exceeds its word budget")
+        limit = int(budget_with_tolerance(segment.max_words))
+        if count > limit:
+            budget_errors.append(
+                f"Commentary {segment.id} exceeds its word budget: "
+                f"{count} spoken words; estimate {segment.max_words}; "
+                f"maximum {limit} including 15% tolerance; "
+                f"remove at least {count - limit} words"
+            )
         if re.search(r"https?://|www\.", speech.plain_text, re.I):
             raise ValueError("Source URLs must not appear in spoken narration")
         words += count
+    if budget_errors:
+        raise ValueError("; ".join(budget_errors))
     return words
 
 

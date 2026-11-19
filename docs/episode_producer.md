@@ -205,7 +205,8 @@ pause tag. The silence belongs to that host chapter and counts toward total
 duration, outside the narration budget. Editorial estimates include it.
 Rendering consumes the ordered audio parts and applies the same lead-in rule to
 every host passage. Generated and published recordings are immutable artifacts.
-Narration must fit the approved seconds budget; total duration must fall between
+Narration may exceed its initial seconds budget by up to 15%; total duration must
+fall between
 75% and 115% of the proposed target. Failure stops before upload. Scratch PCM is
 removed even on failure. Existing music files and playlist rows are never edited.
 

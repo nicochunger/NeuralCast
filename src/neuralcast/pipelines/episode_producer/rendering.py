@@ -11,6 +11,7 @@ from typing import Any
 from neuralcast.pipelines.host_orchestrator.assets import tag_story_audio
 from neuralcast.audio.album_art import embed_local_cover_art
 from neuralcast.config import ASSETS_ROOT
+from .timing import budget_with_tolerance
 
 RATE = 44100
 HOST_LEAD_IN_SECONDS = 1.5
@@ -114,11 +115,14 @@ def render(
             elapsed += lead_in + seconds
             if part["kind"] == "commentary":
                 speech_seconds += seconds
-        if speech_seconds > speech_budget:
+        if speech_seconds > budget_with_tolerance(speech_budget):
             raise ValueError(
-                f"Narration is {speech_seconds:.0f}s, exceeding the approved {speech_budget}s budget"
+                f"Narration is {speech_seconds:.0f}s, exceeding the {speech_budget}s budget estimate including 15% tolerance"
             )
-        if elapsed > target_seconds * 1.15 or elapsed < target_seconds * 0.75:
+        if (
+            elapsed > budget_with_tolerance(target_seconds)
+            or elapsed < target_seconds * 0.75
+        ):
             raise ValueError(
                 f"Episode is {elapsed:.0f}s; adjust the approved target or song selection ({target_seconds}s target, allowed -25%/+15%)"
             )

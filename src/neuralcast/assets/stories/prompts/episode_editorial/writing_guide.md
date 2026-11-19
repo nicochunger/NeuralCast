@@ -89,8 +89,11 @@ shouting or crying unless explicitly wanted. No tag or device quotas. Note
 uncertain performance choices for a later listening review; do not claim to have
 heard them. Speech validation limits tag density and total count.
 
-One host passage has one whole-passage max_words budget, up to 3000, within the
-approved total narration budget. Scripts may be up to 30,000 characters; that
+One host passage has one whole-passage max_words estimate, up to 3000. Passage
+word counts and the total narration budget allow 15% growth when needed for the
+story. Aim for the initial estimates rather than filling the allowance. The
+episode may run up to 15% longer than its target. Scripts may be up to 30,000
+characters; that
 capacity is not a target. Use short companion/chapter titles, at most 40
 characters. The renderer inserts 1.5 seconds of silence before every host
 passage, inside that chapter and outside the speech budget. Do not duplicate it
