@@ -497,7 +497,7 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
     assert w.detail(p)["status"] == "manuscript_review"
     assert w.detail(p)["changes"]
     assert p.id in w.state()["managed_episodes"]
-    assert len(calls) == 9  # ideas, concept and the seven agy editorial jobs.
+    assert len(calls) == 7  # ideas, concept and the five agy editorial jobs.
     assert not (p.runtime / "manuscript_approval.json").exists()
 
 
@@ -606,9 +606,7 @@ def test_live_activity_reads_buffered_stage_files_without_mutating_the_job(rig):
     )
     write_json(directory / "research.json", {"output": {}})
     write_json(directory / "write.json", {"output": {}})
-    write_json(directory / "narrative_continuity.json", {"output": {}})
-    write_json(directory / "factual_support" / "attempt-001" / "context.json", {})
-    write_json(directory / "conversational_voice" / "attempt-001" / "context.json", {})
+    write_json(directory / "editorial_review" / "attempt-001" / "context.json", {})
     job = {
         "status": "running",
         "episode_options": {"request_id": request},
@@ -620,19 +618,17 @@ def test_live_activity_reads_buffered_stage_files_without_mutating_the_job(rig):
     assert steps == {
         "research": "succeeded",
         "write": "succeeded",
-        "factual_support": "running",
-        "narrative_continuity": "succeeded",
-        "conversational_voice": "running",
+        "editorial_review": "running",
         "edit": "pending",
         "fact_check": "pending",
     }
     assert request_path.read_bytes() == original and job["status"] == "running"
     job.update(
         status="failed",
-        log_tail="Episode workspace failed: Review factual_support failed; completed jobs were retained.",
+        log_tail="Episode workspace failed: Review editorial_review failed; completed jobs were retained.",
     )
     progress = episode_activity(w, job)
-    assert "Fact review" in progress["current"] and "retained" in progress["error"]
+    assert "Editorial review" in progress["current"] and "retained" in progress["error"]
     assert (
         next(s for s in progress["steps"] if s["id"] == "write")["status"]
         == "succeeded"

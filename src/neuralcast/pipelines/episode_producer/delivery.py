@@ -43,10 +43,26 @@ def apply_edit(
     return Plan.model_validate(result.model_dump())
 
 
+def required_finding_ids(findings: list[dict]) -> set[str]:
+    return {
+        item["id"]
+        for item in findings
+        if item.get("severity") == "major"
+        or item.get("reviewer") in {"research", "editorial", "feedback_research"}
+    }
+
+
 def edit_blockers(edit: Edit, findings: list[dict]) -> list[str]:
+    known = {item["id"] for item in findings}
     ids = [item.finding_id for item in edit.resolutions]
-    if len(set(ids)) != len(ids) or set(ids) != {item["id"] for item in findings}:
-        raise ValueError("Final edit must account for every finding exactly once")
+    if len(set(ids)) != len(ids) or set(ids) - known:
+        raise ValueError("Final edit resolutions contain duplicate or unknown finding IDs")
+    missing = required_finding_ids(findings) - set(ids)
+    if missing:
+        raise ValueError(
+            "Final edit must resolve every required finding: "
+            + ", ".join(sorted(missing))
+        )
     return list(
         dict.fromkeys(
             [
@@ -94,15 +110,17 @@ def edit_report(
     lines += ["## Review findings", ""]
     resolutions = {item.finding_id: item for item in edit.resolutions}
     for finding in findings:
-        resolution = resolutions[finding["id"]]
+        resolution = resolutions.get(finding["id"])
+        status = resolution.status if resolution else "noted"
+        explanation = resolution.explanation if resolution else "Optional minor note."
         lines += [
-            f"### {finding['id']} — {resolution.status}",
+            f"### {finding['id']} — {status}",
             "",
             finding["problem"],
             "",
             f"Quote: {finding['quote']}",
             "",
-            resolution.explanation,
+            explanation,
             "",
         ]
     if fact_check_findings:

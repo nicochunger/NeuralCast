@@ -136,19 +136,9 @@ def episode(tmp_path, monkeypatch):
             "production_notes": [],
         },
         "write": draft,
-        "factual_support": {
-            "strengths": ["Supported chronology."],
-            "findings": [],
-            "additional_sources": [],
-        },
-        "narrative_continuity": {
-            "strengths": ["Keep the welcome."],
+        "editorial_review": {
+            "strengths": ["Keep the welcome.", "Keep the conversational phrasing."],
             "findings": [finding],
-            "additional_sources": [],
-        },
-        "conversational_voice": {
-            "strengths": ["Keep the conversational phrasing."],
-            "findings": [],
             "additional_sources": [],
         },
         "edit": {
@@ -165,7 +155,7 @@ def episode(tmp_path, monkeypatch):
             ],
             "resolutions": [
                 {
-                    "finding_id": "narrative_continuity-1",
+                    "finding_id": "editorial_review-1",
                     "status": "resolved",
                     "explanation": "Made the replacement decision explicit.",
                 }
@@ -175,6 +165,7 @@ def episode(tmp_path, monkeypatch):
             "listening_notes": [],
         },
         "fact_check": {"findings": []},
+        "fact_check_recheck": {"findings": []},
     }
     outputs["edit"]["passages"][1]["script"] = (
         parts[2]["script"].replace("<breath>", "<sigh>")
@@ -393,28 +384,22 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     monkeypatch.setattr(service, "prepare_narration", tts)
     result = run_episode(project, outputs, calls)
     by_name = {c["name"]: c for c in calls}
-    assert set(by_name) == {"research", "write", *editorial.ROLES, "edit", "fact_check"}
-    assert len(calls) == 7
-    assert by_name["research"]["effort"] == "medium" and by_name["research"]["search"]
+    assert set(by_name) == {"research", "write", "editorial_review", "edit", "fact_check"}
+    assert len(calls) == 5
+    assert by_name["research"]["effort"] == "high" and by_name["research"]["search"]
     assert by_name["write"]["effort"] == "medium" and not by_name["write"]["search"]
-    assert (
-        by_name["factual_support"]["effort"] == "medium"
-        and by_name["factual_support"]["search"]
-    )
-    assert by_name["narrative_continuity"]["effort"] == "low"
-    assert by_name["conversational_voice"]["effort"] == "low"
+    assert by_name["editorial_review"]["effort"] == "medium"
     assert by_name["edit"]["effort"] == "medium"
     assert by_name["fact_check"]["effort"] == "low"
     assert all("subagent_count" not in call for call in calls)
-    for role in editorial.ROLES:
-        assert by_name[role]["context"]["source_plan"] == outputs["write"]["plan"]
+    assert by_name["editorial_review"]["context"]["source_plan"] == outputs["write"]["plan"]
     findings = by_name["edit"]["context"]["findings"]
-    assert len(findings) == 1 and findings[0]["id"] == "narrative_continuity-1"
+    assert len(findings) == 1 and findings[0]["id"] == "editorial_review-1"
     assert (
         findings[0]["problem"]
-        == outputs["narrative_continuity"]["findings"][0]["problem"]
+        == outputs["editorial_review"]["findings"][0]["problem"]
     )
-    assert "writing_references" not in by_name["factual_support"]["context"]
+    assert "writing_references" not in by_name["research"]["context"]
     refs = by_name["write"]["context"]["writing_references"]
     assert set(refs) == {"writing_guide.md", "voice_examples"}
     assert sum(len(str(v)) for v in refs.values()) < 16000
@@ -423,7 +408,7 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     assert not any("runtime/" in str(x) for x in refs["voice_examples"])
     assert "host_system_instructions" not in refs
     assert result["status"] == "awaiting_manuscript_approval"
-    assert len(result["jobs"]) == 7
+    assert len(result["jobs"]) == 5
     assert all(metrics["usage"] is None for metrics in result["jobs"].values())
     assert "1.5s of silence" in (project.documents / "manuscript.md").read_text()
     assert "\\<sigh\\>" in (project.documents / "manuscript.md").read_text()
@@ -440,49 +425,31 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     )
 
 
-def test_reviews_execute_in_parallel(episode):
-    project, outputs = episode
-    barrier = Barrier(3)
-    calls = []
-    ordinary = runner_for(outputs, calls)
-
-    def parallel(prompt, context, schema, attempt, **kwargs):
-        if attempt.parent.name in editorial.ROLES:
-            barrier.wait(timeout=5)
-        return ordinary(prompt, context, schema, attempt, **kwargs)
-
-    result = editorial.edit_episode(project, runner=parallel)
-    assert result["status"] == "awaiting_manuscript_approval"
-
-
-def test_only_failed_review_retries_and_completed_reviews_survive_resume(episode):
+def test_only_failed_review_retries_and_completed_stages_survive_resume(episode):
     project, outputs = episode
     calls = []
     ordinary = runner_for(outputs, calls)
 
     def failing(prompt, context, schema, attempt, **kwargs):
-        if attempt.parent.name == "conversational_voice":
-            calls.append({"name": "failed-voice"})
+        if attempt.parent.name == "editorial_review":
+            calls.append({"name": "failed-review"})
             raise RuntimeError("Temporary review failure")
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
-    with pytest.raises(RuntimeError, match="completed jobs were retained"):
+    with pytest.raises(RuntimeError, match="Temporary review failure"):
         editorial.edit_episode(project, runner=failing)
-    assert len([c for c in calls if c["name"] == "failed-voice"]) == 2
+    assert len([c for c in calls if c["name"] == "failed-review"]) == 2
     assert not (project.documents / "plan.json").exists()
     directory = next((project.runtime / "editorial").iterdir())
-    assert (directory / "write.json").exists() and (
-        directory / "factual_support.json"
-    ).exists()
-    assert (directory / "narrative_continuity.json").exists()
+    assert (directory / "research.json").exists() and (directory / "write.json").exists()
     retry_calls = []
     run_episode(project, outputs, retry_calls)
     assert [c["name"] for c in retry_calls] == [
-        "conversational_voice",
+        "editorial_review",
         "edit",
         "fact_check",
     ]
-    assert len(list((directory / "conversational_voice").glob("attempt-*"))) == 3
+    assert len(list((directory / "editorial_review").glob("attempt-*"))) == 3
 
 
 @pytest.mark.parametrize("factor", [0.1, 0.85, 2, 10])
@@ -504,7 +471,7 @@ def test_edit_can_exceed_word_estimates_without_a_retry(episode):
     for passage in outputs["edit"]["passages"]:
         passage["script"] += " Una historia conecta canciones." * 70
     run_episode(project, outputs, calls)
-    assert len(calls) == 7
+    assert len(calls) == 5
 
 
 def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
@@ -523,12 +490,12 @@ def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
     receipt = editorial.edit_episode(project, runner=once)
-    assert len(calls) == 8
+    assert len(calls) == 6
     edit_calls = [c for c in calls if c["name"] == "edit"]
     repair = edit_calls[-1]["context"]["retry_feedback"]
-    assert "every finding" in repair["validation_error"]
+    assert "required finding" in repair["validation_error"]
     assert repair["previous_response"]["resolutions"] == []
-    assert len(receipt["jobs"]) == 8
+    assert len(receipt["jobs"]) == 6
 
 
 @pytest.mark.parametrize(
@@ -563,7 +530,7 @@ def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
             "Unsupported",
         ),
         (
-            "factual_support",
+            "editorial_review",
             lambda r: r.update(
                 findings=[
                     {
@@ -578,7 +545,7 @@ def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
             "unknown manuscript",
         ),
         (
-            "conversational_voice",
+            "editorial_review",
             lambda r: r.update(
                 additional_sources=[
                     {"url": "https://example.com/invented", "claim": "Invented"}
@@ -618,16 +585,16 @@ def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
             ),
             "unknown commentary",
         ),
-        ("edit", lambda r: r.update(resolutions=[]), "every finding"),
+        ("edit", lambda r: r.update(resolutions=[]), "required finding"),
         (
             "edit",
             lambda r: r["resolutions"].append(deepcopy(r["resolutions"][0])),
-            "every finding",
+            "duplicate or unknown",
         ),
         (
             "edit",
             lambda r: r["resolutions"][0].update(finding_id="missing"),
-            "every finding",
+            "duplicate or unknown",
         ),
         (
             "edit",
@@ -692,7 +659,7 @@ def test_final_editor_can_apply_verified_factual_and_companion_corrections(episo
         "url": "https://example.com/verified",
         "claim": "The group chose a replacement.",
     }
-    outputs["factual_support"]["additional_sources"] = [source]
+    outputs["research"]["verified_sources"].append(source)
     outputs["edit"]["passages"][1].update(
         sources=[source],
         companion={"title": "Una decisión", "summary": "The replacement choice."},
@@ -702,6 +669,15 @@ def test_final_editor_can_apply_verified_factual_and_companion_corrections(episo
     assert plan["segments"][2]["sources"] == [source]
     assert plan["segments"][2]["companion"]["title"] == "Una decisión"
     assert receipt["status"] == "awaiting_manuscript_approval"
+
+
+def test_minor_editorial_review_findings_do_not_require_explicit_resolutions(episode):
+    project, outputs = episode
+    outputs["editorial_review"]["findings"][0]["severity"] = "minor"
+    outputs["edit"]["resolutions"] = []
+    receipt = run_episode(project, outputs)
+    assert receipt["status"] == "awaiting_manuscript_approval"
+    assert "noted" in Path(receipt["report"]).read_text()
 
 
 def test_cache_tampering_and_concurrent_manual_changes_are_preserved(episode):
@@ -897,10 +873,10 @@ def test_stored_delivery_identity_is_validated_before_reading_paths(episode):
         editorial.polish_delivery(project, runner=Mock())
 
 
-def test_agy_pipeline_splits_research_and_draft_and_checks_fact_drift(episode):
+def test_agy_pipeline_auto_repairs_fact_drift_and_blocks_if_still_present(episode):
     project, outputs = episode
     outputs["research"]["production_notes"] = ["Audition the first track edition."]
-    outputs["fact_check"] = {
+    drift = {
         "findings": [
             {
                 "segment_ids": ["decision"],
@@ -911,15 +887,29 @@ def test_agy_pipeline_splits_research_and_draft_and_checks_fact_drift(episode):
             }
         ]
     }
+    outputs["fact_check"] = deepcopy(drift)
+    outputs["fact_check_repair"] = {
+        **deepcopy(outputs["edit"]),
+        "resolutions": [
+            {
+                "finding_id": "fact_check-1",
+                "status": "resolved",
+                "explanation": "Removed unsupported replacement claim.",
+            }
+        ],
+    }
+    outputs["fact_check_recheck"] = deepcopy(drift)
     calls = []
     receipt = run_episode(project, outputs, calls)
     by_name = {c["name"]: c for c in calls}
     assert set(by_name) == {
         "research",
         "write",
-        *editorial.ROLES,
+        "editorial_review",
         "edit",
         "fact_check",
+        "fact_check_repair",
+        "fact_check_recheck",
     }
     assert "writing_references" not in by_name["research"]["context"]
     assert "research_dossier" in by_name["write"]["context"]
@@ -939,15 +929,15 @@ def test_execution_retry_does_not_inject_empty_retry_feedback(episode):
 
     def flaky(prompt, context, schema, attempt, **kwargs):
         nonlocal failed
-        if attempt.parent.name == "conversational_voice" and not failed:
+        if attempt.parent.name == "editorial_review" and not failed:
             failed = True
-            calls.append({"name": "voice-fail", "context": deepcopy(context)})
+            calls.append({"name": "review-fail", "context": deepcopy(context)})
             raise RuntimeError("Transient failure")
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
     editorial.edit_episode(project, runner=flaky)
-    voice_retry = [c for c in calls if c["name"] == "conversational_voice"][-1]
-    assert "retry_feedback" not in voice_retry["context"]
+    review_retry = [c for c in calls if c["name"] == "editorial_review"][-1]
+    assert "retry_feedback" not in review_retry["context"]
 
 
 def test_revision_supports_agy_research(episode, monkeypatch):

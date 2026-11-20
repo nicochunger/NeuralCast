@@ -6,7 +6,7 @@ from neuralcast.config import ASSETS_ROOT
 from .editorial_models import Draft, Review
 
 EXAMPLE_LIBRARY = ASSETS_ROOT / "stories" / "episode_examples" / "library.json"
-ROLES = ("factual_support", "narrative_continuity", "conversational_voice")
+ROLES = ("editorial_review",)
 
 
 def examples(*ids: str) -> list[dict]:
@@ -33,7 +33,7 @@ def examples(*ids: str) -> list[dict]:
 
 def finding_ledger(draft: Draft, reports: dict[str, Review]) -> list[dict]:
     if set(reports) != set(ROLES):
-        raise ValueError("All three focused reviews are required")
+        raise ValueError("Editorial review report is required")
     ids = {part.id for part in draft.plan.segments}
     findings = []
     for role in ROLES:

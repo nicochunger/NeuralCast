@@ -81,8 +81,8 @@ class Finding(Document):
 
 
 class Review(Document):
-    strengths: list[ReviewText] = Field(default_factory=list, max_length=3)
-    findings: list[Finding] = Field(default_factory=list, max_length=6)
+    strengths: list[ReviewText] = Field(default_factory=list, max_length=4)
+    findings: list[Finding] = Field(default_factory=list, max_length=10)
     additional_sources: list[Source] = Field(default_factory=list, max_length=20)
 
 

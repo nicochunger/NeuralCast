@@ -1,6 +1,5 @@
 """Research, parallel focused reviews and one final edit; stop before audio."""
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import monotonic
 import re
@@ -37,8 +36,8 @@ def job_settings() -> dict:
     return {
         "research": {
             "provider": "agy",
-            "model": agy.model_for("medium"),
-            "effort": "medium",
+            "model": agy.model_for("high"),
+            "effort": "high",
             "search": True,
             "timeout_seconds": 600,
         },
@@ -49,22 +48,12 @@ def job_settings() -> dict:
             "search": False,
             "timeout_seconds": 600,
         },
-        "factual_support": {
+        "editorial_review": {
             "provider": "agy",
             "model": agy.model_for("medium"),
             "effort": "medium",
-            "search": True,
-            "timeout_seconds": 600,
-        },
-        **{
-            role: {
-                "provider": "agy",
-                "model": agy.model_for("low"),
-                "effort": "low",
-                "search": False,
-                "timeout_seconds": 300,
-            }
-            for role in ("narrative_continuity", "conversational_voice")
+            "search": False,
+            "timeout_seconds": 420,
         },
         "edit": {
             "provider": "agy",
@@ -603,32 +592,98 @@ def _final_edit(
     blockers = edit_blockers(edit, context["findings"])
     fact_check_findings: list[dict] = []
     if fact_check_settings and fact_check_prompt:
-        check_context = {
-            "proposal": common["proposal"],
-            "approved_brief": common["approved_brief"],
-            "source_plan": source.model_dump(),
-            "findings": context["findings"],
-            "additional_sources": context["additional_sources"],
-            "final_plan": plan.model_dump(),
-        }
         ids = {part.id for part in plan.segments}
 
         def validate_fact_check(result: FactCheck) -> None:
             if any(set(finding.segment_ids) - ids for finding in result.findings):
                 raise ValueError("Fact check refers to unknown manuscript segment IDs")
 
-        checked = _job(
-            directory,
-            "fact_check",
-            check_context,
-            FactCheck,
-            fact_check_settings,
-            fact_check_prompt,
-            runner,
-            validate_fact_check,
-            progress,
-            schema=fact_check_schema,
-        )
+        def run_fact_check(stage_name: str, candidate: Plan) -> FactCheck:
+            check_context = {
+                "proposal": common["proposal"],
+                "approved_brief": common["approved_brief"],
+                "source_plan": source.model_dump(),
+                "findings": context["findings"],
+                "additional_sources": context["additional_sources"],
+                "final_plan": candidate.model_dump(),
+            }
+            return _job(
+                directory,
+                stage_name,
+                check_context,
+                FactCheck,
+                fact_check_settings,
+                fact_check_prompt,
+                runner,
+                validate_fact_check,
+                progress,
+                schema=fact_check_schema,
+            )
+
+        checked = run_fact_check("fact_check", plan)
+        major_drift = [
+            {
+                "id": f"fact_check-{index}",
+                "reviewer": "editorial",
+                **item.model_dump(),
+            }
+            for index, item in enumerate(checked.findings, 1)
+            if item.severity == "major"
+        ]
+        if major_drift:
+            repair_context = _edit_context(
+                common,
+                plan,
+                validate_plan(plan, proposal, brief, common["recordings"]),
+                major_drift,
+                context["additional_sources"],
+                {},
+                edit.production_notes,
+                script_only=context["locked_metadata"],
+            )
+
+            def validate_repair(repaired_edit):
+                edit_blockers(repaired_edit, major_drift)
+                repaired_plan = apply_edit(
+                    plan,
+                    repaired_edit,
+                    script_only=context["locked_metadata"],
+                    evidence=[
+                        *brief.model_dump()["initial_research"],
+                        *context["additional_sources"],
+                    ],
+                )
+                validate_plan(repaired_plan, proposal, brief, common["recordings"])
+
+            repaired = _job(
+                directory,
+                "fact_check_repair",
+                repair_context,
+                Edit,
+                settings,
+                prompt,
+                runner,
+                validate_repair,
+                progress,
+                schema=schema,
+            )
+            edit.production_notes = list(
+                dict.fromkeys([*edit.production_notes, *repaired.production_notes])
+            )
+            plan = apply_edit(
+                plan,
+                repaired,
+                script_only=context["locked_metadata"],
+                evidence=[
+                    *brief.model_dump()["initial_research"],
+                    *context["additional_sources"],
+                ],
+            )
+            blockers = list(
+                dict.fromkeys([*blockers, *edit_blockers(repaired, major_drift)])
+            )
+            checked = run_fact_check("fact_check_recheck", plan)
+
         fact_check_findings = [item.model_dump() for item in checked.findings]
         blockers = list(
             dict.fromkeys(
@@ -732,47 +787,27 @@ def edit_episode(
         "open_questions": draft.open_questions,
         "estimated_duration": timing,
     }
-    reports = {}
-    errors = []
 
-    def review(role):
-        context = {**review_context, "assignment": role}
-        if role == "factual_support":
-            context.pop("writing_references")
+    def validate_review(result: Review) -> None:
+        ids = {part.id for part in draft.plan.segments}
+        if any(set(finding.segment_ids) - ids for finding in result.findings):
+            raise ValueError("Review refers to unknown manuscript segment IDs")
+        if result.additional_sources:
+            raise ValueError("Text-only reviewers cannot add research sources")
 
-        def validate(result):
-            ids = {part.id for part in draft.plan.segments}
-            if any(set(finding.segment_ids) - ids for finding in result.findings):
-                raise ValueError("Review refers to unknown manuscript segment IDs")
-            if role != "factual_support" and result.additional_sources:
-                raise ValueError("Text-only reviewers cannot add research sources")
-
-        return _job(
-            directory,
-            role,
-            context,
-            Review,
-            jobs[role],
-            prompts[role],
-            runner,
-            validate,
-            progress,
-            schema=inputs["schemas"][role],
-        )
-
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        futures = {pool.submit(review, role): role for role in ROLES}
-        for future in as_completed(futures):
-            role = futures[future]
-            try:
-                reports[role] = future.result()
-            except (ValueError, RuntimeError, OSError) as exc:
-                errors.append((role, exc))
-    if errors:
-        role, error = errors[0]
-        raise RuntimeError(
-            f"Review {role} failed; completed jobs were retained: {error}"
-        ) from None
+    review_report = _job(
+        directory,
+        "editorial_review",
+        {**review_context, "assignment": "editorial_review"},
+        Review,
+        jobs["editorial_review"],
+        prompts["editorial_review"],
+        runner,
+        validate_review,
+        progress,
+        schema=inputs["schemas"]["editorial_review"],
+    )
+    reports = {"editorial_review": review_report}
     findings = finding_ledger(draft, reports)
     write_json(directory / "findings.json", {"findings": findings})
     context = _edit_context(
@@ -780,15 +815,8 @@ def edit_episode(
         draft.plan,
         timing,
         findings,
-        [
-            *[source.model_dump() for source in dossier.verified_sources],
-            *[
-                source.model_dump()
-                for role in ROLES
-                for source in reports[role].additional_sources
-            ],
-        ],
-        {role: reports[role].strengths for role in ROLES},
+        [source.model_dump() for source in dossier.verified_sources],
+        {"editorial_review": review_report.strengths},
         draft.production_notes,
     )
     return _final_edit(
@@ -817,57 +845,12 @@ def polish_delivery(
     progress: Callable[[str], None] = lambda _: None,
 ) -> dict:
     """Caller holds project.lock(); reuse evidence for one tool-free narration edit."""
-    proposal, brief, common = _context(project, feedback)
-    latest_path = project.runtime / "editorial_latest.json"
-    latest = read_json(latest_path) if latest_path.exists() else {}
-    if latest.get("blockers"):
-        raise ValueError(
-            "Resolve existing editorial blockers before a delivery-only pass"
-        )
-    source = Plan.model_validate(read_json(project.documents / "plan.json"))
-    prompt = (PROMPTS / "edit.md").read_text(encoding="utf-8")
-    settings = job_settings()["edit"]
-    identity = {"prompt": prompt, "job": settings, "schema": agy.output_schema(Edit)}
-    production_notes = latest.get("production_notes", [])
-    if latest.get("mode") == "delivery" and latest.get("installed_plan_hash") == digest(
-        source.model_dump()
-    ):
-        if not re.fullmatch(r"[a-f0-9]{64}", latest.get("run_hash", "")):
-            raise ValueError("Invalid stored delivery run")
-        saved_path = project.runtime / "delivery" / latest["run_hash"] / "inputs.json"
-        saved = read_json(saved_path)
-        if digest(saved) != latest["run_hash"]:
-            raise ValueError("Stored delivery inputs changed")
-        if {k: v for k, v in saved.items() if k != "context"} == identity and {
-            k: saved["context"].get(k) for k in common
-        } == common:
-            source = Plan.model_validate(saved["context"]["source_plan"])
-            production_notes = saved["context"]["production_notes"]
-    timing = validate_plan(source, proposal, brief, common["recordings"])
-    context = _edit_context(
-        common,
-        source,
-        timing,
-        [],
-        [],
-        {},
-        production_notes,
-        script_only=True,
-    )
-    inputs = {**identity, "context": context}
-    directory = project.runtime / "delivery" / digest(inputs)
-    _snapshot(project, directory, inputs)
-    receipt = _final_edit(
+    from .revision import revise_manuscript
+
+    return revise_manuscript(
         project,
-        common,
-        proposal,
-        brief,
-        directory,
-        context,
-        prompt,
-        settings,
-        runner,
-        progress,
+        feedback,
+        script_only=True,
+        runner=runner,
+        progress=progress,
     )
-    write_json(project.runtime / "delivery_latest.json", receipt)
-    return receipt

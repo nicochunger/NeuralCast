@@ -25,9 +25,7 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
         return [
             ("research", "Web research"),
             ("write", "Draft"),
-            ("factual_support", "Fact review"),
-            ("narrative_continuity", "Story review"),
-            ("conversational_voice", "Voice review"),
+            ("editorial_review", "Editorial review"),
             ("edit", "Final edit"),
             ("fact_check", "Factual drift check"),
         ]
