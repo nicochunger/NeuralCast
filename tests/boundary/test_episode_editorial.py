@@ -203,7 +203,7 @@ def runner_for(outputs, calls):
 
 def run_episode(project, outputs, calls=None, **kwargs):
     runner = runner_for(outputs, calls if calls is not None else [])
-    return editorial.edit_episode(project, runner=runner, text_runner=runner, **kwargs)
+    return editorial.edit_episode(project, runner=runner, **kwargs)
 
 
 def delivery_edit(outputs):
@@ -393,13 +393,18 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     monkeypatch.setattr(service, "prepare_narration", tts)
     result = run_episode(project, outputs, calls)
     by_name = {c["name"]: c for c in calls}
-    assert set(by_name) == {"write", *editorial.ROLES, "edit"}
-    assert len(calls) == 5
-    assert by_name["write"]["reasoning_effort"] == "high"
-    assert by_name["factual_support"]["reasoning_effort"] == "medium"
-    assert by_name["narrative_continuity"]["thinking_level"] == "low"
-    assert by_name["conversational_voice"]["thinking_level"] == "low"
-    assert by_name["edit"]["thinking_level"] == "medium"
+    assert set(by_name) == {"research", "write", *editorial.ROLES, "edit", "fact_check"}
+    assert len(calls) == 7
+    assert by_name["research"]["effort"] == "medium" and by_name["research"]["search"]
+    assert by_name["write"]["effort"] == "medium" and not by_name["write"]["search"]
+    assert (
+        by_name["factual_support"]["effort"] == "medium"
+        and by_name["factual_support"]["search"]
+    )
+    assert by_name["narrative_continuity"]["effort"] == "low"
+    assert by_name["conversational_voice"]["effort"] == "low"
+    assert by_name["edit"]["effort"] == "medium"
+    assert by_name["fact_check"]["effort"] == "low"
     assert all("subagent_count" not in call for call in calls)
     for role in editorial.ROLES:
         assert by_name[role]["context"]["source_plan"] == outputs["write"]["plan"]
@@ -418,7 +423,7 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     assert not any("runtime/" in str(x) for x in refs["voice_examples"])
     assert "host_system_instructions" not in refs
     assert result["status"] == "awaiting_manuscript_approval"
-    assert len(result["jobs"]) == 5
+    assert len(result["jobs"]) == 7
     assert all(metrics["usage"] is None for metrics in result["jobs"].values())
     assert "1.5s of silence" in (project.documents / "manuscript.md").read_text()
     assert "\\<sigh\\>" in (project.documents / "manuscript.md").read_text()
@@ -426,7 +431,7 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     tts.assert_not_called()
     assert not list(project.runtime.glob("**/*.mp3"))
     never = Mock(side_effect=AssertionError("Reuse all completed jobs"))
-    assert editorial.edit_episode(project, runner=never, text_runner=never) == result
+    assert editorial.edit_episode(project, runner=never) == result
     with pytest.raises(ValueError, match="not been approved"):
         service.prepare(project, Mock())
     approve_manuscript(project, result["manuscript_hash"])
@@ -446,7 +451,7 @@ def test_reviews_execute_in_parallel(episode):
             barrier.wait(timeout=5)
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
-    result = editorial.edit_episode(project, runner=parallel, text_runner=parallel)
+    result = editorial.edit_episode(project, runner=parallel)
     assert result["status"] == "awaiting_manuscript_approval"
 
 
@@ -462,7 +467,7 @@ def test_only_failed_review_retries_and_completed_reviews_survive_resume(episode
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
     with pytest.raises(RuntimeError, match="completed jobs were retained"):
-        editorial.edit_episode(project, runner=failing, text_runner=failing)
+        editorial.edit_episode(project, runner=failing)
     assert len([c for c in calls if c["name"] == "failed-voice"]) == 2
     assert not (project.documents / "plan.json").exists()
     directory = next((project.runtime / "editorial").iterdir())
@@ -472,7 +477,11 @@ def test_only_failed_review_retries_and_completed_reviews_survive_resume(episode
     assert (directory / "narrative_continuity.json").exists()
     retry_calls = []
     run_episode(project, outputs, retry_calls)
-    assert [c["name"] for c in retry_calls] == ["conversational_voice", "edit"]
+    assert [c["name"] for c in retry_calls] == [
+        "conversational_voice",
+        "edit",
+        "fact_check",
+    ]
     assert len(list((directory / "conversational_voice").glob("attempt-*"))) == 3
 
 
@@ -495,7 +504,7 @@ def test_edit_can_exceed_word_estimates_without_a_retry(episode):
     for passage in outputs["edit"]["passages"]:
         passage["script"] += " Una historia conecta canciones." * 70
     run_episode(project, outputs, calls)
-    assert len(calls) == 5
+    assert len(calls) == 7
 
 
 def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
@@ -513,12 +522,13 @@ def test_validation_repair_uses_only_failed_job_and_exact_error(episode):
             return result
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
-    receipt = editorial.edit_episode(project, runner=once, text_runner=once)
-    assert len(calls) == 6
-    repair = calls[-1]["context"]["retry_feedback"]
+    receipt = editorial.edit_episode(project, runner=once)
+    assert len(calls) == 8
+    edit_calls = [c for c in calls if c["name"] == "edit"]
+    repair = edit_calls[-1]["context"]["retry_feedback"]
     assert "every finding" in repair["validation_error"]
     assert repair["previous_response"]["resolutions"] == []
-    assert len(receipt["jobs"]) == 6
+    assert len(receipt["jobs"]) == 8
 
 
 @pytest.mark.parametrize(
@@ -725,9 +735,7 @@ def test_concurrent_manual_edits_are_not_overwritten(episode, filename):
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
     with pytest.raises(ValueError, match="changed during editorial"):
-        editorial.edit_episode(
-            project, feedback="New direction", runner=concurrent, text_runner=concurrent
-        )
+        editorial.edit_episode(project, feedback="New direction", runner=concurrent)
     assert (project.documents / filename).read_bytes() != before
     assert read_json(project.runtime / "editorial_latest.json") == initial
 
@@ -863,19 +871,6 @@ def test_cli_editorial_and_delivery_require_no_audio_credentials(
     )
 
 
-def test_missing_gemini_setup_stops_before_research_spend(episode, monkeypatch):
-    project, _ = episode
-
-    def missing():
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-
-    monkeypatch.setattr(editorial.gemini, "get_gemini_client", missing)
-    never = Mock(side_effect=AssertionError("Do not start paid research"))
-    with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
-        editorial.edit_episode(project, runner=never)
-    never.assert_not_called()
-
-
 def test_added_production_note_does_not_trigger_another_delivery_request(episode):
     project, outputs = episode
     run_episode(project, outputs)
@@ -902,192 +897,7 @@ def test_stored_delivery_identity_is_validated_before_reading_paths(episode):
         editorial.polish_delivery(project, runner=Mock())
 
 
-def test_paired_comparison_isolates_documents_and_resumes_both_arms(
-    episode, monkeypatch
-):
-    from neuralcast.pipelines.episode_producer import comparison
-
-    project, outputs = episode
-    before = read_json(project.documents / "proposal.json")
-    calls = []
-    actual = editorial.edit_episode
-    fake = runner_for(outputs, calls)
-    monkeypatch.setattr(
-        editorial,
-        "edit_episode",
-        lambda p, **kwargs: actual(p, runner=fake, text_runner=fake, **kwargs),
-    )
-    snapshot = comparison.freeze(project)
-    assert snapshot["inputs"]["a"]["context"] == snapshot["inputs"]["b"]["context"]
-    assert {v["jobs"]["write"]["provider"] for v in snapshot["inputs"].values()} == {
-        "codex",
-        "gemini",
-    }
-    assert any(
-        v["jobs"].get("research", {}).get("search")
-        for v in snapshot["inputs"].values()
-    )
-    # A later prompt-file change cannot leak into either saved arm.
-    monkeypatch.setattr(editorial, "PROMPTS", project.runtime / "unavailable-prompts")
-    result = comparison.run(project, "paired-test", snapshot)
-    assert result["status"] == "comparison_review"
-    assert len(calls) == 12
-    comparison.run(project, "paired-test", snapshot)
-    assert len(calls) == 12
-    assert read_json(project.documents / "proposal.json") == before
-    assert not (project.documents / "plan.json").exists()
-    assert not (project.runtime / "manuscript_approval.json").exists()
-    view = comparison.view(project, "paired-test")
-    assert len(view["versions"]) == 2
-    assert all(
-        v["segments"] and v["draft_segments"] and not v["audio"]
-        for v in view["versions"]
-    )
-    a = comparison.variant_project(project, "paired-test", "a")
-    b = comparison.variant_project(project, "paired-test", "b")
-    assert a.runtime != b.runtime
-    assert a.documents.is_relative_to(project.runtime)
-    with pytest.raises(ValueError, match="manuscript changed"):
-        comparison.render(project, "paired-test", "a", "0" * 64)
-    assert not (a.runtime / "manuscript_approval.json").exists()
-    assert not (b.runtime / "manuscript_approval.json").exists()
-    monkeypatch.setattr(
-        comparison.service, "prepare", Mock(return_value={"render_hash": "f" * 64})
-    )
-    comparison.render(
-        project, "paired-test", "a", view["versions"][0]["manuscript_hash"]
-    )
-    assert (a.runtime / "manuscript_approval.json").exists()
-    assert not (b.runtime / "manuscript_approval.json").exists()
-    assert comparison.service.prepare.call_args.kwargs["local_only"] is True
-    assert comparison.service.prepare.call_args.args[1] is None
-    # Source mutation cannot silently change the music in an approved comparison.
-    (
-        project.station_root / "songs" / "Classic Metal" / "Artist - Song.mp3"
-    ).write_bytes(b"replacement")
-    with pytest.raises(ValueError, match="recording changed"):
-        comparison.render(
-            project, "paired-test", "b", view["versions"][1]["manuscript_hash"]
-        )
-    changed = read_json(b.documents / "plan.json")
-    changed["segments"][0]["script"] += " Changed."
-    write_json(b.documents / "plan.json", changed)
-    with pytest.raises(ValueError, match="Saved comparison manuscript changed"):
-        comparison.variant_project(project, "paired-test", "b")
-
-
-def test_comparison_keeps_successful_arm_when_other_provider_fails(
-    episode, monkeypatch
-):
-    from neuralcast.pipelines.episode_producer import comparison
-
-    project, outputs = episode
-    calls = []
-    actual = editorial.edit_episode
-    fake = runner_for(outputs, calls)
-
-    def execute(p, **kwargs):
-        if p.runtime.name == "a":
-            raise RuntimeError("research unavailable")
-        return actual(p, runner=fake, text_runner=fake, **kwargs)
-
-    monkeypatch.setattr(editorial, "edit_episode", execute)
-    snapshot = comparison.freeze(project)
-    with pytest.raises(RuntimeError, match="retry resumes"):
-        comparison.run(project, "partial-test", snapshot)
-    view = comparison.view(project, "partial-test")
-    assert view["versions"][0]["status"] == "failed"
-    assert view["versions"][1]["segments"]
-    with pytest.raises(ValueError, match="Unknown comparison version"):
-        comparison.variant_project(project, "partial-test", "c")
-    root = comparison.directory(project, "partial-test")
-    write_json(
-        root / "experiment.json", {"snapshot": snapshot, "snapshot_hash": "0" * 64}
-    )
-    with pytest.raises(ValueError, match="snapshot changed"):
-        comparison.view(project, "partial-test")
-
-
-def test_comparison_questions_are_resolved_in_a_saved_revision(episode, monkeypatch):
-    from neuralcast.pipelines.episode_producer import comparison, revision
-
-    project, outputs = episode
-    calls = []
-    actual = editorial.edit_episode
-    fake = runner_for(outputs, calls)
-    monkeypatch.setattr(
-        editorial,
-        "edit_episode",
-        lambda p, **kw: actual(p, runner=fake, text_runner=fake, **kw),
-    )
-    comparison.run(project, "resolution-test", comparison.freeze(project))
-    p = comparison.variant_project(project, "resolution-test", "a")
-    prior = read_json(p.runtime / "editorial_latest.json")
-    prior["blockers"] = ["Two witnesses disagree; the script attributes both accounts."]
-    prior["status"] = "blocked"
-    write_json(p.runtime / "editorial_latest.json", prior)
-    before = read_json(p.documents / "plan.json")
-
-    def edit(prompt, context, schema, attempt, **kw):
-        return {
-            "passages": [
-                {
-                    "segment_id": s["id"],
-                    "script": s["script"],
-                    "explanation": "Keep attributed uncertainty without inventing a verdict.",
-                    "companion": None,
-                    "sources": None,
-                }
-                for s in context["source_plan"]["segments"]
-                if s["kind"] == "commentary"
-            ],
-            "resolutions": [
-                {
-                    "finding_id": f["id"],
-                    "status": "resolved",
-                    "explanation": "Both accounts are explicitly attributed; no definitive version is asserted.",
-                }
-                for f in context["findings"]
-            ],
-            "open_questions": [],
-            "production_notes": [],
-            "listening_notes": [],
-        }
-
-    monkeypatch.setattr(revision.gemini, "run_stage", edit)
-    with pytest.raises(ValueError, match="manuscript changed"):
-        comparison.resolve(project, "resolution-test", "a", "0" * 64)
-    result = comparison.resolve(
-        project, "resolution-test", "a", prior["manuscript_hash"]
-    )
-    assert result["status"] == "awaiting_manuscript_approval"
-    latest = read_json(p.runtime / "editorial_latest.json")
-    assert latest["blockers"] == []
-    assert Path(latest["artifacts"]).parent.name == "revisions"
-    assert read_json(Path(latest["artifacts"]) / "previous_plan.json") == before
-    assert Path(prior["artifacts"], "final_plan.json").exists()
-    assert not (p.runtime / "manuscript_approval.json").exists()
-    assert comparison.view(project, "resolution-test")["versions"][0]["blockers"] == []
-
-
-def test_comparison_automatically_attempts_resolution_before_owner_review(
-    episode, monkeypatch
-):
-    from neuralcast.pipelines.episode_producer import comparison
-
-    project, _ = episode
-    monkeypatch.setattr(
-        editorial, "edit_episode", lambda *a, **kw: {"blockers": ["Uncertain claim"]}
-    )
-    resolver = Mock(return_value={"blockers": []})
-    monkeypatch.setattr(comparison, "_resolve_questions", resolver)
-    comparison.run(project, "automatic-resolution", comparison.freeze(project))
-    assert resolver.call_count == 2
-
-
-def test_gemini_pipeline_splits_research_and_draft_checks_grounding_and_fact_drift(
-    episode,
-):
+def test_agy_pipeline_splits_research_and_draft_and_checks_fact_drift(episode):
     project, outputs = episode
     outputs["research"]["production_notes"] = ["Audition the first track edition."]
     outputs["fact_check"] = {
@@ -1102,33 +912,7 @@ def test_gemini_pipeline_splits_research_and_draft_checks_grounding_and_fact_dri
         ]
     }
     calls = []
-
-    def fake(prompt, context, schema, attempt, **kwargs):
-        name = attempt.parent.name
-        calls.append({"name": name, "prompt": prompt, "context": deepcopy(context)})
-        if name == "research":
-            write_json(
-                attempt / "grounding.json",
-                {
-                    "candidates": [],
-                    "summary": {
-                        "web_search_queries": 0,
-                        "grounding_chunks": 0,
-                        "url_context_success": 1,
-                        "url_context_failed": 0,
-                        "retrieved_urls": ["https://example.com/history"],
-                        "failed_urls": [],
-                    },
-                },
-            )
-        return deepcopy(outputs[name])
-
-    frozen = editorial.workshop_inputs(project, pipeline="gemini")
-    assert "Read context.json" not in frozen["prompts"]["factual_support"]
-    assert "Do not delegate" not in frozen["prompts"]["factual_support"]
-    receipt = editorial.edit_episode(
-        project, runner=fake, text_runner=fake, frozen_inputs=frozen
-    )
+    receipt = run_episode(project, outputs, calls)
     by_name = {c["name"]: c for c in calls}
     assert set(by_name) == {
         "research",
@@ -1143,41 +927,8 @@ def test_gemini_pipeline_splits_research_and_draft_checks_grounding_and_fact_dri
     assert receipt["status"] == "blocked"
     assert any("fact_check-1" in b for b in receipt["blockers"])
     assert "Post-edit factual check" in Path(receipt["report"]).read_text()
-    assert any("0 web queries" in w for w in receipt["grounding_warnings"])
     with pytest.raises(ValueError, match="unresolved editorial blockers"):
         approve_manuscript(project, receipt["manuscript_hash"])
-
-
-def test_gemini_grounding_rejects_newly_cited_url_that_failed_retrieval(episode):
-    project, outputs = episode
-    outputs["research"]["verified_sources"].append(
-        {"url": "https://example.com/dead-link", "claim": "Unreachable claim."}
-    )
-
-    def fake(prompt, context, schema, attempt, **kwargs):
-        name = attempt.parent.name
-        if name == "research":
-            write_json(
-                attempt / "grounding.json",
-                {
-                    "candidates": [],
-                    "summary": {
-                        "web_search_queries": 1,
-                        "grounding_chunks": 0,
-                        "url_context_success": 0,
-                        "url_context_failed": 1,
-                        "retrieved_urls": [],
-                        "failed_urls": ["https://example.com/dead-link"],
-                    },
-                },
-            )
-        return deepcopy(outputs[name])
-
-    frozen = editorial.workshop_inputs(project, pipeline="gemini")
-    with pytest.raises(ValueError, match="failed retrieval"):
-        editorial.edit_episode(
-            project, runner=fake, text_runner=fake, frozen_inputs=frozen
-        )
 
 
 def test_execution_retry_does_not_inject_empty_retry_feedback(episode):
@@ -1194,19 +945,19 @@ def test_execution_retry_does_not_inject_empty_retry_feedback(episode):
             raise RuntimeError("Transient failure")
         return ordinary(prompt, context, schema, attempt, **kwargs)
 
-    editorial.edit_episode(project, runner=flaky, text_runner=flaky)
+    editorial.edit_episode(project, runner=flaky)
     voice_retry = [c for c in calls if c["name"] == "conversational_voice"][-1]
     assert "retry_feedback" not in voice_retry["context"]
 
 
-def test_revision_supports_gemini_research_pipeline(episode, monkeypatch):
+def test_revision_supports_agy_research(episode, monkeypatch):
     from neuralcast.pipelines.episode_producer import revision
 
     project, outputs = episode
     run_episode(project, outputs)
     seen = []
 
-    def fake_gemini(prompt, context, schema, attempt, **kwargs):
+    def fake_agy(prompt, context, schema, attempt, **kwargs):
         seen.append((attempt.parent.name, kwargs.get("search", False), prompt))
         if attempt.parent.name == "feedback_research":
             return {
@@ -1234,17 +985,10 @@ def test_revision_supports_gemini_research_pipeline(episode, monkeypatch):
             "listening_notes": [],
         }
 
-    monkeypatch.setattr(revision.gemini, "run_stage", fake_gemini)
-    monkeypatch.setattr(
-        revision.codex,
-        "run_stage",
-        Mock(side_effect=AssertionError("Codex must not run in gemini pipeline")),
-    )
     revision.revise_manuscript(
         project,
         {"overall": "Verify fact", "sections": {}, "research": True},
-        pipeline="gemini",
+        runner=fake_agy,
     )
     assert seen[0][0] == "feedback_research" and seen[0][1] is True
-    assert "Google Search" in seen[0][2]
-    assert seen[1][0] == "edit"
+    assert seen[1][0] == "edit" and seen[1][1] is False

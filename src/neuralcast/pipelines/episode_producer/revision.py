@@ -2,7 +2,7 @@
 
 import json
 from typing import Callable
-from neuralcast.services import editorial_agent as codex, editorial_text as gemini
+from neuralcast.services import editorial_agy as agy
 from . import editorial
 from .editorial_models import Review, Edit
 from .models import Plan
@@ -13,9 +13,9 @@ def revise_manuscript(
     project: Project,
     feedback: dict,
     *,
-    pipeline: str = "hybrid",
     source_plan: dict | None = None,
     source_editorial: dict | None = None,
+    runner: Callable = agy.run_stage,
     progress: Callable[[str], None] = print,
 ) -> dict:
     proposal, brief, common = editorial._context(
@@ -44,13 +44,8 @@ def revise_manuscript(
         for i, question in enumerate(latest.get("blockers", []), 1)
     ]
     research_prompt = (editorial.PROMPTS / "feedback_research.md").read_text()
-    if pipeline == "gemini":
-        research_prompt = research_prompt.replace(
-            "No file edits, agents, audio, uploads or publication.",
-            "Use Google Search and URL Context to verify claims against primary sources. No audio, uploads or publication.",
-        )
     prompt = (editorial.PROMPTS / "edit.md").read_text()
-    jobs = editorial.job_settings(pipeline)
+    jobs = editorial.job_settings()
     inputs = {
         "context": common,
         "source_plan": source.model_dump(),
@@ -59,7 +54,7 @@ def revise_manuscript(
         "prompt": prompt,
         "research_prompt": research_prompt,
         "jobs": jobs,
-        "schema": codex.output_schema(Edit),
+        "schema": agy.output_schema(Edit),
     }
     directory = project.runtime / "revisions" / digest(inputs)
     editorial._snapshot(project, directory, inputs)
@@ -72,11 +67,6 @@ def revise_manuscript(
             "open_questions": latest.get("blockers", []),
         }
         research_settings = jobs["factual_support"]
-        research_runner = (
-            gemini.run_stage
-            if research_settings["provider"] == "gemini"
-            else codex.run_stage
-        )
 
         def validate(report):
             ids = {p.id for p in source.segments}
@@ -90,7 +80,7 @@ def revise_manuscript(
             Review,
             research_settings,
             research_prompt,
-            research_runner,
+            runner,
             validate,
             progress,
         )
@@ -119,6 +109,6 @@ def revise_manuscript(
         context,
         prompt,
         jobs["edit"],
-        gemini.run_stage,
+        runner,
         progress,
     )

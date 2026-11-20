@@ -21,43 +21,23 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
     )
     if action == "develop" and request.get("episode_id"):
         action = "refine_brief"
-    def _editorial_steps(jobs: dict[str, Any] | None = None) -> list[tuple[str, str]]:
-        stage_labels = [
+    def _editorial_steps() -> list[tuple[str, str]]:
+        return [
             ("research", "Web research"),
-            ("write", "Draft" if jobs and "research" in jobs else "Research and draft"),
+            ("write", "Draft"),
             ("factual_support", "Fact review"),
             ("narrative_continuity", "Story review"),
             ("conversational_voice", "Voice review"),
             ("edit", "Final edit"),
             ("fact_check", "Factual drift check"),
         ]
-        if jobs is None:
-            return [
-                (stage, label)
-                for stage, label in stage_labels
-                if stage not in {"research", "fact_check"}
-            ]
-        return [(stage, label) for stage, label in stage_labels if stage in jobs]
 
-    compare_inputs = (request.get("comparison_snapshot") or {}).get("inputs") or {}
     definitions = {
         "ideas": [("topics", "Suggesting topics")],
         "develop": [("concept", "Researching and developing the brief")],
         "refine_brief": [("concept", "Researching and revising the brief")],
         "queue": [("queue", "Approving and queueing the brief")],
         "write": _editorial_steps(),
-        "compare": [
-            (f"{version}_{stage}", f"Version {version.upper()}: {label}")
-            for version in ("a", "b")
-            for stage, label in _editorial_steps(
-                compare_inputs.get(version, {}).get("jobs")
-            )
-        ],
-        "compare_resolve": [("edit", "Resolving research questions")],
-        "compare_render": [
-            ("narration", "Generating approved comparison voice"),
-            ("mix", "Assembling local listening copy"),
-        ],
         "revise": [
             *(
                 [("feedback_research", "Focused factual research")]
@@ -85,17 +65,7 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
     ):
         if name in statuses:
             statuses[name]["status"] = "running" if event == "Running" else "succeeded"
-    if action == "compare":
-        for version, event, name in re.findall(
-            r"Comparison version ([ab]): (Running|Completed|Reusing) editorial job: (\w+)",
-            log,
-        ):
-            key = f"{version}_{name}"
-            if key in statuses:
-                statuses[key]["status"] = (
-                    "running" if event == "Running" else "succeeded"
-                )
-    if action in {"render", "compare_render"}:
+    if action == "render":
         events = re.findall(r"Episode production: (narration|mix|upload)", log)
         if events:
             current = [s["id"] for s in steps].index(events[-1])
@@ -133,18 +103,6 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
     for step in steps:
         step_directory = directory
         stage_id = step["id"]
-        if action == "compare" and episode_id:
-            from neuralcast.pipelines.episode_producer.storage import digest
-
-            version, stage_id = step["id"].split("_", 1)
-            step_directory = (
-                workspace.project(episode_id).runtime
-                / "comparisons"
-                / request["comparison_id"]
-                / version
-                / "editorial"
-                / digest(request["comparison_snapshot"]["inputs"][version])
-            )
         if step_directory and (step_directory / f"{stage_id}.json").exists():
             step["status"] = "succeeded"
         elif step_directory and list(

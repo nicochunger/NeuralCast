@@ -199,11 +199,16 @@ def test_targeted_revision_reuses_the_current_script_and_preserves_music(
             "listening_notes": [],
         }
 
+    def agy_stage(prompt, context, schema, attempt, **kwargs):
+        if attempt.parent.name == "feedback_research":
+            return fact(prompt, context, schema, attempt, **kwargs)
+        return edit(prompt, context, schema, attempt, **kwargs)
+
     fact = Mock(
         return_value={"strengths": [], "findings": [], "additional_sources": []}
     )
-    monkeypatch.setattr(revision.gemini, "run_stage", edit)
-    monkeypatch.setattr(revision.codex, "run_stage", fact)
+    monkeypatch.setattr(revision.agy, "run_stage", agy_stage)
+    monkeypatch.setattr(workspace, "revise_manuscript", lambda *a, **kw: revision.revise_manuscript(*a, runner=agy_stage, **kw))
     result = w.execute(request)
     assert len(calls) == 1 and fact.call_count == int(research)
     assert calls[0]["source_plan"] == plan.model_dump()
@@ -413,8 +418,12 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
             "initial_research": [],
         }
 
-    monkeypatch.setattr(workspace.gemini, "run_stage", topics)
-    monkeypatch.setattr(workspace.codex, "run_stage", concept)
+    def planning(prompt, context, schema, attempt, **kwargs):
+        if attempt.parent.name == "topics":
+            return topics(prompt, context, schema, attempt, **kwargs)
+        return concept(prompt, context, schema, attempt, **kwargs)
+
+    monkeypatch.setattr(workspace.agy, "run_stage", planning)
     request = w.submit("ideas", revision=digest(w.state()), target_minutes=10)
     assert w.execute(request)["ideas"][0]["title"] == "A voice changes"
     assert w.execute(request)["ideas"][0]["title"] == "A voice changes"
@@ -436,6 +445,17 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
         current = template.model_copy(
             update={"proposal_hash": p.editorial_brief().proposal_hash}
         )
+        if name == "research":
+            return {
+                "central_question": "How does a band adapt?",
+                "narrative_arc": ["Before", "After"],
+                "verified_sources": [
+                    {"url": "https://example.com/history", "claim": "Confirmed."}
+                ],
+                "research_notes": "Fixture research.",
+                "open_questions": [],
+                "production_notes": [],
+            }
         if name == "write":
             return {
                 "plan": current.model_dump(),
@@ -461,15 +481,15 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
                 "production_notes": [],
                 "listening_notes": [],
             }
+        if name == "fact_check":
+            return {"findings": []}
         return {"strengths": [], "findings": [], "additional_sources": []}
 
     real_editorial = editorial.edit_episode
     monkeypatch.setattr(
         editorial,
         "edit_episode",
-        lambda project, **kwargs: real_editorial(
-            project, runner=stage, text_runner=stage, **kwargs
-        ),
+        lambda project, **kwargs: real_editorial(project, runner=stage, **kwargs),
     )
     request = w.submit("write", episode_id=p.id, revision=w.revision(p))
     response = w.execute(request)
@@ -477,7 +497,7 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
     assert w.detail(p)["status"] == "manuscript_review"
     assert w.detail(p)["changes"]
     assert p.id in w.state()["managed_episodes"]
-    assert len(calls) == 7  # ideas, concept and the five existing editorial jobs.
+    assert len(calls) == 9  # ideas, concept and the seven agy editorial jobs.
     assert not (p.runtime / "manuscript_approval.json").exists()
 
 
@@ -584,6 +604,7 @@ def test_live_activity_reads_buffered_stage_files_without_mutating_the_job(rig):
     write_json(
         directory / "inputs.json", {"context": {"concept_hash": p.concept_hash()}}
     )
+    write_json(directory / "research.json", {"output": {}})
     write_json(directory / "write.json", {"output": {}})
     write_json(directory / "narrative_continuity.json", {"output": {}})
     write_json(directory / "factual_support" / "attempt-001" / "context.json", {})
@@ -597,11 +618,13 @@ def test_live_activity_reads_buffered_stage_files_without_mutating_the_job(rig):
     assert progress["action"] == "write" and progress["episode_id"] == p.id
     steps = {s["id"]: s["status"] for s in progress["steps"]}
     assert steps == {
+        "research": "succeeded",
         "write": "succeeded",
         "factual_support": "running",
         "narrative_continuity": "succeeded",
         "conversational_voice": "running",
         "edit": "pending",
+        "fact_check": "pending",
     }
     assert request_path.read_bytes() == original and job["status"] == "running"
     job.update(
@@ -702,7 +725,7 @@ def test_owner_can_archive_restore_and_request_stage_stop(rig, tmp_path, monkeyp
     )
     assert response.status_code == 200
     monkeypatch.setattr(
-        workspace.gemini,
+        workspace.agy,
         "run_stage",
         Mock(side_effect=AssertionError("Must not call provider")),
     )
@@ -725,104 +748,3 @@ def test_voice_directions_preserve_manuscript_and_change_revision(
     assert response.status_code == 200 and w.revision(p) != revision
     assert (p.documents / "plan.json").read_bytes() == before
     assert response.json()["voice_directions"] == "Speak a little slower."
-
-
-def test_comparison_submission_freezes_inputs_and_does_not_start_models(
-    rig, monkeypatch
-):
-    from neuralcast.pipelines.episode_producer import comparison
-
-    w, p, _ = rig
-    never = Mock(side_effect=AssertionError("Provider must run in background"))
-    monkeypatch.setattr(comparison, "run", never)
-    request = w.submit("compare", episode_id=p.id, revision=w.revision(p))
-    saved = read_json(w.root / "requests" / request / "request.json")
-    assert saved["comparison_id"] == request
-    assert saved["comparison_snapshot"]["concept_hash"] == p.concept_hash()
-    assert any(
-        v["jobs"].get("research", {}).get("search")
-        for v in saved["comparison_snapshot"]["inputs"].values()
-    )
-    assert not (p.runtime / "manuscript_approval.json").exists()
-    assert not (p.documents / "plan.json").exists()
-    never.assert_not_called()
-    result = Mock(return_value={"episode_id": p.id, "status": "comparison_review"})
-    monkeypatch.setattr(comparison, "run", result)
-    w.execute(request)
-    assert result.call_count == 1
-    w.execute(request)
-    assert result.call_count == 1
-
-
-def test_comparison_routes_auth_ranges_and_approval_schema(rig, tmp_path, monkeypatch):
-    from neuralcast.pipelines.episode_producer import comparison
-
-    w, p, _ = rig
-    http, manager = client(rig, tmp_path, monkeypatch)
-    base = f"/admin/episodes/neuralforge/{p.id}/comparisons/saved"
-    assert http.get(base).status_code == 401
-    headers = {"Authorization": "Bearer test-token"}
-    monkeypatch.setattr(comparison, "view", lambda *args: {"versions": []})
-    response = http.get(base, headers=headers)
-    assert response.status_code == 200
-    assert response.headers["cache-control"] == "private, no-store"
-    preview = tmp_path / "comparison.mp3"
-    preview.write_bytes(b"local comparison audio")
-    monkeypatch.setattr(comparison, "audio", lambda *args: preview)
-    url = base + "/a/audio/" + "a" * 64
-    response = http.get(url, headers={**headers, "Range": "bytes=0-4"})
-    assert response.status_code == 206 and response.content == b"local"
-    assert response.headers["cache-control"] == "private, no-store"
-    assert http.head(url, headers=headers).status_code == 200
-    assert http.get(base + "/c/audio/" + "a" * 64, headers=headers).status_code == 422
-    assert (
-        http.post(
-            "/admin/episodes/neuralforge/actions",
-            headers=headers,
-            json={
-                "action": "compare_render",
-                "episode_id": p.id,
-                "revision": w.revision(p),
-                "comparison_id": "saved",
-                "variant": "c",
-                "comparison_manuscript_hash": "a" * 64,
-            },
-        ).status_code
-        == 422
-    )
-
-
-def test_comparison_resolution_request_allows_blockers_but_requires_exact_text(
-    rig, monkeypatch
-):
-    from neuralcast.pipelines.episode_producer import comparison
-
-    w, p, plan = written(rig)
-    monkeypatch.setattr(comparison, "variant_project", lambda *a: p)
-    write_json(
-        p.runtime / "editorial_latest.json",
-        {
-            "blockers": ["Uncertainty needs an editorial decision"],
-            "manuscript_hash": manuscript_hash(p, plan),
-        },
-    )
-    with pytest.raises(ConflictError, match="manuscript changed"):
-        w.submit(
-            "compare_resolve",
-            episode_id=p.id,
-            revision=w.revision(p),
-            comparison_id="saved",
-            variant="a",
-            comparison_manuscript_hash="0" * 64,
-        )
-    request = w.submit(
-        "compare_resolve",
-        episode_id=p.id,
-        revision=w.revision(p),
-        comparison_id="saved",
-        variant="a",
-        comparison_manuscript_hash=manuscript_hash(p, plan),
-    )
-    saved = read_json(w.root / "requests" / request / "request.json")
-    assert saved["comparison_manuscript_hash"] == manuscript_hash(p, plan)
-    assert saved["action"] == "compare_resolve"

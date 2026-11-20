@@ -11,7 +11,7 @@ from neuralcast.pipelines.host_orchestrator.speech import (
     INLINE_VOCAL_TAGS,
     validate_speech_transcript,
 )
-from neuralcast.services import editorial_agent as codex, editorial_text as gemini
+from neuralcast.services import editorial_agy as agy
 from .editorial_models import (
     Draft,
     Edit,
@@ -33,114 +33,66 @@ from .reviews import ROLES, examples, finding_ledger
 PROMPTS = ASSETS_ROOT / "stories" / "prompts" / "episode_editorial"
 
 
-def job_settings(pipeline: str = "hybrid") -> dict:
-    if pipeline not in {"hybrid", "gemini"}:
-        raise ValueError("Unknown editorial pipeline")
-    jobs = {
+def job_settings() -> dict:
+    return {
+        "research": {
+            "provider": "agy",
+            "model": agy.model_for("medium"),
+            "effort": "medium",
+            "search": True,
+            "timeout_seconds": 600,
+        },
         "write": {
-            "provider": "codex",
-            "model": codex.MODEL,
-            "reasoning_effort": "high",
-            "timeout_seconds": 900,
+            "provider": "agy",
+            "model": agy.model_for("medium"),
+            "effort": "medium",
+            "search": False,
+            "timeout_seconds": 600,
         },
         "factual_support": {
-            "provider": "codex",
-            "model": codex.MODEL,
-            "reasoning_effort": "medium",
+            "provider": "agy",
+            "model": agy.model_for("medium"),
+            "effort": "medium",
+            "search": True,
             "timeout_seconds": 600,
         },
         **{
             role: {
-                "provider": "gemini",
-                "model": gemini.MODEL,
-                "thinking_level": "low",
-                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
+                "provider": "agy",
+                "model": agy.model_for("low"),
+                "effort": "low",
+                "search": False,
                 "timeout_seconds": 300,
             }
             for role in ("narrative_continuity", "conversational_voice")
         },
         "edit": {
-            "provider": "gemini",
-            "model": gemini.MODEL,
-            "thinking_level": "medium",
-            "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
+            "provider": "agy",
+            "model": agy.model_for("medium"),
+            "effort": "medium",
+            "search": False,
             "timeout_seconds": 900,
+        },
+        "fact_check": {
+            "provider": "agy",
+            "model": agy.model_for("low"),
+            "effort": "low",
+            "search": False,
+            "timeout_seconds": 180,
         },
     }
 
-    if pipeline == "gemini":
-        return {
-            "research": {
-                "provider": "gemini",
-                "model": gemini.MODEL,
-                "thinking_level": "medium",
-                "search": True,
-                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
-                "timeout_seconds": 600,
-            },
-            "write": {
-                "provider": "gemini",
-                "model": gemini.MODEL,
-                "thinking_level": "medium",
-                "search": False,
-                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
-                "timeout_seconds": 600,
-            },
-            "factual_support": {
-                "provider": "gemini",
-                "model": gemini.MODEL,
-                "thinking_level": "medium",
-                "search": True,
-                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
-                "timeout_seconds": 600,
-            },
-            **{
-                role: jobs[role]
-                for role in ("narrative_continuity", "conversational_voice")
-            },
-            "edit": jobs["edit"],
-            "fact_check": {
-                "provider": "gemini",
-                "model": gemini.MODEL,
-                "thinking_level": "low",
-                "search": False,
-                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
-                "timeout_seconds": 180,
-            },
-        }
-    return jobs
 
-
-def _gemini_prompt(name: str) -> str:
+def _stage_prompt(name: str) -> str:
     filename = "draft.md" if name == "write" else f"{name}.md"
-    text = (PROMPTS / filename).read_text(encoding="utf-8")
-    if name == "factual_support":
-        text = text.replace(
-            "Read context.json and source_plan in full.",
-            "Read the supplied context and source_plan in full.",
-        ).replace(
-            "Read-only inspection and online verification are allowed. Do not delegate, edit\n"
-            "files, run pipeline commands, synthesize audio, upload or publish.",
-            "Use Google Search and URL Context to verify claims against primary sources.\n"
-            "Do not synthesize audio, upload or publish.",
-        )
-    return text
+    return (PROMPTS / filename).read_text(encoding="utf-8")
 
 
-def workshop_inputs(
-    project: Project, pipeline: str = "hybrid", *, common: dict | None = None
-) -> dict:
+def workshop_inputs(project: Project, *, common: dict | None = None) -> dict:
     if common is None:
         _, _, common = _context(project, "")
-    jobs = job_settings(pipeline)
-    prompts = {
-        name: (
-            _gemini_prompt(name)
-            if pipeline == "gemini"
-            else (PROMPTS / f"{name}.md").read_text(encoding="utf-8")
-        )
-        for name in jobs
-    }
+    jobs = job_settings()
+    prompts = {name: _stage_prompt(name) for name in jobs}
     all_models = {
         "research": ResearchDossier,
         "write": Draft,
@@ -152,7 +104,7 @@ def workshop_inputs(
         "context": common,
         "prompts": prompts,
         "jobs": jobs,
-        "schemas": {name: codex.output_schema(all_models[name]) for name in jobs},
+        "schemas": {name: agy.output_schema(all_models[name]) for name in jobs},
     }
 
 
@@ -353,55 +305,6 @@ def _check_text(value) -> None:
         raise ValueError("Response contains a repeated-token corruption")
 
 
-def _grounding_summary(attempt: Path) -> dict | None:
-    path = attempt / "grounding.json"
-    if not path.exists():
-        return None
-    data = read_json(path)
-    summary = data.get("summary")
-    if isinstance(summary, dict):
-        return summary
-    return gemini.summarize_grounding(data.get("candidates") or [])
-
-
-def _validate_grounding(
-    attempt: Path, cited_urls: set[str], existing_urls: set[str]
-) -> None:
-    summary = _grounding_summary(attempt)
-    if summary is None:
-        return
-    retrieved = set(summary.get("retrieved_urls") or [])
-    failed = set(summary.get("failed_urls") or [])
-    new_failed = sorted((cited_urls - existing_urls) & failed - retrieved)
-    if new_failed:
-        raise ValueError(
-            "Cited source URL(s) failed retrieval: " + ", ".join(new_failed[:5])
-        )
-
-
-def _collect_grounding_warnings(directory: Path) -> list[str]:
-    warnings: list[str] = []
-    for stage in ("research", "factual_support"):
-        result_path = directory / f"{stage}.json"
-        if not result_path.exists():
-            continue
-        attempt_str = read_json(result_path).get("attempt")
-        if not attempt_str:
-            continue
-        summary = _grounding_summary(Path(attempt_str))
-        if summary is None:
-            continue
-        if summary.get("web_search_queries", 0) == 0:
-            warnings.append(
-                f"{stage}: Google Search ran 0 web queries; verify sources were independently corroborated."
-            )
-        if summary.get("url_context_failed", 0) > 0:
-            warnings.append(
-                f"{stage}: {summary['url_context_failed']} URL Context fetch(es) failed."
-            )
-    return warnings
-
-
 def _job(
     directory: Path,
     name: str,
@@ -413,7 +316,6 @@ def _job(
     validate: Callable,
     progress: Callable,
     schema: dict | None = None,
-    check_attempt: Callable | None = None,
 ) -> Draft | Review | Edit | ResearchDossier | FactCheck:
     result_path = directory / f"{name}.json"
     if result_path.exists():
@@ -443,19 +345,17 @@ def _job(
             raw = runner(
                 prompt,
                 request,
-                schema or codex.output_schema(model),
+                schema or agy.output_schema(model),
                 attempt,
                 **{
                     key: value
                     for key, value in settings.items()
-                    if key not in {"provider", "model"}
+                    if key != "provider"
                 },
             )
             _check_text(raw)
             result = model.model_validate(raw)
             validate(result)
-            if check_attempt is not None:
-                check_attempt(result, attempt)
         except (ValueError, RuntimeError, OSError) as exc:
             failure = attempt / "failure.json"
             if not failure.exists():
@@ -754,7 +654,6 @@ def _final_edit(
         source,
         context["findings"],
         fact_check_findings=fact_check_findings,
-        grounding_warnings=_collect_grounding_warnings(directory),
     )
 
 
@@ -762,8 +661,7 @@ def edit_episode(
     project: Project,
     *,
     feedback: str = "",
-    runner: Callable = codex.run_stage,
-    text_runner: Callable = gemini.run_stage,
+    runner: Callable = agy.run_stage,
     progress: Callable[[str], None] = lambda _: None,
     frozen_inputs: dict | None = None,
 ) -> dict:
@@ -779,54 +677,37 @@ def edit_episode(
     if common["concept_hash"] != project.concept_hash():
         raise ValueError("Frozen editorial concept changed")
     jobs, prompts = inputs["jobs"], inputs["prompts"]
-    research_runner = text_runner if jobs["write"]["provider"] == "gemini" else runner
     directory = project.runtime / "editorial" / digest(inputs)
     _snapshot(project, directory, inputs)
-    if text_runner is gemini.run_stage and any(
-        settings["provider"] == "gemini" and not (directory / f"{name}.json").exists()
-        for name, settings in jobs.items()
-    ):
-        gemini.get_gemini_client()
     initial_urls = {source.url for source in brief.initial_research}
-    dossier: ResearchDossier | None = None
-    write_context = common
-    if "research" in jobs:
-        research_context = {
-            k: v for k, v in common.items() if k != "writing_references"
-        }
-        dossier = _job(
-            directory,
-            "research",
-            research_context,
-            ResearchDossier,
-            jobs["research"],
-            prompts["research"],
-            research_runner,
-            lambda _result: None,
-            progress,
-            schema=inputs["schemas"]["research"],
-            check_attempt=lambda result, attempt: _validate_grounding(
-                attempt,
-                {source.url for source in result.verified_sources},
-                initial_urls,
-            ),
-        )
-        write_context = {**common, "research_dossier": dossier.model_dump()}
+    research_context = {k: v for k, v in common.items() if k != "writing_references"}
+    dossier = _job(
+        directory,
+        "research",
+        research_context,
+        ResearchDossier,
+        jobs["research"],
+        prompts["research"],
+        runner,
+        lambda _result: None,
+        progress,
+        schema=inputs["schemas"]["research"],
+    )
+    write_context = {**common, "research_dossier": dossier.model_dump()}
 
     def validate_draft(result: Draft) -> None:
         validate_plan(result.plan, proposal, brief, common["recordings"])
-        if dossier is not None:
-            allowed = initial_urls | {source.url for source in dossier.verified_sources}
-            cited = {
-                source.url
-                for part in result.plan.segments
-                if isinstance(part, Commentary)
-                for source in part.sources
-            }
-            if cited - allowed:
-                raise ValueError(
-                    "Draft introduced a source outside the verified research dossier"
-                )
+        allowed = initial_urls | {source.url for source in dossier.verified_sources}
+        cited = {
+            source.url
+            for part in result.plan.segments
+            if isinstance(part, Commentary)
+            for source in part.sources
+        }
+        if cited - allowed:
+            raise ValueError(
+                "Draft introduced a source outside the verified research dossier"
+            )
 
     draft = _job(
         directory,
@@ -835,36 +716,15 @@ def edit_episode(
         Draft,
         jobs["write"],
         prompts["write"],
-        research_runner,
+        runner,
         validate_draft,
         progress,
         schema=inputs["schemas"]["write"],
-        check_attempt=(
-            None
-            if dossier is not None
-            else lambda result, attempt: _validate_grounding(
-                attempt,
-                {
-                    source.url
-                    for part in result.plan.segments
-                    if isinstance(part, Commentary)
-                    for source in part.sources
-                },
-                initial_urls,
-            )
-        ),
     )
-    if dossier is not None:
-        draft.production_notes = list(
-            dict.fromkeys([*dossier.production_notes, *draft.production_notes])
-        )
+    draft.production_notes = list(
+        dict.fromkeys([*dossier.production_notes, *draft.production_notes])
+    )
     timing = validate_plan(draft.plan, proposal, brief, common["recordings"])
-    draft_urls = initial_urls | {
-        source.url
-        for part in draft.plan.segments
-        if isinstance(part, Commentary)
-        for source in part.sources
-    }
     review_context = {
         **common,
         "source_plan": draft.plan.model_dump(),
@@ -894,21 +754,10 @@ def edit_episode(
             Review,
             jobs[role],
             prompts[role],
-            research_runner if role == "factual_support" else text_runner,
+            runner,
             validate,
             progress,
             schema=inputs["schemas"][role],
-            check_attempt=(
-                (
-                    lambda result, attempt: _validate_grounding(
-                        attempt,
-                        {source.url for source in result.additional_sources},
-                        draft_urls,
-                    )
-                )
-                if role == "factual_support"
-                else None
-            ),
         )
 
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -932,11 +781,7 @@ def edit_episode(
         timing,
         findings,
         [
-            *(
-                [source.model_dump() for source in dossier.verified_sources]
-                if dossier is not None
-                else []
-            ),
+            *[source.model_dump() for source in dossier.verified_sources],
             *[
                 source.model_dump()
                 for role in ROLES
@@ -955,7 +800,7 @@ def edit_episode(
         context,
         prompts["edit"],
         jobs["edit"],
-        text_runner,
+        runner,
         progress,
         schema=inputs["schemas"]["edit"],
         fact_check_settings=jobs.get("fact_check"),
@@ -968,7 +813,7 @@ def polish_delivery(
     project: Project,
     *,
     feedback: str = "",
-    runner: Callable = gemini.run_stage,
+    runner: Callable = agy.run_stage,
     progress: Callable[[str], None] = lambda _: None,
 ) -> dict:
     """Caller holds project.lock(); reuse evidence for one tool-free narration edit."""
@@ -982,7 +827,7 @@ def polish_delivery(
     source = Plan.model_validate(read_json(project.documents / "plan.json"))
     prompt = (PROMPTS / "edit.md").read_text(encoding="utf-8")
     settings = job_settings()["edit"]
-    identity = {"prompt": prompt, "job": settings, "schema": codex.output_schema(Edit)}
+    identity = {"prompt": prompt, "job": settings, "schema": agy.output_schema(Edit)}
     production_notes = latest.get("production_notes", [])
     if latest.get("mode") == "delivery" and latest.get("installed_plan_hash") == digest(
         source.model_dump()
