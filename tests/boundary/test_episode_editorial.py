@@ -991,3 +991,80 @@ def test_comparison_keeps_successful_arm_when_other_provider_fails(
     )
     with pytest.raises(ValueError, match="snapshot changed"):
         comparison.view(project, "partial-test")
+
+
+def test_comparison_questions_are_resolved_in_a_saved_revision(episode, monkeypatch):
+    from neuralcast.pipelines.episode_producer import comparison, revision
+
+    project, outputs = episode
+    calls = []
+    actual = editorial.edit_episode
+    fake = runner_for(outputs, calls)
+    monkeypatch.setattr(
+        editorial,
+        "edit_episode",
+        lambda p, **kw: actual(p, runner=fake, text_runner=fake, **kw),
+    )
+    comparison.run(project, "resolution-test", comparison.freeze(project))
+    p = comparison.variant_project(project, "resolution-test", "a")
+    prior = read_json(p.runtime / "editorial_latest.json")
+    prior["blockers"] = ["Two witnesses disagree; the script attributes both accounts."]
+    prior["status"] = "blocked"
+    write_json(p.runtime / "editorial_latest.json", prior)
+    before = read_json(p.documents / "plan.json")
+
+    def edit(prompt, context, schema, attempt, **kw):
+        return {
+            "passages": [
+                {
+                    "segment_id": s["id"],
+                    "script": s["script"],
+                    "explanation": "Keep attributed uncertainty without inventing a verdict.",
+                    "companion": None,
+                    "sources": None,
+                }
+                for s in context["source_plan"]["segments"]
+                if s["kind"] == "commentary"
+            ],
+            "resolutions": [
+                {
+                    "finding_id": f["id"],
+                    "status": "resolved",
+                    "explanation": "Both accounts are explicitly attributed; no definitive version is asserted.",
+                }
+                for f in context["findings"]
+            ],
+            "open_questions": [],
+            "production_notes": [],
+            "listening_notes": [],
+        }
+
+    monkeypatch.setattr(revision.gemini, "run_stage", edit)
+    with pytest.raises(ValueError, match="manuscript changed"):
+        comparison.resolve(project, "resolution-test", "a", "0" * 64)
+    result = comparison.resolve(
+        project, "resolution-test", "a", prior["manuscript_hash"]
+    )
+    assert result["status"] == "awaiting_manuscript_approval"
+    latest = read_json(p.runtime / "editorial_latest.json")
+    assert latest["blockers"] == []
+    assert Path(latest["artifacts"]).parent.name == "revisions"
+    assert read_json(Path(latest["artifacts"]) / "previous_plan.json") == before
+    assert Path(prior["artifacts"], "final_plan.json").exists()
+    assert not (p.runtime / "manuscript_approval.json").exists()
+    assert comparison.view(project, "resolution-test")["versions"][0]["blockers"] == []
+
+
+def test_comparison_automatically_attempts_resolution_before_owner_review(
+    episode, monkeypatch
+):
+    from neuralcast.pipelines.episode_producer import comparison
+
+    project, _ = episode
+    monkeypatch.setattr(
+        editorial, "edit_episode", lambda *a, **kw: {"blockers": ["Uncertain claim"]}
+    )
+    resolver = Mock(return_value={"blockers": []})
+    monkeypatch.setattr(comparison, "_resolve_questions", resolver)
+    comparison.run(project, "automatic-resolution", comparison.freeze(project))
+    assert resolver.call_count == 2

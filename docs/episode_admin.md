@@ -202,3 +202,17 @@ without rejecting it for a timing difference. Gemini editorial stages use a
 retain their original prompts and provider settings; generate a new comparison
 from the same brief to use updated settings. Existing attempts and receipts remain
 available for inspection.
+
+Comparison generation attempts one focused editorial resolution pass when the
+final edit still reports blockers. It preserves both versions' distinctive writing
+and original review history. Conflicting recollections can be resolved for the
+manuscript by accurate attribution; unknown motives can be omitted. An uncertain
+recording edition can be handled by removing edition-dependent narration while
+keeping routine audition checks in production notes. It must not invent evidence
+or clear a question that the remaining manuscript still depends on.
+
+Existing blocked versions offer **Resolve research questions** in the comparison
+panel. This submits `compare_resolve` with the comparison ID, version and displayed
+manuscript hash. The saved revision includes before/after text and findings.
+Resolution does not itself approve audio. The owner can approve generation without
+reading the collapsed text; actual unresolved manuscript risks still block it.

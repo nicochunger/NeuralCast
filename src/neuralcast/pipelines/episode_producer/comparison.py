@@ -110,23 +110,30 @@ def run(
         with p.lock():
             progress(f"Comparison version {key}: started")
             try:
-                for settings in snapshot["inputs"][key]["jobs"].values():
-                    current_model = (
-                        editorial.codex.MODEL
-                        if settings["provider"] == "codex"
-                        else editorial.gemini.MODEL
-                    )
-                    if settings["model"] != current_model:
-                        raise ValueError(
-                            "Editorial model changed since comparison; restore it or create a new comparison"
+                latest = p.runtime / "editorial_latest.json"
+                if latest.exists():
+                    report = read_json(latest)
+                    progress(f"Comparison version {key}: reusing saved manuscript")
+                else:
+                    for settings in snapshot["inputs"][key]["jobs"].values():
+                        current_model = (
+                            editorial.codex.MODEL
+                            if settings["provider"] == "codex"
+                            else editorial.gemini.MODEL
                         )
-                editorial.edit_episode(
-                    p,
-                    frozen_inputs=snapshot["inputs"][key],
-                    progress=lambda message: progress(
-                        f"Comparison version {key}: {message}"
-                    ),
-                )
+                        if settings["model"] != current_model:
+                            raise ValueError(
+                                "Editorial model changed since comparison; restore it or create a new comparison"
+                            )
+                    report = editorial.edit_episode(
+                        p,
+                        frozen_inputs=snapshot["inputs"][key],
+                        progress=lambda message: progress(
+                            f"Comparison version {key}: {message}"
+                        ),
+                    )
+                if report.get("blockers"):
+                    _resolve_questions(p, progress=progress)
             except (ValueError, RuntimeError, OSError) as exc:
                 # Preserve the other arm even when one provider fails.
                 write_json(
@@ -144,6 +151,46 @@ def run(
         "episode_id": source.id,
         "comparison_id": comparison_id,
         "status": "comparison_review",
+    }
+
+
+def _resolve_questions(project: Project, *, progress: Callable) -> dict:
+    from .revision import revise_manuscript
+
+    return revise_manuscript(
+        project,
+        {
+            "overall": "Resolve the listed research questions editorially. Preserve the distinctive writing and music selection. Keep conflicting accounts attributed; do not invent a verdict or unknown motives. If the exact recording edition is unverified, remove claims dependent on its album/year, vocalist/producer or audible arrangement and introduce only the verified artist/song. Preserve routine audition checks in production notes. Mark questions resolved only once the resulting manuscript is safe; do not leave already-qualified historical uncertainty as a blocker.",
+            "sections": {},
+            "research": False,
+        },
+        progress=progress,
+    )
+
+
+def resolve(
+    source: Project,
+    comparison_id: str,
+    variant: str,
+    expected_hash: str,
+    *,
+    progress: Callable = lambda _: None,
+) -> dict:
+    p = variant_project(source, comparison_id, variant)
+    with p.lock():
+        plan = Plan.model_validate(read_json(p.documents / "plan.json"))
+        if manuscript_hash(p, plan) != expected_hash:
+            raise ValueError(
+                "Comparison manuscript changed; reload before resolving questions"
+            )
+        report = read_json(p.runtime / "editorial_latest.json")
+        if report.get("blockers"):
+            report = _resolve_questions(p, progress=progress)
+    return {
+        "episode_id": source.id,
+        "comparison_id": comparison_id,
+        "variant": variant,
+        "status": report["status"],
     }
 
 
@@ -227,15 +274,16 @@ def view(source: Project, comparison_id: str) -> dict:
         if audio_latest.exists():
             revision = read_json(audio_latest)["revision"]
             production = read_json(p.runtime / revision / "production.json")
-        metrics = report.get("jobs", {})
-        # Include failed/in-progress attempts before a final editorial receipt exists.
-        if not metrics:
-            metrics = {
-                str(path.relative_to(p.runtime)): read_json(path)
-                for path in (p.runtime / "editorial").glob("*/*/attempt-*/metrics.json")
-            }
-        findings = artifact / "findings.json"
-        edit = artifact / "edit.json"
+        metrics = {
+            str(path.relative_to(p.runtime)): read_json(path)
+            for parent in ("editorial", "revisions")
+            for path in (p.runtime / parent).glob("*/*/attempt-*/metrics.json")
+        }
+        reviewed = Path(report["artifacts"]) if report.get("artifacts") else artifact
+        if not reviewed.resolve().is_relative_to(p.runtime.resolve()):
+            raise ValueError("Comparison editorial artifacts escaped the experiment")
+        findings = reviewed / "findings.json"
+        edit = reviewed / "edit.json"
         failure = p.runtime / "comparison_failure.json"
         versions.append(
             {

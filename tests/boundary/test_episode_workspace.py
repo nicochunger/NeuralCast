@@ -790,3 +790,39 @@ def test_comparison_routes_auth_ranges_and_approval_schema(rig, tmp_path, monkey
         ).status_code
         == 422
     )
+
+
+def test_comparison_resolution_request_allows_blockers_but_requires_exact_text(
+    rig, monkeypatch
+):
+    from neuralcast.pipelines.episode_producer import comparison
+
+    w, p, plan = written(rig)
+    monkeypatch.setattr(comparison, "variant_project", lambda *a: p)
+    write_json(
+        p.runtime / "editorial_latest.json",
+        {
+            "blockers": ["Uncertainty needs an editorial decision"],
+            "manuscript_hash": manuscript_hash(p, plan),
+        },
+    )
+    with pytest.raises(ConflictError, match="manuscript changed"):
+        w.submit(
+            "compare_resolve",
+            episode_id=p.id,
+            revision=w.revision(p),
+            comparison_id="saved",
+            variant="a",
+            comparison_manuscript_hash="0" * 64,
+        )
+    request = w.submit(
+        "compare_resolve",
+        episode_id=p.id,
+        revision=w.revision(p),
+        comparison_id="saved",
+        variant="a",
+        comparison_manuscript_hash=manuscript_hash(p, plan),
+    )
+    saved = read_json(w.root / "requests" / request / "request.json")
+    assert saved["comparison_manuscript_hash"] == manuscript_hash(p, plan)
+    assert saved["action"] == "compare_resolve"

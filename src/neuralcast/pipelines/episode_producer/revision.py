@@ -6,7 +6,7 @@ from neuralcast.services import editorial_agent as codex, editorial_text as gemi
 from . import editorial
 from .editorial_models import Review, Edit
 from .models import Plan
-from .storage import Project, read_json, digest
+from .storage import Project, read_json, digest, write_json
 
 
 def revise_manuscript(
@@ -38,7 +38,7 @@ def revise_manuscript(
             quote=question,
             severity="major",
             problem=question,
-            correction="Resolve with evidence or an explicit owner recording check; otherwise leave unresolved.",
+            correction="Resolve with evidence, accurate attribution, qualification or removal of unsupported claims. Move routine recording checks to production notes after neutralizing edition-dependent narration.",
         )
         for i, question in enumerate(latest.get("blockers", []), 1)
     ]
@@ -86,6 +86,7 @@ def revise_manuscript(
             {"id": f"research-{i}", "reviewer": "feedback_research", **f.model_dump()}
             for i, f in enumerate(report.findings, 1)
         ]
+    write_json(directory / "findings.json", {"findings": findings})
     context = editorial._edit_context(
         common,
         source,

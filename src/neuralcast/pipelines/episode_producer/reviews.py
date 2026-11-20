@@ -54,7 +54,7 @@ def finding_ledger(draft: Draft, reports: dict[str, Review]) -> list[dict]:
                 "quote": question,
                 "severity": "major",
                 "problem": question,
-                "correction": "Resolve using the supplied evidence, or leave explicitly unresolved.",
+                "correction": "Resolve with evidence, accurate attribution, qualification or removal of unsupported claims. Keep a blocker only if the manuscript still relies on the uncertainty.",
             }
         )
     return findings

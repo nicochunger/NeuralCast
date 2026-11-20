@@ -24,6 +24,7 @@ class Action(Document):
         "publish",
         "compare",
         "compare_render",
+        "compare_resolve",
     ]
     episode_id: Identifier | None = None
     revision: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -220,6 +221,7 @@ def episodes_router(auth: Callable) -> APIRouter:
                 "render",
                 "compare",
                 "compare_render",
+                "compare_resolve",
             }:
                 raise ValueError(
                     "This operation must finish to preserve its upload/publication receipt"

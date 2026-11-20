@@ -348,6 +348,7 @@ class Workspace:
             "publish",
             "compare",
             "compare_render",
+            "compare_resolve",
         }:
             raise ValueError("Unknown episode action")
         with self.lock():
@@ -406,14 +407,14 @@ class Workspace:
                     raise ValueError(
                         "Publication must approve the current reviewed audio"
                     )
-            if action in {"compare", "compare_render"}:
+            if action in {"compare", "compare_render", "compare_resolve"}:
                 if d["feedback"]["overall"].strip() or any(
                     v.strip() for v in d["feedback"]["sections"].values()
                 ):
                     raise ValueError(
                         "Apply or discard pending feedback before comparison approval"
                     )
-                if action == "compare_render":
+                if action in {"compare_render", "compare_resolve"}:
                     vp = comparison.variant_project(
                         p, comparison_id or "", variant or ""
                     )
@@ -424,7 +425,8 @@ class Workspace:
                         )
                     from .manuscript import require_no_blockers
 
-                    require_no_blockers(vp, comparison_manuscript_hash)
+                    if action == "compare_render":
+                        require_no_blockers(vp, comparison_manuscript_hash)
             request_id = uuid.uuid4().hex
             request = {
                 "id": request_id,
@@ -452,7 +454,7 @@ class Workspace:
                     request["comparison_snapshot"] = comparison.freeze(p)
                     request["revision"] = self.revision(p)
                 request["comparison_id"] = request_id
-            if action == "compare_render":
+            if action in {"compare_render", "compare_resolve"}:
                 request.update(
                     comparison_id=comparison_id,
                     variant=variant,
@@ -673,7 +675,7 @@ class Workspace:
             p = self.project(request["episode_id"])
             with p.lock():
                 if (
-                    action not in {"compare", "compare_render"}
+                    action not in {"compare", "compare_render", "compare_resolve"}
                     and p.concept_hash() != request["concept_hash"]
                 ):
                     raise ConflictError(
@@ -693,7 +695,7 @@ class Workspace:
                 marker = directory / "started.json"
                 if not marker.exists():
                     # Comparison approvals bind their isolated frozen documents.
-                    if action not in {"compare", "compare_render"}:
+                    if action not in {"compare", "compare_render", "compare_resolve"}:
                         self.check(p, request["revision"])
                     write_json(marker, {"started_at": now()})
                 if (episode_directory(p.station, p.id) / "manifest.json").exists():
@@ -711,6 +713,14 @@ class Workspace:
                         p,
                         request["comparison_id"],
                         request["comparison_snapshot"],
+                        progress=progress,
+                    )
+                elif action == "compare_resolve":
+                    response = comparison.resolve(
+                        p,
+                        request["comparison_id"],
+                        request["variant"],
+                        request["comparison_manuscript_hash"],
                         progress=progress,
                     )
                 elif action == "compare_render":

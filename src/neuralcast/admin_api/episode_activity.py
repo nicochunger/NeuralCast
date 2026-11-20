@@ -44,6 +44,7 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
                 ("edit", "Final edit"),
             )
         ],
+        "compare_resolve": [("edit", "Resolving research questions")],
         "compare_render": [
             ("narration", "Generating approved comparison voice"),
             ("mix", "Assembling local listening copy"),
