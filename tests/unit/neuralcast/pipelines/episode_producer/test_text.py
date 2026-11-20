@@ -192,3 +192,107 @@ def test_editorial_jobs_reserve_full_neon_output_headroom(tmp_path, monkeypatch)
                 ].max_output_tokens
                 == 65536
             )
+
+
+def test_transient_errors_retry_with_backoff_and_succeed(tmp_path, monkeypatch):
+    class RateLimitError(Exception):
+        code = 429
+
+    sleeps = []
+    monkeypatch.setattr(gemini, "sleep", lambda seconds: sleeps.append(seconds))
+    client = Mock()
+    client.models.generate_content.side_effect = [
+        RateLimitError("429"),
+        RateLimitError("429"),
+        response(),
+    ]
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    attempt = tmp_path / "attempt"
+    result = gemini.run_stage("Review", {}, {}, attempt)
+    assert result["findings"] == []
+    assert client.models.generate_content.call_count == 3
+    assert len(sleeps) == 2 and sleeps[1] > sleeps[0]
+    metrics = json.loads((attempt / "metrics.json").read_text())
+    assert metrics["transport_attempts"] == 3
+
+
+def test_400_configuration_error_records_sanitized_detail_without_secrets(
+    tmp_path, monkeypatch
+):
+    class BadRequestError(Exception):
+        code = 400
+
+    client = Mock()
+    client.models.generate_content.side_effect = BadRequestError(
+        "Invalid schema at field foo; Bearer secret-token-123"
+    )
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    attempt = tmp_path / "attempt"
+    with pytest.raises(RuntimeError, match="configuration"):
+        gemini.run_stage("Edit", {}, {}, attempt)
+    failure = json.loads((attempt / "failure.json").read_text())
+    assert failure["http_status"] == 400
+    assert "Invalid schema at field foo" in failure["detail"]
+    assert "secret-token-123" not in failure["detail"]
+
+
+def test_writing_guide_is_sent_as_leading_unescaped_markdown_part(
+    tmp_path, monkeypatch
+):
+    client = Mock()
+    client.models.generate_content.return_value = response()
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    gemini.run_stage(
+        "Edit",
+        {
+            "writing_references": {
+                "writing_guide.md": "# Guide\nLine 1\nLine 2",
+                "voice_examples": [{"id": "ex-1"}],
+            },
+            "proposal": {"title": "Test"},
+        },
+        {},
+        tmp_path / "attempt",
+    )
+    contents = client.models.generate_content.call_args.kwargs["contents"]
+    assert isinstance(contents, list) and len(contents) == 2
+    assert "# Guide\nLine 1\nLine 2" in contents[0]
+    payload = json.loads(contents[1])
+    assert "writing_guide.md" not in payload["writing_references"]
+    assert payload["writing_references"]["voice_examples"] == [{"id": "ex-1"}]
+
+
+def test_grounding_summary_captures_queries_and_failed_urls(tmp_path, monkeypatch):
+    client = Mock()
+    result = response()
+    result.candidates[0].grounding_metadata = SimpleNamespace(
+        model_dump=lambda **kwargs: {
+            "web_search_queries": ["q1", "q2"],
+            "grounding_chunks": [{"web": {"uri": "https://example.com/search-hit"}}],
+        }
+    )
+    result.candidates[0].url_context_metadata = SimpleNamespace(
+        model_dump=lambda **kwargs: {
+            "url_metadata": [
+                {
+                    "retrieved_url": "https://example.com/ok",
+                    "url_retrieval_status": "URL_RETRIEVAL_STATUS_SUCCESS",
+                },
+                {
+                    "retrieved_url": "https://example.com/broken",
+                    "url_retrieval_status": "URL_RETRIEVAL_STATUS_ERROR",
+                },
+            ]
+        }
+    )
+    client.models.generate_content.return_value = result
+    monkeypatch.setattr(gemini, "get_gemini_client", lambda: client)
+    attempt = tmp_path / "attempt"
+    gemini.run_stage("Research", {}, {}, attempt, search=True)
+    saved = json.loads((attempt / "grounding.json").read_text())["summary"]
+    assert saved["web_search_queries"] == 2
+    assert saved["url_context_success"] == 1
+    assert saved["url_context_failed"] == 1
+    assert "https://example.com/broken" in saved["failed_urls"]
+    metrics = json.loads((attempt / "metrics.json").read_text())
+    assert metrics["grounding"]["web_search_queries"] == 2

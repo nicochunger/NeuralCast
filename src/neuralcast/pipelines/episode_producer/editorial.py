@@ -12,7 +12,14 @@ from neuralcast.pipelines.host_orchestrator.speech import (
     validate_speech_transcript,
 )
 from neuralcast.services import editorial_agent as codex, editorial_text as gemini
-from .editorial_models import Draft, Edit, EditorialBrief, Review
+from .editorial_models import (
+    Draft,
+    Edit,
+    EditorialBrief,
+    FactCheck,
+    ResearchDossier,
+    Review,
+)
 from .delivery import apply_edit, edit_blockers, edit_report
 from .library import resolve_recording
 from .manuscript import manuscript_hash, validate_manuscript
@@ -62,16 +69,62 @@ def job_settings(pipeline: str = "hybrid") -> dict:
     }
 
     if pipeline == "gemini":
-        for name, level in (("write", "high"), ("factual_support", "medium")):
-            jobs[name] = {
+        return {
+            "research": {
                 "provider": "gemini",
                 "model": gemini.MODEL,
-                "thinking_level": level,
+                "thinking_level": "medium",
                 "search": True,
                 "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
-                "timeout_seconds": jobs[name]["timeout_seconds"],
-            }
+                "timeout_seconds": 600,
+            },
+            "write": {
+                "provider": "gemini",
+                "model": gemini.MODEL,
+                "thinking_level": "medium",
+                "search": False,
+                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
+                "timeout_seconds": 600,
+            },
+            "factual_support": {
+                "provider": "gemini",
+                "model": gemini.MODEL,
+                "thinking_level": "medium",
+                "search": True,
+                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
+                "timeout_seconds": 600,
+            },
+            **{
+                role: jobs[role]
+                for role in ("narrative_continuity", "conversational_voice")
+            },
+            "edit": jobs["edit"],
+            "fact_check": {
+                "provider": "gemini",
+                "model": gemini.MODEL,
+                "thinking_level": "low",
+                "search": False,
+                "max_output_tokens": gemini.DEFAULT_MAX_OUTPUT_TOKENS,
+                "timeout_seconds": 180,
+            },
+        }
     return jobs
+
+
+def _gemini_prompt(name: str) -> str:
+    filename = "draft.md" if name == "write" else f"{name}.md"
+    text = (PROMPTS / filename).read_text(encoding="utf-8")
+    if name == "factual_support":
+        text = text.replace(
+            "Read context.json and source_plan in full.",
+            "Read the supplied context and source_plan in full.",
+        ).replace(
+            "Read-only inspection and online verification are allowed. Do not delegate, edit\n"
+            "files, run pipeline commands, synthesize audio, upload or publish.",
+            "Use Google Search and URL Context to verify claims against primary sources.\n"
+            "Do not synthesize audio, upload or publish.",
+        )
+    return text
 
 
 def workshop_inputs(
@@ -81,19 +134,25 @@ def workshop_inputs(
         _, _, common = _context(project, "")
     jobs = job_settings(pipeline)
     prompts = {
-        name: (PROMPTS / f"{name}.md").read_text(encoding="utf-8") for name in jobs
+        name: (
+            _gemini_prompt(name)
+            if pipeline == "gemini"
+            else (PROMPTS / f"{name}.md").read_text(encoding="utf-8")
+        )
+        for name in jobs
     }
-    if pipeline == "gemini":
-        for name in ("write", "factual_support"):
-            prompts[name] = prompts[name].replace(
-                "Read context.json", "Read the supplied context"
-            )
-    models = {"write": Draft, **{role: Review for role in ROLES}, "edit": Edit}
+    all_models = {
+        "research": ResearchDossier,
+        "write": Draft,
+        **{role: Review for role in ROLES},
+        "edit": Edit,
+        "fact_check": FactCheck,
+    }
     return {
         "context": common,
         "prompts": prompts,
         "jobs": jobs,
-        "schemas": {name: codex.output_schema(model) for name, model in models.items()},
+        "schemas": {name: codex.output_schema(all_models[name]) for name in jobs},
     }
 
 
@@ -256,7 +315,12 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
                     encoding="utf-8"
                 ),
                 "voice_examples": examples(
-                    "natural-aside", "connected-refinement", "detour-and-return"
+                    "natural-aside",
+                    "connected-refinement",
+                    "detour-and-return",
+                    "explain-the-problem",
+                    "attribution-in-speech",
+                    "orient-insider-term",
                 ),
             },
             "allowed_inline_tags": sorted(INLINE_VOCAL_TAGS),
@@ -289,6 +353,55 @@ def _check_text(value) -> None:
         raise ValueError("Response contains a repeated-token corruption")
 
 
+def _grounding_summary(attempt: Path) -> dict | None:
+    path = attempt / "grounding.json"
+    if not path.exists():
+        return None
+    data = read_json(path)
+    summary = data.get("summary")
+    if isinstance(summary, dict):
+        return summary
+    return gemini.summarize_grounding(data.get("candidates") or [])
+
+
+def _validate_grounding(
+    attempt: Path, cited_urls: set[str], existing_urls: set[str]
+) -> None:
+    summary = _grounding_summary(attempt)
+    if summary is None:
+        return
+    retrieved = set(summary.get("retrieved_urls") or [])
+    failed = set(summary.get("failed_urls") or [])
+    new_failed = sorted((cited_urls - existing_urls) & failed - retrieved)
+    if new_failed:
+        raise ValueError(
+            "Cited source URL(s) failed retrieval: " + ", ".join(new_failed[:5])
+        )
+
+
+def _collect_grounding_warnings(directory: Path) -> list[str]:
+    warnings: list[str] = []
+    for stage in ("research", "factual_support"):
+        result_path = directory / f"{stage}.json"
+        if not result_path.exists():
+            continue
+        attempt_str = read_json(result_path).get("attempt")
+        if not attempt_str:
+            continue
+        summary = _grounding_summary(Path(attempt_str))
+        if summary is None:
+            continue
+        if summary.get("web_search_queries", 0) == 0:
+            warnings.append(
+                f"{stage}: Google Search ran 0 web queries; verify sources were independently corroborated."
+            )
+        if summary.get("url_context_failed", 0) > 0:
+            warnings.append(
+                f"{stage}: {summary['url_context_failed']} URL Context fetch(es) failed."
+            )
+    return warnings
+
+
 def _job(
     directory: Path,
     name: str,
@@ -300,7 +413,8 @@ def _job(
     validate: Callable,
     progress: Callable,
     schema: dict | None = None,
-) -> Draft | Review | Edit:
+    check_attempt: Callable | None = None,
+) -> Draft | Review | Edit | ResearchDossier | FactCheck:
     result_path = directory / f"{name}.json"
     if result_path.exists():
         saved = read_json(result_path)
@@ -340,6 +454,8 @@ def _job(
             _check_text(raw)
             result = model.model_validate(raw)
             validate(result)
+            if check_attempt is not None:
+                check_attempt(result, attempt)
         except (ValueError, RuntimeError, OSError) as exc:
             failure = attempt / "failure.json"
             if not failure.exists():
@@ -361,17 +477,16 @@ def _job(
                 "incomplete",
             }:
                 raise
-            request = {
-                **context,
-                "retry_feedback": {
-                    "validation_error": (
-                        str(exc)[:1000]
-                        if isinstance(exc, ValueError)
-                        else "The previous request failed. Return a complete result."
-                    ),
-                    "previous_response": raw,
-                },
-            }
+            if raw is not None:
+                request = {
+                    **context,
+                    "retry_feedback": {
+                        "validation_error": str(exc)[:1000],
+                        "previous_response": raw,
+                    },
+                }
+            else:
+                request = context
             continue
         finally:
             if not (attempt / "metrics.json").exists():
@@ -443,6 +558,9 @@ def _install(
     directory: Path,
     source: Plan,
     findings: list[dict],
+    *,
+    fact_check_findings: list[dict] = (),
+    grounding_warnings: list[str] = (),
 ) -> dict:
     if project.concept_hash() != common["concept_hash"]:
         raise ValueError("Approved concept changed during editorial production")
@@ -486,7 +604,14 @@ def _install(
             for path in sorted(directory.glob("*/attempt-*/metrics.json"))
         },
     }
-    write_text(directory / "edit_report.md", edit_report(source, plan, edit, findings))
+    if fact_check_findings:
+        receipt["fact_check_findings"] = list(fact_check_findings)
+    if grounding_warnings:
+        receipt["grounding_warnings"] = list(grounding_warnings)
+    write_text(
+        directory / "edit_report.md",
+        edit_report(source, plan, edit, findings, fact_check_findings),
+    )
     write_json(directory / "final_plan.json", final_plan)
     write_text(directory / "manuscript.md", markdown)
     write_json(directory / "receipt.json", receipt)
@@ -531,6 +656,10 @@ def _final_edit(
     runner: Callable,
     progress: Callable,
     schema: dict | None = None,
+    *,
+    fact_check_settings: dict | None = None,
+    fact_check_prompt: str | None = None,
+    fact_check_schema: dict | None = None,
 ) -> dict:
     source = Plan.model_validate(context["source_plan"])
 
@@ -571,6 +700,48 @@ def _final_edit(
             *context["additional_sources"],
         ],
     )
+    blockers = edit_blockers(edit, context["findings"])
+    fact_check_findings: list[dict] = []
+    if fact_check_settings and fact_check_prompt:
+        check_context = {
+            "proposal": common["proposal"],
+            "approved_brief": common["approved_brief"],
+            "source_plan": source.model_dump(),
+            "findings": context["findings"],
+            "additional_sources": context["additional_sources"],
+            "final_plan": plan.model_dump(),
+        }
+        ids = {part.id for part in plan.segments}
+
+        def validate_fact_check(result: FactCheck) -> None:
+            if any(set(finding.segment_ids) - ids for finding in result.findings):
+                raise ValueError("Fact check refers to unknown manuscript segment IDs")
+
+        checked = _job(
+            directory,
+            "fact_check",
+            check_context,
+            FactCheck,
+            fact_check_settings,
+            fact_check_prompt,
+            runner,
+            validate_fact_check,
+            progress,
+            schema=fact_check_schema,
+        )
+        fact_check_findings = [item.model_dump() for item in checked.findings]
+        blockers = list(
+            dict.fromkeys(
+                [
+                    *blockers,
+                    *[
+                        f"fact_check-{index}: {item.problem}"
+                        for index, item in enumerate(checked.findings, 1)
+                        if item.severity == "major"
+                    ],
+                ]
+            )
+        )
     return _install(
         project,
         proposal,
@@ -578,10 +749,12 @@ def _final_edit(
         plan,
         edit,
         validate_plan(plan, proposal, brief, common["recordings"]),
-        edit_blockers(edit, context["findings"]),
+        blockers,
         directory,
         source,
         context["findings"],
+        fact_check_findings=fact_check_findings,
+        grounding_warnings=_collect_grounding_warnings(directory),
     )
 
 
@@ -610,25 +783,88 @@ def edit_episode(
     directory = project.runtime / "editorial" / digest(inputs)
     _snapshot(project, directory, inputs)
     if text_runner is gemini.run_stage and any(
-        not (directory / f"{name}.json").exists()
-        for name in ("narrative_continuity", "conversational_voice", "edit")
+        settings["provider"] == "gemini" and not (directory / f"{name}.json").exists()
+        for name, settings in jobs.items()
     ):
         gemini.get_gemini_client()
+    initial_urls = {source.url for source in brief.initial_research}
+    dossier: ResearchDossier | None = None
+    write_context = common
+    if "research" in jobs:
+        research_context = {
+            k: v for k, v in common.items() if k != "writing_references"
+        }
+        dossier = _job(
+            directory,
+            "research",
+            research_context,
+            ResearchDossier,
+            jobs["research"],
+            prompts["research"],
+            research_runner,
+            lambda _result: None,
+            progress,
+            schema=inputs["schemas"]["research"],
+            check_attempt=lambda result, attempt: _validate_grounding(
+                attempt,
+                {source.url for source in result.verified_sources},
+                initial_urls,
+            ),
+        )
+        write_context = {**common, "research_dossier": dossier.model_dump()}
+
+    def validate_draft(result: Draft) -> None:
+        validate_plan(result.plan, proposal, brief, common["recordings"])
+        if dossier is not None:
+            allowed = initial_urls | {source.url for source in dossier.verified_sources}
+            cited = {
+                source.url
+                for part in result.plan.segments
+                if isinstance(part, Commentary)
+                for source in part.sources
+            }
+            if cited - allowed:
+                raise ValueError(
+                    "Draft introduced a source outside the verified research dossier"
+                )
+
     draft = _job(
         directory,
         "write",
-        common,
+        write_context,
         Draft,
         jobs["write"],
         prompts["write"],
         research_runner,
-        lambda result: validate_plan(
-            result.plan, proposal, brief, common["recordings"]
-        ),
+        validate_draft,
         progress,
         schema=inputs["schemas"]["write"],
+        check_attempt=(
+            None
+            if dossier is not None
+            else lambda result, attempt: _validate_grounding(
+                attempt,
+                {
+                    source.url
+                    for part in result.plan.segments
+                    if isinstance(part, Commentary)
+                    for source in part.sources
+                },
+                initial_urls,
+            )
+        ),
     )
+    if dossier is not None:
+        draft.production_notes = list(
+            dict.fromkeys([*dossier.production_notes, *draft.production_notes])
+        )
     timing = validate_plan(draft.plan, proposal, brief, common["recordings"])
+    draft_urls = initial_urls | {
+        source.url
+        for part in draft.plan.segments
+        if isinstance(part, Commentary)
+        for source in part.sources
+    }
     review_context = {
         **common,
         "source_plan": draft.plan.model_dump(),
@@ -662,6 +898,17 @@ def edit_episode(
             validate,
             progress,
             schema=inputs["schemas"][role],
+            check_attempt=(
+                (
+                    lambda result, attempt: _validate_grounding(
+                        attempt,
+                        {source.url for source in result.additional_sources},
+                        draft_urls,
+                    )
+                )
+                if role == "factual_support"
+                else None
+            ),
         )
 
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -685,9 +932,16 @@ def edit_episode(
         timing,
         findings,
         [
-            source.model_dump()
-            for role in ROLES
-            for source in reports[role].additional_sources
+            *(
+                [source.model_dump() for source in dossier.verified_sources]
+                if dossier is not None
+                else []
+            ),
+            *[
+                source.model_dump()
+                for role in ROLES
+                for source in reports[role].additional_sources
+            ],
         ],
         {role: reports[role].strengths for role in ROLES},
         draft.production_notes,
@@ -704,6 +958,9 @@ def edit_episode(
         text_runner,
         progress,
         schema=inputs["schemas"]["edit"],
+        fact_check_settings=jobs.get("fact_check"),
+        fact_check_prompt=prompts.get("fact_check"),
+        fact_check_schema=inputs["schemas"].get("fact_check"),
     )
 
 

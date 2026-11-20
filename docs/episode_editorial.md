@@ -38,14 +38,20 @@ with a reason, or unresolved. Unresolved findings and new consequential question
 prevent manuscript approval. Writer questions enter the same finding ledger.
 
 Codex jobs use fresh, ephemeral, read-only sessions with web research enabled and
-subagents disabled. Gemini jobs are direct structured API requests with no tools,
-web search, file access or delegation. Gemini editorial requests have a 65536-token output limit, including
-research/drafting and factual review in comparison runs. Thinking consumes part
-of that limit. SDK retries are disabled; the controller allows one targeted retry of a
-failed job, while preserving accepted work. Authentication/configuration errors
-and incomplete/token-limited responses stop for inspection instead of automatic
-repetition. Manual retries resume accepted jobs. A normal successful workshop has
-five model jobs; automatic retries can add at most one attempt per job.
+subagents disabled. Gemini text jobs are direct structured API requests with no tools,
+web search, file access or delegation, while Gemini research stages (`research` and
+`factual_support`) enable server-side Google Search and URL Context and verify
+`grounding.json` retrieval status. The all-Gemini pipeline splits drafting into a
+search-enabled `research` dossier stage followed by a tool-free `write` stage, plus a
+lightweight post-edit `fact_check` stage to catch factual drift introduced during
+rewriting. Gemini editorial requests have a 65536-token output limit; thinking consumes
+part of that limit. SDK retries are disabled; `editorial_text` performs bounded
+exponential backoff for transient HTTP 429/5xx errors, and the controller allows one
+targeted repair retry of a failed job while preserving accepted work.
+Authentication/configuration errors and incomplete/token-limited responses stop for
+inspection instead of automatic repetition. Manual retries resume accepted jobs. A
+normal successful hybrid workshop has five model jobs; the all-Gemini pipeline has
+seven (`research`, `write`, three parallel reviews, `edit`, `fact_check`).
 
 All three independent reviews must complete before editing. A failed review does
 not discard the completed reviews. Structural validation cannot establish natural
@@ -60,7 +66,7 @@ speech, historical truth or factual meaning; owner review remains required.
 - [Final edit](../src/neuralcast/assets/stories/prompts/episode_editorial/edit.md)
 
 The single [podcast writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
-and three selected, labeled [voice examples](../src/neuralcast/assets/stories/episode_examples/library.json)
+and six selected, labeled [voice examples](../src/neuralcast/assets/stories/episode_examples/library.json)
 calibrate writing, narrative review, voice review and editing. Factual verification
 receives the manuscript and evidence without style references. Every job receives
 relevant approved scope, host identity/language, measured recording durations and

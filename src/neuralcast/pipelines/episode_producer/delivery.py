@@ -61,7 +61,13 @@ def edit_blockers(edit: Edit, findings: list[dict]) -> list[str]:
     )
 
 
-def edit_report(before: Plan, after: Plan, edit: Edit, findings: list[dict]) -> str:
+def edit_report(
+    before: Plan,
+    after: Plan,
+    edit: Edit,
+    findings: list[dict],
+    fact_check_findings: Sequence[dict] = (),
+) -> str:
     original = {part.id: part for part in before.segments}
     explanations = {part.segment_id: part.explanation for part in edit.passages}
     lines = ["# Manuscript edit — before and after", ""]
@@ -99,4 +105,17 @@ def edit_report(before: Plan, after: Plan, edit: Edit, findings: list[dict]) -> 
             resolution.explanation,
             "",
         ]
+    if fact_check_findings:
+        lines += ["## Post-edit factual check", ""]
+        for index, finding in enumerate(fact_check_findings, 1):
+            lines += [
+                f"### fact_check-{index} — {finding['severity']}",
+                "",
+                finding["problem"],
+                "",
+                f"Quote: {finding['quote']}",
+                "",
+                f"Suggested correction: {finding['correction']}",
+                "",
+            ]
     return "\n".join(lines) + "\n"

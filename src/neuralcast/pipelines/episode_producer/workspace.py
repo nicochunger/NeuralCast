@@ -555,6 +555,15 @@ class Workspace:
             prompt = (
                 editorial.PROMPTS / ("topics.md" if action == "ideas" else "concept.md")
             ).read_text()
+            pipeline = request.get("pipeline", "hybrid")
+            if action == "develop" and pipeline == "gemini":
+                prompt = prompt.replace(
+                    "Read context.json.",
+                    "Read the supplied context. Use Google Search and URL Context to verify primary sources.",
+                ).replace(
+                    "change files, download media, render, upload, delegate or publish.",
+                    "download media, render, upload or publish.",
+                )
             settings = (
                 dict(
                     provider="gemini",
@@ -564,11 +573,22 @@ class Workspace:
                     timeout_seconds=300,
                 )
                 if action == "ideas"
-                else dict(
-                    provider="codex",
-                    model=codex.MODEL,
-                    reasoning_effort="medium",
-                    timeout_seconds=600,
+                else (
+                    dict(
+                        provider="gemini",
+                        model=gemini.MODEL,
+                        thinking_level="medium",
+                        search=True,
+                        max_output_tokens=gemini.DEFAULT_MAX_OUTPUT_TOKENS,
+                        timeout_seconds=600,
+                    )
+                    if pipeline == "gemini"
+                    else dict(
+                        provider="codex",
+                        model=codex.MODEL,
+                        reasoning_effort="medium",
+                        timeout_seconds=600,
+                    )
                 )
             )
             generated = []
@@ -602,7 +622,7 @@ class Workspace:
                 model,
                 settings,
                 prompt,
-                gemini.run_stage if action == "ideas" else codex.run_stage,
+                gemini.run_stage if settings["provider"] == "gemini" else codex.run_stage,
                 validate,
                 progress,
             )

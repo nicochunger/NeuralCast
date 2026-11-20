@@ -56,6 +56,15 @@ class EditorialBrief(Document):
                     raise ValueError(f"Unapproved song identity: {part.id}")
 
 
+class ResearchDossier(Document):
+    central_question: Text
+    narrative_arc: list[Text] = Field(min_length=1, max_length=20)
+    verified_sources: list[Source] = Field(min_length=1, max_length=50)
+    research_notes: Text
+    open_questions: list[ReviewText] = Field(default_factory=list, max_length=20)
+    production_notes: list[ReviewText] = Field(default_factory=list, max_length=20)
+
+
 class Draft(Document):
     plan: Plan
     research_notes: Text
@@ -75,6 +84,10 @@ class Review(Document):
     strengths: list[ReviewText] = Field(default_factory=list, max_length=3)
     findings: list[Finding] = Field(default_factory=list, max_length=6)
     additional_sources: list[Source] = Field(default_factory=list, max_length=20)
+
+
+class FactCheck(Document):
+    findings: list[Finding] = Field(default_factory=list, max_length=6)
 
 
 class Resolution(Document):

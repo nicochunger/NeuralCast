@@ -181,6 +181,45 @@ def test_approved_script_channel_voice_and_companion_are_reused(
         == alternative
     )
     assert tts.call_count == 2
+    assert Path(output["path"]).name == "speech.wav"
+    assert "system" not in settings and "template" not in settings
+
+
+def test_legacy_mp3_narration_cache_is_reused_without_resynthesis(
+    tmp_path, monkeypatch, proposal
+):
+    channel = get_channel_registry().channels[proposal.channel]
+    segment = Commentary(
+        kind="commentary",
+        id="intro",
+        role="opening",
+        brief="Open",
+        script="Une histoire.",
+        companion={"title": "Intro", "summary": "Summary."},
+    )
+    settings = narration.writing_settings(channel)
+    tts = Mock(side_effect=AssertionError("Must reuse legacy cached speech.mp3"))
+    monkeypatch.setattr(narration, "synthesize_speech", tts)
+    # Pre-populate a legacy speech.mp3 cache entry.
+    first_call = narration.prepare_narration.__globals__["digest"](
+        {
+            "script": "Une histoire.",
+            "settings": {
+                k: settings[k] for k in ("tts", "voice", "tts_model", "provider")
+            },
+        }
+    )
+    cache_dir = tmp_path / "narration" / first_call
+    cache_dir.mkdir(parents=True)
+    legacy = cache_dir / "speech.mp3"
+    legacy.write_bytes(b"legacy-mp3")
+    narration.write_json(
+        cache_dir / "narration.json",
+        {"audio_hash": narration.file_hash(legacy)},
+    )
+    reused = narration.prepare_narration(segment, channel, settings, tmp_path, ())
+    assert reused["path"] == str(legacy)
+    tts.assert_not_called()
 
 
 def test_delivery_instruction_change_invalidates_narration_cache(tmp_path, monkeypatch):

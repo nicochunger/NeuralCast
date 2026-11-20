@@ -8,10 +8,17 @@ scenes. Each music gap is one uninterrupted passage, not independently written
 paragraphs. Check that the story resumes after music and makes the next song
 matter. Preserve strong scenes and useful orientation.
 
-Follow time and people from the listener's perspective. Flag unclear jumps
-between events and later recollections, unmarked returns to the main timeline,
-and names or pronouns whose referents are difficult to retain. Suggest the
-smallest change that restores clarity.
+Follow time and people from a first-time listener's perspective. Flag:
+- insider assumptions: unexplained subgenre jargon, record labels, cultural
+  references, or career context that a curious outsider needs to feel the stakes;
+- cast bloat: incidental lists of unfamiliar names that never return;
+- songs treated as generic era filler without a concrete, verified pre-song
+  listening cue or a brief post-song reaction connecting back to the story;
+- side-tangents on non-featured artists that steal focus from the featured
+  musicians, especially in the closing;
+- unclear jumps between events and later recollections, unmarked returns to the
+  main timeline, and names or pronouns whose referents are difficult to retain.
+Suggest the smallest change that restores clarity and narrative pull.
 
 Return Review JSON with at most three strengths and six findings. In each
 strength string, include the existing segment ID, a short exact quotation and

@@ -125,6 +125,16 @@ def episode(tmp_path, monkeypatch):
         "correction": "Explain what changed.",
     }
     outputs = {
+        "research": {
+            "central_question": "How did one decision reshape the band?",
+            "narrative_arc": ["Opening setup", "Departure and replacement", "Closing"],
+            "verified_sources": [
+                {"url": "https://example.com/history", "claim": "A member left."}
+            ],
+            "research_notes": "Verified primary history.",
+            "open_questions": [],
+            "production_notes": [],
+        },
         "write": draft,
         "factual_support": {
             "strengths": ["Supported chronology."],
@@ -164,6 +174,7 @@ def episode(tmp_path, monkeypatch):
             "production_notes": [],
             "listening_notes": [],
         },
+        "fact_check": {"findings": []},
     }
     outputs["edit"]["passages"][1]["script"] = (
         parts[2]["script"].replace("<breath>", "<sigh>")
@@ -401,8 +412,9 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     assert "writing_references" not in by_name["factual_support"]["context"]
     refs = by_name["write"]["context"]["writing_references"]
     assert set(refs) == {"writing_guide.md", "voice_examples"}
-    assert sum(len(str(v)) for v in refs.values()) < 10000
-    assert len(refs["voice_examples"]) == 3
+    assert sum(len(str(v)) for v in refs.values()) < 16000
+    assert len(refs["voice_examples"]) == 6
+    assert any(ex["id"] == "orient-insider-term" for ex in refs["voice_examples"])
     assert not any("runtime/" in str(x) for x in refs["voice_examples"])
     assert "host_system_instructions" not in refs
     assert result["status"] == "awaiting_manuscript_approval"
@@ -911,14 +923,17 @@ def test_paired_comparison_isolates_documents_and_resumes_both_arms(
         "codex",
         "gemini",
     }
-    assert any(v["jobs"]["write"].get("search") for v in snapshot["inputs"].values())
+    assert any(
+        v["jobs"].get("research", {}).get("search")
+        for v in snapshot["inputs"].values()
+    )
     # A later prompt-file change cannot leak into either saved arm.
     monkeypatch.setattr(editorial, "PROMPTS", project.runtime / "unavailable-prompts")
     result = comparison.run(project, "paired-test", snapshot)
     assert result["status"] == "comparison_review"
-    assert len(calls) == 10
+    assert len(calls) == 12
     comparison.run(project, "paired-test", snapshot)
-    assert len(calls) == 10
+    assert len(calls) == 12
     assert read_json(project.documents / "proposal.json") == before
     assert not (project.documents / "plan.json").exists()
     assert not (project.runtime / "manuscript_approval.json").exists()
@@ -1068,3 +1083,168 @@ def test_comparison_automatically_attempts_resolution_before_owner_review(
     monkeypatch.setattr(comparison, "_resolve_questions", resolver)
     comparison.run(project, "automatic-resolution", comparison.freeze(project))
     assert resolver.call_count == 2
+
+
+def test_gemini_pipeline_splits_research_and_draft_checks_grounding_and_fact_drift(
+    episode,
+):
+    project, outputs = episode
+    outputs["research"]["production_notes"] = ["Audition the first track edition."]
+    outputs["fact_check"] = {
+        "findings": [
+            {
+                "segment_ids": ["decision"],
+                "quote": "Después tuvieron que elegir un reemplazo.",
+                "severity": "major",
+                "problem": "Introduced an unsupported replacement claim.",
+                "correction": "Remove the unsupported replacement claim.",
+            }
+        ]
+    }
+    calls = []
+
+    def fake(prompt, context, schema, attempt, **kwargs):
+        name = attempt.parent.name
+        calls.append({"name": name, "prompt": prompt, "context": deepcopy(context)})
+        if name == "research":
+            write_json(
+                attempt / "grounding.json",
+                {
+                    "candidates": [],
+                    "summary": {
+                        "web_search_queries": 0,
+                        "grounding_chunks": 0,
+                        "url_context_success": 1,
+                        "url_context_failed": 0,
+                        "retrieved_urls": ["https://example.com/history"],
+                        "failed_urls": [],
+                    },
+                },
+            )
+        return deepcopy(outputs[name])
+
+    frozen = editorial.workshop_inputs(project, pipeline="gemini")
+    assert "Read context.json" not in frozen["prompts"]["factual_support"]
+    assert "Do not delegate" not in frozen["prompts"]["factual_support"]
+    receipt = editorial.edit_episode(
+        project, runner=fake, text_runner=fake, frozen_inputs=frozen
+    )
+    by_name = {c["name"]: c for c in calls}
+    assert set(by_name) == {
+        "research",
+        "write",
+        *editorial.ROLES,
+        "edit",
+        "fact_check",
+    }
+    assert "writing_references" not in by_name["research"]["context"]
+    assert "research_dossier" in by_name["write"]["context"]
+    assert "Audition the first track edition." in receipt["production_notes"]
+    assert receipt["status"] == "blocked"
+    assert any("fact_check-1" in b for b in receipt["blockers"])
+    assert "Post-edit factual check" in Path(receipt["report"]).read_text()
+    assert any("0 web queries" in w for w in receipt["grounding_warnings"])
+    with pytest.raises(ValueError, match="unresolved editorial blockers"):
+        approve_manuscript(project, receipt["manuscript_hash"])
+
+
+def test_gemini_grounding_rejects_newly_cited_url_that_failed_retrieval(episode):
+    project, outputs = episode
+    outputs["research"]["verified_sources"].append(
+        {"url": "https://example.com/dead-link", "claim": "Unreachable claim."}
+    )
+
+    def fake(prompt, context, schema, attempt, **kwargs):
+        name = attempt.parent.name
+        if name == "research":
+            write_json(
+                attempt / "grounding.json",
+                {
+                    "candidates": [],
+                    "summary": {
+                        "web_search_queries": 1,
+                        "grounding_chunks": 0,
+                        "url_context_success": 0,
+                        "url_context_failed": 1,
+                        "retrieved_urls": [],
+                        "failed_urls": ["https://example.com/dead-link"],
+                    },
+                },
+            )
+        return deepcopy(outputs[name])
+
+    frozen = editorial.workshop_inputs(project, pipeline="gemini")
+    with pytest.raises(ValueError, match="failed retrieval"):
+        editorial.edit_episode(
+            project, runner=fake, text_runner=fake, frozen_inputs=frozen
+        )
+
+
+def test_execution_retry_does_not_inject_empty_retry_feedback(episode):
+    project, outputs = episode
+    calls = []
+    ordinary = runner_for(outputs, calls)
+    failed = False
+
+    def flaky(prompt, context, schema, attempt, **kwargs):
+        nonlocal failed
+        if attempt.parent.name == "conversational_voice" and not failed:
+            failed = True
+            calls.append({"name": "voice-fail", "context": deepcopy(context)})
+            raise RuntimeError("Transient failure")
+        return ordinary(prompt, context, schema, attempt, **kwargs)
+
+    editorial.edit_episode(project, runner=flaky, text_runner=flaky)
+    voice_retry = [c for c in calls if c["name"] == "conversational_voice"][-1]
+    assert "retry_feedback" not in voice_retry["context"]
+
+
+def test_revision_supports_gemini_research_pipeline(episode, monkeypatch):
+    from neuralcast.pipelines.episode_producer import revision
+
+    project, outputs = episode
+    run_episode(project, outputs)
+    seen = []
+
+    def fake_gemini(prompt, context, schema, attempt, **kwargs):
+        seen.append((attempt.parent.name, kwargs.get("search", False), prompt))
+        if attempt.parent.name == "feedback_research":
+            return {
+                "strengths": [],
+                "findings": [],
+                "additional_sources": [
+                    {"url": "https://example.com/verified", "claim": "Confirmed."}
+                ],
+            }
+        return {
+            "passages": [
+                {
+                    "segment_id": s["id"],
+                    "script": s["script"],
+                    "explanation": "Kept.",
+                    "companion": None,
+                    "sources": None,
+                }
+                for s in context["source_plan"]["segments"]
+                if s["kind"] == "commentary"
+            ],
+            "resolutions": [],
+            "open_questions": [],
+            "production_notes": [],
+            "listening_notes": [],
+        }
+
+    monkeypatch.setattr(revision.gemini, "run_stage", fake_gemini)
+    monkeypatch.setattr(
+        revision.codex,
+        "run_stage",
+        Mock(side_effect=AssertionError("Codex must not run in gemini pipeline")),
+    )
+    revision.revise_manuscript(
+        project,
+        {"overall": "Verify fact", "sections": {}, "research": True},
+        pipeline="gemini",
+    )
+    assert seen[0][0] == "feedback_research" and seen[0][1] is True
+    assert "Google Search" in seen[0][2]
+    assert seen[1][0] == "edit"

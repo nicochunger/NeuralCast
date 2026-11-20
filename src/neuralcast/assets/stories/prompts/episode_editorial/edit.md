@@ -13,10 +13,17 @@ explanation.
 
 First resolve consequential factual and narrative problems using only supplied
 evidence. Then make the whole listening sequence sound like one person telling
-the story. Keep natural asides, reactions, brief detours and unforced refinements.
-Actively add fitting personality if the draft is uniformly impersonal. "Mejor
-dicho" can connect a real correction; do not manufacture restarts or uncertainty.
-Remove abstract explanations after scenes, repetitive framing and uniform
+the story to a curious outsider. Weave brief, natural one-clause orientations
+for any unexplained subgenre, label, or reference, and trim incidental lists of
+unfamiliar names. Break dense passages into short oral paragraphs with clear
+signposts across shifts in time or place. Make sure each song has a verified,
+concrete listening cue before it plays and a brief, natural landing comment
+after it finishes rather than a cold jump back into biography. Keep natural
+asides, reactions, brief detours and unforced refinements. Actively add fitting
+personality if the draft is uniformly impersonal. "Mejor dicho" can connect a
+real correction; do not manufacture restarts or uncertainty. Replace essay
+crutches ("lo llamativo es", "lo interesante es", "lo más revelador", "ahora
+bien"), abstract explanations after scenes, repetitive framing and uniform
 handoffs. Rewrite paragraphs together within each continuous host passage.
 
 Finish the prose before choosing purposeful allowed vocal tags. Avoid both
@@ -39,10 +46,11 @@ Return Edit JSON:
   is unavailable. Do not silently drop advice or claim a repair without making it.
 - open_questions: any new consequential editorial gap that remains. Questions
   already covered by unresolved findings need not be repeated.
-- production_notes: preserve supplied routine recording/provenance checks; add
-  concrete non-editorial checks without claiming to have listened. These do not
-  establish file identity. If a suspected wrong edition changes the story, keep
-  that consequential issue unresolved.
+- production_notes: add ONLY new concrete non-editorial checks not already
+  present in supplied production_notes (the controller preserves supplied notes
+  automatically; do not repeat or reword existing pronunciation or duration
+  lists). Never claim to have listened. If a suspected wrong edition changes
+  the story, keep that consequential issue unresolved.
 - listening_notes: existing commentary IDs and specific performance choices for
   the owner to assess when audio is eventually produced.
 
@@ -66,10 +74,13 @@ uploads, publication or station changes.
 Resolve research uncertainty editorially whenever possible: accurately attributed
 conflicting recollections can coexist without deciding which is true. If causes
 are unknown, omit speculation or clearly state the uncertainty. Mark those
-findings resolved when the manuscript handles them accurately; historical doubt
-is not itself a manuscript blocker. Do not invent corroboration. For an unverified
+findings "resolved" (NOT "unresolved") once the manuscript handles them
+accurately; historical doubt that is properly qualified in the script is not a
+manuscript blocker. Do not invent corroboration. For an unverified
 recording edition, remove edition-dependent narration (album/year, specific
-performers/producers or audible arrangements) and introduce only the verified
-artist/song. Routine audition checks then belong in production/listening notes.
-Leave a blocker only when the remaining manuscript still depends on an unsafe
-claim or an unresolved recording mismatch that cannot be neutralized by editing.
+performers/producers or audible arrangements), introduce only the verified
+artist/song, move the routine audition check to production_notes and mark that
+finding "resolved".
+Leave a finding "unresolved" only when the remaining manuscript still depends on
+an unsafe claim or an unresolved recording mismatch that cannot be neutralized
+by editing.

@@ -3,8 +3,10 @@ Read context.json. Research original interviews and official sources online;
 open sources before attaching precise claims. Explain the central question,
 people, choices and connected narrative. Select complete recordings only from
 the supplied catalogue, copying artist, title and playlist exactly. Give songs
-unique stable IDs, a narrative purpose and a deliberate order. Consider the
-requested duration as an initial estimate and allow meaningful narration.
+unique stable IDs, a track-specific narrative purpose (not just fitting the era)
+and a deliberate order. Keep the outline anchored on the featured artists whose
+songs are selected, rather than building the climax around non-featured acts.
+Consider the requested duration as an initial estimate and allow meaningful narration.
 There is no fixed narration or episode duration limit.
 The controller will measure selected recordings. Follow the supplied podcast
 guide, station identity, language and owner direction. The outline must develop

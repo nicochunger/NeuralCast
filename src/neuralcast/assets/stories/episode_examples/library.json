@@ -248,6 +248,19 @@
         "receipt_file": "runtime/episodes/neuralforge/la-voz-que-cambio-todo/delivery/96bb9246db5cfeebbd1dff722edd1413273a35ce4afcf565c6be5ba918f0137a/receipt.json",
         "recorded_changes": []
       }
+    },
+    {
+      "id": "orient-insider-term",
+      "category": "listener_orientation",
+      "status": "discussion_illustration",
+      "before": "Salieron por el sello Shrapnel en plena ola del metal neoclásico y del shred.",
+      "after": "Salieron por Shrapnel, el sello californiano que en los ochenta se volvió la casa del shred —esa escuela de guitarristas obsesionados con la velocidad y la técnica extrema—.",
+      "reason": "Weaves a brief, conversational one-clause orientation for an insider label and subgenre without lecturing.",
+      "check": "Does a curious first-time listener immediately understand the term and why it matters, without slowing the story down?",
+      "source": {
+        "kind": "conversation_illustration",
+        "context": "Editorial review illustration showing how to orient a curious outsider naturally in spoken es-AR."
+      }
     }
   ]
 }

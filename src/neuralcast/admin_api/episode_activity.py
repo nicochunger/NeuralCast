@@ -21,27 +21,36 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
     )
     if action == "develop" and request.get("episode_id"):
         action = "refine_brief"
+    def _editorial_steps(jobs: dict[str, Any] | None = None) -> list[tuple[str, str]]:
+        stage_labels = [
+            ("research", "Web research"),
+            ("write", "Draft" if jobs and "research" in jobs else "Research and draft"),
+            ("factual_support", "Fact review"),
+            ("narrative_continuity", "Story review"),
+            ("conversational_voice", "Voice review"),
+            ("edit", "Final edit"),
+            ("fact_check", "Factual drift check"),
+        ]
+        if jobs is None:
+            return [
+                (stage, label)
+                for stage, label in stage_labels
+                if stage not in {"research", "fact_check"}
+            ]
+        return [(stage, label) for stage, label in stage_labels if stage in jobs]
+
+    compare_inputs = (request.get("comparison_snapshot") or {}).get("inputs") or {}
     definitions = {
         "ideas": [("topics", "Suggesting topics")],
         "develop": [("concept", "Researching and developing the brief")],
         "refine_brief": [("concept", "Researching and revising the brief")],
         "queue": [("queue", "Approving and queueing the brief")],
-        "write": [
-            ("write", "Research and draft"),
-            ("factual_support", "Fact review"),
-            ("narrative_continuity", "Story review"),
-            ("conversational_voice", "Voice review"),
-            ("edit", "Final edit"),
-        ],
+        "write": _editorial_steps(),
         "compare": [
             (f"{version}_{stage}", f"Version {version.upper()}: {label}")
             for version in ("a", "b")
-            for stage, label in (
-                ("write", "Research and draft"),
-                ("factual_support", "Fact review"),
-                ("narrative_continuity", "Story review"),
-                ("conversational_voice", "Voice review"),
-                ("edit", "Final edit"),
+            for stage, label in _editorial_steps(
+                compare_inputs.get(version, {}).get("jobs")
             )
         ],
         "compare_resolve": [("edit", "Resolving research questions")],

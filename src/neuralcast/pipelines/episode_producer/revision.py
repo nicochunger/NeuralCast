@@ -13,6 +13,7 @@ def revise_manuscript(
     project: Project,
     feedback: dict,
     *,
+    pipeline: str = "hybrid",
     source_plan: dict | None = None,
     source_editorial: dict | None = None,
     progress: Callable[[str], None] = print,
@@ -43,7 +44,13 @@ def revise_manuscript(
         for i, question in enumerate(latest.get("blockers", []), 1)
     ]
     research_prompt = (editorial.PROMPTS / "feedback_research.md").read_text()
+    if pipeline == "gemini":
+        research_prompt = research_prompt.replace(
+            "No file edits, agents, audio, uploads or publication.",
+            "Use Google Search and URL Context to verify claims against primary sources. No audio, uploads or publication.",
+        )
     prompt = (editorial.PROMPTS / "edit.md").read_text()
+    jobs = editorial.job_settings(pipeline)
     inputs = {
         "context": common,
         "source_plan": source.model_dump(),
@@ -51,7 +58,7 @@ def revise_manuscript(
         "blockers": findings,
         "prompt": prompt,
         "research_prompt": research_prompt,
-        "jobs": editorial.job_settings(),
+        "jobs": jobs,
         "schema": codex.output_schema(Edit),
     }
     directory = project.runtime / "revisions" / digest(inputs)
@@ -64,6 +71,12 @@ def revise_manuscript(
             "owner_comments": feedback,
             "open_questions": latest.get("blockers", []),
         }
+        research_settings = jobs["factual_support"]
+        research_runner = (
+            gemini.run_stage
+            if research_settings["provider"] == "gemini"
+            else codex.run_stage
+        )
 
         def validate(report):
             ids = {p.id for p in source.segments}
@@ -75,9 +88,9 @@ def revise_manuscript(
             "feedback_research",
             context,
             Review,
-            editorial.job_settings()["factual_support"],
+            research_settings,
             research_prompt,
-            codex.run_stage,
+            research_runner,
             validate,
             progress,
         )
@@ -105,7 +118,7 @@ def revise_manuscript(
         directory,
         context,
         prompt,
-        editorial.job_settings()["edit"],
+        jobs["edit"],
         gemini.run_stage,
         progress,
     )

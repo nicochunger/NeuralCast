@@ -740,7 +740,7 @@ def test_comparison_submission_freezes_inputs_and_does_not_start_models(
     assert saved["comparison_id"] == request
     assert saved["comparison_snapshot"]["concept_hash"] == p.concept_hash()
     assert any(
-        v["jobs"]["write"].get("search")
+        v["jobs"].get("research", {}).get("search")
         for v in saved["comparison_snapshot"]["inputs"].values()
     )
     assert not (p.runtime / "manuscript_approval.json").exists()

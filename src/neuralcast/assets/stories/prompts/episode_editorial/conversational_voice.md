@@ -2,10 +2,13 @@
 
 Read the complete source_plan as one host telling a story to an interested
 listener in the configured locale. Use the podcast guide and labeled examples.
-Assess natural speech, personality, rhythm and immediate paragraph/song handoffs.
-Look for impersonal presentation prose, missing reactions or asides, repeated
-summaries, forced corrections and mechanical devices. A clear short sentence is
-not automatically spoken language. Preserve comments and loose moments that work.
+Assess natural speech, personality, rhythm, oral pacing and immediate
+paragraph/song handoffs. Look for impersonal presentation prose, essay crutches
+("lo llamativo es", "lo interesante es", "lo más revelador", "ahora bien"),
+dense unbroken walls of text, missing reactions or asides, flat song intros or
+cold post-song restarts, repeated summaries, forced corrections and mechanical
+devices. A clear short sentence is not automatically spoken language. Preserve
+comments and loose moments that work.
 
 Return Review JSON with at most three strengths and six findings. In each
 strength string, include the existing segment ID, a short exact quotation and

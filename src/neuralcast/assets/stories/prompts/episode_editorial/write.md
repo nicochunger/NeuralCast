@@ -7,15 +7,24 @@ official credits and reliable accounts, investigate contradictions, and map
 precise claims to supporting URLs. Search snippets are insufficient. Repeated
 retellings of one source are not independent corroboration.
 
-Plan the complete listening journey before drafting. Develop people, choices,
-circumstances and consequences within the approved scope, and give each song a
-purpose. Establish a conversational host from the first draft: fitting reactions,
-asides, callbacks and natural refinements, without a quota or invented experience.
-Remove presentation framing and explanations after anecdotes. Retain natural
+Plan the complete listening journey before drafting. Write for a curious
+outsider: orient any subgenre, label, or key reference naturally in one clause
+and avoid incidental name-dumps. Develop people, choices, circumstances and
+consequences anchored on the featured artists, in short oral paragraphs. Research
+and use verified details about each specific song so you can tell the listener
+what to pay attention to before it plays, and open the next passage with a brief
+natural comment on the track before moving forward. Establish a conversational
+host from the first draft: fitting reactions, asides, callbacks and natural
+refinements, without a quota, essay crutches or invented experience. Remove
+presentation framing and explanations after anecdotes. Retain natural
 attribution rather than reciting a bibliography.
 
 Return Draft JSON with the complete plan, concise research_notes, open_questions
-for consequential gaps and production_notes for routine recording checks. Every
+for consequential gaps and production_notes for routine recording checks.
+Reserve open_questions strictly for gaps where the draft still relies on an
+unverified claim or suspected wrong recording that would invalidate the story;
+keep already-attributed historical disputes in research_notes and routine
+audition checks in production_notes. Every
 commentary needs a full script, companion, evidence and whole-passage word estimate.
 Use proposal_hash exactly. Copy selected song identities exactly. Follow the
 owner's selection/order requirements. Alternate opening/song/bridge/song/closing;
