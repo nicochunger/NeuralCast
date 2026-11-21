@@ -386,7 +386,7 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     by_name = {c["name"]: c for c in calls}
     assert set(by_name) == {"research", "write", "editorial_review", "edit", "fact_check"}
     assert len(calls) == 5
-    assert by_name["research"]["effort"] == "high" and by_name["research"]["search"]
+    assert by_name["research"]["effort"] == "medium" and by_name["research"]["search"]
     assert by_name["write"]["effort"] == "medium" and not by_name["write"]["search"]
     assert by_name["editorial_review"]["effort"] == "medium"
     assert by_name["edit"]["effort"] == "medium"

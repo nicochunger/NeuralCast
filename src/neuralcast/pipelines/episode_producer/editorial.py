@@ -36,10 +36,10 @@ def job_settings() -> dict:
     return {
         "research": {
             "provider": "agy",
-            "model": agy.model_for("high"),
-            "effort": "high",
+            "model": agy.model_for("medium"),
+            "effort": "medium",
             "search": True,
-            "timeout_seconds": 600,
+            "timeout_seconds": 900,
         },
         "write": {
             "provider": "agy",

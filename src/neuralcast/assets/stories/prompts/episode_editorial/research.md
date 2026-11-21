@@ -6,9 +6,10 @@ only; do not write spoken narration scripts.
 
 Use web search to independently discover and corroborate primary sources
 (original interviews, official credits, contemporary press and reliable
-accounts). Search snippets and repeated retellings of one source are
-insufficient. Investigate contradictions and record each participant's
-perspective without inventing a verdict or unknown motives.
+accounts). Keep research focused (roughly 6–10 targeted searches covering the
+core story beats and each selected song) rather than exhaustive browsing.
+Investigate contradictions and record each participant's perspective without
+inventing a verdict or unknown motives.
 
 Return ResearchDossier JSON:
 - central_question: the unifying question driving the episode.

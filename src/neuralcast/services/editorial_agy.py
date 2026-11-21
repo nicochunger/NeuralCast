@@ -82,6 +82,11 @@ def failure_diagnostic(raw: str) -> tuple[str, str]:
     """Classify agy CLI failures without returning raw logs or credentials."""
     checks = (
         (
+            "timeout",
+            r"timed out|print.timeout|deadline exceeded|\"status\"\s*:\s*\"TIMEOUT\"",
+            "Antigravity CLI timed out before finishing the stage.",
+        ),
+        (
             "model_access",
             r"model[^\n]{0,160}(?:not supported|not found|does not exist|unavailable)|model_not_found",
             "The agy CLI rejected the configured model. Check NC_AGY_EXECUTABLE and model access.",
@@ -93,7 +98,7 @@ def failure_diagnostic(raw: str) -> tuple[str, str]:
         ),
         (
             "schema",
-            r"invalid.json.schema|invalid schema|json_schema|schema validation",
+            r"invalid.json.schema|invalid schema|schema validation failed",
             "Antigravity CLI rejected the structured output schema.",
         ),
         (

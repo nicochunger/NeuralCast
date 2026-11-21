@@ -124,6 +124,27 @@ def test_agy_failure_classifies_auth_error_without_leaking_secret(tmp_path, monk
     assert failure["exit_code"] == 1
 
 
+def test_agy_timeout_exit_code_is_not_misclassified_as_schema_error(
+    tmp_path, monkeypatch
+):
+    envelope = {
+        "status": "TIMEOUT",
+        "json_schema": {"type": "object"},
+        "usage": {"total_tokens": 100},
+    }
+    monkeypatch.setattr(
+        subprocess,
+        "Popen",
+        lambda *a, **kw: _proc(
+            stdout=json.dumps(envelope), stderr="print timeout exceeded", returncode=3
+        ),
+    )
+    with pytest.raises(agy.EditorialStageError, match="timed out"):
+        agy.run_stage("Research", {}, {"type": "object"}, tmp_path / "attempt")
+    failure = json.loads((tmp_path / "attempt" / "failure.json").read_text())
+    assert failure["category"] == "timeout"
+
+
 def test_agy_missing_executable_reports_configuration_error(tmp_path, monkeypatch):
     monkeypatch.setenv("NC_AGY_EXECUTABLE", "missing-agy-bin")
     monkeypatch.setattr(
