@@ -662,17 +662,7 @@ def test_live_activity_reads_buffered_stage_files_without_mutating_the_job(rig):
 
 @pytest.mark.parametrize(
     "action",
-    [
-        "ideas",
-        "develop",
-        "queue",
-        "write",
-        "revise",
-        "render",
-        "publish",
-        "weekly",
-        "compare",
-    ],
+    ["ideas", "develop", "queue", "write", "revise", "render", "publish", "weekly"],
 )
 def test_activity_describes_each_background_action(rig, action):
     from neuralcast.admin_api.episode_activity import episode_activity

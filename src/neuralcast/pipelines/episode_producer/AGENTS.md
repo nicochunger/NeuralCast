@@ -135,15 +135,11 @@ orchestrator remains separate.
 
 - `models.py`: strict proposal, plan, recording, evidence, and commentary schemas.
 - `editorial_models.py`: approved concepts, focused findings and final edits.
-- `editorial.py`: persisted jobs, parallel review, validation and Markdown export.
+- `editorial.py`: persisted jobs, five-stage editorial flow, validation and Markdown export.
 - `delivery.py`: final-edit boundaries and owner-readable before/after reports.
-- `reviews.py`: review roles, curated examples and the single finding ledger.
-- `services/editorial_agent.py`: shared read-only headless Codex boundary with web
-  research, strict JSON, deadlines and usage capture.
-- `services/editorial_text.py`: bounded Gemini structured requests; comparison
-  research stages opt into server-side search and URL Context.
-- `comparison.py`: frozen paired editorial experiments, isolated approvals and
-  local-only listening copies exposed through the Episodes admin workspace.
+- `reviews.py`: review role, curated examples and the single finding ledger.
+- `services/editorial_agy.py`: isolated headless Antigravity CLI (`agy`) runner
+  using Gemini 4 Neon with strict JSON schemas, deadlines and usage capture.
 - `manuscript.py`: complete-script checks and exact owner approval before TTS.
 - `storage.py`: project paths, hashes, atomic receipts, approvals, and locks.
 - `library.py`: read-only resolution of exact catalog recordings and artwork.

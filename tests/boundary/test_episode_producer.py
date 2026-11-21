@@ -652,7 +652,7 @@ def test_new_production_has_one_tts_and_chapter_per_whole_host_passage(productio
     assert service.render.call_args.kwargs == {}
 
 
-def test_local_comparison_audio_requires_approval_and_never_uploads(production):
+def test_local_only_audio_requires_approval_and_never_uploads(production):
     project, client, proposal_hash = production
     project.approve_proposal(proposal_hash)
     with pytest.raises(ValueError, match="has not been approved"):
