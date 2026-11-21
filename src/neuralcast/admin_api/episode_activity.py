@@ -31,7 +31,10 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
         ]
 
     definitions = {
-        "ideas": [("topics", "Suggesting topics")],
+        "ideas": [
+            ("topics", "Generating episode ideas"),
+            ("select_topic", "Selecting the strongest ideas"),
+        ],
         "develop": [("concept", "Researching and developing the brief")],
         "refine_brief": [("concept", "Researching and revising the brief")],
         "queue": [("queue", "Approving and queueing the brief")],

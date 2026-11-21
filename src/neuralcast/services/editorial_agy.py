@@ -214,9 +214,22 @@ def _render_voice_examples(items: list[dict[str, Any]]) -> str:
 
 
 def _build_workspace_files(tmpdir: Path, context: dict[str, Any]) -> list[str]:
-    """Write context.json and any Markdown reference files into the isolated cwd."""
+    """Write context.json and any Markdown/TSV reference files into the isolated cwd."""
     files = ["context.json"]
-    refs = context.get("writing_references")
+    slim_context = dict(context)
+    extra_files = slim_context.pop("workspace_files", None)
+    if isinstance(extra_files, dict):
+        for filename, content in sorted(extra_files.items()):
+            if (
+                isinstance(filename, str)
+                and isinstance(content, str)
+                and "/" not in filename
+                and "\\" not in filename
+                and filename not in {"context.json", "schema.json"}
+            ):
+                (tmpdir / filename).write_text(content, encoding="utf-8")
+                files.append(filename)
+    refs = slim_context.get("writing_references")
     if isinstance(refs, dict):
         rest_refs = dict(refs)
         if isinstance(rest_refs.get("writing_guide.md"), str):
@@ -230,13 +243,11 @@ def _build_workspace_files(tmpdir: Path, context: dict[str, Any]) -> list[str]:
                 encoding="utf-8",
             )
             files.append("voice_examples.md")
-        slim_context = {
-            **{k: v for k, v in context.items() if k != "writing_references"},
-            **({"writing_references": rest_refs} if rest_refs else {}),
-        }
-        write_json(tmpdir / "context.json", slim_context)
-    else:
-        write_json(tmpdir / "context.json", context)
+        if rest_refs:
+            slim_context["writing_references"] = rest_refs
+        else:
+            slim_context.pop("writing_references", None)
+    write_json(tmpdir / "context.json", slim_context)
     return files
 
 

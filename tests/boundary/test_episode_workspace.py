@@ -395,20 +395,40 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
 
     def topics(prompt, context, schema, attempt, **kwargs):
         calls.append("ideas")
+        assert "Artist (1)" in context["workspace_files"]["artist_index.md"]
+        assert context["previous_episodes"][0]["featured_artists"] == ["Artist"]
         return {
             "ideas": [
+                {
+                    "title": "Runner up idea",
+                    "premise": "Less compelling angle",
+                    "angle": "Brief overview",
+                    "artists": ["Artist"],
+                    "playlists": ["Classic Metal"],
+                },
                 {
                     "title": "A voice changes",
                     "premise": "How a band adapts",
                     "angle": "People and their first songs",
                     "artists": ["Artist"],
-                }
+                    "playlists": ["Classic Metal"],
+                },
+            ]
+        }
+
+    def select_topic(prompt, context, schema, attempt, **kwargs):
+        calls.append("select_topic")
+        assert len(context["candidates"]) == 2
+        return {
+            "ranked": [
+                {"index": 1, "reason": "Strongest human turning point."},
+                {"index": 0, "reason": "Solid backup."},
             ]
         }
 
     def concept(prompt, context, schema, attempt, **kwargs):
         calls.append("concept")
-        assert context["catalogue"][0]["artist"] == "Artist"
+        assert "Classic Metal\tArtist\tSong" in context["workspace_files"]["catalog.tsv"]
         return {
             "title": "A voice changes",
             "premise": "How a band adapts",
@@ -421,11 +441,16 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
     def planning(prompt, context, schema, attempt, **kwargs):
         if attempt.parent.name == "topics":
             return topics(prompt, context, schema, attempt, **kwargs)
+        if attempt.parent.name == "select_topic":
+            return select_topic(prompt, context, schema, attempt, **kwargs)
         return concept(prompt, context, schema, attempt, **kwargs)
 
     monkeypatch.setattr(workspace.agy, "run_stage", planning)
     request = w.submit("ideas", revision=digest(w.state()), target_minutes=10)
-    assert w.execute(request)["ideas"][0]["title"] == "A voice changes"
+    ideas_result = w.execute(request)["ideas"]
+    assert ideas_result[0]["title"] == "A voice changes"
+    assert ideas_result[0]["recommended"] is True
+    assert ideas_result[1]["recommended"] is False
     assert w.execute(request)["ideas"][0]["title"] == "A voice changes"
     request = w.submit(
         "develop",
@@ -437,7 +462,7 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
     p = w.project(result["episode_id"])
     assert w.detail(p)["status"] == "brief_review"
     assert not (p.runtime / "proposal_approval.json").exists()
-    assert calls == ["ideas", "concept"]
+    assert calls == ["ideas", "select_topic", "concept"]
 
     def stage(prompt, context, schema, attempt, **kwargs):
         name = attempt.parent.name
@@ -497,7 +522,7 @@ def test_topics_concept_and_full_editorial_generation_share_saved_approvals(
     assert w.detail(p)["status"] == "manuscript_review"
     assert w.detail(p)["changes"]
     assert p.id in w.state()["managed_episodes"]
-    assert len(calls) == 7  # ideas, concept and the five agy editorial jobs.
+    assert len(calls) == 8  # ideas, select_topic, concept and the five agy editorial jobs.
     assert not (p.runtime / "manuscript_approval.json").exists()
 
 

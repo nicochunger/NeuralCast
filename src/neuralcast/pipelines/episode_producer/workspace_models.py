@@ -10,10 +10,20 @@ class Topic(Document):
     premise: Text
     angle: Text
     artists: list[str] = Field(default_factory=list, max_length=10)
+    playlists: list[str] = Field(default_factory=list, max_length=6)
 
 
 class Topics(Document):
-    ideas: list[Topic] = Field(min_length=1, max_length=3)
+    ideas: list[Topic] = Field(min_length=1, max_length=12)
+
+
+class SelectedTopic(Document):
+    index: int = Field(ge=0, le=11, strict=True)
+    reason: Text
+
+
+class TopicSelection(Document):
+    ranked: list[SelectedTopic] = Field(min_length=1, max_length=4)
 
 
 class Concept(Document):

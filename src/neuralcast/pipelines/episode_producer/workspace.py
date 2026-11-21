@@ -15,7 +15,7 @@ from neuralcast.playlists.catalog import StationPlaylistCatalog
 from neuralcast.services import editorial_agy as agy
 from . import editorial
 from .editorial_models import EditorialBrief
-from .workspace_models import Topics, Concept, Feedback
+from .workspace_models import Topics, TopicSelection, Concept, Feedback
 from .models import Proposal, Plan, Identifier
 from .storage import Project, read_json, write_json, digest, file_hash
 from .library import resolve_recording
@@ -429,28 +429,84 @@ class Workspace:
             write_json(self.root / "requests" / request_id / "request.json", request)
             return request_id
 
-    def _catalogue(self, topic: str = "") -> list[dict[str, str]]:
+    def _artist_index_markdown(self) -> str:
+        from collections import Counter
+
         catalog = StationPlaylistCatalog(
             self.station_root / "playlists", log=lambda _: None
         )
-        recordings = []
+        lines = [f"# {self.station} Artist Index by Playlist", ""]
+        paths = sorted(
+            (self.station_root / "playlists").glob("*.csv"),
+            key=lambda p: (p.stem == "New Releases", p.stem.casefold()),
+        )
+        for path in paths:
+            counts: Counter[str] = Counter()
+            for song in catalog.load(path.stem).songs:
+                artist = song.artist.strip()
+                if artist:
+                    counts[artist] += 1
+            if not counts:
+                continue
+            ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
+            listing = ", ".join(f"{artist} ({count})" for artist, count in ranked)
+            lines.append(f"## {path.stem} ({sum(counts.values())} tracks)")
+            lines.append(listing)
+            lines.append("")
+        return "\n".join(lines).strip() + "\n"
+
+    def _catalog_tsv(self) -> str:
+        catalog = StationPlaylistCatalog(
+            self.station_root / "playlists", log=lambda _: None
+        )
+        lines = ["playlist\tartist\ttitle\talbum\tyear"]
         for path in sorted((self.station_root / "playlists").glob("*.csv")):
             for song in catalog.load(path.stem).songs:
-                recordings.append(
-                    {"playlist": path.stem, "artist": song.artist, "title": song.title}
-                )
-        tokens = [t.casefold() for t in topic.split() if len(t) > 3]
-        recordings.sort(
-            key=lambda s: -sum(
-                t in (s["artist"] + " " + s["title"]).casefold() for t in tokens
+                fields = [
+                    path.stem,
+                    song.artist,
+                    song.title,
+                    song.album or "",
+                    str(song.year or ""),
+                ]
+                cleaned = [" ".join(val.replace("\t", " ").split()) for val in fields]
+                lines.append("\t".join(cleaned))
+        return "\n".join(lines) + "\n"
+
+    def _previous_episodes(self) -> list[dict[str, Any]]:
+        history: list[dict[str, Any]] = []
+        for p in self.projects():
+            proposal = p.proposal()
+            published = (
+                episode_directory(p.station, p.id) / "manifest.json"
+            ).exists()
+            songs: list[dict[str, str]] = []
+            plan_path = p.documents / "plan.json"
+            if plan_path.exists():
+                plan = Plan.model_validate(read_json(plan_path))
+                songs = [
+                    {"playlist": s.playlist, "artist": s.artist, "title": s.title}
+                    for s in plan.segments
+                    if s.kind == "music"
+                ]
+            elif proposal.editorial_brief:
+                songs = [
+                    {"playlist": s.playlist, "artist": s.artist, "title": s.title}
+                    for s in p.editorial_brief().candidate_songs
+                ]
+            history.append(
+                {
+                    "title": proposal.title,
+                    "premise": proposal.premise,
+                    "status": "published" if published else "draft",
+                    "playlists": list(dict.fromkeys(s["playlist"] for s in songs)),
+                    "featured_artists": list(dict.fromkeys(s["artist"] for s in songs)),
+                    "featured_songs": [
+                        f"{s['artist']} — {s['title']}" for s in songs
+                    ],
+                }
             )
-        )
-        # Include a small selection from every playlist alongside topic matches.
-        selected = recordings[:250]
-        for path in sorted((self.station_root / "playlists").glob("*.csv")):
-            selected.extend([s for s in recordings if s["playlist"] == path.stem][:8])
-        unique = {tuple(s.values()): s for s in selected}
-        return list(unique.values())[:450]
+        return history
 
     def _planning_context(self, request: dict[str, Any]) -> dict[str, Any]:
         from neuralcast.pipelines.host_orchestrator.channels import get_channel_registry
@@ -465,6 +521,12 @@ class Workspace:
                 "The station must have exactly one Spanish podcast channel"
             )
         channel = channels[0]
+        action = request.get("action", "develop")
+        workspace_files = (
+            {"artist_index.md": self._artist_index_markdown()}
+            if action == "ideas"
+            else {"catalog.tsv": self._catalog_tsv()}
+        )
         return {
             "station": self.station,
             "channel": channel.key,
@@ -480,11 +542,8 @@ class Workspace:
             "editorial_definitions": (
                 self.station_root / "playlist_descriptions.md"
             ).read_text(),
-            "catalogue": self._catalogue(request.get("topic", "")),
-            "previous_episodes": [
-                {"title": p.proposal().title, "premise": p.proposal().premise}
-                for p in self.projects()
-            ],
+            "workspace_files": workspace_files,
+            "previous_episodes": self._previous_episodes(),
             "owner_topic": request.get("topic", ""),
             "target_seconds": request["target_minutes"] * 60,
             "writing_guide": (editorial.PROMPTS / "writing_guide.md").read_text(),
@@ -509,58 +568,113 @@ class Workspace:
         progress(f"Episode workspace: {action}")
         if action == "weekly":
             response = self.weekly()
-        elif action in {"ideas", "develop"}:
+        elif action == "ideas":
             context = self._planning_context(request)
-            model = Topics if action == "ideas" else Concept
-            prompt = (
-                editorial.PROMPTS / ("topics.md" if action == "ideas" else "concept.md")
-            ).read_text()
-            settings = (
-                dict(
-                    provider="agy",
-                    model=agy.model_for("low"),
-                    effort="low",
-                    search=False,
-                    timeout_seconds=300,
-                )
-                if action == "ideas"
-                else dict(
-                    provider="agy",
-                    model=agy.model_for("medium"),
-                    effort="medium",
-                    search=True,
-                    timeout_seconds=600,
-                )
+            topics_prompt = (editorial.PROMPTS / "topics.md").read_text(
+                encoding="utf-8"
+            )
+            topics_settings = dict(
+                provider="agy",
+                model=agy.model_for("medium"),
+                effort="medium",
+                search=False,
+                timeout_seconds=300,
+            )
+            generated_topics = editorial._job(
+                directory,
+                "topics",
+                context,
+                Topics,
+                topics_settings,
+                topics_prompt,
+                agy.run_stage,
+                lambda _result: None,
+                progress,
+            )
+            select_prompt = (editorial.PROMPTS / "select_topic.md").read_text(
+                encoding="utf-8"
+            )
+            select_context = {
+                "station": context["station"],
+                "channel": context["channel"],
+                "editorial_definitions": context["editorial_definitions"],
+                "previous_episodes": context["previous_episodes"],
+                "owner_topic": context["owner_topic"],
+                "candidates": [
+                    {"index": idx, **idea.model_dump()}
+                    for idx, idea in enumerate(generated_topics.ideas)
+                ],
+            }
+
+            def validate_selection(selection: TopicSelection) -> None:
+                indices = [item.index for item in selection.ranked]
+                if len(indices) != len(set(indices)):
+                    raise ValueError("Topic selection contains duplicate candidate indices")
+                if any(not 0 <= idx < len(generated_topics.ideas) for idx in indices):
+                    raise ValueError("Topic selection index out of range")
+
+            selection = editorial._job(
+                directory,
+                "select_topic",
+                select_context,
+                TopicSelection,
+                topics_settings,
+                select_prompt,
+                agy.run_stage,
+                validate_selection,
+                progress,
+            )
+            with self.lock():
+                state = self.state()
+                state["ideas"] = [
+                    {
+                        "id": uuid.uuid4().hex,
+                        **generated_topics.ideas[pick.index].model_dump(),
+                        "recommended": rank == 0,
+                        "selection_reason": pick.reason,
+                    }
+                    for rank, pick in enumerate(selection.ranked)
+                ]
+                write_json(self.root / "workspace.json", state)
+                response = {"ideas": state["ideas"]}
+        elif action == "develop":
+            context = self._planning_context(request)
+            prompt = (editorial.PROMPTS / "concept.md").read_text(encoding="utf-8")
+            settings = dict(
+                provider="agy",
+                model=agy.model_for("medium"),
+                effort="medium",
+                search=True,
+                timeout_seconds=600,
             )
             generated = []
 
-            def validate(result):
-                if action == "develop":
-                    EditorialBrief(
-                        proposal_hash="0" * 64,
-                        instructions=result.instructions,
-                        candidate_songs=result.candidate_songs,
-                        initial_research=result.initial_research,
-                    )
-                    measured = []
-                    for song in result.candidate_songs:
-                        recording = resolve_recording(self.station_root, song)
-                        measured.append(audio_duration(Path(recording["path"])))
-                    budget = max(
-                        30,
-                        round(
-                            context["target_seconds"]
-                            - sum(measured)
-                            - (len(measured) + 1) * HOST_LEAD_IN_SECONDS
-                        ),
-                    )
-                    generated[:] = [budget]
+            def validate(result: Concept) -> None:
+                EditorialBrief(
+                    proposal_hash="0" * 64,
+                    instructions=result.instructions,
+                    candidate_songs=result.candidate_songs,
+                    initial_research=result.initial_research,
+                )
+                measured = []
+                for song in result.candidate_songs:
+                    recording = resolve_recording(self.station_root, song)
+                    measured.append(audio_duration(Path(recording["path"])))
+                budget = max(
+                    30,
+                    round(
+                        context["target_seconds"]
+                        - sum(measured)
+                        - (len(measured) + 1) * HOST_LEAD_IN_SECONDS
+                    ),
+                )
+                generated[:] = [budget]
 
             result = editorial._job(
                 directory,
-                "topics" if action == "ideas" else "concept",
+                "concept",
                 context,
-                model,
+                Concept,
                 settings,
                 prompt,
                 agy.run_stage,
@@ -568,70 +682,61 @@ class Workspace:
                 progress,
             )
             with self.lock():
-                if action == "ideas":
-                    state = self.state()
-                    state["ideas"] = [
-                        {"id": uuid.uuid4().hex, **idea.model_dump()}
-                        for idea in result.ideas
-                    ]
-                    write_json(self.root / "workspace.json", state)
-                    response = {"ideas": state["ideas"]}
-                else:
-                    slug = (
-                        re.sub(
-                            r"[^a-z0-9]+",
-                            "-",
-                            unicodedata.normalize("NFKD", result.title)
-                            .encode("ascii", "ignore")
-                            .decode()
-                            .lower(),
-                        )
-                        .strip("-")[:65]
-                        .rstrip("-")
-                        or "episode"
+                slug = (
+                    re.sub(
+                        r"[^a-z0-9]+",
+                        "-",
+                        unicodedata.normalize("NFKD", result.title)
+                        .encode("ascii", "ignore")
+                        .decode()
+                        .lower(),
                     )
-                    episode_id = request.get("episode_id") or f"{slug}-{request_id[:6]}"
-                    p = self.project(episode_id)
-                    proposal = Proposal(
-                        episode_id=episode_id,
-                        channel=context["channel"],
-                        title=result.title,
-                        premise=result.premise,
-                        target_seconds=context["target_seconds"],
-                        commentary_budget_seconds=generated[0],
-                        outline=result.outline,
-                    )
-                    brief = EditorialBrief(
-                        proposal_hash=digest(proposal.model_dump()),
-                        instructions=result.instructions,
-                        candidate_songs=result.candidate_songs,
-                        initial_research=result.initial_research,
-                    )
-                    document = {
-                        **proposal.model_dump(),
-                        "editorial_brief": brief.model_dump(),
-                    }
-                    with p.lock():
-                        if request.get("episode_id"):
-                            if read_json(p.documents / "proposal.json") != document:
-                                self.check(p, request["revision"])
-                                write_json(
-                                    directory / "previous_proposal.json",
-                                    read_json(p.documents / "proposal.json"),
-                                )
-                        elif (p.documents / "proposal.json").exists() and read_json(
-                            p.documents / "proposal.json"
-                        ) != document:
-                            raise ConflictError(
-                                "Developed brief changed; existing episode was preserved"
+                    .strip("-")[:65]
+                    .rstrip("-")
+                    or "episode"
+                )
+                episode_id = request.get("episode_id") or f"{slug}-{request_id[:6]}"
+                p = self.project(episode_id)
+                proposal = Proposal(
+                    episode_id=episode_id,
+                    channel=context["channel"],
+                    title=result.title,
+                    premise=result.premise,
+                    target_seconds=context["target_seconds"],
+                    commentary_budget_seconds=generated[0],
+                    outline=result.outline,
+                )
+                brief = EditorialBrief(
+                    proposal_hash=digest(proposal.model_dump()),
+                    instructions=result.instructions,
+                    candidate_songs=result.candidate_songs,
+                    initial_research=result.initial_research,
+                )
+                document = {
+                    **proposal.model_dump(),
+                    "editorial_brief": brief.model_dump(),
+                }
+                with p.lock():
+                    if request.get("episode_id"):
+                        if read_json(p.documents / "proposal.json") != document:
+                            self.check(p, request["revision"])
+                            write_json(
+                                directory / "previous_proposal.json",
+                                read_json(p.documents / "proposal.json"),
                             )
-                        write_json(p.documents / "proposal.json", document)
-                    state = self.state()
-                    state["managed_episodes"] = list(
-                        dict.fromkeys([*state.get("managed_episodes", []), episode_id])
-                    )
-                    write_json(self.root / "workspace.json", state)
-                    response = {"episode_id": episode_id}
+                    elif (p.documents / "proposal.json").exists() and read_json(
+                        p.documents / "proposal.json"
+                    ) != document:
+                        raise ConflictError(
+                            "Developed brief changed; existing episode was preserved"
+                        )
+                    write_json(p.documents / "proposal.json", document)
+                state = self.state()
+                state["managed_episodes"] = list(
+                    dict.fromkeys([*state.get("managed_episodes", []), episode_id])
+                )
+                write_json(self.root / "workspace.json", state)
+                response = {"episode_id": episode_id}
         else:
             p = self.project(request["episode_id"])
             with p.lock():

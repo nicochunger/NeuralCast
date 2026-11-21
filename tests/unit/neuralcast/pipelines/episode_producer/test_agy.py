@@ -95,6 +95,33 @@ def test_agy_stage_runs_isolated_headless_and_records_usage(tmp_path, monkeypatc
     assert metrics["usage"]["thinking_tokens"] == 25
 
 
+def test_agy_writes_workspace_files_and_strips_them_from_context_json(
+    tmp_path, monkeypatch
+):
+    envelope = {"status": "SUCCESS", "structured_output": {"ok": True}}
+    captured = {}
+
+    def fake_popen(cmd, **kwargs):
+        captured["files"] = sorted(p.name for p in kwargs["cwd"].iterdir())
+        captured["context"] = json.loads((kwargs["cwd"] / "context.json").read_text())
+        captured["tsv"] = (kwargs["cwd"] / "catalog.tsv").read_text()
+        return _proc(stdout=json.dumps(envelope))
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    agy.run_stage(
+        "Develop",
+        {
+            "station": "neuralforge",
+            "workspace_files": {"catalog.tsv": "playlist\tartist\ttitle\nMetal\tA\tB\n"},
+        },
+        {"type": "object"},
+        tmp_path / "attempt",
+    )
+    assert captured["files"] == ["catalog.tsv", "context.json", "schema.json"]
+    assert "workspace_files" not in captured["context"]
+    assert "Metal\tA\tB" in captured["tsv"]
+
+
 def test_agy_parses_envelope_when_warning_precedes_json(tmp_path, monkeypatch):
     envelope = {
         "status": "SUCCESS",
