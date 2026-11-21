@@ -35,6 +35,7 @@ class Schedule(Document):
     revision: str = Field(pattern=r"^[a-f0-9]{64}$")
     enabled: bool = Field(strict=True)
     target_minutes: int = Field(default=45, ge=10, le=120, strict=True)
+    mode: Literal["off", "draft_only", "auto_publish"] | None = None
 
 
 class Retry(Document):
@@ -142,7 +143,10 @@ def episodes_router(auth: Callable) -> APIRouter:
     def schedule(request: Request, station: str, payload: Schedule):
         try:
             return workspace(request, station).save_schedule(
-                payload.revision, payload.enabled, payload.target_minutes
+                payload.revision,
+                payload.enabled,
+                payload.target_minutes,
+                mode=payload.mode,
             )
         except (ValueError, OSError, RuntimeError) as exc:
             raise error(exc) from exc

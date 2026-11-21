@@ -74,18 +74,24 @@ class Workspace:
 
     def state(self) -> dict[str, Any]:
         path = self.root / "workspace.json"
-        return (
+        data = (
             read_json(path)
             if path.exists()
             else {
                 "ideas": [],
                 "weekly_enabled": False,
+                "automation_mode": "off",
                 "target_minutes": 45,
                 "ideas_week": None,
                 "manuscript_week": None,
                 "managed_episodes": [],
             }
         )
+        if "automation_mode" not in data:
+            data["automation_mode"] = (
+                "draft_only" if data.get("weekly_enabled") else "off"
+            )
+        return data
 
     def projects(self) -> list[Project]:
         root = self.station_root / "metadata" / "episodes"
@@ -293,7 +299,12 @@ class Workspace:
         }
 
     def save_schedule(
-        self, revision: str, enabled: bool, target_minutes: int
+        self,
+        revision: str,
+        enabled: bool,
+        target_minutes: int,
+        *,
+        mode: str | None = None,
     ) -> dict[str, Any]:
         with self.lock():
             state = self.state()
@@ -305,7 +316,19 @@ class Workspace:
                 or not 10 <= target_minutes <= 120
             ):
                 raise ValueError("Choose a duration from 10 to 120 minutes")
-            state.update(weekly_enabled=enabled, target_minutes=target_minutes)
+            if mode is not None:
+                if mode not in {"off", "draft_only", "auto_publish"}:
+                    raise ValueError("Unknown automation mode")
+                resolved_mode = mode
+                resolved_enabled = mode != "off"
+            else:
+                resolved_mode = "draft_only" if enabled else "off"
+                resolved_enabled = enabled
+            state.update(
+                weekly_enabled=resolved_enabled,
+                automation_mode=resolved_mode,
+                target_minutes=target_minutes,
+            )
             write_json(self.root / "workspace.json", state)
         return self.view()
 
@@ -865,8 +888,11 @@ class Workspace:
 
     def weekly(self) -> dict[str, Any]:
         state = self.state()
-        if not state["weekly_enabled"]:
+        if not state.get("weekly_enabled"):
             return {"skipped": "Weekly preparation is disabled"}
+        mode = state.get("automation_mode")
+        if mode not in {"draft_only", "auto_publish"}:
+            mode = "draft_only"
         week = datetime.now(timezone.utc).strftime("%G-W%V")
         pending = [
             self.detail(p)
@@ -876,24 +902,78 @@ class Workspace:
         ]
         if any(d["status"] in {"manuscript_review", "audio_review"} for d in pending):
             return {"skipped": "An episode awaits owner review"}
-        if state.get("ideas_week") != week:
-            request = self.submit(
-                "ideas", revision=digest(state), target_minutes=state["target_minutes"]
-            )
-            self.execute(request)
-            with self.lock():
-                state = self.state()
-                state["ideas_week"] = week
-                write_json(self.root / "workspace.json", state)
+        if state.get("manuscript_week") == week:
+            return {"ideas_ready": True}
+
         queued = next((d for d in pending if d["status"] == "queued"), None)
-        if queued and self.state().get("manuscript_week") != week:
-            request = self.submit(
-                "write", episode_id=queued["id"], revision=queued["revision"]
+        if queued is None:
+            if state.get("ideas_week") != week:
+                request = self.submit(
+                    "ideas",
+                    revision=digest(state),
+                    target_minutes=state["target_minutes"],
+                )
+                self.execute(request)
+                with self.lock():
+                    state = self.state()
+                    state["ideas_week"] = week
+                    write_json(self.root / "workspace.json", state)
+            state = self.state()
+            ideas = state.get("ideas") or []
+            if not ideas:
+                return {"ideas_ready": True}
+            top = next((item for item in ideas if item.get("recommended")), ideas[0])
+            topic_prompt = (
+                f"{top['title']}\n\n{top['premise']}\n\n{top['angle']}"
+                + (
+                    f"\n\nSuggested artists: {', '.join(top['artists'])}"
+                    if top.get("artists")
+                    else ""
+                )
             )
-            result = self.execute(request)
-            with self.lock():
-                state = self.state()
-                state["manuscript_week"] = week
-                write_json(self.root / "workspace.json", state)
-            return {"episode_id": queued["id"], "status": result.get("status")}
-        return {"ideas_ready": True}
+            develop_req = self.submit(
+                "develop",
+                revision=digest(state),
+                topic=topic_prompt,
+                target_minutes=state["target_minutes"],
+            )
+            developed = self.execute(develop_req)
+            episode_id = developed["episode_id"]
+            p = self.project(episode_id)
+            target = self.detail(p)
+        else:
+            episode_id = queued["id"]
+            target = queued
+
+        write_req = self.submit(
+            "write", episode_id=episode_id, revision=target["revision"]
+        )
+        result = self.execute(write_req)
+        with self.lock():
+            state = self.state()
+            state["manuscript_week"] = week
+            write_json(self.root / "workspace.json", state)
+
+        if mode != "auto_publish":
+            return {"episode_id": episode_id, "status": result.get("status")}
+        if result.get("blockers"):
+            return {
+                "episode_id": episode_id,
+                "status": "blocked",
+                "blockers": result["blockers"],
+            }
+
+        p = self.project(episode_id)
+        render_req = self.submit(
+            "render", episode_id=episode_id, revision=self.revision(p)
+        )
+        rendered = self.execute(render_req)
+        publish_req = self.submit(
+            "publish",
+            episode_id=episode_id,
+            revision=self.revision(p),
+            render_hash=rendered["render_hash"],
+            description=result.get("episode_description", ""),
+        )
+        self.execute(publish_req)
+        return {"episode_id": episode_id, "status": "published"}

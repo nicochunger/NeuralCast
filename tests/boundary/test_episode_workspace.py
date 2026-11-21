@@ -797,3 +797,77 @@ def test_develop_rejects_songs_already_published_on_station(rig, monkeypatch):
     )
     with pytest.raises(ValueError, match="already featured in published episodes"):
         w.execute(request)
+
+
+def test_weekly_auto_publish_runs_end_to_end_and_stops_on_blockers(rig, monkeypatch):
+    w, p, _ = rig
+    w.save_schedule(digest(w.state()), True, 35, mode="auto_publish")
+    assert w.state()["automation_mode"] == "auto_publish"
+    assert w.state()["weekly_enabled"] is True
+
+    # Seed an idea so weekly picks it -> develop -> write -> render -> publish.
+    state = w.state()
+    state.update(
+        ideas_week=datetime.now(timezone.utc).strftime("%G-W%V"),
+        ideas=[
+            {
+                "id": "idea-1",
+                "title": "Top Idea",
+                "premise": "A great human story.",
+                "angle": "Choices and consequences.",
+                "artists": ["Artist"],
+                "recommended": True,
+            }
+        ],
+    )
+    write_json(w.root / "workspace.json", state)
+
+    actions = []
+
+    def fake_submit(action, **kwargs):
+        actions.append((action, kwargs))
+        return f"req-{len(actions)}"
+
+    def fake_execute(request_id):
+        idx = int(request_id.split("-")[1]) - 1
+        action = actions[idx][0]
+        if action == "develop":
+            return {"episode_id": p.id}
+        if action == "write":
+            return {
+                "status": "awaiting_manuscript_approval",
+                "blockers": [],
+                "episode_description": "Clean blurb.",
+            }
+        if action == "render":
+            return {"render_hash": "e" * 64}
+        if action == "publish":
+            return {"id": p.id, "status": "published"}
+        return {}
+
+    monkeypatch.setattr(w, "submit", fake_submit)
+    monkeypatch.setattr(w, "execute", fake_execute)
+    result = w.weekly()
+    assert result == {"episode_id": p.id, "status": "published"}
+    assert [a for a, _ in actions] == ["develop", "write", "render", "publish"]
+    assert actions[-1][1]["description"] == "Clean blurb."
+
+    # Reset manuscript_week and verify blockers stop auto_publish before render.
+    state = w.state()
+    state["manuscript_week"] = None
+    write_json(w.root / "workspace.json", state)
+    actions.clear()
+
+    def blocked_execute(request_id):
+        idx = int(request_id.split("-")[1]) - 1
+        action = actions[idx][0]
+        if action == "develop":
+            return {"episode_id": p.id}
+        if action == "write":
+            return {"status": "blocked", "blockers": ["Major factual drift"]}
+        raise AssertionError(f"Must not run {action} when blocked")
+
+    monkeypatch.setattr(w, "execute", blocked_execute)
+    blocked = w.weekly()
+    assert blocked["status"] == "blocked"
+    assert [a for a, _ in actions] == ["develop", "write"]
