@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -266,6 +267,19 @@ def _build_prompt(prompt: str, files: list[str], *, search: bool) -> str:
     )
 
 
+def _resolve_executable() -> str:
+    configured = os.getenv("NC_AGY_EXECUTABLE", "").strip()
+    if configured:
+        return configured
+    found = shutil.which("agy")
+    if found:
+        return found
+    local_bin = Path.home() / ".local" / "bin" / "agy"
+    if local_bin.is_file():
+        return str(local_bin)
+    return "agy"
+
+
 def run_stage(
     prompt: str,
     context: dict[str, Any],
@@ -286,7 +300,7 @@ def run_stage(
     write_json(attempt / "schema.json", provider_schema)
 
     resolved_model = model or model_for(effort)
-    executable = os.getenv("NC_AGY_EXECUTABLE", "agy").strip() or "agy"
+    executable = _resolve_executable()
     started = monotonic()
     usage: dict[str, int] | None = None
     conversation_id: str | None = None

@@ -172,6 +172,16 @@ def test_agy_timeout_exit_code_is_not_misclassified_as_schema_error(
     assert failure["category"] == "timeout"
 
 
+def test_agy_resolves_local_bin_when_not_on_path(tmp_path, monkeypatch):
+    monkeypatch.delenv("NC_AGY_EXECUTABLE", raising=False)
+    monkeypatch.setattr("shutil.which", lambda _name: None)
+    local_agy = tmp_path / ".local" / "bin" / "agy"
+    local_agy.parent.mkdir(parents=True)
+    local_agy.write_text("#!/bin/sh\n")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    assert agy._resolve_executable() == str(local_agy)
+
+
 def test_agy_missing_executable_reports_configuration_error(tmp_path, monkeypatch):
     monkeypatch.setenv("NC_AGY_EXECUTABLE", "missing-agy-bin")
     monkeypatch.setattr(

@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/root/projects/NeuralCast
+Environment=PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=PYTHONPATH=/root/projects/NeuralCast/src
 EnvironmentFile=/root/projects/NeuralCast/.env
 ExecStart=/root/projects/NeuralCast/.venv/bin/python -m neuralcast.cli.admin_api
