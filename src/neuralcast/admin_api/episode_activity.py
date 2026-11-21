@@ -57,7 +57,9 @@ def episode_activity(workspace: "Workspace", job: dict[str, Any]) -> dict[str, A
     }
     steps = [
         {"id": key, "label": label, "status": "pending"}
-        for key, label in definitions[action]
+        for key, label in definitions.get(
+            action, [(action, action.replace("_", " ").capitalize())]
+        )
     ]
     statuses = {step["id"]: step for step in steps}
     log = job.get("log_tail") or ""
