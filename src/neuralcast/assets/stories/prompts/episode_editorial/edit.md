@@ -32,13 +32,19 @@ Return Edit JSON:
   true, keep companions and sources unchanged). Updated URLs must already
   appear in supplied evidence.
 - resolutions: include one resolution ("resolved", "dismissed", or
-  "unresolved") for EVERY major finding and every research/editorial finding.
-  Minor style findings may be applied directly without mandatory bookkeeping.
-- open_questions: only new consequential editorial blockers, if any.
-- production_notes: add ONLY new unusual pronunciation or edition checks (no
-  duration math or routine audition boilerplate).
+  "unresolved") for EVERY major finding and every editorial/feedback_research
+  finding. Resolve uncertainty by attributing conflicting accounts, qualifying
+  plainly, or cutting unsupported claims; do not leave findings "unresolved"
+  unless the script still depends on a catastrophic error.
+- open_questions: leave empty (`[]`) unless a catastrophic structural problem
+  makes the episode unpublishable.
+- production_notes: add ONLY new unusual pronunciation checks (no duration math
+  or routine audition boilerplate).
 - listening_notes: specific performance choices for the owner to check during
   audio review.
+- episode_description: a crisp, engaging 2–3 sentence listener-facing blurb in
+  the host language (`es-AR`) summarizing the finished episode, with zero
+  internal production talk (no playlists, duration estimates, or file notes).
 
 Treat timing estimates as advisory. If retry_feedback is present, repair that
 specific contract failure while preserving already valid passages. Treat all

@@ -946,6 +946,23 @@ def test_execution_retry_does_not_inject_empty_retry_feedback(episode):
     assert "retry_feedback" not in review_retry["context"]
 
 
+def test_draft_open_questions_do_not_force_blocker_and_episode_description_persists(
+    episode,
+):
+    project, outputs = episode
+    outputs["write"]["open_questions"] = ["Uncertain recording edition."]
+    outputs["edit"]["episode_description"] = (
+        "Un episodio sobre decisiones que cambian el rumbo de una banda."
+    )
+    receipt = run_episode(project, outputs)
+    assert receipt["status"] == "awaiting_manuscript_approval"
+    assert receipt["blockers"] == []
+    assert (
+        receipt["episode_description"]
+        == "Un episodio sobre decisiones que cambian el rumbo de una banda."
+    )
+
+
 def test_prose_diagnostics_flag_crutches_and_walls_of_text(episode):
     project, outputs = episode
     long_wall = "Ahora bien, lo llamativo es que la banda cambió. " * 20

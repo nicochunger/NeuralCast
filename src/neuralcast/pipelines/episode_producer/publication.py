@@ -226,6 +226,12 @@ def publish(
             shutil.copyfile(artwork, target)
             clean["artwork"] = target.name
         chapters.append(clean)
+    editorial_path = project.runtime / "editorial_latest.json"
+    editorial_description = (
+        str(read_json(editorial_path).get("episode_description") or "").strip()
+        if editorial_path.exists()
+        else ""
+    )
     value = {
         "version": 1,
         "id": project.id,
@@ -236,7 +242,7 @@ def publish(
         "description": (
             description.strip()
             if description and description.strip()
-            else receipt["summary"]
+            else editorial_description or receipt["summary"]
         ),
         "published_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "duration": duration,

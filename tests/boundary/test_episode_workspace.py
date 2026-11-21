@@ -769,3 +769,31 @@ def test_voice_directions_preserve_manuscript_and_change_revision(
     assert response.status_code == 200 and w.revision(p) != revision
     assert (p.documents / "plan.json").read_bytes() == before
     assert response.json()["voice_directions"] == "Speak a little slower."
+
+
+def test_develop_rejects_songs_already_published_on_station(rig, monkeypatch):
+    w, p, template = rig
+    write_json(
+        workspace.episode_directory(w.station, p.id) / "manifest.json",
+        {"published": True},
+    )
+
+    def repeated_song(prompt, context, schema, attempt, **kwargs):
+        return {
+            "title": "Another angle",
+            "premise": "Testing duplicate song guard",
+            "outline": ["Scene one"],
+            "instructions": "Play the song.",
+            "candidate_songs": [template.segments[1].model_dump()],
+            "initial_research": [],
+        }
+
+    monkeypatch.setattr(workspace.agy, "run_stage", repeated_song)
+    request = w.submit(
+        "develop",
+        revision=digest(w.state()),
+        topic="Another angle",
+        target_minutes=20,
+    )
+    with pytest.raises(ValueError, match="already featured in published episodes"):
+        w.execute(request)

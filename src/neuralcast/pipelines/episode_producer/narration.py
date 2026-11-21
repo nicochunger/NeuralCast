@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any
+import wave
 
 from neuralcast.services.ai_client import synthesize_speech, DEFAULT_GEMINI_TTS_MODEL
 from neuralcast.pipelines.host_orchestrator.channels import HostChannel
@@ -57,6 +58,23 @@ def _cached_audio_path(directory: Path, expected_hash: str | None) -> Path | Non
         if candidate.exists() and file_hash(candidate) == expected_hash:
             return candidate
     return None
+
+
+def _verify_synthesized_audio(path: Path, plain_text: str) -> None:
+    if not path.is_file() or path.stat().st_size == 0:
+        raise RuntimeError("Episode TTS produced an empty audio file")
+    with path.open("rb") as handle:
+        header = handle.read(4)
+    if header == b"RIFF":
+        with wave.open(str(path), "rb") as wav:
+            rate = wav.getframerate()
+            duration = wav.getnframes() / rate if rate > 0 else 0.0
+        words = len(plain_text.split())
+        minimum_seconds = max(0.5, words / 8.0)
+        if duration < minimum_seconds:
+            raise RuntimeError(
+                f"Episode TTS audio looks truncated ({duration:.2f}s for {words} words)"
+            )
 
 
 def prepare_narration(
@@ -112,6 +130,7 @@ def prepare_narration(
                 gemini_voice=channel.tts_voice,
             ),
         )
+        _verify_synthesized_audio(temporary, speech.plain_text)
         temporary.replace(target)
     finally:
         temporary.unlink(missing_ok=True)

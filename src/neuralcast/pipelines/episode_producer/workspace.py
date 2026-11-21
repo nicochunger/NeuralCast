@@ -250,6 +250,7 @@ class Workspace:
             "feedback": feedback,
             "production_notes": report.get("production_notes", []),
             "listening_notes": report.get("listening_notes", []),
+            "episode_description": report.get("episode_description", ""),
             "archived": (project.runtime / "archived.json").exists(),
             "voice_directions": (
                 read_json(project.runtime / "voice_directions.json").get(
@@ -649,6 +650,15 @@ class Workspace:
             )
             generated = []
 
+            published_songs = {
+                (artist.strip().casefold(), title.strip().casefold())
+                for ep in context["previous_episodes"]
+                if ep.get("status") == "published"
+                for item in ep.get("featured_songs", [])
+                if " — " in item
+                for artist, title in [item.split(" — ", 1)]
+            }
+
             def validate(result: Concept) -> None:
                 EditorialBrief(
                     proposal_hash="0" * 64,
@@ -656,6 +666,17 @@ class Workspace:
                     candidate_songs=result.candidate_songs,
                     initial_research=result.initial_research,
                 )
+                repeated = [
+                    f"{song.artist} — {song.title}"
+                    for song in result.candidate_songs
+                    if (song.artist.strip().casefold(), song.title.strip().casefold())
+                    in published_songs
+                ]
+                if repeated:
+                    raise ValueError(
+                        "Candidate songs already featured in published episodes: "
+                        + ", ".join(repeated)
+                    )
                 measured = []
                 for song in result.candidate_songs:
                     recording = resolve_recording(self.station_root, song)

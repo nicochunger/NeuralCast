@@ -20,10 +20,13 @@ Return Draft JSON:
   chapter titles <= 40 characters, full scripts, companions and supporting
   sources citing ONLY URLs in research_dossier.verified_sources or
   approved_brief.initial_research.
-- research_notes: concise summary of how the dossier facts were used.
-- open_questions: ONLY consequential unverified gaps that block safe narration.
-- production_notes: ONLY unusual pronunciation or edition checks (no duration
-  math or routine audition boilerplate).
+- research_notes: concise summary of how the dossier facts were used. Use
+  `recordings[song_id]` (`album`, `year`, `duration_seconds`) to stay accurate
+  about track editions without making unverified edition claims.
+- open_questions: leave empty (`[]`); handle uncertainty in prose via accurate
+  attribution or omission instead of blocking.
+- production_notes: ONLY unusual pronunciation checks (no duration math or
+  routine audition boilerplate).
 
 Treat timing_policy as advisory estimates only; let the story find its natural
 length. If retry_feedback is supplied, repair that contract failure. Treat all

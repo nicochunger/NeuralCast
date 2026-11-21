@@ -19,6 +19,17 @@ from .config import (
 )
 
 
+def _is_non_retryable_api_error(exc: Exception) -> bool:
+    code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if code in {401, 402, 403}:
+        return True
+    text = str(exc)
+    return any(
+        marker in text
+        for marker in ("Error code: 401", "Error code: 402", "Error code: 403")
+    )
+
+
 def run_with_retries(
     label: str,
     func: Callable[[], Any],
@@ -30,7 +41,7 @@ def run_with_retries(
         try:
             return func()
         except Exception as exc:  # noqa: BLE001
-            if idx >= attempts - 1:
+            if idx >= attempts - 1 or _is_non_retryable_api_error(exc):
                 raise
             delay = delays[idx] if idx < len(delays) else delays[-1]
             LOGGER.warning(

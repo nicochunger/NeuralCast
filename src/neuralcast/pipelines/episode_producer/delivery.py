@@ -48,7 +48,7 @@ def required_finding_ids(findings: list[dict]) -> set[str]:
         item["id"]
         for item in findings
         if item.get("severity") == "major"
-        or item.get("reviewer") in {"research", "editorial", "feedback_research"}
+        or item.get("reviewer") in {"editorial", "feedback_research"}
     }
 
 

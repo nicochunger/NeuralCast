@@ -445,6 +445,34 @@ def test_long_host_passage_is_one_tts_call_and_one_cache_entry(
     assert tts.call_count == 1
 
 
+def test_narration_rejects_empty_and_truncated_wav_and_fast_fails_402(
+    tmp_path, monkeypatch
+):
+    from neuralcast.pipelines.host_orchestrator.utils import run_with_retries
+
+    empty = tmp_path / "empty.wav"
+    empty.write_bytes(b"")
+    with pytest.raises(RuntimeError, match="empty audio"):
+        narration._verify_synthesized_audio(empty, "Hola mundo")
+
+    tiny_wav = tmp_path / "tiny.wav"
+    with wave.open(str(tiny_wav), "wb") as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(24000)
+        stream.writeframes(b"\0" * 2400)  # 0.05s for 40 words
+    with pytest.raises(RuntimeError, match="truncated"):
+        narration._verify_synthesized_audio(tiny_wav, "palabra " * 40)
+
+    class BillingError(RuntimeError):
+        status_code = 402
+
+    calls = Mock(side_effect=BillingError("Error code: 402 - credits depleted"))
+    with pytest.raises(BillingError):
+        run_with_retries("TTS", calls, retries=2, delays=(0, 0))
+    assert calls.call_count == 1
+
+
 def test_render_host_silence_has_no_extra_chapters(tmp_path, monkeypatch):
     captured = {}
 

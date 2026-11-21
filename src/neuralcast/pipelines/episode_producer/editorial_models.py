@@ -124,3 +124,4 @@ class Edit(Document):
     open_questions: list[ReviewText] = Field(default_factory=list, max_length=20)
     production_notes: list[ReviewText] = Field(default_factory=list, max_length=20)
     listening_notes: list[DeliveryNote] = Field(default_factory=list, max_length=20)
+    episode_description: str = Field(default="", max_length=1500)

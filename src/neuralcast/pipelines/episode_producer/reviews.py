@@ -52,9 +52,9 @@ def finding_ledger(draft: Draft, reports: dict[str, Review]) -> list[dict]:
                     part.id for part in draft.plan.segments if part.kind == "commentary"
                 ],
                 "quote": question,
-                "severity": "major",
+                "severity": "minor",
                 "problem": question,
-                "correction": "Resolve with evidence, accurate attribution, qualification or removal of unsupported claims. Keep a blocker only if the manuscript still relies on the uncertainty.",
+                "correction": "Resolve editorially via accurate attribution, qualification, or removal of unsupported claims.",
             }
         )
     return findings

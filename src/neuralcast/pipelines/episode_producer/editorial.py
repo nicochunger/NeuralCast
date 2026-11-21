@@ -539,6 +539,7 @@ def _install(
         "report": str(directory / "edit_report.md"),
         "listening_notes": [note.model_dump() for note in edit.listening_notes],
         "production_notes": edit.production_notes,
+        "episode_description": edit.episode_description.strip(),
         "installed_plan_hash": digest(final_plan),
         "mode": "delivery" if directory.parent.name == "delivery" else "editorial",
         "jobs": {
