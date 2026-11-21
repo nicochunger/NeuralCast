@@ -50,7 +50,20 @@ def test_agy_stage_runs_isolated_headless_and_records_usage(tmp_path, monkeypatc
         "Review this manuscript",
         {
             "source_plan": {"segments": []},
-            "writing_references": {"writing_guide.md": "# Guide\nKeep it natural."},
+            "writing_references": {
+                "writing_guide.md": "# Guide\nKeep it natural.",
+                "voice_examples": [
+                    {
+                        "id": "natural-aside",
+                        "category": "personality",
+                        "status": "owner_approved_example",
+                        "before": None,
+                        "after": "Que… bueno, tampoco era obvio.",
+                        "reason": "Brief reaction.",
+                        "check": "Fits tone?",
+                    }
+                ],
+            },
         },
         schema,
         attempt,
@@ -64,7 +77,12 @@ def test_agy_stage_runs_isolated_headless_and_records_usage(tmp_path, monkeypatc
     assert "--output-format" in captured["cmd"]
     assert "--disable-slash-commands" in captured["cmd"]
     assert "--sandbox" in captured["cmd"]
-    assert captured["files"] == ["context.json", "schema.json", "writing_guide.md"]
+    assert captured["files"] == [
+        "context.json",
+        "schema.json",
+        "voice_examples.md",
+        "writing_guide.md",
+    ]
     assert "minItems" not in captured["schema"]["properties"]["findings"]
     assert "maxItems" not in captured["schema"]["properties"]["findings"]
     assert (attempt / "validation_schema.json").exists()

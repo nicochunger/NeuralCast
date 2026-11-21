@@ -21,57 +21,39 @@ invent a presenter, episode number, date or schedule. Introduce bands on their o
 merits, develop the bridges without restarting the show, and thank the listener
 in the closing.
 
-## Five jobs, three phases
+## Five jobs, sequential editorial workshop
 
-| Job | Provider | Responsibility | Thinking/effort | Per-attempt deadline |
+All editorial stages run via headless Antigravity CLI (`agy`) using Gemini 4 Neon:
+
+| Job | Model / Effort | Responsibility | Web Search | Per-attempt deadline |
 | --- | --- | --- | --- | --- |
-| Research and draft | Codex, `gpt-6.1-sol` | Open sources, develop the whole story and attach evidence | high | 15 minutes |
-| Factual support | Codex, `gpt-6.1-sol` | Independently verify claims, chronology and attribution | medium | 10 minutes |
-| Narrative continuity | Gemini, `gemini-4-neon` | Assess development, depth, repetition and song purpose | low | 5 minutes |
-| Conversational voice | Gemini, `gemini-4-neon` | Assess oral phrasing, personality and unforced asides | low | 5 minutes |
-| Final edit | Gemini, `gemini-4-neon` | Reconcile findings and edit content, speech and performance | medium | 15 minutes |
+| Research dossier (`research`) | `gemini-4-neon-high` | Independently verify primary sources, narrative arc and per-song cues (`song_notes`) | enabled | 10 minutes |
+| Draft (`write`) | `gemini-4-neon-medium` | Write the complete manuscript strictly from the verified dossier | disabled | 10 minutes |
+| Editorial review (`editorial_review`) | `gemini-4-neon-medium` | Assess narrative clarity, outsider orientation, song engagement and spoken voice | disabled | 7 minutes |
+| Final edit (`edit`) | `gemini-4-neon-medium` | Resolve required findings, remove essay crutches, split oral beats and direct vocal tags | disabled | 15 minutes |
+| Factual drift check (`fact_check`) | `gemini-4-neon-low` | Detect factual drift introduced during editing; auto-triggers one repair edit on major drift | disabled | 3 minutes |
 
-The three reviews run in parallel after the draft is validated. Python starts the
-jobs, retains each report and assigns stable finding IDs. The final editor sees
-those findings directly and returns one resolution per ID: resolved, dismissed
-with a reason, or unresolved. Unresolved findings and new consequential questions
-prevent manuscript approval. Writer questions enter the same finding ledger.
-
-Codex jobs use fresh, ephemeral, read-only sessions with web research enabled and
-subagents disabled. Gemini text jobs are direct structured API requests with no tools,
-web search, file access or delegation, while Gemini research stages (`research` and
-`factual_support`) enable server-side Google Search and URL Context and verify
-`grounding.json` retrieval status. The all-Gemini pipeline splits drafting into a
-search-enabled `research` dossier stage followed by a tool-free `write` stage, plus a
-lightweight post-edit `fact_check` stage to catch factual drift introduced during
-rewriting. Gemini editorial requests have a 65536-token output limit; thinking consumes
-part of that limit. SDK retries are disabled; `editorial_text` performs bounded
-exponential backoff for transient HTTP 429/5xx errors, and the controller allows one
-targeted repair retry of a failed job while preserving accepted work.
-Authentication/configuration errors and incomplete/token-limited responses stop for
-inspection instead of automatic repetition. Manual retries resume accepted jobs. A
-normal successful hybrid workshop has five model jobs; the all-Gemini pipeline has
-seven (`research`, `write`, three parallel reviews, `edit`, `fact_check`).
-
-All three independent reviews must complete before editing. A failed review does
-not discard the completed reviews. Structural validation cannot establish natural
-speech, historical truth or factual meaning; owner review remains required.
+Each stage executes in an isolated temporary directory containing `context.json`
+(plus `writing_guide.md` and `voice_examples.md` for writing/review/edit stages)
+with `--disable-slash-commands`, `--sandbox`, `--json-schema`, and
+`--output-format json`. Deterministic `prose_diagnostics` (flagging essay
+crutches, generic handoffs, and unbroken walls of text) are supplied to
+`editorial_review` and `edit`. Major findings and research/editorial questions
+require explicit resolutions; minor style suggestions can be applied directly.
+Unresolved blockers or persistent major factual drift prevent manuscript
+approval.
 
 ## Prompts and supplied context
 
-- [Research and draft](../src/neuralcast/assets/stories/prompts/episode_editorial/write.md)
-- [Factual support](../src/neuralcast/assets/stories/prompts/episode_editorial/factual_support.md)
-- [Narrative continuity](../src/neuralcast/assets/stories/prompts/episode_editorial/narrative_continuity.md)
-- [Conversational voice](../src/neuralcast/assets/stories/prompts/episode_editorial/conversational_voice.md)
+- [Research dossier](../src/neuralcast/assets/stories/prompts/episode_editorial/research.md)
+- [Draft](../src/neuralcast/assets/stories/prompts/episode_editorial/draft.md)
+- [Editorial review](../src/neuralcast/assets/stories/prompts/episode_editorial/editorial_review.md)
 - [Final edit](../src/neuralcast/assets/stories/prompts/episode_editorial/edit.md)
+- [Factual drift check](../src/neuralcast/assets/stories/prompts/episode_editorial/fact_check.md)
 
 The single [podcast writing guide](../src/neuralcast/assets/stories/prompts/episode_editorial/writing_guide.md)
-and six selected, labeled [voice examples](../src/neuralcast/assets/stories/episode_examples/library.json)
-calibrate writing, narrative review, voice review and editing. Factual verification
-receives the manuscript and evidence without style references. Every job receives
-relevant approved scope, host identity/language, measured recording durations and
-timing policy. The final editor also receives reviewer strengths to preserve and
-verified additional sources. Operational source paths stay out of example context.
+and eight selected, labeled [voice examples](../src/neuralcast/assets/stories/episode_examples/library.json)
+calibrate drafting, editorial review and final editing.
 
 Write prepared storytelling with room for personality: occasional reactions,
 asides, short detours and natural refinements, as if speaking to one interested

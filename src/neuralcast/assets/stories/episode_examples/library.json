@@ -261,6 +261,32 @@
         "kind": "conversation_illustration",
         "context": "Editorial review illustration showing how to orient a curious outsider naturally in spoken es-AR."
       }
+    },
+    {
+      "id": "song-handoff-and-reentry",
+      "category": "song_engagement",
+      "status": "discussion_illustration",
+      "before": "Y para cerrar esta etapa, vamos a escuchar completa «Rising Force». [CANCIÓN] Eso era «Rising Force». Ahora bien, en 1986 apareció otra banda en California.",
+      "after": "Prestá atención a cómo la guitarra y los teclados abren el tema en espejo antes de que entre la voz, como si el disco entero te avisara quién marca el pulso. Vamos con «Rising Force».\n\n[CANCIÓN]\n\nAhí escuchaste ese pulso casi sin concesiones, todo empujando hacia adelante. Y justo cuando ese modelo parecía la única forma de llevar la técnica al límite, en California dos guitarristas probaron exactamente lo contrario.",
+      "reason": "Replaces a generic handoff and cold post-song restart with a concrete verified listening cue and a natural landing comment connecting the track to the next beat.",
+      "check": "Is the pre-song cue backed by supplied evidence (never invented from imagination), and does the post-song landing feel natural rather than templated?",
+      "source": {
+        "kind": "conversation_illustration",
+        "context": "Editorial illustration for concrete pre-song listening cues and natural post-song re-entry in es-AR."
+      }
+    },
+    {
+      "id": "oral-beat-pacing",
+      "category": "oral_pacing",
+      "status": "discussion_illustration",
+      "before": "En 1986 formaron la banda y grabaron el debut en California con un cantante y un baterista que ya tenían experiencia, aunque después el guitarrista contó en entrevistas que no querían sonar como un disco de ejercicios técnicos sino mezclar escalas japonesas e indias, algo que quizá los perjudicó comercialmente pero los hizo únicos.",
+      "after": "En 1986 armaron la banda en California. Y digo banda a propósito: no eran solo dos guitarristas compitiendo sobre una pista, había un cantante y una base rítmica sosteniendo canciones enteras.\n\nAños después, Marty contó algo que desarma la caricatura. No querían quedar encerrados en el catálogo de discos que sonaban a ejercicios de conservatorio. <breath> Se metieron con escalas japonesas, con música de la India, con giros bastante raros para el metal de 1987.\n\nÉl mismo admite que esa mezcla excéntrica quizá les costó público. Pero escuchándolos hoy, ahí está exactamente lo que los separa del resto.",
+      "reason": "Breaks a dense multi-clause wall of text into three short oral beats separated by blank lines, with varied sentence length and natural breath.",
+      "check": "Does each paragraph land cleanly in 2-4 spoken sentences without sounding choppy or losing causal flow?",
+      "source": {
+        "kind": "conversation_illustration",
+        "context": "Editorial illustration showing multi-paragraph oral beat structure for spoken es-AR."
+      }
     }
   ]
 }

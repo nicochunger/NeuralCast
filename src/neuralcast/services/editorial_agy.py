@@ -185,16 +185,46 @@ def _extract_usage(envelope: dict[str, Any]) -> dict[str, int] | None:
     return usage or None
 
 
+def _render_voice_examples(items: list[dict[str, Any]]) -> str:
+    lines = ["# Voice Calibration Examples", ""]
+    for item in items:
+        lines.append(f"## {item.get('id', 'example')} ({item.get('category', '')})")
+        if item.get("status"):
+            lines.append(f"Status: `{item['status']}`")
+        lines.append("")
+        if item.get("before"):
+            lines.append("**Before (avoid):**")
+            lines.append(f"> {item['before']}")
+            lines.append("")
+        if item.get("after"):
+            lines.append("**After (target):**")
+            lines.append(item["after"])
+            lines.append("")
+        if item.get("reason"):
+            lines.append(f"**Why:** {item['reason']}")
+        if item.get("check"):
+            lines.append(f"**Check:** {item['check']}")
+        lines.append("")
+    return "\n".join(lines).strip() + "\n"
+
+
 def _build_workspace_files(tmpdir: Path, context: dict[str, Any]) -> list[str]:
     """Write context.json and any Markdown reference files into the isolated cwd."""
     files = ["context.json"]
     refs = context.get("writing_references")
-    if isinstance(refs, dict) and isinstance(refs.get("writing_guide.md"), str):
-        (tmpdir / "writing_guide.md").write_text(
-            refs["writing_guide.md"], encoding="utf-8"
-        )
-        files.append("writing_guide.md")
-        rest_refs = {k: v for k, v in refs.items() if k != "writing_guide.md"}
+    if isinstance(refs, dict):
+        rest_refs = dict(refs)
+        if isinstance(rest_refs.get("writing_guide.md"), str):
+            (tmpdir / "writing_guide.md").write_text(
+                rest_refs.pop("writing_guide.md"), encoding="utf-8"
+            )
+            files.append("writing_guide.md")
+        if isinstance(rest_refs.get("voice_examples"), list):
+            (tmpdir / "voice_examples.md").write_text(
+                _render_voice_examples(rest_refs.pop("voice_examples")),
+                encoding="utf-8",
+            )
+            files.append("voice_examples.md")
         slim_context = {
             **{k: v for k, v in context.items() if k != "writing_references"},
             **({"writing_references": rest_refs} if rest_refs else {}),

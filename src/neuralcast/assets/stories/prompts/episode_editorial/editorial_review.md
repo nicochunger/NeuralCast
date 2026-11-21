@@ -1,8 +1,10 @@
 # Independent editorial review (story, clarity and spoken voice)
 
-Read context.json and writing_guide.md in full. Review source_plan in listening
-order, with full songs between host passages, as one host telling a researched
-story to an interested, curious outsider in the configured locale.
+Read context.json, writing_guide.md and voice_examples.md in full. Review
+source_plan in listening order, with full songs between host passages, as one
+host telling a researched story to an interested, curious outsider in the
+configured locale. Check prose_diagnostics in context.json for any flagged
+essay crutches or unbroken walls of text.
 
 Check both narrative craft and spoken voice in one coherent pass:
 1. **Narrative clarity & outsider orientation**: causal development, clear time

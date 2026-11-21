@@ -262,6 +262,8 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
                     "explain-the-problem",
                     "attribution-in-speech",
                     "orient-insider-term",
+                    "song-handoff-and-reentry",
+                    "oral-beat-pacing",
                 ),
             },
             "allowed_inline_tags": sorted(INLINE_VOCAL_TAGS),
@@ -280,6 +282,57 @@ def _context(project: Project, feedback: str) -> tuple[Proposal, EditorialBrief,
             },
             "owner_feedback": feedback,
         },
+    )
+
+
+ESSAY_CRUTCHES = (
+    "lo llamativo es",
+    "lo interesante es",
+    "lo más revelador",
+    "ahora bien",
+    "en ese punto se ve",
+    "esto nos permite entender",
+    "guardá esa idea",
+    "la pregunta pasa a ser",
+    "escuchémosla completa",
+    "escuchémoslo completo",
+    "vamos a escuchar completa",
+    "vamos a escuchar completo",
+)
+
+
+def prose_diagnostics(plan: Plan) -> list[dict]:
+    """Return non-blocking prose/formatting hints for review and final edit."""
+    hints: list[dict] = []
+    for part in plan.segments:
+        if not isinstance(part, Commentary) or not part.script:
+            continue
+        plain = validate_speech_transcript(part.script).plain_text
+        lowered = plain.casefold()
+        found = [phrase for phrase in ESSAY_CRUTCHES if phrase in lowered]
+        words = len(plain.split())
+        wall = words > 150 and "\n\n" not in part.script
+        if found or wall:
+            entry: dict = {"segment_id": part.id}
+            if found:
+                entry["essay_crutches"] = found
+            if wall:
+                entry["wall_of_text"] = (
+                    f"{words} words with no paragraph breaks; split into short oral beats using blank lines."
+                )
+            hints.append(entry)
+    return hints
+
+
+def _routine_audition_note(plan: Plan, recordings: dict) -> str:
+    songs = [part for part in plan.segments if isinstance(part, Music)]
+    items = ", ".join(
+        f"{song.artist} — {song.title} ({recordings[song.id]['duration_seconds']:.1f}s)"
+        for song in songs
+        if song.id in recordings
+    )
+    return (
+        f"Audition the selected recordings before audio preparation to confirm edition and clean starts/endings: {items}."
     )
 
 
@@ -529,6 +582,7 @@ def _edit_context(
         "additional_sources": evidence,
         "strengths": strengths,
         "production_notes": production_notes,
+        "prose_diagnostics": prose_diagnostics(source),
         "locked_metadata": script_only,
     }
 
@@ -578,7 +632,13 @@ def _final_edit(
         schema=schema,
     )
     edit.production_notes = list(
-        dict.fromkeys([*context["production_notes"], *edit.production_notes])
+        dict.fromkeys(
+            [
+                _routine_audition_note(source, common["recordings"]),
+                *context["production_notes"],
+                *edit.production_notes,
+            ]
+        )
     )
     plan = apply_edit(
         source,
@@ -736,6 +796,25 @@ def edit_episode(
     _snapshot(project, directory, inputs)
     initial_urls = {source.url for source in brief.initial_research}
     research_context = {k: v for k, v in common.items() if k != "writing_references"}
+    candidate_ids = {song.id for song in brief.candidate_songs}
+
+    def validate_dossier(result: ResearchDossier) -> None:
+        seen_ids = [note.song_id for note in result.song_notes]
+        if len(seen_ids) != len(set(seen_ids)):
+            raise ValueError("Research dossier repeats a song_notes entry")
+        unknown_songs = set(seen_ids) - candidate_ids
+        if unknown_songs:
+            raise ValueError(
+                "Research dossier song_notes refers to unapproved song IDs: "
+                + ", ".join(sorted(unknown_songs))
+            )
+        dossier_urls = initial_urls | {s.url for s in result.verified_sources}
+        for note in result.song_notes:
+            if set(note.source_urls) - dossier_urls:
+                raise ValueError(
+                    f"Research dossier song_notes for {note.song_id} cites an unverified URL"
+                )
+
     dossier = _job(
         directory,
         "research",
@@ -744,7 +823,7 @@ def edit_episode(
         jobs["research"],
         prompts["research"],
         runner,
-        lambda _result: None,
+        validate_dossier,
         progress,
         schema=inputs["schemas"]["research"],
     )
@@ -786,6 +865,7 @@ def edit_episode(
         "research_notes": draft.research_notes,
         "open_questions": draft.open_questions,
         "estimated_duration": timing,
+        "prose_diagnostics": prose_diagnostics(draft.plan),
     }
 
     def validate_review(result: Review) -> None:

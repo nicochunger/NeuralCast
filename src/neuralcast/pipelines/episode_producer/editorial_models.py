@@ -56,9 +56,18 @@ class EditorialBrief(Document):
                     raise ValueError(f"Unapproved song identity: {part.id}")
 
 
+class SongResearch(Document):
+    song_id: Identifier
+    creation_context: Text
+    verified_listening_cue: Text
+    post_song_bridge_hook: Text
+    source_urls: list[str] = Field(min_length=1, max_length=10)
+
+
 class ResearchDossier(Document):
     central_question: Text
     narrative_arc: list[Text] = Field(min_length=1, max_length=20)
+    song_notes: list[SongResearch] = Field(default_factory=list, max_length=20)
     verified_sources: list[Source] = Field(min_length=1, max_length=50)
     research_notes: Text
     open_questions: list[ReviewText] = Field(default_factory=list, max_length=20)

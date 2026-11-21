@@ -402,9 +402,11 @@ def test_five_jobs_have_direct_handoffs_and_stop_before_audio(episode, monkeypat
     assert "writing_references" not in by_name["research"]["context"]
     refs = by_name["write"]["context"]["writing_references"]
     assert set(refs) == {"writing_guide.md", "voice_examples"}
-    assert sum(len(str(v)) for v in refs.values()) < 16000
-    assert len(refs["voice_examples"]) == 6
+    assert sum(len(str(v)) for v in refs.values()) < 24000
+    assert len(refs["voice_examples"]) == 8
     assert any(ex["id"] == "orient-insider-term" for ex in refs["voice_examples"])
+    assert any(ex["id"] == "song-handoff-and-reentry" for ex in refs["voice_examples"])
+    assert any(ex["id"] == "oral-beat-pacing" for ex in refs["voice_examples"])
     assert not any("runtime/" in str(x) for x in refs["voice_examples"])
     assert "host_system_instructions" not in refs
     assert result["status"] == "awaiting_manuscript_approval"
@@ -646,9 +648,13 @@ def test_writer_questions_join_same_ledger_and_routine_checks_are_saved_once(epi
     ]
     receipt = run_episode(project, outputs)
     assert len(receipt["blockers"]) == 1
-    assert receipt["production_notes"] == [
+    assert receipt["production_notes"].count(
         "Owner should listen to the source recording."
-    ]
+    ) == 1
+    assert any(
+        "Audition the selected recordings" in note
+        for note in receipt["production_notes"]
+    )
     ledger = read_json(Path(receipt["artifacts"]) / "findings.json")["findings"]
     assert ledger[-1]["id"] == "research-question-1"
 
@@ -938,6 +944,35 @@ def test_execution_retry_does_not_inject_empty_retry_feedback(episode):
     editorial.edit_episode(project, runner=flaky)
     review_retry = [c for c in calls if c["name"] == "editorial_review"][-1]
     assert "retry_feedback" not in review_retry["context"]
+
+
+def test_prose_diagnostics_flag_crutches_and_walls_of_text(episode):
+    project, outputs = episode
+    long_wall = "Ahora bien, lo llamativo es que la banda cambió. " * 20
+    outputs["write"]["plan"]["segments"][0]["script"] = long_wall
+    calls = []
+    run_episode(project, outputs, calls)
+    by_name = {c["name"]: c for c in calls}
+    review_hints = by_name["editorial_review"]["context"]["prose_diagnostics"]
+    assert review_hints and review_hints[0]["segment_id"] == "intro"
+    assert "ahora bien" in review_hints[0]["essay_crutches"]
+    assert "lo llamativo es" in review_hints[0]["essay_crutches"]
+    assert "paragraph breaks" in review_hints[0]["wall_of_text"]
+
+
+def test_dossier_song_notes_validate_song_ids_and_urls(episode):
+    project, outputs = episode
+    outputs["research"]["song_notes"] = [
+        {
+            "song_id": "unknown-song",
+            "creation_context": "Recorded live.",
+            "verified_listening_cue": "Listen to the intro.",
+            "post_song_bridge_hook": "Connect to next act.",
+            "source_urls": ["https://example.com/history"],
+        }
+    ]
+    with pytest.raises(ValueError, match="unapproved song IDs"):
+        run_episode(project, outputs)
 
 
 def test_revision_supports_agy_research(episode, monkeypatch):
