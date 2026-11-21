@@ -900,7 +900,9 @@ class Workspace:
             if p.id in state.get("managed_episodes", [])
             and not (p.runtime / "archived.json").exists()
         ]
-        if any(d["status"] in {"manuscript_review", "audio_review"} for d in pending):
+        if mode != "auto_publish" and any(
+            d["status"] in {"manuscript_review", "audio_review"} for d in pending
+        ):
             return {"skipped": "An episode awaits owner review"}
         if state.get("manuscript_week") == week:
             return {"ideas_ready": True}
