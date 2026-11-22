@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import math
 import os
@@ -83,6 +84,13 @@ def cover_path(station: str) -> Path:
     return path
 
 
+def cover_version(station: str) -> str | None:
+    path = ASSET_DIRECTORY / f"{station}-cover.png"
+    if not path.is_file():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
 def episode_title(value: dict[str, Any]) -> str:
     title = value["title"]
     number = value.get("episode_number")
@@ -160,7 +168,9 @@ def feed(station: str) -> bytes:
     config = settings()
     show = show_settings(station, config)
     feed_url = public_url(config, f"/public/podcasts/{station}/feed.xml")
-    cover_url = public_url(config, f"/public/podcasts/{station}/cover.png")
+    version = cover_version(station)
+    cover_suffix = f"?v={version}" if version else ""
+    cover_url = public_url(config, f"/public/podcasts/{station}/cover.png{cover_suffix}")
     link = (
         f"{str(config.website_base_url).rstrip('/')}/episodes?station={station}"
         if config.website_base_url

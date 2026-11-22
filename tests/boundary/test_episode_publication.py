@@ -487,6 +487,7 @@ def test_show_covers_are_public_square_and_match_feed(episode, podcast_assets):
                 client.get(f"/public/podcasts/{station}/feed.xml").content
             )
             url = feed.find(f"./channel/{{{rss.ITUNES}}}image").get("href")
+            assert "?v=" in url
             path = url.removeprefix("https://neuralcast.duckdns.org/admin-http")
             response = client.get(path)
             assert (
