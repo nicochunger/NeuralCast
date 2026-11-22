@@ -320,6 +320,7 @@ def test_rss_identity_survives_renumbering_metadata_and_origin_changes(
     assert after.find("guid").get("isPermaLink") == "false"
     assert before.findtext("pubDate") == after.findtext("pubDate")
     assert after.findtext(f"{{{rss.ITUNES}}}episode") == "7"
+    assert after.findtext("title") == "#007 A different title"
     assert (
         after.find("enclosure").get("url").startswith("https://radio.example/prefix/")
     )
@@ -422,6 +423,22 @@ def test_chapter_titles_fit_app(title):
     result = rss.short_title(title)
     assert 0 < len(result) <= 40
     assert result == result.strip() and "  " not in result
+
+
+def test_episode_title_formats_three_digit_number_prefix():
+    assert rss.episode_title({"title": "Laberintos humanos"}) == "Laberintos humanos"
+    assert (
+        rss.episode_title({"title": "Laberintos humanos", "episode_number": 3})
+        == "#003 Laberintos humanos"
+    )
+    assert (
+        rss.episode_title({"title": "Laberintos humanos", "episode_number": 42})
+        == "#042 Laberintos humanos"
+    )
+    assert (
+        rss.episode_title({"title": "#003 Laberintos humanos", "episode_number": 3})
+        == "#003 Laberintos humanos"
+    )
 
 
 @pytest.mark.parametrize("start", [-0.1, float("nan"), float("inf"), 0, 100])

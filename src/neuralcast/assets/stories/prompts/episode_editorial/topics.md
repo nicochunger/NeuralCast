@@ -15,7 +15,10 @@ Rules:
   angle, and avoid reusing artists already featured in recent episodes unless
   framing a genuinely different story.
 - For each idea, provide:
-  - `title`: compelling, specific episode title;
+  - `title`: short, punchy episode title in natural language (at most 60
+    characters, roughly 2–6 words). Keep only the core title with no subtitle or
+    description, never include a colon (`:`), never use a two-part comma
+    structure (`X, Y`), and do not include an episode number;
   - `premise`: the central human question and why a curious outsider would care;
   - `angle`: a concrete causal story arc (people, turning points, choices,
     consequences — never a generic band biography or trivia list);

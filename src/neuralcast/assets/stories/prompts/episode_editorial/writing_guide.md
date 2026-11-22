@@ -128,7 +128,10 @@ One host passage has one whole-passage max_words estimate. Word counts,
 narration budgets and episode duration are advisory starting estimates. Develop
 the story at its natural length; do not pad or trim to meet a fixed limit.
 Scripts may be up to 30,000 characters; that capacity is not a target.
-Use short companion/chapter titles, at most 40
+Keep episode titles short, punchy and in natural single-phrase language (at most
+60 characters): no colon, no subtitle or description, no two-part comma
+structure (`X, Y`), and no episode number. Use short companion/chapter titles,
+at most 40
 characters. The renderer inserts 1.5 seconds of silence before every host
 passage, inside that chapter and outside the speech budget. Do not duplicate it
 with a mandatory leading pause tag. Estimates include music, speech, tags and

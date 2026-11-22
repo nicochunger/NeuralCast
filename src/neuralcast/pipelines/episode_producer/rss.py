@@ -83,6 +83,17 @@ def cover_path(station: str) -> Path:
     return path
 
 
+def episode_title(value: dict[str, Any]) -> str:
+    title = value["title"]
+    number = value.get("episode_number")
+    if number is None:
+        return title
+    prefix = f"#{number:03d}"
+    if title.startswith(f"{prefix} ") or title == prefix:
+        return title
+    return f"{prefix} {title}"
+
+
 def short_title(value: str) -> str:
     value = " ".join(value.split())
     if len(value) <= CHAPTER_TITLE_LIMIT:
@@ -189,7 +200,7 @@ def feed(station: str) -> bytes:
         prefix = f"/public/episodes/{station}/{value['id']}"
         item = ET.SubElement(channel, "item")
         for name, text in (
-            ("title", value["title"]),
+            ("title", episode_title(value)),
             ("description", value["description"]),
             ("link", episode_link(config, station, value["id"])),
             (

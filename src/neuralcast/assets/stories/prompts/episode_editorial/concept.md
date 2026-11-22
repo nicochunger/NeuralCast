@@ -21,5 +21,9 @@ Instructions must require all selected songs in the listed order. Flag
 recording-edition questions in the brief without claiming to have listened.
 
 Return Concept JSON with title, premise, outline, instructions,
-candidate_songs and initial_research. Do not approve the concept, write
+candidate_songs and initial_research. Keep `title` short, punchy and in natural
+language (at most 60 characters, roughly 2–6 words): use only the core title
+with no subtitle or description, never include a colon (`:`), never use a
+two-part comma structure (`X, Y`), and do not include an episode number. Do not
+approve the concept, write
 narration, change files, download media, render, upload, delegate or publish.

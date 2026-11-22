@@ -871,3 +871,62 @@ def test_weekly_auto_publish_runs_end_to_end_and_stops_on_blockers(rig, monkeypa
     blocked = w.weekly()
     assert blocked["status"] == "blocked"
     assert [a for a, _ in actions] == ["develop", "write"]
+
+
+@pytest.mark.parametrize(
+    "bad_title",
+    [
+        "Paganini en amplificador: la fiebre del virtuosismo",
+        "#007 Paganini en amplificador",
+        "Una historia demasiado larga para ser un título breve y directo del episodio",
+    ],
+)
+def test_workspace_topic_and_concept_reject_colons_numbers_and_long_titles(bad_title):
+    from pydantic import ValidationError
+    from neuralcast.pipelines.episode_producer.workspace_models import Concept, Topic
+
+    with pytest.raises(ValidationError):
+        Topic(title=bad_title, premise="Premise", angle="Angle")
+    with pytest.raises(ValidationError):
+        Concept(
+            title=bad_title,
+            premise="Premise",
+            outline=["One"],
+            instructions="Use all songs.",
+            candidate_songs=[
+                Music(
+                    kind="music",
+                    id="song",
+                    playlist="Classic Metal",
+                    artist="Artist",
+                    title="Song",
+                    rationale="Fits",
+                )
+            ],
+        )
+
+
+def test_workspace_topic_and_concept_accept_short_punchy_titles():
+    from neuralcast.pipelines.episode_producer.workspace_models import Concept, Topic
+
+    topic = Topic(
+        title="Paganini en amplificador", premise="Premise", angle="Angle"
+    )
+    assert topic.title == "Paganini en amplificador"
+    concept = Concept(
+        title="El susurro que cruzó el océano",
+        premise="Premise",
+        outline=["One"],
+        instructions="Use all songs.",
+        candidate_songs=[
+            Music(
+                kind="music",
+                id="song",
+                playlist="Classic Metal",
+                artist="Artist",
+                title="Song",
+                rationale="Fits",
+            )
+        ],
+    )
+    assert concept.title == "El susurro que cruzó el océano"
