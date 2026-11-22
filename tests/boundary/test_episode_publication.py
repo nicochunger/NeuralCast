@@ -320,7 +320,7 @@ def test_rss_identity_survives_renumbering_metadata_and_origin_changes(
     assert after.find("guid").get("isPermaLink") == "false"
     assert before.findtext("pubDate") == after.findtext("pubDate")
     assert after.findtext(f"{{{rss.ITUNES}}}episode") == "7"
-    assert after.findtext("title") == "#007 A different title"
+    assert after.findtext("title") == "#007 - A different title"
     assert (
         after.find("enclosure").get("url").startswith("https://radio.example/prefix/")
     )
@@ -429,15 +429,15 @@ def test_episode_title_formats_three_digit_number_prefix():
     assert rss.episode_title({"title": "Laberintos humanos"}) == "Laberintos humanos"
     assert (
         rss.episode_title({"title": "Laberintos humanos", "episode_number": 3})
-        == "#003 Laberintos humanos"
+        == "#003 - Laberintos humanos"
     )
     assert (
         rss.episode_title({"title": "Laberintos humanos", "episode_number": 42})
-        == "#042 Laberintos humanos"
+        == "#042 - Laberintos humanos"
     )
     assert (
-        rss.episode_title({"title": "#003 Laberintos humanos", "episode_number": 3})
-        == "#003 Laberintos humanos"
+        rss.episode_title({"title": "#003 - Laberintos humanos", "episode_number": 3})
+        == "#003 - Laberintos humanos"
     )
 
 

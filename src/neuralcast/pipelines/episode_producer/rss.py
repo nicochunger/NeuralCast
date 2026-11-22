@@ -97,9 +97,13 @@ def episode_title(value: dict[str, Any]) -> str:
     if number is None:
         return title
     prefix = f"#{number:03d}"
-    if title.startswith(f"{prefix} ") or title == prefix:
+    if (
+        title.startswith(f"{prefix} - ")
+        or title.startswith(f"{prefix} ")
+        or title == prefix
+    ):
         return title
-    return f"{prefix} {title}"
+    return f"{prefix} - {title}"
 
 
 def short_title(value: str) -> str:
