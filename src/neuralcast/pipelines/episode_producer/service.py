@@ -21,7 +21,7 @@ from .models import Music, Plan, Proposal
 from .storage import Project, digest, file_hash, read_json, write_json
 from .library import resolve_recording, extract_artwork
 from .narration import writing_settings, prepare_narration
-from .rendering import HOST_LEAD_IN_SECONDS, render
+from .rendering import RENDER_POLICY, render
 from .manuscript import require_manuscript_approval
 
 
@@ -62,7 +62,7 @@ def validated_inputs(
             "plan": plan.model_dump(),
             "recordings": recordings,
             "settings": settings,
-            "rendering": {"host_lead_in_seconds": HOST_LEAD_IN_SECONDS},
+            "rendering": RENDER_POLICY,
             "target": {
                 "station": channel.azuracast_station,
                 "station_id": channel.azuracast_station_id,

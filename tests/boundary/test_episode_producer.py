@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from neuralcast.pipelines.episode_producer import service, presentation
+from neuralcast.pipelines.episode_producer import rendering, service, presentation
 from neuralcast.pipelines.episode_producer.models import Plan, Proposal
 from neuralcast.pipelines.episode_producer.manuscript import (
     approve_manuscript,
@@ -603,7 +603,7 @@ def test_render_identity_includes_audio_policy_and_reuses_receipt(production):
             "plan": plan.model_dump(),
             "recordings": inputs["recordings"],
             "settings": inputs["settings"],
-            "rendering": {"host_lead_in_seconds": 1.5},
+            "rendering": rendering.RENDER_POLICY,
             "target": {
                 "station": channel.azuracast_station,
                 "station_id": channel.azuracast_station_id,

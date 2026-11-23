@@ -324,9 +324,63 @@ def test_render_has_exact_chapter_order_and_cleans_scratch(tmp_path, monkeypatch
     assert not list(tmp_path.glob("*.wav"))
     assert not (tmp_path / "concat.txt").exists()
     assert output.read_bytes() == b"episode"
-    for command in commands[:3]:
-        assert "loudnorm=I=-18:TP=-1.5:LRA=11" in command
+    assert rendering.COMMENTARY_AUDIO_FILTER in commands[0]
+    assert rendering.MUSIC_AUDIO_FILTER in commands[1]
+    assert rendering.COMMENTARY_AUDIO_FILTER in commands[2]
     assert not list(tmp_path.glob("*.wav"))
+
+
+def test_trim_wav_silence_trims_outer_silence_and_preserves_inner_quiet(tmp_path):
+    from array import array
+    import math
+
+    rate = rendering.RATE
+    # 1.0s silence + 0.5s tone + 1.0s inner silence + 0.5s tone + 2.0s trailing silence = 5.0s
+    samples = array("h")
+
+    def add_silence(seconds: float) -> None:
+        samples.extend([0] * (round(seconds * rate) * 2))
+
+    def add_tone(seconds: float, amp: int = 8000) -> None:
+        frames = round(seconds * rate)
+        for i in range(frames):
+            val = int(amp * math.sin(2 * math.pi * 440 * i / rate))
+            samples.append(val)
+            samples.append(val)
+
+    add_silence(1.0)
+    add_tone(0.5)
+    add_silence(1.0)
+    add_tone(0.5)
+    add_silence(2.0)
+
+    wav = tmp_path / "song.wav"
+    with wave.open(str(wav), "wb") as stream:
+        stream.setnchannels(2)
+        stream.setsampwidth(2)
+        stream.setframerate(rate)
+        stream.writeframes(samples.tobytes())
+
+    trimmed_lead, trimmed_trail = rendering.trim_wav_silence(wav)
+    assert 0.9 <= trimmed_lead <= 1.0
+    assert 1.75 <= trimmed_trail <= 1.85
+    with wave.open(str(wav), "rb") as stream:
+        duration = stream.getnframes() / stream.getframerate()
+    # 0.05s leading pad + 2.0s content (including inner silence) + 0.2s trailing pad ≈ 2.25s
+    assert 2.2 <= duration <= 2.35
+
+
+def test_trim_wav_silence_leaves_all_silent_and_tight_audio_untouched(tmp_path):
+    rate = rendering.RATE
+    silent = tmp_path / "silent.wav"
+    with wave.open(str(silent), "wb") as stream:
+        stream.setnchannels(2)
+        stream.setsampwidth(2)
+        stream.setframerate(rate)
+        stream.writeframes(b"\0" * rate * 4)
+    assert rendering.trim_wav_silence(silent) == (0.0, 0.0)
+    with wave.open(str(silent), "rb") as stream:
+        assert stream.getnframes() == rate
 
 
 def test_project_lock_prevents_concurrent_production(tmp_path):

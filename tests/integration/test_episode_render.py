@@ -104,3 +104,82 @@ def test_real_short_episode_render(tmp_path, kinds):
         else:
             assert abs(chapter["end"] - start - 1) < 0.05
             assert rms(start + 0.2, start + 0.7) > 100
+
+
+@pytest.mark.integration
+@pytest.mark.allow_external_calls
+def test_real_render_trims_music_silence_and_lifts_commentary_over_music(tmp_path):
+    def write_wav(path, segments):
+        with wave.open(str(path), "wb") as stream:
+            stream.setnchannels(1)
+            stream.setsampwidth(2)
+            stream.setframerate(44100)
+            for seconds, amp, freq in segments:
+                frames = round(seconds * 44100)
+                if amp == 0:
+                    stream.writeframes(b"\0" * frames * 2)
+                else:
+                    stream.writeframes(
+                        b"".join(
+                            struct.pack(
+                                "<h",
+                                int(amp * math.sin(2 * math.pi * freq * i / 44100)),
+                            )
+                            for i in range(frames)
+                        )
+                    )
+
+    host_path = tmp_path / "host.wav"
+    music_path = tmp_path / "music.wav"
+    write_wav(host_path, [(2.0, 4000, 300)])
+    # 1.5s dead leading silence + 2.0s music + 2.5s dead trailing silence = 6.0s raw
+    write_wav(music_path, [(1.5, 0, 0), (2.0, 4000, 440), (2.5, 0, 0)])
+
+    output, chapters, duration = render(
+        [
+            {"id": "intro", "kind": "commentary", "path": str(host_path), "title": "Intro"},
+            {"id": "song", "kind": "music", "path": str(music_path), "title": "Song"},
+        ],
+        tmp_path / "render",
+        "Trim and loudness test",
+        "es-AR",
+    )
+    assert output.exists()
+    assert duration > 0
+    music_duration = chapters[1]["end"] - chapters[1]["start"]
+    # Trimmed from 6.0s down to ~2.25s (2.0s tone + 0.05s lead pad + 0.2s tail pad)
+    assert 2.1 <= music_duration <= 2.45
+
+    decoded = tmp_path / "decoded.wav"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-nostdin",
+            "-v",
+            "error",
+            "-i",
+            str(output),
+            "-ac",
+            "1",
+            "-ar",
+            "44100",
+            "-c:a",
+            "pcm_s16le",
+            str(decoded),
+        ],
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    with wave.open(str(decoded), "rb") as stream:
+        samples = struct.unpack(
+            "<" + "h" * stream.getnframes(), stream.readframes(stream.getnframes())
+        )
+
+    def rms(start, end):
+        window = samples[round(start * 44100) : round(end * 44100)]
+        return math.sqrt(sum(value * value for value in window) / len(window))
+
+    host_rms = rms(chapters[0]["start"] + HOST_LEAD_IN_SECONDS + 0.3, chapters[0]["end"] - 0.3)
+    music_rms = rms(chapters[1]["start"] + 0.3, chapters[1]["end"] - 0.4)
+    assert host_rms > music_rms * 1.15
