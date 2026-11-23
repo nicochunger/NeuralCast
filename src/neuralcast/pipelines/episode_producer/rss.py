@@ -76,19 +76,30 @@ def episode_link(config: Settings, station: str, episode_id: str) -> str:
     return public_url(config, f"/public/episodes/{station}/{episode_id}")
 
 
-def cover_path(station: str) -> Path:
+def cover_path(station: str, *, fmt: str = "png") -> Path:
     show_settings(station, settings())
-    path = ASSET_DIRECTORY / f"{station}-cover.png"
+    if fmt not in {"png", "jpg"}:
+        raise ValueError("Unsupported podcast cover format")
+    path = ASSET_DIRECTORY / f"{station}-cover.{fmt}"
     if not path.is_file():
         raise FileNotFoundError("Podcast cover unavailable")
     return path
 
 
-def cover_version(station: str) -> str | None:
-    path = ASSET_DIRECTORY / f"{station}-cover.png"
-    if not path.is_file():
+def rss_cover_path(station: str) -> Path:
+    show_settings(station, settings())
+    for fmt in ("jpg", "png"):
+        path = ASSET_DIRECTORY / f"{station}-cover.{fmt}"
+        if path.is_file():
+            return path
+    raise FileNotFoundError("Podcast cover unavailable")
+
+
+def cover_version(station: str, *, path: Path | None = None) -> str | None:
+    target = path or (ASSET_DIRECTORY / f"{station}-cover.png")
+    if not target.is_file():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    return hashlib.sha256(target.read_bytes()).hexdigest()[:12]
 
 
 def episode_title(value: dict[str, Any]) -> str:
@@ -172,9 +183,17 @@ def feed(station: str) -> bytes:
     config = settings()
     show = show_settings(station, config)
     feed_url = public_url(config, f"/public/podcasts/{station}/feed.xml")
-    version = cover_version(station)
-    cover_suffix = f"?v={version}" if version else ""
-    cover_url = public_url(config, f"/public/podcasts/{station}/cover.png{cover_suffix}")
+    jpg_cover = ASSET_DIRECTORY / f"{station}-cover.jpg"
+    if jpg_cover.is_file():
+        version = cover_version(station, path=jpg_cover)
+        cover_name = f"cover-{version}.jpg" if version else "cover.jpg"
+        cover_url = public_url(config, f"/public/podcasts/{station}/{cover_name}")
+    else:
+        version = cover_version(station)
+        cover_suffix = f"?v={version}" if version else ""
+        cover_url = public_url(
+            config, f"/public/podcasts/{station}/cover.png{cover_suffix}"
+        )
     link = (
         f"{str(config.website_base_url).rstrip('/')}/episodes?station={station}"
         if config.website_base_url

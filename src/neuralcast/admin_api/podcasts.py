@@ -46,13 +46,40 @@ def podcast_router() -> APIRouter:
     @router.head("/public/podcasts/{station}/cover.png", include_in_schema=False)
     def cover(station: str) -> FileResponse:
         try:
-            path = rss.cover_path(station)
+            path = rss.cover_path(station, fmt="png")
         except (OSError, ValueError) as exc:
             raise HTTPException(status_code=404, detail="No podcast cover") from exc
         return FileResponse(
             path,
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=3600"},
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
+    @router.get("/public/podcasts/{station}/cover.jpg")
+    @router.head("/public/podcasts/{station}/cover.jpg", include_in_schema=False)
+    @router.get("/public/podcasts/{station}/cover-{version}.jpg")
+    @router.head(
+        "/public/podcasts/{station}/cover-{version}.jpg", include_in_schema=False
+    )
+    def cover_jpg(station: str, version: str | None = None) -> FileResponse:
+        if version is not None and (
+            len(version) != 12 or any(c not in "0123456789abcdef" for c in version)
+        ):
+            raise HTTPException(status_code=404, detail="No podcast cover")
+        try:
+            path = rss.cover_path(station, fmt="jpg")
+        except (OSError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail="No podcast cover") from exc
+        return FileResponse(
+            path,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
     @router.get("/public/episodes/{station}/{episode_id}/chapters.json")

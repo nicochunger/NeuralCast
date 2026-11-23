@@ -425,6 +425,24 @@ def test_chapter_titles_fit_app(title):
     assert result == result.strip() and "  " not in result
 
 
+def test_rss_prefers_path_versioned_jpeg_cover_when_present(episode, podcast_assets):
+    project, receipt, _, _ = episode
+    publication.publish(project, receipt["render_hash"])
+    jpg = podcast_assets / "neuralforge-cover.jpg"
+    jpg.write_bytes(b"\xff\xd8\xff\xe0jpeg-cover")
+    version = rss.cover_version("neuralforge", path=jpg)
+    with TestClient(create_app(job_manager=Mock(), station_service=Mock())) as client:
+        feed = client.get("/public/podcasts/neuralforge/feed.xml")
+        assert feed.status_code == 200
+        expected = f"https://neuralcast.duckdns.org/admin-http/public/podcasts/neuralforge/cover-{version}.jpg"
+        assert expected in feed.text
+        img = client.get(f"/public/podcasts/neuralforge/cover-{version}.jpg")
+        assert img.status_code == 200
+        assert img.headers["content-type"] == "image/jpeg"
+        assert img.content == b"\xff\xd8\xff\xe0jpeg-cover"
+        assert client.get("/public/podcasts/neuralforge/cover-invalid!.jpg").status_code == 404
+
+
 def test_episode_title_formats_three_digit_number_prefix():
     assert rss.episode_title({"title": "Laberintos humanos"}) == "Laberintos humanos"
     assert (
@@ -487,15 +505,16 @@ def test_show_covers_are_public_square_and_match_feed(episode, podcast_assets):
                 client.get(f"/public/podcasts/{station}/feed.xml").content
             )
             url = feed.find(f"./channel/{{{rss.ITUNES}}}image").get("href")
-            assert "?v=" in url
+            assert f"/public/podcasts/{station}/cover-" in url and url.endswith(".jpg")
             path = url.removeprefix("https://neuralcast.duckdns.org/admin-http")
             response = client.get(path)
             assert (
                 response.status_code == 200
-                and response.headers["content-type"] == "image/png"
+                and response.headers["content-type"] == "image/jpeg"
             )
             image = Image.open(BytesIO(response.content))
-            assert image.width == image.height and image.width >= 1000
+            assert image.mode == "RGB"
+            assert image.width == image.height and image.width >= 1400
             assert client.head(path).headers["content-length"] == str(
                 len(response.content)
             )
