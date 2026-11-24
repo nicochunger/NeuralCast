@@ -62,6 +62,7 @@ from .favorites import FavoriteStore
 from .discovery import discovery_router
 from .episodes import episodes_router
 from neuralcast.pipelines.episode_producer.workspace import Workspace
+from .atlas import atlas_router
 from .podcasts import podcast_router
 from neuralcast.pipelines.music_discovery.service import DiscoveryService
 from .stations import AdminStationService, StationServiceConfigError
@@ -426,6 +427,7 @@ def create_app(
     app.state.discovery_factory = discovery_factory
     app.include_router(discovery_router(require_admin_token))
     app.include_router(podcast_router())
+    app.include_router(atlas_router())
 
     # Intentionally public, read-only routes. The explicit publication catalogue
     # is the allowlist; previews and administrative data are never exposed.
