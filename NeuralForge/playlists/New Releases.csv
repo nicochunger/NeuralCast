@@ -1,11 +1,21 @@
 Artist,Title,Album,Year,Validated
 Fir Bolg,Vae Victis,Vae Victis - Single,2026,True
+Fir Bolg,Yule,Triskelion,2026,True
+Frozen Shield,A Cry for Adelar,A Cry for Adelar,2026,True
+SuidAkrA,Dawnbringer,Dawnbringer,2026,True
+Týr,Bloodsworn,Týr,2026,True
+Seventh Wonder,Silver Lining,Silver Lining,2026,True
+Airbourne,Send Me To Rock 'N' Roll Heaven,Send Me To Rock 'N' Roll Heaven,2026,True
+Vanishing Point,Sirens,Eremition,2026,True
 Audiomachine,Deck the Halls,'Twas the Night,2026,True
 Celtian,La Lira Encantada (En Directo - La Riviera),Desde Las Raíces (En Directo - La Riviera),2026,True
 Cruachan,A Poet’s Lament,A Poet’s Lament,2026,True
+Swallow the Sun,Night Behind The Night (feat. Crown Lands),Night Behind The Night (feat. Crown Lands),2026,True
 Within Temptation,Through Fire & Ashes,Through Fire & Ashes,2026,True
 Serenity,Melancholia,Melancholia,2026,True
 Seven Kingdoms,Dissonance,Dissonance,2026,True
+Subway to Sally,We Will Folk You,We Will Folk You,2026,True
+Vanishing Point,Eremition,Eremition,2026,True
 Stratovarius,Sammumaton (Vain elämää kausi 17),Sammumaton (Vain elämää kausi 17),2026,True
 Def Leppard,We Belong (Joe Only Vox),Volume Four: The Rarities,2026,True
 dArtagnan,Little Drummer Boy,Little Drummer Boy,2026,True
@@ -20,6 +30,7 @@ Yrzen,Misunderstood,Trialvod,2026,True
 The Foreshadowing,Even If Some Day,Ozymandias,2026,True
 Celtian,Caricia Mordaz (En Directo - La Riviera),Desde Las Raíces (En Directo - La Riviera),2026,True
 Tyr,Slaughter Chords,Slaughter Chords,2026,True
+Black Forest,Nothin To Prove,,2026,True
 Firewind,Firegod,"Gods, Myths and Titans",2026,True
 Tom Petty and the Heartbreakers,Sin City,Origins 1971-1978,2026,True
 Sabaton,Berserker,,2026,True
@@ -27,13 +38,16 @@ Trollfest,Day Drinking,Trollywood,2026,True
 Myrath,Still the Dawn Will Come,Still the Dawn Will Come,2026,True
 Saor,Aura MMXXVI,Caledonia,2026,True
 The Rumjacks,Down To Nothing,Down To Nothing,2026,True
+Vanishing Point,The Faceless,Eremition,2026,True
 Iron Mask,No Greener Lands,Crimson Prophecy,2026,True
 Pomegranate Tiger,Blind Giants,Blind Giants,2026,True
+Skid Row,Won't Get Fooled Again,Won't Get Fooled Again,2026,True
 Saxon,Medusa,Medusa,2026,True
 Dynazty,The Mission,Dark Arts,2026,True
 Voyager,Secret,Secret,2026,True
 Solemnity,Disgraceful,Disgraceful,2026,True
 Polyphia,LET THERE BE LIGHT,BE NOT AFRAID,2026,True
+Dragonland,The Call of the Wild,Prophecies,2026,True
 Polyphia,WITH EYES TO SEE,BE NOT AFRAID,2026,True
 Adagio,DAME MAS,Dame Mas - Single,2026,True
 Deep Purple,Splat!,Splat!,2026,True
@@ -46,6 +60,7 @@ Tyr,The Guardian Lie,The Guardian Lie,2026,True
 Threshold,Stillwater,Stillwater - Single,2026,True
 Lars Eric Mattsson,I Can See in Infrared,I Can See in Infrared,2026,True
 Insomnium,"The Hour Grows Late (feat. Tomi Joutsen, Tomi Koivusaari & Santeri Kallio)",Netherworlds,2026,True
+Gloryhammer,Starfighters of Leuchars,Space 1993: Wrath of Kor-Virliath,2026,True
 Temperance,The Magician: Into the Fire,Arcani,2026,True
 Myrath,Echoes of the Fallen,Echoes of the Fallen,2026,True
 Tarja,Tango,Tango,2026,True
@@ -94,6 +109,7 @@ Euphoreon,Gravity,Gravity,2026,True
 Anthrax,It's For The Kids,Cursum Perficio,2026,True
 Anthrax,The Long Goodbye,Cursum Perficio,2026,True
 Anthrax,Everybody's Got A Plan,Cursum Perficio,2026,True
+Sabaton,Templars (feat. Pop Evil),Templars (feat. Pop Evil),2026,True
 dArtagnan,Was wollen wir trinken (feat. Druckluft),Was wollen wir trinken (feat. Druckluft),2026,True
 Owane,everything we never did,everything we never did,2026,True
 The Ocean,Milk Of My Dreams,Milk Of My Dreams,2026,True
@@ -141,9 +157,11 @@ Polyphia,POWER IN THE BLOOD,POWER IN THE BLOOD,2026,True
 Frozen Crown,Who Wants to Burn in Heaven,Who Wants to Burn in Heaven,2026,True
 Iron Savior,The Creature's Tale,Deathbringer,2026,True
 Russian Circles,Seventh Seal,Seventh Seal,2026,True
+Russian Circles,Borehole,Nine,2026,True
 Russian Circles,Empath,Nine,2026,True
 Tokyo Blade,Screaming Evil,Hoist The Colours High,2026,True
 Tokyo Blade,She Was A Soldier,Hoist The Colours High,2026,True
+Noveria,Heavenfall,Becoming After,2026,True
 Jefferson Starship,Jetpack,Jetpack - Single,2026,True
 Tokyo Blade,Hoist the Colours High,Hoist The Colours High,2026,True
 Noveria,The Only Way,Becoming After,2026,True
